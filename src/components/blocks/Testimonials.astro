@@ -50,10 +50,18 @@ const {
 } = Astro.props;
 
 const itempropName = productName ?? `${siteName} Website-Service`;
+const avgRating = items.length > 0
+  ? (items.reduce((s, t) => s + t.stars, 0) / items.length).toFixed(1)
+  : '5.0';
 ---
 {items.length > 0 && (
 <section class="testimonials-section" itemscope itemtype="https://schema.org/Product">
   <meta itemprop="name" content={itempropName} />
+  <div itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating" style="display:none">
+    <meta itemprop="ratingValue" content={avgRating} />
+    <meta itemprop="reviewCount" content={String(items.length)} />
+    <meta itemprop="bestRating" content="5" />
+  </div>
   <div class="container">
     <div class="section-header">
       <h2 class="section-heading">{heading}</h2>

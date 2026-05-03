@@ -2,8 +2,10 @@
 /**
  * @cw/core – FAQ.astro
  *
- * Accordion FAQ list with Schema.org FAQPage JSON-LD for Google + AI
- * discoverability. Prop-driven: no `@/data/site-data` import.
+ * Accordion FAQ list. Prop-driven: no `@/data/site-data` import.
+ *
+ * Schema: FAQPage JSON-LD is emitted by SchemaOrg.astro — do NOT add
+ * a second JSON-LD block here. FAQ.astro renders HTML only.
  *
  * @example
  *   <FAQ items={siteData.faqs} />
@@ -37,16 +39,6 @@ const {
       <h2 class="section-heading">{heading}</h2>
       <p class="section-subheading">{subheading}</p>
     </div>
-
-    <script type="application/ld+json" is:inline set:html={JSON.stringify({
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: items.map(item => ({
-        '@type': 'Question',
-        name: item.q,
-        acceptedAnswer: { '@type': 'Answer', text: item.a },
-      })),
-    })} />
 
     <div class="faq-list">
       {items.map((item) => (
