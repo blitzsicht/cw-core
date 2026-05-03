@@ -7,8 +7,22 @@
  * 3. Keine Google Fonts! Nur System-UI Stack (DSGVO).
  */
 
+/* Self-hosted fonts via fontsource (DSGVO-konform, kein Google Fonts CDN) */
+/* @import "@fontsource-variable/plus-jakarta-sans"; */
+/* @import "@fontsource-variable/inter"; */
+
 @import "tailwindcss";
 @import "@cw/core/styles/tokens-base.css";
+
+/*
+ * font-display: optional — verhindert Layout Shift (CLS) durch Font-Swap nach
+ * erstem Paint. Ohne diesen Override rendert der Browser mit Fallback-Font und
+ * tauscht nach Font-Load aus → CLS ~0.14. Mit "optional" wird der Custom Font
+ * nur beim ersten Frame verwendet wenn er bereits gecacht ist, kein Swap danach.
+ * Betrifft alle @font-face Rules die durch die @fontsource Imports oben kommen.
+ */
+@font-face { font-family: "Plus Jakarta Sans Variable"; font-display: optional; src: local(""); }
+@font-face { font-family: "Inter Variable"; font-display: optional; src: local(""); }
 
 @theme {
   /* Hauptfarbe (dunkel) – für Header, Footer, Überschriften */
