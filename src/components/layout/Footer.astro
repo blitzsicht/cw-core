@@ -130,7 +130,7 @@ const copyrightOwner = owner ?? siteName;
           </a>
         )}
         {phone && (
-          <a href={`tel:${phone}`} class="contact-link">
+          <a href={`tel:${phone.replace(/\s/g, '')}`} class="contact-link">
             {phone}
           </a>
         )}

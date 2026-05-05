@@ -2,17 +2,22 @@
 /**
  * @cw/core – Testimonials.astro
  *
- * Customer testimonial grid with Schema.org Review markup. Prop-driven:
- * no `@/data/site-data` import.
+ * Marquee-Karussell (kontinuierlich nach links scrollend) für verifizierte
+ * Kundenstimmen mit Schema.org Review-Markup. Hover/Focus pausiert die
+ * Animation, prefers-reduced-motion fällt auf eine statische Centered-Wrap
+ * zurück.
+ *
+ * Dies hat in v0.9.1 die Tilt-Grid-Variante ersetzt — Karussell macht den
+ * sozialen Beweis kinetisch, lässt mehr Stimmen sichtbar als ein 3-Karten-
+ * Grid und passt zu jeder Anzahl an Items, ohne das Layout zu kippen.
+ *
+ * Aggregate-Rating wird automatisch aus den Sternen errechnet und als
+ * sichtbarer (nicht display:none) Schema-Knoten ausgespielt — Google
+ * akzeptiert nur sichtbares Markup als Quelle für Rich Snippets.
  *
  * @example
  *   <Testimonials items={siteData.testimonials} siteName={siteData.name} />
- *
- * Tilt caveat: on text-heavy testimonials, 3D tilt reduces readability.
- * Default `tilt={false}`; only enable after visual check, and consider
- * passing a smaller `maxTilt` to `<TiltCard>` via a custom wrapper.
  */
-import TiltCard from '../motion/TiltCard.astro';
 
 export interface Testimonial {
   /** Star rating (1-5). */
@@ -36,8 +41,6 @@ interface Props {
   subheading?: string;
   /** Optional override for the Product itemprop name (defaults to `${siteName} Website-Service`). */
   productName?: string;
-  /** Wrap each testimonial in `<TiltCard>` with mild `maxTilt={4}` (default true). */
-  tilt?: boolean;
 }
 
 const {
@@ -46,84 +49,149 @@ const {
   heading = 'Das sagen unsere Kunden',
   subheading = 'Bewertungen von Unternehmen aus der Region.',
   productName,
-  tilt = true,
 } = Astro.props;
 
 const itempropName = productName ?? `${siteName} Website-Service`;
+const loop = [...items, ...items];
 const avgRating = items.length > 0
   ? (items.reduce((s, t) => s + t.stars, 0) / items.length).toFixed(1)
   : '5.0';
 ---
 {items.length > 0 && (
-<section class="testimonials-section" itemscope itemtype="https://schema.org/Product">
+<section class="testimonials-marquee" itemscope itemtype="https://schema.org/Product">
   <meta itemprop="name" content={itempropName} />
-  <div itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating" style="display:none">
+  <div itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
     <meta itemprop="ratingValue" content={avgRating} />
     <meta itemprop="reviewCount" content={String(items.length)} />
     <meta itemprop="bestRating" content="5" />
+    <meta itemprop="worstRating" content="1" />
   </div>
   <div class="container">
     <div class="section-header">
       <h2 class="section-heading">{heading}</h2>
       <p class="section-subheading">{subheading}</p>
     </div>
+  </div>
 
-    <div class="testimonials-grid">
-      {items.map((t) => {
-        const card = (
-          <div class="testimonial-card" itemprop="review" itemscope itemtype="https://schema.org/Review">
-            <div class="stars" itemprop="reviewRating" itemscope itemtype="https://schema.org/Rating">
-              <meta itemprop="ratingValue" content={String(t.stars)} />
-              <meta itemprop="bestRating" content="5" />
-              {'★'.repeat(t.stars)}
-            </div>
-            <blockquote itemprop="reviewBody">{t.text}</blockquote>
-            <div class="author" itemprop="author" itemscope itemtype="https://schema.org/Person">
-              <strong itemprop="name">{t.name}</strong>
-              <span>{t.role}</span>
-            </div>
+  <div class="track-wrap" role="region" aria-label="Kundenbewertungen (scrollend)">
+    <div class="track">
+      {loop.map((t, i) => (
+        <div
+          class="testimonial-card"
+          itemprop="review"
+          itemscope
+          itemtype="https://schema.org/Review"
+          aria-hidden={i >= items.length ? 'true' : undefined}
+        >
+          <div class="stars" itemprop="reviewRating" itemscope itemtype="https://schema.org/Rating">
+            <meta itemprop="ratingValue" content={String(t.stars)} />
+            <meta itemprop="bestRating" content="5" />
+            {'★'.repeat(t.stars)}
           </div>
-        );
-        return tilt ? <TiltCard maxTilt={4} scale={1.02}>{card}</TiltCard> : card;
-      })}
+          <blockquote itemprop="reviewBody">{t.text}</blockquote>
+          <div class="author" itemprop="author" itemscope itemtype="https://schema.org/Person">
+            <strong itemprop="name">{t.name}</strong>
+            <span>{t.role}</span>
+          </div>
+        </div>
+      ))}
     </div>
   </div>
 </section>
 )}
 
 <style>
-  .testimonials-section { padding: 5rem 0; background: var(--color-surface); }
-  .section-header { text-align: center; margin-bottom: 3rem; }
-  .testimonials-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2rem;
-    max-width: 64rem;
-    margin-inline: auto;
+  .testimonials-marquee {
+    padding: 5rem 0;
+    background: var(--color-surface, #f8f9fb);
+    overflow: hidden;
   }
+  .container {
+    max-width: var(--container-max, 72rem);
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+  .section-header { text-align: center; margin-bottom: 3rem; }
+  .section-heading {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0 0 0.75rem;
+  }
+  .section-subheading {
+    font-size: 1.0625rem;
+    color: var(--color-muted, #6b7280);
+    margin: 0;
+  }
+
+  .track-wrap {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+  .track {
+    display: flex;
+    gap: 1.5rem;
+    width: max-content;
+    padding: 1rem 2rem;
+    animation: cw-testimonials-slide 45s linear infinite;
+  }
+  .track:hover,
+  .track:focus-within { animation-play-state: paused; }
+
   .testimonial-card {
+    flex: 0 0 auto;
+    width: 320px;
     background: white;
-    border-radius: 0.75rem;
-    padding: 2rem;
+    border-radius: 0.875rem;
     border: 1px solid #e5e7eb;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
   }
   .stars {
     color: var(--color-accent);
-    font-size: 1.25rem;
-    margin-bottom: 1rem;
+    font-size: 1.125rem;
     letter-spacing: 2px;
   }
   blockquote {
+    margin: 0;
     font-size: 0.9375rem;
-    line-height: 1.7;
+    line-height: 1.75;
     color: var(--color-primary);
-    margin: 0 0 1.25rem;
     font-style: normal;
+    flex: 1;
   }
-  .author strong { display: block; font-size: 0.9375rem; }
-  .author span { font-size: 0.8125rem; color: var(--color-muted); }
-  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
-  @media (max-width: 768px) {
-    .testimonials-grid { grid-template-columns: 1fr; gap: 1.25rem; }
+  .author strong {
+    display: block;
+    font-size: 0.9375rem;
+    color: var(--color-primary);
+  }
+  .author span {
+    font-size: 0.8125rem;
+    color: var(--color-muted, #6b7280);
+  }
+
+  @keyframes cw-testimonials-slide {
+    from { transform: translate3d(0, 0, 0); }
+    /* -50% weil der Track die Items doppelt enthält — exakt eine
+       Set-Länge weiter überlappt das zweite Set mit dem Start. */
+    to   { transform: translate3d(-50%, 0, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .track {
+      animation: none;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      padding-inline: 1.5rem;
+    }
+    .track-wrap {
+      -webkit-mask-image: none;
+              mask-image: none;
+    }
+    .testimonial-card[aria-hidden="true"] { display: none; }
   }
 </style>

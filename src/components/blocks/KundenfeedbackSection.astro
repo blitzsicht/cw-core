@@ -1,10 +1,16 @@
 ---
 /**
- * KundenfeedbackSection — blockquote grid WITHOUT Schema.org Review markup.
+ * KundenfeedbackSection — Marquee-Karussell für anonymisierte Stimmen
+ * OHNE Schema.org Review-Markup.
  *
- * Alternative to Testimonials.astro for customers who have paraphrased
- * feedback quotes (not verified Google reviews). No star ratings, no
- * reviewer names — just anonymous quotes in a card grid.
+ * Alternative zu Testimonials.astro für Kunden mit paraphrasierten
+ * Aussagen (nicht von Google verifiziert). Keine Sterne, keine Namen —
+ * nur Zitate, die in einer kontinuierlich nach links scrollenden Bahn
+ * vorbeilaufen. Hover/Focus pausiert; prefers-reduced-motion fällt auf
+ * statisches Center-Wrap zurück (Duplikate werden ausgeblendet).
+ *
+ * Hat in v0.9.1 das 3-Spalten-Grid abgelöst — Karussell skaliert
+ * gleichmäßig für 3 wie für 30 Stimmen, ohne dass das Layout kippt.
  *
  * @example
  *   <KundenfeedbackSection
@@ -32,6 +38,8 @@ const {
   subheading,
   note,
 } = Astro.props;
+
+const loop = [...items, ...items];
 ---
 {items.length > 0 && (
 <section class="feedback-section">
@@ -40,17 +48,26 @@ const {
       <h2>{heading}</h2>
       {subheading && <p>{subheading}</p>}
     </div>
+  </div>
 
-    <div class="feedback-grid">
-      {items.map((f) => (
-        <blockquote class="feedback-card">
+  <div class="feedback-track-wrap" role="region" aria-label="Kundenstimmen (scrollend)">
+    <div class="feedback-track">
+      {loop.map((f, i) => (
+        <blockquote
+          class="feedback-card"
+          aria-hidden={i >= items.length ? 'true' : undefined}
+        >
           <p>{f.text}</p>
         </blockquote>
       ))}
     </div>
-
-    {note && <p class="feedback-note">{note}</p>}
   </div>
+
+  {note && (
+    <div class="container">
+      <p class="feedback-note">{note}</p>
+    </div>
+  )}
 </section>
 )}
 
@@ -58,6 +75,7 @@ const {
   .feedback-section {
     padding: var(--section-padding, 5rem) 0;
     background: var(--color-surface);
+    overflow: hidden;
   }
   .feedback-header {
     text-align: center;
@@ -76,31 +94,31 @@ const {
     font-size: 1rem;
     line-height: 1.55;
   }
-  .feedback-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+
+  .feedback-track-wrap {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+  .feedback-track {
+    display: flex;
     gap: 1.5rem;
+    width: max-content;
+    padding: 1rem 2rem;
+    animation: cw-feedback-slide 50s linear infinite;
   }
-  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
-  @media (max-width: 900px) {
-    .feedback-grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
-  @media (max-width: 560px) {
-    .feedback-grid { grid-template-columns: 1fr; }
-  }
+  .feedback-track:hover,
+  .feedback-track:focus-within { animation-play-state: paused; }
+
   .feedback-card {
+    flex: 0 0 auto;
+    width: 320px;
     background: white;
     border-radius: 0.75rem;
     padding: 1.75rem;
     border: 1px solid #e5e7eb;
     margin: 0;
     position: relative;
-    transition: box-shadow 0.2s, transform 0.2s;
-  }
-  .feedback-card:hover {
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
-    transform: translateY(-2px);
   }
   .feedback-card::before {
     content: "\201C";
@@ -121,6 +139,27 @@ const {
     color: var(--color-text, #1f2937);
     font-size: 0.9375rem;
   }
+
+  @keyframes cw-feedback-slide {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(-50%, 0, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feedback-track {
+      animation: none;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      padding-inline: 1.5rem;
+    }
+    .feedback-track-wrap {
+      -webkit-mask-image: none;
+              mask-image: none;
+    }
+    .feedback-card[aria-hidden="true"] { display: none; }
+  }
+
   .feedback-note {
     margin: 3rem auto 0;
     max-width: 44rem;
