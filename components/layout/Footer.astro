@@ -18,7 +18,7 @@ const karriereEnabled = siteData.karriere?.enabled !== false;
           {siteData.contact.email}
         </a>
         {siteData.contact.phone && (
-          <a href={`tel:${siteData.contact.phone}`} class="contact-link">
+          <a href={`tel:${siteData.contact.phone.replace(/\s/g, '')}`} class="contact-link">
             {siteData.contact.phone}
           </a>
         )}
