@@ -435,7 +435,17 @@ const motionCfg: HeroMotionConfig =
   /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
   @media (max-width: 640px) {
     .hero { padding: 3.5rem 0 3rem; }
-    .hero-cta { flex-direction: column; }
+    .hero-cta { flex-direction: column; align-items: stretch; }
     .hero-cta a { width: 100%; justify-content: center; }
+    /* Primary-CTA wird von MagneticButton in zwei inline-<span> gesteckt
+       (motion-magnetic > motion-magnetic-inner). Inline-Eltern fressen
+       das width:100% des inneren <a> auf, daher hier explizit auch die
+       Wrapper auf block + full-width zwingen. :global() weil die Spans
+       eine eigene astro-cid-Scope haben. */
+    .hero-cta :global(.motion-magnetic),
+    .hero-cta :global(.motion-magnetic-inner) {
+      display: block;
+      width: 100%;
+    }
   }
 </style>
