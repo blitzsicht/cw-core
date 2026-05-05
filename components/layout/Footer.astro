@@ -50,6 +50,10 @@ const karriereEnabled = siteData.karriere?.enabled !== false;
     <div class="footer-bottom">
       <p>© {year} {siteData.legal.owner} · {siteData.legal.form ?? 'Einzelunternehmen'} · {siteData.legal.city}</p>
       <p class="footer-tagline">{siteData.tagline}</p>
+      <p class="footer-credit">
+        Website by
+        <a href="https://blitzsicht.com" target="_blank" rel="noopener noreferrer">Blitzsicht</a>
+      </p>
     </div>
   </div>
 </footer>
@@ -119,6 +123,22 @@ const karriereEnabled = siteData.karriere?.enabled !== false;
     gap: 0.5rem;
   }
   .footer-tagline { font-style: italic; }
+  .footer-credit {
+    flex: 0 0 100%;
+    margin-top: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+  }
+  .footer-credit a {
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 0.25rem;
+  }
+  .footer-credit a:hover { color: white; text-decoration: underline; }
 
   @media (max-width: 767px) {
     .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
