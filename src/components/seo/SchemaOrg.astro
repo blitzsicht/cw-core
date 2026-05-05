@@ -5,11 +5,13 @@
  * Emits JSON-LD scripts into the `<head>`:
  *   1. LocalBusiness + ProfessionalService (+ optional additionalTypes)
  *   2. WebSite
- *   3. FAQPage (if `faqs` provided)
- *   4. Service (if `service` provided — for individual service pages)
+ *   3. Service (if `service` provided — for individual service pages)
  *
  * Prop-driven: no imports from customer data modules. Pass business data
  * from your site-data module (or wherever it lives).
+ *
+ * NOTE: FAQPage JSON-LD is emitted exclusively by FAQ.astro (the block component).
+ * Do NOT pass faqs to SchemaOrg — that would create duplicate FAQPage schemas.
  *
  * @example
  *   <SchemaOrg
@@ -26,7 +28,6 @@
  *     additionalTypes={['RealEstateAgent']}
  *     employees={siteData.team}
  *     services={siteData.services}
- *     faqs={pageFaqs}
  *   />
  */
 import type { WithContext, LocalBusiness, WebSite } from 'schema-dts';
@@ -68,11 +69,6 @@ export interface ServiceData {
   label: string;
   shortDesc?: string;
   href: string;
-}
-
-export interface FaqData {
-  question: string;
-  answer: string;
 }
 
 interface Props {
@@ -147,12 +143,6 @@ interface Props {
   service?: ServiceData;
 
   /**
-   * FAQ items for this page. Emits a FAQPage JSON-LD block.
-   * Should also be rendered visibly on the page for AEO compliance.
-   */
-  faqs?: FaqData[] | readonly FaqData[];
-
-  /**
    * Topics the business knows about. Emitted as `knowsAbout` on LocalBusiness.
    * Example: `['Immobilienbewertung', 'Verkehrswertgutachten']`
    */
@@ -190,7 +180,6 @@ const {
   employees,
   services,
   service,
-  faqs,
   knowsAbout,
   founder,
 } = Astro.props;
@@ -369,22 +358,6 @@ const webSiteSchema = {
   publisher: { '@id': orgId },
 } as unknown as WithContext<WebSite>;
 
-// FAQPage schema (standalone block)
-const faqSchema = faqs && faqs.length > 0
-  ? {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: [...faqs].map((faq) => ({
-        '@type': 'Question',
-        name: faq.question,
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: faq.answer,
-        },
-      })),
-    }
-  : null;
-
 // Standalone Service schema (for individual Leistungsseiten)
 const serviceSchema = service
   ? {
@@ -405,5 +378,4 @@ const serviceSchema = service
 <script is:inline type="application/ld+json" set:html={JSON.stringify(localBusinessSchema)} />
 <script is:inline type="application/ld+json" set:html={JSON.stringify(webSiteSchema)} />
 {founderSchema && <script is:inline type="application/ld+json" set:html={JSON.stringify(founderSchema)} />}
-{faqSchema && <script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
 {serviceSchema && <script is:inline type="application/ld+json" set:html={JSON.stringify(serviceSchema)} />}
