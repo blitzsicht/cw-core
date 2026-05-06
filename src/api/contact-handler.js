@@ -1,5 +1,6 @@
 // @ts-check
 import { buildLeadEmail } from '../utils/forms/build-lead-email.js';
+import { emitLead } from './lead-sink.js';
 
 /**
  * @cw/core – createContactHandler
@@ -314,6 +315,24 @@ export function createContactHandler(config) {
         return;
       }
       res.status(200).json({ ok: true });
+      void emitLead(
+        {
+          project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
+          fromName,
+          name,
+          email,
+          company,
+          phone,
+          website,
+          message,
+          kind: 'contact-form',
+        },
+        {
+          ip,
+          ua: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : undefined,
+          origin: sourceUrl,
+        },
+      );
     } catch (err) {
       console.error('[contact-handler] Resend fetch error:', err);
       res.status(500).json({ ok: false, error: 'Email konnte nicht gesendet werden.' });
