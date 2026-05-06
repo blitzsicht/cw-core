@@ -4,8 +4,10 @@
  *
  * Accordion FAQ list. Prop-driven: no `@/data/site-data` import.
  *
- * Schema: FAQPage JSON-LD is emitted by SchemaOrg.astro — do NOT add
- * a second JSON-LD block here. FAQ.astro renders HTML only.
+ * Schema: emits a FAQPage JSON-LD block when `items` is non-empty. SchemaOrg.astro
+ * intentionally does NOT emit FAQPage anymore (that prop was removed in v0.9.0
+ * to avoid duplicate schemas). FAQ.astro is the single source of truth.
+ * Do NOT pass `faqs` to <SchemaOrg> — the prop no longer exists.
  *
  * @example
  *   <FAQ items={siteData.faqs} />
@@ -31,7 +33,25 @@ const {
   heading = 'Häufige Fragen',
   subheading = 'Alles Wichtige auf einen Blick.',
 } = Astro.props;
+
+const faqSchema = items.length > 0
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: items.map((item) => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.a,
+        },
+      })),
+    }
+  : null;
 ---
+{faqSchema && (
+<script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+)}
 {items.length > 0 && (
 <section class="faq-section">
   <div class="container">
