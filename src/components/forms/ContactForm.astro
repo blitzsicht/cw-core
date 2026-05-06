@@ -51,8 +51,20 @@ const {
   formType = 'contact',
   fallbackEmail = '',
   actionUrl,
-  turnstileSiteKey,
+  // Defensive default: liest PUBLIC_TURNSTILE_SITE_KEY direkt aus Build-Env
+  // wenn Prop nicht übergeben — verhindert silent-fail wenn Customer-Page
+  // den Prop vergessen hat (siehe v0.9.6 Form-Reliability-Plan).
+  turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY,
 } = Astro.props;
+
+// Build-Time-Warning wenn Form ohne Bot-Schutz produziert wird.
+// Erscheint im Vercel-Deploy-Log → catchbar via Log-Monitoring.
+if (!turnstileSiteKey && import.meta.env.PROD) {
+  console.warn(
+    '[cw-core ContactForm] Kein turnstileSiteKey — Form rendert OHNE Bot-Schutz. ' +
+    'Setze PUBLIC_TURNSTILE_SITE_KEY in Vercel-Env oder übergib turnstileSiteKey-Prop.'
+  );
+}
 
 const useWeb3Forms = !actionUrl;
 const hasKey = useWeb3Forms ? (!!formKey && !formKey.startsWith('TODO')) : true;
