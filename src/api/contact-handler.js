@@ -314,8 +314,9 @@ export function createContactHandler(config) {
         res.status(400).json({ ok: false, error: 'Email konnte nicht gesendet werden.' });
         return;
       }
-      res.status(200).json({ ok: true });
-      void emitLead(
+      // emitLead BEFORE res.json — sonst killt Vercel die Function bevor der Telegram-fetch
+      // fertig ist. AbortSignal in lead-sink begrenzt das auf max 5s, normal ~200ms.
+      await emitLead(
         {
           project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
           fromName,
@@ -333,6 +334,7 @@ export function createContactHandler(config) {
           origin: sourceUrl,
         },
       );
+      res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[contact-handler] Resend fetch error:', err);
       res.status(500).json({ ok: false, error: 'Email konnte nicht gesendet werden.' });
