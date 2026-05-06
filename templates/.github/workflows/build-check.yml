@@ -49,3 +49,43 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+  # ─── Form Health Smoke-Test ─────────────────────────────────────────────
+  # Läuft NUR auf main nach Vercel-Auto-Deploy. Verifiziert dass /kontakt/
+  # mit Turnstile-Widget ausgeliefert wird und /api/contact nicht crasht.
+  # Catcht Bugs wie "PUBLIC_TURNSTILE_SITE_KEY vergessen", die Build-Check
+  # nicht entdeckt (Build wäre grün, Form wäre still kaputt).
+  #
+  # Repository-Variable PRODUCTION_URL setzen (gh variable set PRODUCTION_URL).
+  # Falls die Variable nicht gesetzt ist, wird der Job geskippt.
+  smoke-test:
+    needs: build
+    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install (just the cw-core script)
+        run: pnpm install --frozen-lockfile
+
+      - name: Wait for Vercel deploy propagation
+        run: sleep 60
+
+      - name: Run form-health smoke-test
+        run: node node_modules/@cw/core/scripts/verify-form-health.mjs
+        env:
+          SITE_URL: ${{ vars.PRODUCTION_URL }}
+          WAIT_MS: 0
