@@ -379,3 +379,85 @@ Kundensites referenzieren das Paket via GitHub-Tag:
 ```json
 "@cw/core": "github:siluri/cw-core#v1.0.6"
 ```
+
+## Plausible-Analytics (v0.9.8)
+
+Cookieless Plausible-Analytics-Integration als wiederverwendbare Components
+unter `src/components/analytics/`. Eingerichtet mit § 25 TDDDG-konformer
+Architektur: keine Cookies, keine Schreib-Operationen in Browser-Speicher,
+kein persistenter Identifier (Hash-Salt-Verfahren serverseitig bei Plausible).
+
+### Komponenten
+
+| Datei | Zweck |
+|---|---|
+| `components/analytics/Plausible.astro` | Lädt das Plausible-Script + Queue-Shim. Ein-Komponente-Drop-In im `<head>`. |
+| `components/analytics/PlausibleEvents.astro` | Verdrahtet automatisch Custom-Events: Phone, WhatsApp, Email, CTA, Form, Scroll-Depth. |
+| `components/analytics/plausible-events.ts` | TypeScript-Helper `trackPlausible(event, props)` plus `PlausibleEvents`-Konstanten für Custom-Events. |
+
+### Standard-Setup in einer Customer-Site
+
+```astro
+---
+import BaseLayout from '@cw/core/layouts/BaseLayout.astro';
+import Plausible from '@cw/core/components/analytics/Plausible.astro';
+import PlausibleEvents from '@cw/core/components/analytics/PlausibleEvents.astro';
+---
+<BaseLayout {...layoutProps}>
+  <Plausible
+    script="https://plausible.io/js/pa-WUMcQbxNSCakRDQwOktmA.js"
+    endpoint="/api/event"
+  />
+  <PlausibleEvents />
+  <slot />
+</BaseLayout>
+```
+
+Alternativ kann die Plausible-Integration weiterhin über die bestehenden
+BaseLayout-Props (`plausibleScript`, `plausibleHost`, `plausibleEndpoint`)
+inline verdrahtet werden — beide Wege sind kompatibel.
+
+### Self-Hosted-Migration-Hook
+
+Ab Customer 15 ist ein Wechsel von plausible.io zu einer self-hosted
+Instanz (z.B. Hetzner) vorgesehen. Die Migration erfolgt über zwei
+Env-Variablen, ohne dass jede Customer-Site einzeln umgestellt werden muss:
+
+```bash
+# .env.production an der Customer-Site
+PLAUSIBLE_SCRIPT_URL=https://stats.blitzsicht.com/js/script.js
+PLAUSIBLE_DOMAIN=customer-domain.de
+```
+
+Im Astro-Template:
+
+```astro
+<Plausible
+  script={import.meta.env.PLAUSIBLE_SCRIPT_URL ?? 'https://plausible.io/js/pa-XYZ.js'}
+  domain={import.meta.env.PLAUSIBLE_DOMAIN}
+/>
+```
+
+`domain` wird als `data-domain`-Attribut auf das Script gesetzt — Plausible
+benutzt diesen Wert zur Site-Zuordnung serverseitig. Kein per-Customer-Code
+nötig.
+
+### Custom-Events emittieren
+
+Aus inline `<script>`-Blöcken (kein Module-Import, simpler):
+
+```html
+<script>
+  window.plausible?.('Newsletter Signup', { props: { plan: 'free' } });
+</script>
+```
+
+Aus TypeScript-Modulen (mit Type-Safety):
+
+```ts
+import { trackPlausible, PlausibleEvents } from '@cw/core/components/analytics/plausible-events';
+
+trackPlausible(PlausibleEvents.PhoneClick, { location: 'header' });
+trackPlausible('Newsletter Signup', { plan: 'free' }); // beliebige String-Events
+```
+

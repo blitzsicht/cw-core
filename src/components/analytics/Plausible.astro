@@ -1,0 +1,66 @@
+---
+/**
+ * @cw/core – Plausible.astro
+ *
+ * Cookieless Plausible-Analytics-Snippet als wiederverwendbare Component.
+ * Lädt die Queue-Shim + Script + optionale Endpoint-Override + optionales
+ * Domain-Override (für Self-Hosted-Migration).
+ *
+ * Render im `<head>` der Site (typisch via BaseLayout oder eine eigene
+ * `<head>`-Slot-Page). Standalone benutzbar oder via BaseLayout-Props
+ * (siehe BaseLayout.astro: `plausibleScript`, `plausibleHost`, `plausibleEndpoint`).
+ *
+ * @example
+ *   <Plausible
+ *     script="https://plausible.io/js/pa-WUMcQbxNSCakRDQwOktmA.js"
+ *     endpoint="/api/event"
+ *   />
+ *
+ * @example Self-hosted via env-var override (cw-core 0.9.8):
+ *   <Plausible
+ *     script={import.meta.env.PLAUSIBLE_SCRIPT_URL ?? 'https://plausible.io/js/pa-XYZ.js'}
+ *     domain={import.meta.env.PLAUSIBLE_DOMAIN}
+ *   />
+ *
+ * Privacy: keine Cookies, keine Schreib-Operationen in Browser-Speicher.
+ * Plausibles offizielle Aussage: keine persistenten Identifier, Hash-Salt-Verfahren
+ * mit `hash(daily_salt + domain + ip + user_agent)` serverseitig erzeugt.
+ * Das ausgelieferte Plausible-Script liest einmalig `localStorage.plausible_ignore`
+ * als Self-Opt-Out für Site-Betreiber, schreibt aber nichts.
+ */
+
+interface Props {
+  /** Plausible script URL. Required. e.g. "https://plausible.io/js/pa-XYZ.js" */
+  script: string;
+  /** Host for `<link rel="preconnect">`. Defaults to "https://plausible.io".
+   *  Set to undefined when same-origin proxying is used. */
+  host?: string;
+  /** API endpoint override. Set to "/api/event" when proxying via Vercel rewrites.
+   *  When set, the preconnect to `host` is suppressed. */
+  endpoint?: string;
+  /** Domain override for self-hosted Plausible. Forwarded to the Plausible-init
+   *  call as `data-domain`. Read from PLAUSIBLE_DOMAIN env-var when migrating
+   *  away from plausible.io to a self-hosted instance.
+   *  Reference: cw-core README → Self-Hosted-Migration. */
+  domain?: string;
+}
+
+const {
+  script,
+  host = 'https://plausible.io',
+  endpoint,
+  domain,
+} = Astro.props;
+---
+<!-- Plausible Analytics (cookieless, DSGVO-konform via § 25 TDDDG: keine zustimmungspflichtige Endgerätespeicherung) -->
+<!-- Queue-Shim immer vorhanden: window.plausible() wirft keinen Fehler wenn Script fehlt -->
+<script is:inline>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};</script>
+
+{!endpoint && <link rel="preconnect" href={host} />}
+<script is:inline async src={script} data-domain={domain}></script>
+{endpoint && (
+  <script is:inline define:vars={{ endpoint, domain }}>
+    window.plausible.init=window.plausible.init||function(i){window.plausible.o=i||{}};
+    window.plausible.init(domain ? { endpoint: endpoint, domain: domain } : { endpoint: endpoint });
+  </script>
+)}
