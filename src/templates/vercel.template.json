@@ -29,7 +29,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://plausible.io https://tally.so https://app.cal.eu; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; frame-src https://tally.so https://app.cal.eu; connect-src 'self' https://plausible.io https://app.cal.eu; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://tally.so; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://plausible.io https://tally.so https://app.cal.eu; script-src-elem 'self' 'unsafe-inline' https://plausible.io https://tally.so https://app.cal.eu; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'unsafe-inline'; img-src 'self' data: https:; media-src 'self'; frame-src https://tally.so https://app.cal.eu; connect-src 'self' https://plausible.io https://app.cal.eu; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://tally.so; frame-ancestors 'none'"
         }
       ]
     }
