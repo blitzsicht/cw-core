@@ -1,0 +1,174 @@
+---
+/**
+ * @cw/core – ImpressumBlock.astro
+ *
+ * Reusable §5-DDG-konforme Impressum-Section. Wird in customer-{slug}/src/pages/impressum.astro
+ * innerhalb von <ContentPage> verwendet. Nimmt das siteData.legal-Objekt + email + Editorial-Flag
+ * und rendert die Pflicht-Sections konditional.
+ *
+ * @example
+ *   <ContentPage {...landingBaseProps} title="Impressum">
+ *     <ImpressumBlock legal={siteData.legal} email={siteData.contact.email} hasEditorial={false} />
+ *   </ContentPage>
+ *
+ * Customer kann zusätzliche Sections via slot oben/unten ergänzen (z.B. customer-spezifischer
+ * Haftungsausschluss). Standard-Disclaimer-Block ist NICHT enthalten — gehört nicht ins
+ * Impressum nach BGH-Rechtsprechung; Customer bei Bedarf separat ergänzen.
+ *
+ * Phase 1–4: DACH only (DE/AT/CH). Italienische D.Lgs. 70/2003-Variante kommt in Phase 5+
+ * als ImpressumBlockIT.astro (siehe BS_ONBOARDING_PLAN.md ADR-005).
+ */
+export interface LegalProps {
+  owner: string;
+  form: string;
+  street: string;
+  zip: string;
+  city: string;
+  country: string;
+  phone: string;
+  ustIdNr?: string | undefined;
+  handelsregister?: string | undefined;
+  rechtsform: 'einzelunternehmer' | 'ek' | 'gbr' | 'egbr' | 'ug' | 'gmbh' | 'gmbh-co-kg' | 'ag';
+  register: 'none' | 'hrb' | 'hra' | 'gnr' | 'vr';
+  registerNummer?: string | undefined;
+  registergericht?: string | undefined;
+  hasUstId: boolean;
+  aufsichtspflichtig: boolean;
+  aufsichtsbehoerde?: { name: string; url: string } | undefined;
+  kammerMitglied: boolean;
+  kammer?: { name: string; berufsbezeichnung: string; verleihungsStaat: string; berufsrechtLink: string } | undefined;
+  vsbgPflichtig: boolean;
+}
+
+interface Props {
+  legal: LegalProps;
+  email: string;
+  /** § 18 Abs. 2 MStV — bei journalistisch-redaktionellen Inhalten Pflicht. Default false. */
+  hasEditorial?: boolean;
+  /** V.i.S.d.P.-Name falls hasEditorial=true. Default: legal.owner. */
+  editorialVertreter?: string | undefined;
+  /** Optional: Kontaktformular-Pfad. Default: '/kontakt'. */
+  contactFormPath?: string;
+}
+
+const { legal: l, email, hasEditorial = false, editorialVertreter, contactFormPath = '/kontakt' } = Astro.props;
+
+const showRegister = l.register !== 'none' && l.registerNummer;
+const registerLabel: Record<LegalProps['register'], string> = {
+  none: '',
+  hrb: 'Handelsregister B',
+  hra: 'Handelsregister A',
+  gnr: 'Gesellschaftsregister',
+  vr: 'Vereinsregister',
+};
+---
+
+<div class="impressum-block">
+  <h2>Angaben gemäß § 5 DDG</h2>
+  <p>
+    {l.owner}<br />
+    {l.form}<br />
+    {l.street}<br />
+    {l.zip} {l.city}{l.country !== 'DE' ? <>, {l.country}</> : null}
+  </p>
+
+  <h2>Kontakt</h2>
+  <p>
+    Telefon: <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a><br />
+    E-Mail: <a href={`mailto:${email}`}>{email}</a><br />
+    Kontaktformular: <a href={contactFormPath}>{contactFormPath}</a>
+  </p>
+  <p>
+    <small>
+      Schnelle elektronische Kontaktaufnahme nach § 5 Abs. 1 Nr. 2 DDG erfolgt über das Kontaktformular
+      oder direkt per E-Mail.
+    </small>
+  </p>
+
+  {showRegister && (
+    <>
+      <h2>Registereintrag</h2>
+      <p>
+        Eintragung im {registerLabel[l.register]}<br />
+        Registernummer: {l.registerNummer}
+        {l.registergericht ? <><br />Registergericht: {l.registergericht}</> : null}
+      </p>
+    </>
+  )}
+
+  {!showRegister && l.handelsregister && (
+    <>
+      <h2>Registereintrag</h2>
+      <p>{l.handelsregister}</p>
+    </>
+  )}
+
+  {l.hasUstId && l.ustIdNr && (
+    <>
+      <h2>Umsatzsteuer-Identifikationsnummer</h2>
+      <p>USt-IdNr. gemäß § 27 a UStG: {l.ustIdNr}</p>
+    </>
+  )}
+
+  {l.aufsichtspflichtig && l.aufsichtsbehoerde && (
+    <>
+      <h2>Aufsichtsbehörde</h2>
+      <p>
+        {l.aufsichtsbehoerde.name}<br />
+        <a href={l.aufsichtsbehoerde.url} target="_blank" rel="noopener">{l.aufsichtsbehoerde.url}</a>
+      </p>
+    </>
+  )}
+
+  {l.kammerMitglied && l.kammer && (
+    <>
+      <h2>Berufsbezeichnung und berufsrechtliche Regelungen</h2>
+      <p>
+        Berufsbezeichnung: {l.kammer.berufsbezeichnung}<br />
+        Verliehen in: {l.kammer.verleihungsStaat}<br />
+        Zuständige Kammer: {l.kammer.name}
+      </p>
+      <p>
+        Berufsrechtliche Regelungen:
+        <a href={l.kammer.berufsrechtLink} target="_blank" rel="noopener">{l.kammer.berufsrechtLink}</a>
+      </p>
+    </>
+  )}
+
+  {hasEditorial && (
+    <>
+      <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
+      <p>
+        {editorialVertreter ?? l.owner}<br />
+        {l.street}<br />
+        {l.zip} {l.city}
+      </p>
+    </>
+  )}
+
+  {l.vsbgPflichtig && (
+    <>
+      <h2>Verbraucherstreitbeilegung / Universalschlichtungsstelle</h2>
+      <p>
+        Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
+        Verbraucherschlichtungsstelle teilzunehmen.
+      </p>
+    </>
+  )}
+
+  <slot name="extra" />
+</div>
+
+<style>
+  .impressum-block :global(h2) {
+    font-size: 1.375rem;
+    margin: 2rem 0 0.75rem;
+  }
+  .impressum-block :global(p) {
+    margin-bottom: 1rem;
+    line-height: 1.75;
+  }
+  .impressum-block :global(a) {
+    color: var(--color-accent-text);
+  }
+</style>
