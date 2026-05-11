@@ -49,21 +49,12 @@ const {
       <h2>{headline}</h2>
       <p>{sub}</p>
       <div class="cta-buttons">
-        <a href={primaryHref} class="btn-accent" data-track-cta={primaryLabel}>{primaryLabel}</a>
-        {secondaryLabel && <a href={secondaryHref} class="btn-outline" data-track-cta={secondaryLabel}>{secondaryLabel}</a>}
+        <a href={primaryHref} class="btn-accent" data-cta={`cta-block:${primaryLabel}`}>{primaryLabel}</a>
+        {secondaryLabel && <a href={secondaryHref} class="btn-outline" data-cta={`cta-block:${secondaryLabel}`}>{secondaryLabel}</a>}
       </div>
     </div>
   </div>
 </section>
-
-<script>
-  import { track } from '../../utils/analytics/track';
-  document.querySelectorAll<HTMLAnchorElement>('[data-track-cta]').forEach((link) => {
-    link.addEventListener('click', () => {
-      track('CTA Click', { label: link.dataset.trackCta ?? '' });
-    });
-  });
-</script>
 
 <style>
   .cta-section {

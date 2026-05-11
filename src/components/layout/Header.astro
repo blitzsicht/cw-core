@@ -66,10 +66,10 @@ const {
     <nav id="main-nav" aria-label="Hauptnavigation">
       {navItems.map((item: NavItem) =>
         item.highlight
-          ? <a href={item.href} class="btn-accent">{item.label}</a>
-          : <a href={item.href}>{item.label}</a>
+          ? <a href={item.href} class="btn-accent" data-cta={`nav-highlight:${item.label}`}>{item.label}</a>
+          : <a href={item.href} data-cta={`nav:${item.label}`}>{item.label}</a>
       )}
-      {showKarriereLink && <a href={karriereHref}>{karriereLabel}</a>}
+      {showKarriereLink && <a href={karriereHref} data-cta={`nav:${karriereLabel}`}>{karriereLabel}</a>}
     </nav>
 
     <button id="nav-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Menü öffnen">

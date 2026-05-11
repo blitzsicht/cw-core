@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -18,7 +18,7 @@
     "./api/*": "./src/api/*.js"
   },
   "scripts": {
-    "build": "echo '@cw/core is a source-only Astro component library — no build step (consumers compile via their own Astro pipeline).'",
+    "build": "echo '@cw/core is a source-only Astro component library \u2014 no build step (consumers compile via their own Astro pipeline).'",
     "check": "astro check",
     "optimize:images": "node scripts/optimize-images.mjs --delete-originals",
     "generate:og": "node scripts/generate-og.mjs",
