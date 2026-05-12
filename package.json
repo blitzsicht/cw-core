@@ -11,6 +11,7 @@
     "./components/*": "./src/components/*",
     "./styles/*": "./src/styles/*",
     "./templates/*": "./src/templates/*",
+    "./integrations/ai-discovery": "./src/integrations/ai-discovery/index.ts",
     "./utils/forms/handle-submission": "./src/utils/forms/handle-submission.js",
     "./utils/*": "./src/utils/*.ts",
     "./types/*": "./src/types/*",
@@ -36,6 +37,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.0",
+    "@types/node": ">=22.0.0",
     "astro": "^5.0.0",
     "lenis": "^1.3.23",
     "postcss-html": "^1.8.0",

@@ -169,6 +169,8 @@ const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
     <title>{pageTitle}</title>
     <meta name="description" content={resolvedDescription} />
     <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang={lang} href={canonical} />
+    <link rel="alternate" hreflang="x-default" href={canonical} />
     {robots && <meta name="robots" content={robots} />}
 
     <!-- OG Tags -->
@@ -194,18 +196,17 @@ const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
     <meta name="twitter:image" content={ogImageUrl} />
 
     <!-- Plausible Analytics (cookie-frei, DSGVO-konform) -->
-    <!-- Queue-Shim immer vorhanden: window.plausible() wirft keinen Fehler wenn kein Script geladen -->
-    <script is:inline>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};</script>
+    <!-- Queue-Shim immer vorhanden: window.plausible() wirft keinen Fehler wenn kein Script geladen.
+         plausible.init() MUSS für Custom-Scripts (pa-XXX.js) explizit aufgerufen werden, sonst lädt
+         das Script aber initialisiert sich nicht (Install Verify schlägt fehl). -->
+    <script is:inline>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};window.plausible.init=window.plausible.init||function(i){window.plausible.o=i||{}};</script>
     {plausibleScript && (
       <>
         {!plausibleEndpoint && <link rel="preconnect" href={plausibleHost} />}
         <script is:inline async src={plausibleScript}></script>
-        {plausibleEndpoint && (
-          <script is:inline define:vars={{ endpoint: plausibleEndpoint }}>
-            window.plausible.init=window.plausible.init||function(i){window.plausible.o=i||{}};
-            window.plausible.init({ endpoint: endpoint });
-          </script>
-        )}
+        <script is:inline define:vars={{ endpoint: plausibleEndpoint }}>
+          window.plausible.init(endpoint ? { endpoint } : {});
+        </script>
       </>
     )}
 
