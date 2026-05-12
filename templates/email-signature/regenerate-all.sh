@@ -135,6 +135,17 @@ run_person_for_customer() {
   SALUTATION="$SALUTATION" \
   OUT_DIR="$MAIL_OUT" \
   "$MAIL" 2>&1 | grep "✓" | head -5
+
+  # Schutzmaßnahme: Install-Page MUSS prefers-color-scheme dark enthalten,
+  # sonst rendert das dark-Logo (weiß) unsichtbar auf weißem Wrapper.
+  local INSTALL_PAGE="$SIG_OUT/$SLUG-install.html"
+  if [ -f "$INSTALL_PAGE" ] && ! grep -q "prefers-color-scheme: dark" "$INSTALL_PAGE"; then
+    echo "  ⚠ WARN: $SLUG-install.html hat keinen Dark-Mode-Block — Logo wird in dark-mode-Browsern unsichtbar!"
+  fi
+  local PREVIEW_PAGE="$MAIL_OUT/$SLUG-preview.html"
+  if [ -f "$PREVIEW_PAGE" ] && ! grep -q "prefers-color-scheme: dark" "$PREVIEW_PAGE"; then
+    echo "  ⚠ WARN: $SLUG-preview.html hat keinen Dark-Mode-Block!"
+  fi
 }
 
 # Auto-Discovery

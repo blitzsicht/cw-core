@@ -444,6 +444,22 @@ page = f"""<!DOCTYPE html>
   code {{ background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 12px; }}
   details {{ margin-top: 8px; }}
   summary {{ cursor: pointer; font-weight: 600; color: var(--primary); font-size: 13px; }}
+
+  /* Dark-Mode: Wrapper passt sich an, damit white-on-transparent dark-Logo sichtbar bleibt.
+     WICHTIG: Wenn neue HTML-Wrapper-Pages erzeugt werden, IMMER diesen Block einbauen —
+     sonst rendert das dark-Logo unsichtbar auf weißem Wrapper-Background. */
+  @media (prefers-color-scheme: dark) {{
+    body {{ background: #0f172a; color: #f1f5f9; }}
+    h1 {{ color: #f1f5f9; }}
+    .sub {{ color: #94a3b8; }}
+    .section {{ background: #1e293b; border-color: #334155; }}
+    .section h2 {{ color: #f1f5f9; }}
+    .preview {{ background: #1e293b; border-color: #475569; }}
+    pre.source {{ background: #020617; color: #cbd5e1; }}
+    code {{ background: #334155; color: #e2e8f0; }}
+    ol li {{ color: #cbd5e1; }}
+    button.btn-secondary {{ background: #475569; }}
+  }}
 </style>
 </head><body>
 <div class="wrap">
@@ -490,8 +506,10 @@ page = f"""<!DOCTYPE html>
 </div>
 
 <div class="section">
-  <h2>3 · HTML-Source (zum Anschauen)</h2>
-  <pre class="source" id="source-block">{sig_escaped}</pre>
+  <details>
+    <summary>3 · HTML-Source einsehen (für Outlook-Source-Editor)</summary>
+    <pre class="source" id="source-block" style="margin-top:12px;">{sig_escaped}</pre>
+  </details>
 </div>
 
 </div>

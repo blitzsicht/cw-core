@@ -201,6 +201,25 @@ cat > "$PREVIEW_OUT" <<HTMLEOF
   body.dark .sig-preview .esig-company   { color: #f1f5f9 !important; }
   body.dark .sig-preview .esig-compliance{ color: #94a3b8 !important; }
 
+  /* OS-prefers-color-scheme: gleiches Schema wie .dark (Pflicht — sonst dark-Logo unsichtbar) */
+  @media (prefers-color-scheme: dark) {
+    body:not(.light) { background: #0a0a0a; }
+    body:not(.light) .mail-window { background: #1a1a1a; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+    body:not(.light) .mail-header { background: #232323; border-bottom-color: #2d2d2d; }
+    body:not(.light) .mail-header div { color: #a3a3a3; }
+    body:not(.light) .mail-header strong { color: #f5f5f5; }
+    body:not(.light) .mail-body { color: #d4d4d4; }
+    body:not(.light) .sig-preview { background: #1a1a1a; border-color: #2d2d2d; }
+    body:not(.light) .attachments { background: #232323; border-top-color: #2d2d2d; color: #a3a3a3; }
+    body:not(.light) .attachments code { background: #1a1a1a; color: #d4d4d4; }
+    body:not(.light) .sig-preview .esig-name      { color: #ffffff !important; }
+    body:not(.light) .sig-preview .esig-position  { color: #cbd5e1 !important; }
+    body:not(.light) .sig-preview .esig-label     { color: #94a3b8 !important; }
+    body:not(.light) .sig-preview .esig-link      { color: #93c5fd !important; }
+    body:not(.light) .sig-preview .esig-company   { color: #f1f5f9 !important; }
+    body:not(.light) .sig-preview .esig-compliance{ color: #94a3b8 !important; }
+  }
+
   .mail-window { max-width: 700px; margin: 30px auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
   .mail-header { background: #f9fafb; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; }
   .mail-header div { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
