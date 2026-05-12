@@ -146,7 +146,24 @@ cat > "$PREVIEW_OUT" <<HTMLEOF
 <!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Mail-Preview: $SLUG</title>
 <style>
-  body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; background: #f3f4f6; }
+  body { font-family: -apple-system, sans-serif; margin: 0; padding: 0; background: #f3f4f6; transition: background 0.2s; }
+  body.dark { background: #0a0a0a; }
+  body.dark .mail-window { background: #1a1a1a; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+  body.dark .mail-header { background: #232323; border-bottom-color: #2d2d2d; }
+  body.dark .mail-header div { color: #a3a3a3; }
+  body.dark .mail-header strong { color: #f5f5f5; }
+  body.dark .mail-body { color: #d4d4d4; }
+  body.dark .sig-preview { background: #1a1a1a; border-color: #2d2d2d; }
+  body.dark .attachments { background: #232323; border-top-color: #2d2d2d; color: #a3a3a3; }
+  body.dark .attachments code { background: #1a1a1a; color: #d4d4d4; }
+  /* Dark-Mode-Override für embedded Signatur (entspricht @media prefers-color-scheme: dark) */
+  body.dark .sig-preview .esig-name      { color: #ffffff !important; }
+  body.dark .sig-preview .esig-position  { color: #cbd5e1 !important; }
+  body.dark .sig-preview .esig-label     { color: #94a3b8 !important; }
+  body.dark .sig-preview .esig-link      { color: #93c5fd !important; }
+  body.dark .sig-preview .esig-company   { color: #f1f5f9 !important; }
+  body.dark .sig-preview .esig-compliance{ color: #94a3b8 !important; }
+
   .mail-window { max-width: 700px; margin: 30px auto; background: white; box-shadow: 0 4px 24px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
   .mail-header { background: #f9fafb; padding: 16px 24px; border-bottom: 1px solid #e5e7eb; }
   .mail-header div { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
@@ -155,7 +172,17 @@ cat > "$PREVIEW_OUT" <<HTMLEOF
   .sig-preview { border: 1px solid #e5e7eb; border-radius: 6px; padding: 20px; margin: 15px 0; background: #fafafa; }
   .attachments { background: #f9fafb; padding: 12px 24px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6b7280; }
   .attachments code { background: white; padding: 2px 6px; border-radius: 3px; }
-</style></head><body>
+  .theme-toggle { position: fixed; top: 16px; right: 20px; background: #312783; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px; z-index: 100; }
+  body.dark .theme-toggle { background: #fbbf24; color: #0a0a0a; }
+</style>
+<script>
+  function toggleTheme() {
+    document.body.classList.toggle('dark');
+    document.getElementById('theme-btn').textContent = document.body.classList.contains('dark') ? '☀ Light Mode' : '🌙 Dark Mode';
+  }
+</script>
+</head><body>
+<button id="theme-btn" class="theme-toggle" onclick="toggleTheme()">🌙 Dark Mode</button>
 <div class="mail-window">
   <div class="mail-header">
     <div><strong>Von:</strong> $FROM_NAME &lt;$FROM_EMAIL&gt;</div>
