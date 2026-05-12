@@ -28,7 +28,10 @@
   <tbody>
     <tr>
       <td valign="top" style="padding-right:20px;border-right:3px solid {{COLOR_PRIMARY}};width:140px;">
-        <img src="{{LOGO_URL}}" alt="{{LOGO_ALT}}" width="120" style="display:block;border:0;width:120px;height:auto;">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="{{LOGO_URL_DARK}}">
+          <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" width="120" style="display:block;border:0;width:120px;height:auto;">
+        </picture>
       </td>
       <td valign="top" style="padding-left:20px;">
         <p class="esig-name" style="margin:0 0 2px 0;font-size:16px;font-weight:bold;color:{{COLOR_PRIMARY}};">{{NAME}}</p>

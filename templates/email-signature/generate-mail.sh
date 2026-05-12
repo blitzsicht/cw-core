@@ -176,9 +176,26 @@ cat > "$PREVIEW_OUT" <<HTMLEOF
   body.dark .theme-toggle { background: #fbbf24; color: #0a0a0a; }
 </style>
 <script>
+  // Beim Load: pro <picture> die Light + Dark URLs cachen für Toggle
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.sig-preview picture').forEach(pic => {
+      const source = pic.querySelector('source[media*="dark"]');
+      const img = pic.querySelector('img');
+      if (source && img) {
+        img.dataset.lightSrc = img.src;
+        img.dataset.darkSrc = source.srcset;
+      }
+    });
+  });
   function toggleTheme() {
     document.body.classList.toggle('dark');
-    document.getElementById('theme-btn').textContent = document.body.classList.contains('dark') ? '☀ Light Mode' : '🌙 Dark Mode';
+    const isDark = document.body.classList.contains('dark');
+    document.getElementById('theme-btn').textContent = isDark ? '☀ Light Mode' : '🌙 Dark Mode';
+    // Picture-Tag manuell switchen für Preview (echtes <picture> reagiert nur auf OS-prefers-color-scheme)
+    document.querySelectorAll('.sig-preview picture img').forEach(img => {
+      const target = isDark ? img.dataset.darkSrc : img.dataset.lightSrc;
+      if (target) img.src = target;
+    });
   }
 </script>
 </head><body>

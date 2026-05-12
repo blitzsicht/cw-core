@@ -27,7 +27,10 @@
   <tbody>
     <tr>
       <td style="padding:0 0 16px 0;">
-        <img src="{{LOGO_URL}}" alt="{{LOGO_ALT}}" style="display:block;border:0;max-width:300px;width:100%;height:auto;">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="{{LOGO_URL_DARK}}">
+          <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" style="display:block;border:0;max-width:300px;width:100%;height:auto;">
+        </picture>
       </td>
     </tr>
     <tr>

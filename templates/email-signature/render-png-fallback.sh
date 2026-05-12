@@ -13,9 +13,10 @@
 # =============================================================================
 set -euo pipefail
 
-INPUT_SVG="${1:?'Usage: render-png-fallback.sh <input.svg> <output.png> [width]'}"
-OUTPUT_PNG="${2:?'Usage: render-png-fallback.sh <input.svg> <output.png> [width]'}"
+INPUT_SVG="${1:?'Usage: render-png-fallback.sh <input.svg> <output.png> [width] [variant=light|dark]'}"
+OUTPUT_PNG="${2:?'Usage: render-png-fallback.sh <input.svg> <output.png> [width] [variant=light|dark]'}"
 WIDTH="${3:-480}"
+VARIANT="${4:-light}"  # light = white→transparent, dark = black→transparent (für white-text-Logos)
 
 [ -f "$INPUT_SVG" ] || { echo "ABORT: SVG nicht gefunden: $INPUT_SVG"; exit 1; }
 
@@ -31,8 +32,16 @@ WRAP_HTML="$STAGE/$SVG_SLUG.html"
 TMP_PNG="$STAGE/$SVG_SLUG-render.png"
 
 cp "$INPUT_SVG" "$STAGED_SVG"
+# Bei Dark-Variant: rendere auf schwarzem Bg damit white text später transparent-stripbar ist
+if [ "$VARIANT" = "dark" ]; then
+  BG_COLOR="black"
+  STRIP_COLOR="black"
+else
+  BG_COLOR="white"
+  STRIP_COLOR="white"
+fi
 cat > "$WRAP_HTML" <<EOF
-<!DOCTYPE html><html><body style="margin:0;padding:0;background:transparent;">
+<!DOCTYPE html><html><body style="margin:0;padding:0;background:$BG_COLOR;">
 <img src="$SVG_SLUG.svg" style="width:${WIDTH}px;display:block;" id="logo">
 </body></html>
 EOF
@@ -53,7 +62,7 @@ command -v magick &>/dev/null && MAGICK="magick"
 [ -z "$MAGICK" ] && command -v convert &>/dev/null && MAGICK="convert"
 
 if [ -n "$MAGICK" ]; then
-  $MAGICK "$TMP_PNG" -fuzz 2% -transparent white -alpha set "$OUTPUT_PNG" 2>/dev/null
+  $MAGICK "$TMP_PNG" -fuzz 2% -transparent "$STRIP_COLOR" -alpha set "$OUTPUT_PNG" 2>/dev/null
 else
   cp "$TMP_PNG" "$OUTPUT_PNG"
 fi

@@ -39,6 +39,28 @@ LOGO_URL="${LOGO_URL:?'LOGO_URL fehlt — absolute URL (https://domain.com/email
 LOGO_ALT="${LOGO_ALT:-$COMPANY_NAME}"
 LAYOUT="${LAYOUT:-auto}"
 
+# ── Dual-Logo (Light + Dark) ──────────────────────────────────────────────────
+# Light = LOGO_SVG (Standard). Dark wird auto-detected oder explizit gesetzt.
+LOGO_SVG_LIGHT="${LOGO_SVG_LIGHT:-$LOGO_SVG}"
+LOGO_DIR=$(dirname "$LOGO_SVG_LIGHT")
+
+if [ -z "${LOGO_SVG_DARK:-}" ]; then
+  if [ -f "$LOGO_DIR/logo-dark.svg" ]; then
+    LOGO_SVG_DARK="$LOGO_DIR/logo-dark.svg"
+  elif [ -f "$LOGO_DIR/logo-inverted.svg" ]; then
+    LOGO_SVG_DARK="$LOGO_DIR/logo-inverted.svg"
+  elif [ -f "$LOGO_DIR/logo-dark.png" ]; then
+    LOGO_SVG_DARK="$LOGO_DIR/logo-dark.png"
+  else
+    LOGO_SVG_DARK=""  # kein Dark-Asset gefunden → Color-Swap-Fallback
+  fi
+fi
+
+# URLs ableiten: nimm Verzeichnis aus LOGO_URL, hänge logo-light.png / logo-dark.png an
+LOGO_URL_BASE_DIR="${LOGO_URL%/*}/"  # alles bis zum letzten Slash
+LOGO_URL_LIGHT="${LOGO_URL_LIGHT:-${LOGO_URL_BASE_DIR}logo-light.png}"
+LOGO_URL_DARK="${LOGO_URL_DARK:-${LOGO_URL_BASE_DIR}logo-dark.png}"
+
 SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g' | sed 's/ä/ae/g; s/ö/oe/g; s/ü/ue/g; s/ß/ss/g' | sed 's/[^a-z0-9-]//g')
 SLUG="${EXPLICIT_SLUG:-$SLUG}"
 OUT_DIR="${OUT_DIR:-email-signatures/$SLUG}"
@@ -144,6 +166,8 @@ replace_html() {
     -e "s|{{COLOR_PRIMARY}}|$(sed_escape "$COLOR_PRIMARY")|g" \
     -e "s|{{COLOR_ACCENT}}|$(sed_escape "$COLOR_ACCENT")|g" \
     -e "s|{{COMPANY_NAME}}|$(sed_escape "$COMPANY_NAME")|g" \
+    -e "s|{{LOGO_URL_LIGHT}}|$(sed_escape "$LOGO_URL_LIGHT")|g" \
+    -e "s|{{LOGO_URL_DARK}}|$(sed_escape "$LOGO_URL_DARK")|g" \
     -e "s|{{LOGO_URL}}|$(sed_escape "$LOGO_URL")|g" \
     -e "s|{{LOGO_ALT}}|$(sed_escape "$LOGO_ALT")|g" \
     -e "s|{{COMPLIANCE_BLOCK}}|$(sed_escape "$COMPLIANCE_BLOCK")|g" \
@@ -179,61 +203,123 @@ replace_txt "$TEMPLATE_TXT" > "$OUT_DIR/$SLUG.txt"
 echo "  ✓ $SLUG.html"
 echo "  ✓ $SLUG.txt"
 
-# ── PNG-Pipeline mit Transparenz-Force ────────────────────────────────────────
-PNG_OUT="$OUT_DIR/assets/logo.png"
-LOGO_PNG_PUBLIC="${LOGO_PNG_PUBLIC:-public/email/logo.png}"
+# ── Dual-PNG-Pipeline mit Transparenz-Force + Color-Swap-Fallback ─────────────
+LOGO_PNG_LIGHT_OUT="$OUT_DIR/assets/logo-light.png"
+LOGO_PNG_DARK_OUT="$OUT_DIR/assets/logo-dark.png"
+LOGO_PNG_PUBLIC_LIGHT="${LOGO_PNG_PUBLIC_LIGHT:-public/email/logo-light.png}"
+LOGO_PNG_PUBLIC_DARK="${LOGO_PNG_PUBLIC_DARK:-public/email/logo-dark.png}"
 
 MAGICK=""
 command -v magick &>/dev/null && MAGICK="magick"
 [ -z "$MAGICK" ] && command -v convert &>/dev/null && MAGICK="convert"
 
-if command -v rsvg-convert &>/dev/null; then
-  rsvg-convert -w 480 -a -b transparent "$LOGO_SVG" > "$PNG_OUT"
-  echo "  ✓ logo.png (via rsvg-convert)"
-elif command -v inkscape &>/dev/null; then
-  inkscape --export-filename="$PNG_OUT" --export-width=480 --export-background-opacity=0 "$LOGO_SVG" 2>/dev/null
-  echo "  ✓ logo.png (via inkscape)"
-elif [ -n "$MAGICK" ]; then
-  $MAGICK -background none -density 288 "$LOGO_SVG" -resize 480x "$PNG_OUT" 2>/dev/null || true
-  echo "  ✓ logo.png (via imagemagick — ggf. Browser-Render-Fallback bei Wortmarken)"
-else
-  printf '\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82' > "$PNG_OUT"
-  echo "  ⚠ Kein SVG-Konverter → 1x1-Placeholder. ImageMagick installieren: brew install imagemagick"
+# Helper: rendere SVG/PNG zu PNG mit Transparenz
+# $1=SRC $2=OUT $3=variant (light|dark)  — variant beeinflusst transparent-strip-color
+render_to_png() {
+  local SRC="$1" OUT="$2" VARIANT="${3:-light}"
+  local STRIP_COLOR="white"
+  [ "$VARIANT" = "dark" ] && STRIP_COLOR="black"
+
+  case "$SRC" in
+    *.png)
+      if [ -n "$MAGICK" ]; then
+        $MAGICK "$SRC" -resize 480x -fuzz 2% -transparent "$STRIP_COLOR" -alpha set "$OUT" 2>/dev/null || cp "$SRC" "$OUT"
+      else
+        cp "$SRC" "$OUT"
+      fi
+      ;;
+    *)
+      # SVG → PNG (ImageMagick rendert auf transparent-bg, danach optional strip)
+      if command -v rsvg-convert &>/dev/null; then
+        rsvg-convert -w 480 -a -b transparent "$SRC" > "$OUT"
+      elif command -v inkscape &>/dev/null; then
+        inkscape --export-filename="$OUT" --export-width=480 --export-background-opacity=0 "$SRC" 2>/dev/null
+      elif [ -n "$MAGICK" ]; then
+        $MAGICK -background none -density 288 "$SRC" -resize 480x "$OUT" 2>/dev/null || true
+      fi
+      # Transparenz-Post-Step nur für Light (white→alpha). Dark: SVG-render war eh transparent.
+      if [ "$VARIANT" = "light" ] && [ -n "$MAGICK" ] && [ -f "$OUT" ]; then
+        $MAGICK "$OUT" -fuzz 2% -transparent white -alpha set "$OUT" 2>/dev/null || true
+      fi
+      ;;
+  esac
+
+  # Browser-Render-Fallback bei Wortmarken (Layout-B oder leeres PNG)
+  local SIZE=0
+  [ -f "$OUT" ] && SIZE=$(wc -c < "$OUT")
+  if { [ "$SIZE" -lt 5000 ] || [ "$CHOSEN_LAYOUT" = "b" ]; } && [ -x "$SCRIPT_DIR/render-png-fallback.sh" ] && [[ "$SRC" == *.svg ]]; then
+    echo "    → Browser-Render-Fallback ($(basename "$SRC") → $(basename "$OUT"), variant=$VARIANT)"
+    "$SCRIPT_DIR/render-png-fallback.sh" "$SRC" "$OUT" 480 "$VARIANT" || true
+  fi
+}
+
+# Color-Swap-Fallback: wenn keine Dark-Variant da, swap white→primary für Light
+prepare_dark_svg_fallback() {
+  local LIGHT_SRC="$1" DARK_OUT="$2"
+  if grep -q 'fill="white"' "$LIGHT_SRC" 2>/dev/null; then
+    # Das SVG hat fill="white" → das ist die DARK-Variante. Light = white→primary swap.
+    cp "$LIGHT_SRC" "$DARK_OUT"  # Original (white) für dark
+    return 0
+  fi
+  # Swap primary→white (best-effort) für dark-Variante
+  sed -e "s|fill=\"$COLOR_PRIMARY\"|fill=\"#ffffff\"|g; s|fill=\"#000000\"|fill=\"#ffffff\"|g; s|fill=\"black\"|fill=\"#ffffff\"|g" "$LIGHT_SRC" > "$DARK_OUT"
+}
+
+prepare_light_svg_from_dark() {
+  local DARK_SRC="$1" LIGHT_OUT="$2"
+  # white → primary swap
+  sed -e "s|fill=\"white\"|fill=\"$COLOR_PRIMARY\"|g; s|fill=\"#ffffff\"|fill=\"$COLOR_PRIMARY\"|g; s|fill=\"#FFFFFF\"|fill=\"$COLOR_PRIMARY\"|g" "$DARK_SRC" > "$LIGHT_OUT"
+}
+
+# Stage SVGs für beide Varianten
+STAGE_DIR=$(mktemp -d)
+LIGHT_SRC="$LOGO_SVG_LIGHT"
+DARK_SRC="$LOGO_SVG_DARK"
+
+# Wenn Light-SVG selbst white-fill ist (= dark-bg-Logo wie Soleno's logo-soleno.svg):
+# → Light-SVG color-swappen für Light-Mail; Dark-SVG = das Original (auch wenn auto-detected was anderes).
+if [[ "$LIGHT_SRC" == *.svg ]] && grep -q 'fill="white"' "$LIGHT_SRC" 2>/dev/null; then
+  echo "  ⓘ Light-SVG hat white-fill → Color-Swap (white→$COLOR_PRIMARY) für Light + Original für Dark"
+  prepare_light_svg_from_dark "$LIGHT_SRC" "$STAGE_DIR/light.svg"
+  DARK_SRC="$LOGO_SVG_LIGHT"   # immer Original (mit white text) als Dark
+  LIGHT_SRC="$STAGE_DIR/light.svg"
 fi
 
-# Transparenz-Post-Step: weißen Hintergrund zu Alpha=0 machen
-if [ -n "$MAGICK" ] && [ -f "$PNG_OUT" ]; then
-  $MAGICK "$PNG_OUT" -fuzz 2% -transparent white -alpha set "$PNG_OUT" 2>/dev/null || true
-  echo "  ✓ logo.png Transparenz-Check (weiß → alpha=0)"
-fi
-
-# Wenn PNG fehlt/zu klein (Wortmarken-SVG mit font-family ImageMagick nicht rendert):
-# Browser-Render-Fallback
-PNG_SIZE=0
-[ -f "$PNG_OUT" ] && PNG_SIZE=$(wc -c < "$PNG_OUT")
-
-# Browser-Render-Fallback wenn:
-#  - PNG fehlt oder zu klein (<5KB → ImageMagick-Font-Fehler)
-#  - ODER Layout-B (Wortmarke → ImageMagick rendert system-ui-Font nicht)
-NEED_FALLBACK=false
-if [ "$PNG_SIZE" -lt 5000 ]; then NEED_FALLBACK=true; fi
-if [ "$CHOSEN_LAYOUT" = "b" ]; then NEED_FALLBACK=true; fi
-
-if [ "$NEED_FALLBACK" = "true" ] && [ -x "$SCRIPT_DIR/render-png-fallback.sh" ]; then
-  REASON="Wortmarke (Layout-B)"
-  [ "$PNG_SIZE" -lt 5000 ] && REASON="zu klein ($PNG_SIZE B)"
-  echo "  ⚠ Browser-Render-Fallback: $REASON"
-  "$SCRIPT_DIR/render-png-fallback.sh" "$LOGO_SVG" "$PNG_OUT" 480 || true
-  if [ -f "$PNG_OUT" ] && [[ -d "public" ]]; then
-    cp "$PNG_OUT" "$LOGO_PNG_PUBLIC"
+# Falls keine Dark-Source: Color-Swap-Fallback aus Light
+if [ -z "$DARK_SRC" ]; then
+  if [[ "$LIGHT_SRC" == *.svg ]]; then
+    echo "  ⓘ Keine Dark-SVG gefunden → Color-Swap-Fallback (primary→white)"
+    prepare_dark_svg_fallback "$LOGO_SVG_LIGHT" "$STAGE_DIR/dark.svg"
+    DARK_SRC="$STAGE_DIR/dark.svg"
+  else
+    # PNG-only: nutze Light auch als Dark (wir haben keine bessere Option)
+    DARK_SRC="$LIGHT_SRC"
   fi
 fi
 
-# Auch nach public/email/logo.png
+echo "  Logo-Light: $(basename "$LIGHT_SRC")"
+echo "  Logo-Dark:  $(basename "$DARK_SRC")"
+
+render_to_png "$LIGHT_SRC" "$LOGO_PNG_LIGHT_OUT" "light"
+echo "  ✓ logo-light.png"
+render_to_png "$DARK_SRC" "$LOGO_PNG_DARK_OUT" "dark"
+echo "  ✓ logo-dark.png"
+
+rm -rf "$STAGE_DIR"
+
+# Backwards-compat: auch logo.png (= light) für ältere Templates
+cp "$LOGO_PNG_LIGHT_OUT" "$OUT_DIR/assets/logo.png" 2>/dev/null || true
+
+# Public-Hosting (für Vercel): beide PNGs nach public/email/
 if [[ -d "public" ]]; then
-  mkdir -p "$(dirname "$LOGO_PNG_PUBLIC")"
-  cp "$PNG_OUT" "$LOGO_PNG_PUBLIC"
-  echo "  ✓ $LOGO_PNG_PUBLIC"
+  mkdir -p "$(dirname "$LOGO_PNG_PUBLIC_LIGHT")"
+  cp "$LOGO_PNG_LIGHT_OUT" "$LOGO_PNG_PUBLIC_LIGHT"
+  cp "$LOGO_PNG_DARK_OUT"  "$LOGO_PNG_PUBLIC_DARK"
+  # Backwards-compat: auch logo.png (= light) für alten Customer-HTML
+  LOGO_PNG_PUBLIC_LEGACY="${LOGO_PNG_PUBLIC:-public/email/logo.png}"
+  cp "$LOGO_PNG_LIGHT_OUT" "$LOGO_PNG_PUBLIC_LEGACY" 2>/dev/null || true
+  echo "  ✓ $LOGO_PNG_PUBLIC_LIGHT"
+  echo "  ✓ $LOGO_PNG_PUBLIC_DARK"
 fi
 
 # ── README ────────────────────────────────────────────────────────────────────
