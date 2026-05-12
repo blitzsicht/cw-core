@@ -121,6 +121,54 @@ build_compliance_block() {
 
 COMPLIANCE_BLOCK=$(build_compliance_block)
 
+# ── Extras-Block (Booking, GMB-Review, Trust-Badges) ──────────────────────────
+build_extras_block() {
+  local parts=""
+
+  # Booking-CTA (subtil, primary-Farbe als border)
+  if [ -n "${BOOKING_URL:-}" ]; then
+    local label="${BOOKING_LABEL:-Termin vereinbaren}"
+    parts="${parts}<a href=\"${BOOKING_URL}\" style=\"display:inline-block;margin-top:10px;padding:6px 12px;border:1px solid ${COLOR_PRIMARY};color:${COLOR_PRIMARY};text-decoration:none;font-size:11px;font-weight:600;border-radius:3px;\">📅 ${label}</a>"
+  fi
+
+  # Trust-Badges (komma-separierte Liste)
+  if [ -n "${TRUST_BADGES_JSON:-}" ]; then
+    local badges
+    badges=$(printf '%s' "$TRUST_BADGES_JSON" | python3 -c '
+import sys, json
+try:
+    items = json.loads(sys.stdin.read())
+    out = []
+    for b in items:
+        label = b.get("label", "")
+        url = b.get("url", "")
+        if url:
+            out.append(f"<a href=\"{url}\" style=\"color:#666;text-decoration:none;\">{label}</a>")
+        else:
+            out.append(label)
+    print(" &middot; ".join(out))
+except Exception:
+    pass
+' 2>/dev/null)
+    if [ -n "$badges" ]; then
+      parts="${parts}<p style=\"margin:10px 0 0 0;font-size:10px;color:#888;\">${badges}</p>"
+    fi
+  fi
+
+  # Google-Bewertungs-CTA (prominent in Akzent-Farbe)
+  if [ -n "${GOOGLE_REVIEW_URL:-}" ]; then
+    # UTM am Review-URL anhängen (immer)
+    local separator="?"
+    [[ "$GOOGLE_REVIEW_URL" == *"?"* ]] && separator="&"
+    local review_url_with_utm="${GOOGLE_REVIEW_URL}${separator}utm_source=email-signature&utm_medium=email&utm_campaign=${SLUG}-review"
+    parts="${parts}<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin-top:12px;\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\">⭐ Auf Google bewerten</a></td></tr></table>"
+  fi
+
+  printf '%s' "$parts"
+}
+
+EXTRAS_BLOCK=$(build_extras_block)
+
 # ── Layout-Auswahl (auto/a/b) ─────────────────────────────────────────────────
 detect_layout() {
   if [ "$LAYOUT" = "a" ] || [ "$LAYOUT" = "b" ]; then
@@ -171,6 +219,7 @@ replace_html() {
     -e "s|{{LOGO_URL}}|$(sed_escape "$LOGO_URL")|g" \
     -e "s|{{LOGO_ALT}}|$(sed_escape "$LOGO_ALT")|g" \
     -e "s|{{COMPLIANCE_BLOCK}}|$(sed_escape "$COMPLIANCE_BLOCK")|g" \
+    -e "s|{{EXTRAS_BLOCK}}|$(sed_escape "$EXTRAS_BLOCK")|g" \
     "$file"
 }
 
@@ -283,6 +332,18 @@ if [[ "$LIGHT_SRC" == *.svg ]] && grep -q 'fill="white"' "$LIGHT_SRC" 2>/dev/nul
   prepare_light_svg_from_dark "$LIGHT_SRC" "$STAGE_DIR/light.svg"
   DARK_SRC="$LOGO_SVG_LIGHT"   # immer Original (mit white text) als Dark
   LIGHT_SRC="$STAGE_DIR/light.svg"
+fi
+
+# Hybrid-Fix für pseudo-dark SVGs (Steller-Pattern): logo-dark.svg existiert
+# aber hat keine white-fills → wir generieren ein echtes dark-Logo aus dem light.
+if [ -n "$DARK_SRC" ] && [[ "$DARK_SRC" == *.svg ]] && [ -f "$DARK_SRC" ]; then
+  if ! grep -qiE 'fill="(white|#fff(fff)?)"' "$DARK_SRC" 2>/dev/null \
+     && ! grep -qiE 'style="[^"]*fill:\s*(white|#fff(fff)?)' "$DARK_SRC" 2>/dev/null; then
+    echo "  ⓘ logo-dark.svg hat keine white-fills → Auto-Color-Swap aus light.svg"
+    # Alle hex-fills (außer transparent/none) → weiß. Behält Akzent-Farben wenn diese nicht hex sind.
+    sed -E 's|fill="#[0-9a-fA-F]{6}"|fill="#ffffff"|g; s|fill="#[0-9a-fA-F]{3}"|fill="#ffffff"|g; s|fill:\s*#[0-9a-fA-F]{6}|fill:#ffffff|g' "$LIGHT_SRC" > "$STAGE_DIR/dark-derived.svg"
+    DARK_SRC="$STAGE_DIR/dark-derived.svg"
+  fi
 fi
 
 # Falls keine Dark-Source: Color-Swap-Fallback aus Light

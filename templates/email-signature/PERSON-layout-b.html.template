@@ -26,10 +26,10 @@
 <table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#333333;max-width:580px;">
   <tbody>
     <tr>
-      <td style="padding:0 0 16px 0;">
+      <td align="center" style="padding:0 0 16px 0;text-align:center;">
         <picture>
           <source media="(prefers-color-scheme: dark)" srcset="{{LOGO_URL_DARK}}">
-          <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" style="display:block;border:0;max-width:300px;width:100%;height:auto;">
+          <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" style="display:inline-block;border:0;max-width:240px;width:100%;height:auto;">
         </picture>
       </td>
     </tr>
@@ -54,6 +54,7 @@
         </p>
         <p class="esig-company" style="margin:0 0 2px 0;font-size:12px;font-weight:bold;color:#333333;">{{COMPANY_NAME}}</p>
         <p class="esig-compliance" style="margin:0;font-size:11px;color:#888888;line-height:1.6;">{{COMPLIANCE_BLOCK}}</p>
+        {{EXTRAS_BLOCK}}
       </td>
     </tr>
   </tbody>

@@ -57,17 +57,43 @@ echo "→ Generiere Mail-Versand für: $TO_NAME <$TO_EMAIL>"
 echo "  Signatur-Source: $SIG_DIR"
 echo "  Output:          $OUT_DIR/"
 
+# ── vCard (.vcf) generieren — aus Signatur-Files extrahieren ──────────────────
+VCARD_PATH="$SIG_DIR/$SLUG.vcf"
+if [ ! -f "$VCARD_PATH" ]; then
+  # Extrahiere Daten aus der HTML-Signatur (Person der die Mail GEHÖRT, nicht Empfänger)
+  # SIG_HTML contains person's NAME/POSITION/EMAIL/PHONE/COMPANY etc.
+  SIG_NAME=$( { grep -oE 'class="esig-name"[^>]*>[^<]+' "$HTML_PATH" || true; } | sed -E 's|.*>||' | head -1)
+  SIG_POSITION=$( { grep -oE 'class="esig-position"[^>]*>[^<]+' "$HTML_PATH" || true; } | sed -E 's|.*>||' | head -1)
+  SIG_COMPANY=$( { grep -oE 'class="esig-company"[^>]*>[^<]+' "$HTML_PATH" || true; } | sed -E 's|.*>||' | head -1)
+  SIG_EMAIL=$( { grep -oE 'mailto:[^"]+' "$HTML_PATH" || true; } | head -1 | sed 's|mailto:||')
+  SIG_PHONE=$( { grep -oE 'tel:[^"]+' "$HTML_PATH" || true; } | head -1 | sed 's|tel:||')
+  SIG_WEB=$( { grep -oE 'href="https?://[^"]+' "$HTML_PATH" || true; } | { grep -v 'mailto:' || true; } | { grep -v 'tel:' || true; } | head -1 | sed -E 's|^href="||')
+
+  cat > "$VCARD_PATH" <<VCARDEOF
+BEGIN:VCARD
+VERSION:3.0
+FN:${SIG_NAME:-$TO_NAME}
+ORG:${SIG_COMPANY:-}
+TITLE:${SIG_POSITION:-}
+TEL;TYPE=WORK,VOICE:${SIG_PHONE:-}
+EMAIL;TYPE=WORK:${SIG_EMAIL:-}
+URL:${SIG_WEB:-}
+END:VCARD
+VCARDEOF
+  echo "  ✓ $SLUG.vcf (vCard)"
+fi
+
 # ── .eml via Python (zuverlässiges MIME-Encoding) ─────────────────────────────
 python3 - "$HTML_PATH" "$TXT_PATH" "$SLUG" "$FROM_NAME" "$FROM_EMAIL" \
              "$TO_NAME" "$TO_EMAIL" "$SALUTATION" "$SUBJECT" "$EML_OUT" \
-             "$FROM_PHONE" "$FROM_DOMAIN" <<'PYEOF'
+             "$FROM_PHONE" "$FROM_DOMAIN" "$VCARD_PATH" <<'PYEOF'
 import sys, os
 from email.message import EmailMessage
 from email.utils import make_msgid, formatdate
 from pathlib import Path
 
 (html_path, txt_path, slug, from_name, from_email, to_name, to_email,
- salutation, subject, eml_out, from_phone, from_domain) = sys.argv[1:13]
+ salutation, subject, eml_out, from_phone, from_domain, vcard_path) = sys.argv[1:14]
 
 html_sig = Path(html_path).read_text(encoding="utf-8")
 txt_sig = Path(txt_path).read_text(encoding="utf-8")
@@ -136,6 +162,9 @@ with open(html_path, "rb") as f:
     msg.add_attachment(f.read(), maintype="text", subtype="html", filename=f"{slug}.html")
 with open(txt_path, "rb") as f:
     msg.add_attachment(f.read(), maintype="text", subtype="plain", filename=f"{slug}.txt")
+if vcard_path and os.path.exists(vcard_path):
+    with open(vcard_path, "rb") as f:
+        msg.add_attachment(f.read(), maintype="text", subtype="vcard", filename=f"{slug}.vcf")
 
 Path(eml_out).write_bytes(bytes(msg))
 print(f"  ✓ {os.path.basename(eml_out)} ({os.path.getsize(eml_out)} bytes)")
@@ -224,7 +253,7 @@ cat >> "$PREVIEW_OUT" <<HTMLEOF
     <p>Bei Fragen einfach kurz antworten.</p>
     <p>Viele Grüße<br>$FROM_NAME · Blitzsicht</p>
   </div>
-  <div class="attachments">📎 <strong>Anhänge:</strong> <code>$SLUG.html</code> · <code>$SLUG.txt</code></div>
+  <div class="attachments">📎 <strong>Anhänge:</strong> <code>$SLUG.html</code> · <code>$SLUG.txt</code> · <code>$SLUG.vcf</code></div>
 </div></body></html>
 HTMLEOF
 
