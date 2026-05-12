@@ -53,4 +53,4 @@ body.dark .sig-preview .esig-compliance{ color: #94a3b8 !important; }
 .attachments { background: #f9fafb; padding: 12px 24px; border-top: 1px solid #e5e7eb; font-size: 13px; color: #6b7280; }
 .attachments code { background: white; padding: 2px 6px; border-radius: 3px; }
 .theme-toggle { position: fixed; top: 16px; right: 20px; background: var(--primary, #312783); color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 12px; z-index: 100; }
-body.dark .theme-toggle { background: #fbbf24; color: #0a0a0a; }
+body.dark .theme-toggle { background: var(--accent, #fbbf24); color: #0a0a0a; }
