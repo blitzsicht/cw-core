@@ -6,12 +6,7 @@ Tel:    {{PHONE}}
 E-Mail: {{EMAIL}}
 Web:    {{WEBSITE_FULL}}
 
-{{STREET}}
-{{ZIP_CITY}}
-
-{{LEGAL_FORM}} | GF: {{GF_NAME}}
-{{REGISTERGERICHT}} | {{HRB}}
-USt-IdNr.: {{UST_ID}}
+{{COMPLIANCE_BLOCK}}
 
 --
 Hinweis: Diese E-Mail und etwaige Anhänge sind ausschließlich für den bezeichneten Empfänger bestimmt.

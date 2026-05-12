@@ -5,7 +5,6 @@
 <meta name="color-scheme" content="light dark">
 <meta name="supported-color-schemes" content="light dark">
 <style>
-  /* Light-Mode defaults inline below. Dark-Mode-Overrides hier: */
   @media (prefers-color-scheme: dark) {
     .esig-name      { color: #ffffff !important; }
     .esig-position  { color: #cbd5e1 !important; }
@@ -27,13 +26,15 @@
 <table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#333333;max-width:580px;">
   <tbody>
     <tr>
-      <td valign="top" style="padding-right:20px;border-right:3px solid {{COLOR_PRIMARY}};width:140px;">
-        <img src="{{LOGO_URL}}" alt="{{LOGO_ALT}}" width="120" style="display:block;border:0;width:120px;height:auto;">
+      <td style="padding:0 0 16px 0;">
+        <img src="{{LOGO_URL}}" alt="{{LOGO_ALT}}" style="display:block;border:0;max-width:300px;width:100%;height:auto;">
       </td>
-      <td valign="top" style="padding-left:20px;">
+    </tr>
+    <tr>
+      <td style="border-top:3px solid {{COLOR_PRIMARY}};padding-top:14px;">
         <p class="esig-name" style="margin:0 0 2px 0;font-size:16px;font-weight:bold;color:{{COLOR_PRIMARY}};">{{NAME}}</p>
-        <p class="esig-position" style="margin:0 0 10px 0;font-size:13px;color:#666666;">{{POSITION}}</p>
-        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px 0;"><tbody><tr>
+        <p class="esig-position" style="margin:0 0 12px 0;font-size:13px;color:#666666;">{{POSITION}}</p>
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 12px 0;"><tbody><tr>
           <td style="height:2px;background-color:{{COLOR_ACCENT}};width:200px;font-size:0;line-height:0;">&nbsp;</td>
         </tr></tbody></table>
         <p style="margin:0 0 3px 0;font-size:13px;">
@@ -44,7 +45,7 @@
           <span class="esig-label" style="color:#888888;">E-Mail:</span>&nbsp;
           <a class="esig-link" href="mailto:{{EMAIL}}" style="color:{{COLOR_PRIMARY}};text-decoration:none;">{{EMAIL}}</a>
         </p>
-        <p style="margin:0 0 10px 0;font-size:13px;">
+        <p style="margin:0 0 12px 0;font-size:13px;">
           <span class="esig-label" style="color:#888888;">Web:</span>&nbsp;
           <a class="esig-link" href="{{WEBSITE_FULL}}" style="color:{{COLOR_ACCENT}};text-decoration:none;">{{WEBSITE_URL}}</a>
         </p>
