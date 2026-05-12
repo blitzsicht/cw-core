@@ -135,3 +135,76 @@ Voraussetzungen: `siteData.legal` vollstaendig ausgefuellt (via cw-onboard).
 Outlook (Desktop, Windows) rendert kein CSS Flexbox/Grid. Tabellen sind der
 einzige zuverlaessige Cross-Client-Standard fuer HTML-E-Mails (2026).
 Max-Width: 580px (Outlook-Safe).
+
+## End-to-End-Pipeline: `onboard-person.sh`
+
+Komplett-Workflow für eine neue Person (z.B. neuer Mitarbeiter bei einem Customer):
+
+```bash
+cd cw-core/templates/email-signature
+
+CUSTOMER_REPO=/path/to/customer-blitzsicht \
+NAME="Max Mustermann" SLUG=max-mustermann \
+POSITION="Geschäftsführer" \
+EMAIL=max@meine-firma.de PHONE="+49 123 456789" \
+WEBSITE_URL=meine-firma.de \
+COLOR_PRIMARY=#312783 COLOR_ACCENT=#3d7a12 \
+COMPANY_NAME="Meine Firma GmbH" LEGAL_FORM=GmbH GF_NAME="Max Mustermann" \
+STREET="Straße 1" ZIP_CITY="93000 Stadt" \
+HRB="HRB 12345" REGISTERGERICHT="Amtsgericht Stadt" UST_ID=DE123456 \
+LOGO_SVG=$CUSTOMER_REPO/public/logo.svg \
+LOGO_URL=https://meine-firma.de/email/logo.png \
+TO_EMAIL=max@meine-firma.de FIRST_NAME=Max \
+SALUTATION="Hallo Max" \
+./onboard-person.sh
+```
+
+Output:
+- `customer-X/email-signatures/<slug>/` (HTML, TXT, README, MAIL-VORLAGE.md, assets/logo.png)
+- `/tmp/customer-mails/<slug>.eml` (versandfertige Mail mit Anhängen)
+- `/tmp/customer-mails/<slug>-preview.html` (Browser-Vorschau)
+
+Optional `COMMIT=true` → auto git add + commit + push.
+
+## Nur Mail erzeugen (Signatur existiert schon)
+
+```bash
+SIG_DIR=customer-X/email-signatures/max-mustermann \
+TO_EMAIL=max@meine-firma.de TO_NAME="Max Mustermann" FIRST_NAME=Max \
+SALUTATION="Hallo Max" \
+./generate-mail.sh
+```
+
+## Versand-Workflow
+
+1. `onboard-person.sh` oder `generate-mail.sh` ausführen
+2. `open /tmp/customer-mails/<slug>-preview.html` → Browser-Preview prüfen
+3. Wenn ok: `open /tmp/customer-mails/<slug>.eml` → Apple Mail / Outlook öffnet als Entwurf
+4. Vor dem Senden: ggf. Anrede anpassen (Du/Sie), Subject prüfen
+5. ⌘+Shift+D (Apple Mail) bzw. „Senden"-Button (Outlook)
+
+## UTM-Tracking
+
+`onboard-person.sh` baut automatisch UTM-Params am Web-Link ein:
+```
+https://<domain>?utm_source=email-signature&utm_medium=email&utm_campaign=<slug>
+```
+
+Plausible misst Klicks pro Mitarbeiter automatisch (DSGVO-clean — nur Click-Tracking, kein Pixel).
+
+Deaktivieren: `SKIP_UTM=true ./onboard-person.sh ...`
+
+## Bekannte Cosmetic-Bugs (zu fixen)
+
+- Umlaute im Slug werden gestripped statt transliteriert (`Pöppl` → `nico-pppl`). Workaround: SLUG-Var manuell setzen (z.B. `SLUG=nico-poeppl`).
+- Bei `LEGAL_FORM=Einzelunternehmen` und leerem `GF_NAME` wird trotzdem „GF:"-Zeile mit leerem Wert gerendert. Manueller HTML-Fix oder Template-Patch.
+- Bei leerem `HRB` und gesetztem `REGISTERGERICHT` bleibt „Amtsgericht xy ·"-Separator stehen.
+
+## Customer mit Apex auf KAS (nicht Vercel)
+
+Wenn Custom-Domain-Apex nicht auf Vercel zeigt (Donau-Profi, Weinkontor-Sinzing): `LOGO_URL` auf die Vercel-Auto-URL setzen:
+```bash
+LOGO_URL=https://customer-<name>.vercel.app/email/logo.png
+```
+
+Vorab prüfen: `dig +short A <domain>` → 76.76.21.21 oder 216.198.79.1 = Vercel.
