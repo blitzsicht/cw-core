@@ -66,6 +66,7 @@ Die Pipeline kopiert pro Person zusätzlich nach `<customer>/public/email/`:
 | `logo*.png` | `https://firma.de/email/logo.png` | Mail-Client lädt Logo aus HTML-Sig |
 | `<slug>.vcf` | `https://firma.de/email/<slug>.vcf` | "📇 Kontakt speichern (vCard)"-Link in Sig |
 | `<slug>.html` | `https://firma.de/email/<slug>.html` | Browser-Vorschau / Copy-Paste-Workflow |
+| `<slug>-install.html` | `https://firma.de/email/<slug>-install.html` | **Install-Page**: Vorschau + Copy-Buttons (visuell + HTML-Source) + Einbau-Anleitung pro Mail-Client |
 
 `regenerate-all.sh` setzt automatisch `VCARD_PUBLIC_URL=$LOGO_URL_HOST/email/$SLUG.vcf`. Der "Kontakt speichern"-Link erscheint nur wenn diese Var gesetzt ist (Opt-in über Pipeline).
 

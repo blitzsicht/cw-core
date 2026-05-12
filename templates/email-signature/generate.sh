@@ -391,6 +391,152 @@ if [ -n "$CUSTOMER_REPO_ROOT" ] && [ -d "$CUSTOMER_REPO_ROOT/public" ]; then
   # HTML-Sig public hosten ("https://firma.de/email/<slug>.html" für Browser-Vorschau)
   cp "$OUT_DIR/$SLUG.html" "$PUBLIC_EMAIL_DIR/$SLUG.html" \
     && echo "  ✓ public/email/$SLUG.html"
+
+  # Install-Page (Vorschau + Copy-Button + Einbau-Anleitung) generieren
+  # → URL: https://firma.de/email/<slug>-install.html
+  INSTALL_OUT="$OUT_DIR/$SLUG-install.html"
+  python3 - "$OUT_DIR/$SLUG.html" "$INSTALL_OUT" "$NAME" "$SLUG" "$COMPANY_NAME" \
+                "$COLOR_PRIMARY" "$COLOR_ACCENT" <<'PYEOF'
+import sys, html
+from pathlib import Path
+
+(sig_path, out_path, name, slug, company, primary, accent) = sys.argv[1:8]
+sig_html = Path(sig_path).read_text(encoding="utf-8")
+sig_escaped = html.escape(sig_html)
+
+page = f"""<!DOCTYPE html>
+<html lang="de"><head>
+<meta charset="UTF-8">
+<title>Email-Signatur einbauen — {html.escape(name)}</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root {{ --primary: {primary}; --accent: {accent}; }}
+  * {{ box-sizing: border-box; }}
+  body {{ font-family: -apple-system, system-ui, sans-serif; background: #f3f4f6; margin: 0; padding: 24px; color: #1f2937; line-height: 1.55; }}
+  .wrap {{ max-width: 760px; margin: 0 auto; }}
+  h1 {{ font-size: 22px; margin: 0 0 4px 0; color: var(--primary); }}
+  .sub {{ color: #6b7280; margin: 0 0 24px 0; font-size: 14px; }}
+  .section {{ background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; }}
+  .section h2 {{ font-size: 15px; margin: 0 0 12px 0; color: #111827; text-transform: uppercase; letter-spacing: 0.5px; }}
+  .preview {{ background: #fafafa; border: 1px dashed #d1d5db; border-radius: 6px; padding: 20px; }}
+  .actions {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }}
+  button.btn, a.btn {{ display: inline-block; padding: 9px 16px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; text-decoration: none; }}
+  button.btn:hover, a.btn:hover {{ opacity: 0.9; }}
+  button.btn-secondary {{ background: #6b7280; }}
+  button.btn-accent {{ background: var(--accent); }}
+  pre.source {{ background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 11px; line-height: 1.4; max-height: 320px; overflow-y: auto; margin: 0; }}
+  .toast {{ position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #16a34a; color: white; padding: 10px 20px; border-radius: 5px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; }}
+  .toast.show {{ opacity: 1; }}
+  ol li {{ margin-bottom: 6px; }}
+  code {{ background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 12px; }}
+  details {{ margin-top: 8px; }}
+  summary {{ cursor: pointer; font-weight: 600; color: var(--primary); font-size: 13px; }}
+</style>
+</head><body>
+<div class="wrap">
+
+<h1>Email-Signatur — {html.escape(name)}</h1>
+<p class="sub">{html.escape(company)} · einbauen in 2 Minuten</p>
+
+<div class="section">
+  <h2>1 · Vorschau</h2>
+  <div class="preview" id="sig-preview"></div>
+  <div class="actions">
+    <button class="btn" onclick="copyVisual()">📋 Sig kopieren (Apple Mail / Gmail)</button>
+    <button class="btn btn-secondary" onclick="copySource()">&lt;/&gt; HTML-Source kopieren (Outlook Web)</button>
+    <a class="btn btn-accent" href="{slug}.vcf">📇 vCard speichern</a>
+  </div>
+</div>
+
+<div class="section">
+  <h2>2 · Einbau-Anleitung</h2>
+  <details open>
+    <summary>Apple Mail (macOS)</summary>
+    <ol>
+      <li>Mail → Einstellungen → Signaturen → "+" für neue</li>
+      <li>"Schriftart und Farbe der Standardnachricht beibehalten" deaktivieren</li>
+      <li>Oben "📋 Sig kopieren" klicken → in das Signatur-Feld einfügen (Cmd+V)</li>
+    </ol>
+  </details>
+  <details>
+    <summary>Outlook Web</summary>
+    <ol>
+      <li>Einstellungen → Mail → Verfassen und antworten → E-Mail-Signatur</li>
+      <li>Auf das <code>&lt;/&gt;</code>-Quelltext-Icon klicken</li>
+      <li>Oben "&lt;/&gt; HTML-Source kopieren" klicken → einfügen, speichern</li>
+    </ol>
+  </details>
+  <details>
+    <summary>Gmail Web</summary>
+    <ol>
+      <li>Einstellungen (Zahnrad) → Alle Einstellungen anzeigen</li>
+      <li>Tab "Allgemein" → ganz nach unten zu "Signatur"</li>
+      <li>Oben "📋 Sig kopieren" klicken → in das Signatur-Feld einfügen</li>
+    </ol>
+  </details>
+</div>
+
+<div class="section">
+  <h2>3 · HTML-Source (zum Anschauen)</h2>
+  <pre class="source" id="source-block">{sig_escaped}</pre>
+</div>
+
+</div>
+
+<div class="toast" id="toast">In Zwischenablage kopiert ✓</div>
+
+<script>
+  // Preview einblenden (per innerHTML — wir vertrauen unserer eigenen Sig)
+  const sigSource = document.getElementById('source-block').textContent;
+  document.getElementById('sig-preview').innerHTML = sigSource;
+
+  function showToast(msg) {{
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }}
+
+  async function copySource() {{
+    try {{
+      await navigator.clipboard.writeText(sigSource);
+      showToast('HTML-Source kopiert ✓');
+    }} catch (e) {{
+      showToast('Kopieren fehlgeschlagen — bitte manuell aus Source-Block');
+    }}
+  }}
+
+  async function copyVisual() {{
+    // Visuell-Selection für Mail-Clients die rich-text paste verstehen
+    const preview = document.getElementById('sig-preview');
+    const range = document.createRange();
+    range.selectNodeContents(preview);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    try {{
+      // Modern: Clipboard-API mit text/html
+      const blob = new Blob([sigSource], {{ type: 'text/html' }});
+      const data = [new ClipboardItem({{ 'text/html': blob, 'text/plain': new Blob([sigSource], {{ type: 'text/plain' }}) }})];
+      await navigator.clipboard.write(data);
+      showToast('Sig kopiert ✓');
+    }} catch (e) {{
+      // Fallback: execCommand
+      document.execCommand('copy');
+      showToast('Sig kopiert (Fallback) ✓');
+    }}
+    sel.removeAllRanges();
+  }}
+</script>
+</body></html>
+"""
+Path(out_path).write_text(page, encoding="utf-8")
+print(f"  ✓ {Path(out_path).name}")
+PYEOF
+
+  # Install-Page auch ins public/email kopieren
+  cp "$INSTALL_OUT" "$PUBLIC_EMAIL_DIR/$SLUG-install.html" \
+    && echo "  ✓ public/email/$SLUG-install.html"
 fi
 
 # ── README ────────────────────────────────────────────────────────────────────
