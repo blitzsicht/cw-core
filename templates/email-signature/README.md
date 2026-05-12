@@ -57,6 +57,25 @@ const data = {
 
 Pflicht: `slug`, `name`, `email`. Alle anderen Felder optional.
 
+## UTM-Klick-Tracking (v6.3)
+
+Jeder klickbare Link in der Sig hat UTM-Params. Plausible erfasst beim Klick automatisch Source + Campaign.
+
+| Link in Sig | UTM-Schema |
+|---|---|
+| Web-URL (`firma.de`) | `?utm_source=email-signature&utm_medium=email&utm_campaign=<slug>-web` |
+| vCard-Download | `?...&utm_campaign=<slug>-vcard` |
+| GMB-Review-CTA | `?...&utm_campaign=<slug>-review` |
+| Booking-URL | `?...&utm_campaign=<slug>-booking` |
+| `mailto:`/`tel:` | — (Schema ignoriert Query-Params) |
+
+**Plausible-Dashboard-Auswertung pro Customer-Site:**
+- *Sources* → Filter `email-signature` → Sig-Klicks total
+- *Campaigns* → `<slug>-web` vs. `<slug>-review` → pro Mitarbeiter individuell auswertbar
+- "Wer bringt am meisten Traffic?" wird damit messbar
+
+**DSGVO-Status:** ✓ konform. Plausible ist cookieless + IP-anonymisiert. UTM ist Marketing-Standard (Branchenkonvention), kein personenbezogenes Tracking.
+
 ## Public-Hosting (v6.1)
 
 Die Pipeline kopiert pro Person zusätzlich nach `<customer>/public/email/`:

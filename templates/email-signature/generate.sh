@@ -66,6 +66,10 @@ SLUG="${EXPLICIT_SLUG:-$SLUG}"
 OUT_DIR="${OUT_DIR:-email-signatures/$SLUG}"
 mkdir -p "$OUT_DIR/assets"
 
+# Web-URL bekommt UTM-Tracking: ?utm_source=email-signature&utm_campaign=<slug>-web
+# Display-Text bleibt {{WEBSITE_URL}} (ohne UTM), nur href {{WEBSITE_FULL}} bekommt UTM.
+WEBSITE_FULL="${WEBSITE_FULL}?utm_source=email-signature&utm_medium=email&utm_campaign=${SLUG}-web"
+
 echo "→ Generiere Signatur für: $NAME"
 echo "  Output: $OUT_DIR/"
 
@@ -121,6 +125,16 @@ build_compliance_block() {
 
 COMPLIANCE_BLOCK=$(build_compliance_block)
 
+# ── UTM-Helper (Plausible-Klick-Tracking pro Mitarbeiter) ─────────────────────
+# Schema: ?utm_source=email-signature&utm_medium=email&utm_campaign=<slug>-<linktype>
+add_utm() {
+  local url="$1" suffix="$2"
+  [ -z "$url" ] && return
+  local sep="?"
+  [[ "$url" == *"?"* ]] && sep="&"
+  printf '%s' "${url}${sep}utm_source=email-signature&utm_medium=email&utm_campaign=${SLUG}-${suffix}"
+}
+
 # ── Extras-Block (Booking, GMB-Review, Trust-Badges) ──────────────────────────
 build_extras_block() {
   local parts=""
@@ -128,7 +142,8 @@ build_extras_block() {
   # Booking-CTA (subtil, primary-Farbe als border)
   if [ -n "${BOOKING_URL:-}" ]; then
     local label="${BOOKING_LABEL:-Termin vereinbaren}"
-    parts="${parts}<a href=\"${BOOKING_URL}\" style=\"display:inline-block;margin-top:10px;padding:6px 12px;border:1px solid ${COLOR_PRIMARY};color:${COLOR_PRIMARY};text-decoration:none;font-size:11px;font-weight:600;border-radius:3px;\">📅 ${label}</a>"
+    local booking_url_utm=$(add_utm "$BOOKING_URL" "booking")
+    parts="${parts}<a href=\"${booking_url_utm}\" style=\"display:inline-block;margin-top:10px;padding:6px 12px;border:1px solid ${COLOR_PRIMARY};color:${COLOR_PRIMARY};text-decoration:none;font-size:11px;font-weight:600;border-radius:3px;\">📅 ${label}</a>"
   fi
 
   # Trust-Badges (komma-separierte Liste)
@@ -157,16 +172,14 @@ except Exception:
 
   # Google-Bewertungs-CTA (prominent in Akzent-Farbe)
   if [ -n "${GOOGLE_REVIEW_URL:-}" ]; then
-    # UTM am Review-URL anhängen (immer)
-    local separator="?"
-    [[ "$GOOGLE_REVIEW_URL" == *"?"* ]] && separator="&"
-    local review_url_with_utm="${GOOGLE_REVIEW_URL}${separator}utm_source=email-signature&utm_medium=email&utm_campaign=${SLUG}-review"
+    local review_url_with_utm=$(add_utm "$GOOGLE_REVIEW_URL" "review")
     parts="${parts}<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin-top:12px;\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\">⭐ Auf Google bewerten</a></td></tr></table>"
   fi
 
   # vCard-Download-Link ("Kontakt speichern")
   if [ -n "${VCARD_PUBLIC_URL:-}" ]; then
-    parts="${parts}<p style=\"margin:10px 0 0 0;font-size:11px;\"><a href=\"${VCARD_PUBLIC_URL}\" style=\"color:${COLOR_PRIMARY};text-decoration:none;\">📇 Kontakt speichern (vCard)</a></p>"
+    local vcard_url_utm=$(add_utm "$VCARD_PUBLIC_URL" "vcard")
+    parts="${parts}<p style=\"margin:10px 0 0 0;font-size:11px;\"><a href=\"${vcard_url_utm}\" style=\"color:${COLOR_PRIMARY};text-decoration:none;\">📇 Kontakt speichern (vCard)</a></p>"
   fi
 
   printf '%s' "$parts"
