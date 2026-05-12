@@ -53,6 +53,13 @@ cw-core/
     site-data.template.ts  # Annotiertes Template für neue Kunden
     tokens.template.css    # CSS-Token-Template mit WCAG-Hinweisen
     vercel.template.json   # Security-Header-Basis für Vercel
+    email-signature/       # E-Mail-Signaturen Standard-Service
+      PERSON.html.template # HTML-Template (Outlook-kompatibel, Tabellen-Layout)
+      PERSON.txt.template  # Plain-Text-Fallback
+      generate.sh          # PNG-Pipeline + Platzhalter-Ersetzung
+      README.md            # Vollständige Dokumentation + Compliance-Check
+      examples/
+        digital-direkt/    # Referenzbeispiel: Melanie Steller (2026-05-12)
 ```
 
 ## Layouts
@@ -133,6 +140,41 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 - Brand-Farben als CSS Custom Properties in der Kunden-`tokens.css` (z. B. `--color-primary`, `--color-accent`)
 - `tokens-base.css` stellt Utility-Klassen bereit, setzt aber kein `@import "tailwindcss"` — das macht die Kunden-`tokens.css`
 - Keine Google Fonts (DSGVO) — ausschließlich System-UI Stack
+
+## E-Mail-Signaturen
+
+Standard-Service für alle Customer-Sites. Generiert HTML + Plain-Text + Logo-PNG
+aus `siteData.legal` — §35a HGB konform für GmbH/AG/Einzelunternehmen.
+
+```bash
+# Neue Signatur für eine Customer-Site generieren
+cd customer-<name>
+
+export NAME="Max Mustermann"
+export POSITION="Vertrieb"
+export EMAIL="max@firma.de"
+export PHONE="+49 123 456789"
+export WEBSITE_URL="firma.de"
+export COLOR_PRIMARY="#312783"   # aus tokens.css
+export COLOR_ACCENT="#3d7a12"    # aus tokens.css
+export COMPANY_NAME="Firma GmbH"
+export LEGAL_FORM="GmbH"
+export GF_NAME="Max Mustermann"  # aus siteData.legal.owner
+export STREET="Musterstr. 1"    # aus siteData.legal.street
+export ZIP_CITY="12345 Stadt"   # aus siteData.legal
+export HRB="HRB 12345"         # aus siteData.legal.handelsregister
+export REGISTERGERICHT="Amtsgericht Stadt"  # aus siteData.legal.registergericht
+export UST_ID="DE 123456789"   # aus siteData.legal.ustIdNr
+export LOGO_SVG="public/logo.svg"
+export LOGO_URL="https://firma.de/email/logo.png"
+export OUT_DIR="email-signatures/max-mustermann"
+
+bash ../cw-core/templates/email-signature/generate.sh
+```
+
+Output: `email-signatures/max-mustermann/{.html,.txt,assets/logo.png,README.md}`
+
+Referenzbeispiel: `templates/email-signature/examples/digital-direkt/` (Melanie Steller)
 
 ## Versions-Tagging
 
