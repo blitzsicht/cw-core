@@ -66,3 +66,68 @@ Auch ohne strikte CSP sind aktiv:
 `cw-audit` (intern) wertet `security.headers.csp` und `security.csp-effective` nicht mehr als `warn`, sondern als `info`, sofern **alle** anderen Pflicht-Header (HSTS, X-Content-Type-Options, Referrer-Policy, X-Frame-Options) sauber gesetzt sind. Begründung: das Risiko ist akzeptiert und dokumentiert.
 
 Externe Audit-Tools (Mozilla Observatory, securityheaders.com) bleiben bei „strict CSP" als Bewertung. Das ist erwartetes Verhalten; bei Kunden-Reviews kann auf dieses Dokument verwiesen werden.
+
+## Pragma: explicit-domain neben 'self' (seit Bisection 2026-05-12)
+
+**Pflicht-Pattern für alle Source-Directives:**
+
+```
+script-src 'self' https://<DOMAIN> 'unsafe-inline' …
+script-src-elem 'self' https://<DOMAIN> 'unsafe-inline' …
+style-src 'self' https://<DOMAIN> 'unsafe-inline'
+style-src-elem 'self' https://<DOMAIN> 'unsafe-inline'
+font-src 'self' https://<DOMAIN> data:
+connect-src 'self' https://<DOMAIN> …
+```
+
+Wo `<DOMAIN>` der Production-Origin der Customer-Site ist (z.B. `digital-direkt.com`).
+
+### Symptom
+Auf `digital-direkt.com` (Astro 5 statisch + Tailwind v4 + @cw/core v0.9.10, Vercel-deployed) blockt der Browser **same-origin** `<link rel="stylesheet">` und `<script src="">` mit:
+
+```
+Loading the stylesheet 'https://digital-direkt.com/_astro/foo.css' violates
+the following Content Security Policy directive: 'style-src 'self' 'unsafe-inline''.
+The action has been blocked.
+```
+
+Reproduziert in Edge **und** Safari, im Inkognito, in Mobilfunk und WLAN.
+
+### Was verifiziert ausgeschlossen ist
+- ✗ Server sendet 2 CSP-Header: `grep -c` = 1
+- ✗ Meta-CSP im HTML
+- ✗ Service Worker
+- ✗ `experimental.csp` in `astro.config.ts`
+- ✗ @cw/core-Integration injiziert CSP (Code-Sweep)
+- ✗ Edge-Middleware / API-Routes setzen CSP
+- ✗ Browser-Extension / Tracking-Prevention (Safari reproduziert ohne Extensions)
+- ✗ Network-Layer-MITM (User-Terminal-curl identisch)
+- ✗ Vercel-Edge-Cache (force-redeploy `age:0` ändert nichts)
+- ✗ Vercel-Toolbar (Inkognito reproduziert)
+- ✗ Astro `crossorigin`-Attribut auf `<link>` (Live-HTML hat keine)
+- ✗ Vercel rewritet `/_astro/*` zu fremder Origin (curl zeigt 200 direkt)
+- ✗ Link-Preload-HTTP-Header (`curl -I | grep -i ^link:` leer)
+- ✗ Header-Encoding (Byte-Dump zeigt sauberes ASCII)
+
+### Bisection-Befund
+- C1 (CSP komplett raus) → rendert
+- C5 (NUR `script-src 'self' …`) → rendert
+- C6 (`script-src` + `script-src-elem`) → rendert
+- **C7 (script* + `style-src 'self' 'unsafe-inline'`) → bricht**
+- **C8 (script* + `style-src-elem 'self' 'unsafe-inline'`) → bricht auch**
+
+Beide `style-src{,-elem}` mit `'self'` einzeln brechen same-origin Stylesheets.
+
+### Pragma-Fix (verifiziert in Production)
+Expliziter Origin neben `'self'` in allen Source-Directives. Commit `8e91d5d` auf customer-digital-direkt — rendert mit Styles, 0 Violations.
+
+### Reviewer-Erklärung (zwei Hypothesen, nicht final geklärt)
+1. Browser sieht einen anderen CSP-Header als curl (Vercel sendet je nach Client unterschiedlich)
+2. Header-Parser im Browser hat einen Edge-Case mit `'self' 'unsafe-inline'` ohne expliziten Host
+
+Beide Hypothesen werden durch das Pragma umgangen. Sicherheitstechnisch ist `'self' https://<domain>` ≡ nur `'self'`.
+
+### Anwendung
+- **Neue Customer-Sites:** `templates/vercel.template.json` enthält `{{DOMAIN}}`-Placeholder, der via `@cw/cli` oder manuell durch echten Origin ersetzt wird.
+- **Bestehende Customer-Sites:** vercel.json einzeln patchen (siehe `/Users/johannesgottl/.claude-blitzsicht/plans/image-1-erneut-csp-atomic-sutton.md` Track 4-Liste, 7 Sites betroffen).
+- **CSP-Test-Protokoll:** siehe `CLAUDE.md` für Pflicht-Smoke-Test vor Release.
