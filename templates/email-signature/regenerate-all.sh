@@ -83,13 +83,15 @@ run_person_for_customer() {
   EMAIL="$P_EMAIL"
   PHONE="$P_PHONE"
 
-  # Logo-Discovery
+  # Logo-Discovery — prefer customer-spezifischen Filename (z.B. logo-soleno.svg)
+  # über generischen logo.svg, weil mehrere Logos im public/ liegen können.
+  local CUST_SLUG=$(basename "$CUSTOMER_DIR" | sed 's/^customer-//')
   local LOGO_SVG=""
-  for cand in logo.svg logo.png logo_blitzsicht.svg; do
+  for cand in "logo-${CUST_SLUG}.svg" logo.svg "logo-${CUST_SLUG}.png" logo.png logo_blitzsicht.svg; do
     [ -f "$CUSTOMER_DIR/public/$cand" ] && LOGO_SVG="$CUSTOMER_DIR/public/$cand" && break
   done
   local LOGO_DARK_SVG=""
-  for cand in logo-dark.svg logo-dark.png logo-inverted.svg; do
+  for cand in "logo-${CUST_SLUG}-dark.svg" logo-dark.svg "logo-${CUST_SLUG}-inverted.svg" logo-inverted.svg logo-dark.png; do
     [ -f "$CUSTOMER_DIR/public/$cand" ] && LOGO_DARK_SVG="$CUSTOMER_DIR/public/$cand" && break
   done
 
