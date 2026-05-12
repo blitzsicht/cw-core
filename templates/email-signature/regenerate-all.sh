@@ -39,8 +39,15 @@ ONLY_SLUG="${ONLY_SLUG:-}"
 
 mkdir -p "$MAIL_OUT"
 
+# Shared Stylesheets (v6.5)
+INSTALL_CSS_SRC="$SCRIPT_DIR/install.css"
+PREVIEW_CSS_SRC="$SCRIPT_DIR/preview.css"
+
+# preview.css → 1x nach $MAIL_OUT kopieren (alle preview.html liegen dort)
+cp "$PREVIEW_CSS_SRC" "$MAIL_OUT/preview.css"
+
 echo "═══════════════════════════════════════════════════════════════"
-echo "Email-Signatur Master-Regenerator (v6)"
+echo "Email-Signatur Master-Regenerator (v6.5)"
 echo "  CUSTOMER_ROOT: $CUSTOMER_ROOT"
 echo "  MAIL_OUT:      $MAIL_OUT"
 [ -n "$ONLY_CUSTOMER" ] && echo "  ONLY_CUSTOMER: $ONLY_CUSTOMER"
@@ -136,15 +143,22 @@ run_person_for_customer() {
   OUT_DIR="$MAIL_OUT" \
   "$MAIL" 2>&1 | grep "✓" | head -5
 
-  # Schutzmaßnahme: Install-Page MUSS prefers-color-scheme dark enthalten,
-  # sonst rendert das dark-Logo (weiß) unsichtbar auf weißem Wrapper.
-  local INSTALL_PAGE="$SIG_OUT/$SLUG-install.html"
-  if [ -f "$INSTALL_PAGE" ] && ! grep -q "prefers-color-scheme: dark" "$INSTALL_PAGE"; then
-    echo "  ⚠ WARN: $SLUG-install.html hat keinen Dark-Mode-Block — Logo wird in dark-mode-Browsern unsichtbar!"
+  # Smoke-Test (v6.5): Shared-Stylesheet-Verifikation
+  # 1. install.css muss in customer/public/email/ existieren (Single-Source deployed)
+  # 2. install.css muss prefers-color-scheme: dark enthalten (Dark-Mode sicher)
+  # 3. Install-Page muss via <link href="/email/install.css?v= geladen werden
+  local CUSTOMER_PUBLIC_EMAIL="$CUSTOMER_DIR/public/email"
+  local INSTALL_CSS_DEPLOYED="$CUSTOMER_PUBLIC_EMAIL/install.css"
+  local INSTALL_PAGE="$CUSTOMER_PUBLIC_EMAIL/$SLUG-install.html"
+
+  if [ ! -f "$INSTALL_CSS_DEPLOYED" ]; then
+    echo "  ⚠ WARN: install.css fehlt in $CUSTOMER_PUBLIC_EMAIL — Deploy-Copy nicht erfolgt!"
+  elif ! grep -q "prefers-color-scheme: dark" "$INSTALL_CSS_DEPLOYED"; then
+    echo "  ⚠ WARN: $INSTALL_CSS_DEPLOYED enthält keinen Dark-Mode-Block — dark-Logo wird unsichtbar!"
   fi
-  local PREVIEW_PAGE="$MAIL_OUT/$SLUG-preview.html"
-  if [ -f "$PREVIEW_PAGE" ] && ! grep -q "prefers-color-scheme: dark" "$PREVIEW_PAGE"; then
-    echo "  ⚠ WARN: $SLUG-preview.html hat keinen Dark-Mode-Block!"
+
+  if [ -f "$INSTALL_PAGE" ] && ! grep -q 'href="/email/install.css?v=' "$INSTALL_PAGE"; then
+    echo "  ⚠ WARN: $SLUG-install.html lädt install.css nicht via <link> — Stylesheet nicht verknüpft!"
   fi
 }
 
@@ -174,6 +188,11 @@ for CUSTOMER_DIR in "$CUSTOMER_ROOT"/customer-*/; do
   if [ "$PERSON_COUNT" -eq 0 ]; then
     continue  # Stilles Skip — Customer ohne persons[]
   fi
+
+  # Shared Stylesheet (v6.5): install.css 1x pro Customer nach public/email/ kopieren
+  mkdir -p "$CUSTOMER_DIR/public/email"
+  cp "$INSTALL_CSS_SRC" "$CUSTOMER_DIR/public/email/install.css"
+  echo "  ✓ $(basename "$CUSTOMER_DIR")/public/email/install.css (Shared Stylesheet)"
 
   # Loop über jede Person
   printf '%s' "$PERSONS_JSON" | jq -c '.[]' | while IFS= read -r person; do

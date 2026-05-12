@@ -408,59 +408,26 @@ if [ -n "$CUSTOMER_REPO_ROOT" ] && [ -d "$CUSTOMER_REPO_ROOT/public" ]; then
   # Install-Page (Vorschau + Copy-Button + Einbau-Anleitung) generieren
   # → URL: https://firma.de/email/<slug>-install.html
   INSTALL_OUT="$OUT_DIR/$SLUG-install.html"
+  INSTALL_CSS_PATH="$SCRIPT_DIR/install.css"
   python3 - "$OUT_DIR/$SLUG.html" "$INSTALL_OUT" "$NAME" "$SLUG" "$COMPANY_NAME" \
-                "$COLOR_PRIMARY" "$COLOR_ACCENT" <<'PYEOF'
-import sys, html
+                "$COLOR_PRIMARY" "$COLOR_ACCENT" "$INSTALL_CSS_PATH" <<'PYEOF'
+import sys, html, hashlib
 from pathlib import Path
 
-(sig_path, out_path, name, slug, company, primary, accent) = sys.argv[1:8]
+(sig_path, out_path, name, slug, company, primary, accent, install_css_path) = sys.argv[1:9]
 sig_html = Path(sig_path).read_text(encoding="utf-8")
 sig_escaped = html.escape(sig_html)
+
+# Cache-Busting: MD5-Hash der install.css, erste 8 Zeichen
+css_hash = hashlib.md5(Path(install_css_path).read_bytes()).hexdigest()[:8]
 
 page = f"""<!DOCTYPE html>
 <html lang="de"><head>
 <meta charset="UTF-8">
 <title>Email-Signatur einbauen — {html.escape(name)}</title>
 <meta name="robots" content="noindex, nofollow">
-<style>
-  :root {{ --primary: {primary}; --accent: {accent}; }}
-  * {{ box-sizing: border-box; }}
-  body {{ font-family: -apple-system, system-ui, sans-serif; background: #f3f4f6; margin: 0; padding: 24px; color: #1f2937; line-height: 1.55; }}
-  .wrap {{ max-width: 760px; margin: 0 auto; }}
-  h1 {{ font-size: 22px; margin: 0 0 4px 0; color: var(--primary); }}
-  .sub {{ color: #6b7280; margin: 0 0 24px 0; font-size: 14px; }}
-  .section {{ background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; }}
-  .section h2 {{ font-size: 15px; margin: 0 0 12px 0; color: #111827; text-transform: uppercase; letter-spacing: 0.5px; }}
-  .preview {{ background: #fafafa; border: 1px dashed #d1d5db; border-radius: 6px; padding: 20px; }}
-  .actions {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }}
-  button.btn, a.btn {{ display: inline-block; padding: 9px 16px; background: var(--primary); color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 600; text-decoration: none; }}
-  button.btn:hover, a.btn:hover {{ opacity: 0.9; }}
-  button.btn-secondary {{ background: #6b7280; }}
-  button.btn-accent {{ background: var(--accent); }}
-  pre.source {{ background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 6px; overflow-x: auto; font-size: 11px; line-height: 1.4; max-height: 320px; overflow-y: auto; margin: 0; }}
-  .toast {{ position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #16a34a; color: white; padding: 10px 20px; border-radius: 5px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; }}
-  .toast.show {{ opacity: 1; }}
-  ol li {{ margin-bottom: 6px; }}
-  code {{ background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 12px; }}
-  details {{ margin-top: 8px; }}
-  summary {{ cursor: pointer; font-weight: 600; color: var(--primary); font-size: 13px; }}
-
-  /* Dark-Mode: Wrapper passt sich an, damit white-on-transparent dark-Logo sichtbar bleibt.
-     WICHTIG: Wenn neue HTML-Wrapper-Pages erzeugt werden, IMMER diesen Block einbauen —
-     sonst rendert das dark-Logo unsichtbar auf weißem Wrapper-Background. */
-  @media (prefers-color-scheme: dark) {{
-    body {{ background: #0f172a; color: #f1f5f9; }}
-    h1 {{ color: #f1f5f9; }}
-    .sub {{ color: #94a3b8; }}
-    .section {{ background: #1e293b; border-color: #334155; }}
-    .section h2 {{ color: #f1f5f9; }}
-    .preview {{ background: #1e293b; border-color: #475569; }}
-    pre.source {{ background: #020617; color: #cbd5e1; }}
-    code {{ background: #334155; color: #e2e8f0; }}
-    ol li {{ color: #cbd5e1; }}
-    button.btn-secondary {{ background: #475569; }}
-  }}
-</style>
+<style>:root {{ --primary: {primary}; --accent: {accent}; }}</style>
+<link rel="stylesheet" href="/email/install.css?v={css_hash}">
 </head><body>
 <div class="wrap">
 
