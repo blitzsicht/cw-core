@@ -169,6 +169,8 @@ const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
     <title>{pageTitle}</title>
     <meta name="description" content={resolvedDescription} />
     <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang={lang} href={canonical} />
+    <link rel="alternate" hreflang="x-default" href={canonical} />
     {robots && <meta name="robots" content={robots} />}
 
     <!-- OG Tags -->
