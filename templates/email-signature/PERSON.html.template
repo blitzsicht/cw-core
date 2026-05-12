@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<!--
+  cw-core Email-Signatur HTML-Template (Outlook-kompatibel)
+  ============================================================
+  Ersetze alle {{PLATZHALTER}} mit echten Werten.
+
+  Variablen:
+    {{NAME}}          — Vor- und Nachname der Person (z.B. "Melanie Steller")
+    {{POSITION}}      — Berufsbezeichnung (z.B. "Vertrieb & Kundenbetreuung")
+    {{EMAIL}}         — E-Mail-Adresse (z.B. "melanie@digital-direkt.com")
+    {{PHONE}}         — Telefon (z.B. "+49 9401 53959-20")
+    {{WEBSITE_URL}}   — Domain ohne https:// (z.B. "digital-direkt.com")
+    {{WEBSITE_FULL}}  — Domain mit https:// (z.B. "https://digital-direkt.com")
+    {{COLOR_PRIMARY}} — Primärfarbe (Hex, z.B. "#312783")
+    {{COLOR_ACCENT}}  — Akzentfarbe (Hex, z.B. "#3d7a12")
+    {{COMPANY_NAME}}  — Firmenname (z.B. "Digital-Direkt GmbH")
+    {{LEGAL_FORM}}    — Rechtsform (z.B. "GmbH")
+    {{GF_NAME}}       — Geschäftsführer (z.B. "Markus Steller")
+    {{STREET}}        — Straße + Hausnummer (z.B. "Von-Miller-Straße 2")
+    {{ZIP_CITY}}      — PLZ + Ort (z.B. "93092 Barbing-Unterheising")
+    {{HRB}}           — Handelsregister-Eintrag (z.B. "HRB 11164")
+    {{REGISTERGERICHT}} — Registergericht (z.B. "Amtsgericht Regensburg")
+    {{UST_ID}}        — USt-IdNr. (z.B. "DE 262224662")
+    {{LOGO_URL}}      — Absolute URL zum Logo-PNG (z.B. "https://digital-direkt.com/email/logo.png")
+    {{LOGO_ALT}}      — Alt-Text für Logo (z.B. "Digital-Direkt GmbH")
+
+  §35a HGB Compliance (GmbH/AG):
+    - Firma laut Handelsregister
+    - Rechtsform
+    - Sitz der Gesellschaft
+    - Registergericht + Handelsregisternummer
+    - Alle Geschäftsführer (GmbH) / Vorstand + Aufsichtsratsvorsitzender (AG)
+    - USt-IdNr. (falls vorhanden)
+
+  Einzelunternehmen / Freiberufler:
+    - Name, Anschrift — keine HRB/GF-Zeile nötig
+    - USt-IdNr. nur falls vorhanden
+-->
+<html lang="de" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+<!--[if !mso]><!-->
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!--<![endif]-->
+</head>
+<body style="margin:0;padding:0;background:transparent;">
+
+<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#333333;max-width:580px;">
+  <tbody>
+    <tr>
+      <!-- Linke Spalte: Logo -->
+      <td valign="top" style="padding-right:20px;border-right:3px solid {{COLOR_PRIMARY}};width:120px;">
+        <img
+          src="{{LOGO_URL}}"
+          alt="{{LOGO_ALT}}"
+          width="120"
+          style="display:block;border:0;width:120px;height:auto;"
+        >
+      </td>
+
+      <!-- Rechte Spalte: Kontaktdaten -->
+      <td valign="top" style="padding-left:20px;">
+        <!-- Name -->
+        <p style="margin:0 0 2px 0;font-size:16px;font-weight:bold;color:{{COLOR_PRIMARY}};">
+          {{NAME}}
+        </p>
+
+        <!-- Position -->
+        <p style="margin:0 0 10px 0;font-size:13px;color:#666666;">
+          {{POSITION}}
+        </p>
+
+        <!-- Trennlinie -->
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px 0;">
+          <tbody>
+            <tr>
+              <td style="height:2px;background-color:{{COLOR_ACCENT}};width:200px;display:block;font-size:0;line-height:0;">&nbsp;</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Kontaktdaten -->
+        <p style="margin:0 0 3px 0;font-size:13px;">
+          <span style="color:#888888;">Tel:</span>&nbsp;
+          <a href="tel:{{PHONE}}" style="color:{{COLOR_PRIMARY}};text-decoration:none;">{{PHONE}}</a>
+        </p>
+        <p style="margin:0 0 3px 0;font-size:13px;">
+          <span style="color:#888888;">E-Mail:</span>&nbsp;
+          <a href="mailto:{{EMAIL}}" style="color:{{COLOR_PRIMARY}};text-decoration:none;">{{EMAIL}}</a>
+        </p>
+        <p style="margin:0 0 10px 0;font-size:13px;">
+          <span style="color:#888888;">Web:</span>&nbsp;
+          <a href="{{WEBSITE_FULL}}" style="color:{{COLOR_ACCENT}};text-decoration:none;">{{WEBSITE_URL}}</a>
+        </p>
+
+        <!-- Firmenname fett -->
+        <p style="margin:0 0 2px 0;font-size:12px;font-weight:bold;color:#333333;">
+          {{COMPANY_NAME}}
+        </p>
+
+        <!-- Adresse -->
+        <p style="margin:0;font-size:11px;color:#888888;line-height:1.6;">
+          {{STREET}} &middot; {{ZIP_CITY}}<br>
+          <!--[if !LEGAL_FORM=Einzelunternehmen]-->
+          {{LEGAL_FORM}} &middot; GF: {{GF_NAME}}<br>
+          {{REGISTERGERICHT}} &middot; {{HRB}}<br>
+          <!--[endif]-->
+          USt-IdNr.: {{UST_ID}}
+        </p>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>
