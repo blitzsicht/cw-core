@@ -7,14 +7,23 @@
     "./layouts/*": "./layouts/*",
     "./components/*": "./components/*",
     "./styles/*": "./styles/*",
-    "./templates/*": "./templates/*"
+    "./templates/*": "./templates/*",
+    "./integrations/ai-discovery": "./integrations/ai-discovery/index.ts"
   },
   "peerDependencies": {
     "astro": ">=5.0.0",
     "tailwindcss": ">=4.0.0"
   },
   "devDependencies": {
-    "schema-dts": "^2.0.0"
+    "@types/node": ">=22.0.0",
+    "astro": ">=5.0.0",
+    "schema-dts": "^2.0.0",
+    "typescript": "^5.4.0"
+  },
+  "scripts": {
+    "build": "echo '@cw/core is a source-only Astro integration library — consumers compile via their own Astro pipeline.'",
+    "check": "tsc --noEmit",
+    "lint:css": "echo 'No .astro/.css sources in this branch — lint:css skipped.'"
   },
   "keywords": ["astro", "components", "customer-websites"],
   "license": "UNLICENSED",

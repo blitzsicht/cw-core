@@ -134,6 +134,56 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 - `tokens-base.css` stellt Utility-Klassen bereit, setzt aber kein `@import "tailwindcss"` — das macht die Kunden-`tokens.css`
 - Keine Google Fonts (DSGVO) — ausschließlich System-UI Stack
 
+## AI-Discovery Integration
+
+`@cw/core/integrations/ai-discovery` generiert bei jedem Build automatisch `/llms.txt`
+und `/llms-full.txt` nach [llmstxt.org-Spec](https://llmstxt.org) aus `site-data.ts`.
+
+### Einbindung in `astro.config.ts`
+
+```ts
+import aiDiscovery from '@cw/core/integrations/ai-discovery';
+import { defineConfig } from 'astro/config';
+
+export default defineConfig({
+  integrations: [
+    aiDiscovery({
+      // Async callback der die siteData zurückgibt:
+      siteData: () => import('./src/data/site-data').then(m => m.siteData),
+
+      // Optional: FAQs aus einem anderen Feld lesen (Standard: siteData.faqs)
+      faqs: (s) => s.faqs,
+
+      // Optional: Services aus einem anderen Feld lesen (Standard: siteData.leistungen)
+      services: (s) => s.leistungen,
+    }),
+  ],
+});
+```
+
+### Output
+
+| Datei | Inhalt |
+|-------|--------|
+| `dist/llms.txt` | llmstxt.org-konform: H1 = Name, Blockquote = Description, Services, Eckdaten, Seiten, Kontakt |
+| `dist/llms-full.txt` | Volltext: Services im Detail, alle FAQs, Datennutzungshinweis |
+
+### Erforderliche `siteData`-Felder
+
+```ts
+interface AiDiscoverySiteData {
+  name: string;          // z.B. "Elektro Müller GmbH"
+  description: string;   // 1-3 Sätze für die AI-Beschreibung
+  url: string;           // Live-URL ohne Slash: "https://example.de"
+  tagline?: string;
+  contact: { phone?: string; email?: string; };
+  legal: { street?: string; zip?: string; city?: string; };
+  seo?: { foundingDate?: string; areaServed?: readonly string[]; };
+  faqs?: { q: string; a: string; }[];
+  leistungen?: { title: string; description: string; slug?: string; }[];
+}
+```
+
 ## Versions-Tagging
 
 ```bash
