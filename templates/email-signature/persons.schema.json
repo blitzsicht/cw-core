@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Customer Persons (Email-Sig-Pipeline)",
+  "description": "Liste der Personen pro Customer-Site, für die eine HTML-E-Mail-Signatur generiert wird. Wird in customer-X/src/data/site-data.ts unter dem Key `persons` erwartet.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["slug", "name", "email"],
+    "properties": {
+      "slug": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+        "description": "URL-safe Identifier, wird zum Dateinamen (z.B. markus-steller). Lowercase, Bindestriche."
+      },
+      "name": {
+        "type": "string",
+        "minLength": 2,
+        "description": "Anzeigename in der Signatur (z.B. 'Markus Steller')."
+      },
+      "position": {
+        "type": "string",
+        "description": "Position/Rolle in der Signatur (z.B. 'Geschäftsführer')."
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "description": "Person-E-Mail-Adresse (überschreibt legal.email aus site-data.ts)."
+      },
+      "phone": {
+        "type": "string",
+        "description": "Person-Telefonnummer (überschreibt legal.phone aus site-data.ts). E.164 oder lokales Format."
+      },
+      "layout": {
+        "type": "string",
+        "enum": ["a", "b", "auto"],
+        "default": "auto",
+        "description": "Layout-Override. 'a' = Logo links, 'b' = Logo full-width oben, 'auto' = Aspect-Ratio-Detection."
+      },
+      "salutation": {
+        "type": "string",
+        "description": "Anrede in der Begleitmail (z.B. 'Servus Markus')."
+      }
+    }
+  }
+}

@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Liest customer-X/src/data/site-data.ts + tokens.css → Shell-ENV-Vars."""
-import sys, re, os, json
+"""Liest customer-X/src/data/site-data.ts + tokens.css → Shell-ENV-Vars.
+
+Usage:
+  read-customer-data.py <customer-dir>             # → eval-able shell exports
+  read-customer-data.py <customer-dir> --list-persons  # → JSON-Array der persons[]
+"""
+import sys, re, json
 from pathlib import Path
 
 if len(sys.argv) < 2:
-    print("Usage: read-customer-data.py <customer-dir>", file=sys.stderr)
+    print("Usage: read-customer-data.py <customer-dir> [--list-persons]", file=sys.stderr)
     sys.exit(1)
 
 customer_dir = Path(sys.argv[1])
+list_persons_mode = "--list-persons" in sys.argv[2:]
 sd_path = customer_dir / "src/data/site-data.ts"
 tk_path = None
 for p in ["src/styles/tokens.css", "src/styles/global.css", "src/styles/theme.css"]:
@@ -84,6 +90,45 @@ if tk_path:
     ma = re.search(r"--color-accent:\s*([^;]+);", css)
     if mp: color_primary = mp.group(1).strip()
     if ma: color_accent = ma.group(1).strip()
+
+# persons[] block (v6) — JSON-Array
+def extract_persons():
+    """Parse persons: [ { ... }, { ... } ] from site-data.ts."""
+    m = re.search(r"\bpersons:\s*\[", content)
+    if not m:
+        return []
+    start = m.end()
+    depth = 1
+    i = start
+    while i < len(content) and depth > 0:
+        if content[i] == "[": depth += 1
+        elif content[i] == "]": depth -= 1
+        i += 1
+    arr_body = content[start:i-1]
+
+    persons = []
+    obj_depth = 0
+    obj_start = None
+    for j, ch in enumerate(arr_body):
+        if ch == "{":
+            if obj_depth == 0:
+                obj_start = j + 1
+            obj_depth += 1
+        elif ch == "}":
+            obj_depth -= 1
+            if obj_depth == 0 and obj_start is not None:
+                obj_body = arr_body[obj_start:j]
+                p = {}
+                for km in re.finditer(r"(\w+):\s*['\"]([^'\"]*)['\"]", obj_body):
+                    p[km.group(1)] = km.group(2)
+                if p:
+                    persons.append(p)
+                obj_start = None
+    return persons
+
+if list_persons_mode:
+    print(json.dumps(extract_persons(), ensure_ascii=False))
+    sys.exit(0)
 
 # Output as shell-eval-able exports
 def esc(v):

@@ -23,7 +23,9 @@
     "check": "astro check",
     "optimize:images": "node scripts/optimize-images.mjs --delete-originals",
     "generate:og": "node scripts/generate-og.mjs",
-    "lint:css": "stylelint 'src/**/*.{astro,css}'"
+    "lint:css": "stylelint 'src/**/*.{astro,css}'",
+    "sig:regenerate": "bash templates/email-signature/regenerate-all.sh",
+    "sig:person": "bash templates/email-signature/onboard-person.sh"
   },
   "peerDependencies": {
     "astro": ">=5.0.0",

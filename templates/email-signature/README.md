@@ -2,14 +2,83 @@
 
 Standard-Service für alle Blitzsicht-Customer-Sites.
 
-## Konzept
+## Quick-Start (v6 — fully data-driven)
 
-Jede Customer-Site bekommt auf Wunsch vollstaendig fertige E-Mail-Signaturen:
-- HTML-Signatur (Outlook-kompatibel, Tabellen-Layout, ~580px)
-- Plain-Text-Fallback
-- Logo als PNG (Cross-Client-kompatibel, gehostet unter `/email/logo.png`)
-- Einbauanleitung pro Mail-Client
-- §35a HGB Pflichtangaben automatisch aus `siteData.legal`
+**Neuer Mitarbeiter, neue Signatur, alle Sigs frisch generieren:**
+
+```bash
+# 1. Person in customer-X/src/data/site-data.ts persons[]-Array hinzufügen
+# 2. Generator laufen lassen:
+cd cw-core && pnpm sig:regenerate
+# → /tmp/cw-sigs/<slug>.eml + Preview für jede Person aller Customer
+```
+
+**Einzel-Customer / Einzel-Person:**
+
+```bash
+ONLY_CUSTOMER=customer-soleno pnpm sig:regenerate
+ONLY_SLUG=markus-steller pnpm sig:regenerate
+```
+
+## Architektur
+
+| Komponente | Zweck |
+|---|---|
+| `regenerate-all.sh` | Master-Orchestrator. Auto-Discovery aller `customer-*` Dirs, Loop über `persons[]`. |
+| `read-customer-data.py` | SSOT-Reader. Liest `legal/gmb/booking` aus `site-data.ts` + `--color-primary/-accent` aus `tokens.css`. `--list-persons`-Flag für JSON-Output der Personen-Liste. |
+| `generate.sh` | Kern-Generator. ENV → Template-Replacement → HTML/TXT/PNG. Hybrid-Color-Swap, Aspect-Ratio-Layout-Detection. |
+| `generate-mail.sh` | Bündelt fertige Sig zu `.eml` + Browser-Preview. Auto-extracted vCard (.vcf) als 3. Anhang. |
+| `onboard-person.sh` | Legacy: einzelne Person manuell mit ENV-Vars. Heute selten nötig (besser: persons[] in site-data.ts + regenerate-all). |
+| `persons.schema.json` | JSON-Schema für `persons[]`-Array in customer-X/src/data/site-data.ts. |
+| `persons.d.ts` | TypeScript-Type `EmailSigPerson` für IDE-Autocomplete in site-data.ts. |
+
+## persons[]-Schema
+
+In `customer-X/src/data/site-data.ts`:
+
+```ts
+import type { EmailSigPerson } from '@cw/core/templates/email-signature/persons';
+
+const data = {
+  // ...
+  persons: [
+    {
+      slug: 'markus-steller',                    // URL-safe ID, wird Dateiname
+      name: 'Markus Steller',                    // Anzeigename
+      position: 'Geschäftsführer',
+      email: 'markus.steller@digital-direkt.com',
+      phone: '+49 9401 53959-20',
+      layout: 'a',                               // 'a' (Logo links) | 'b' (Logo oben) | 'auto'
+      salutation: 'Hallo Markus',                // Anrede in Begleitmail
+    },
+  ] as const satisfies readonly EmailSigPerson[],
+};
+```
+
+Pflicht: `slug`, `name`, `email`. Alle anderen Felder optional.
+
+## Was wird automatisch gezogen?
+
+Aus `customer-X/src/data/site-data.ts`:
+- `legal.{form, owner, street, zip, city, phone, email, ustIdNr, handelsregister, registergericht}` → §35a HGB Compliance-Block
+- `gmb.review_url` → Google-Bewertungs-CTA mit UTM
+- `booking.{url, label}` → Booking-Button (z.B. Cal.com)
+
+Aus `customer-X/src/styles/tokens.css`:
+- `--color-primary` → Brand-Primary in Sig (Trennlinien, Headline)
+- `--color-accent` → Brand-Accent in Sig (Akzent-Strich, Web-Link, GMB-CTA-Background)
+
+Konsequenz: Adressänderung im Impressum → Sig regeneriert mit der neuen Adresse, ohne Pipeline-Code-Touch.
+
+## Lessons Learned (v4 → v5 → v6)
+
+- **NIE Customer-Daten im Orchestrator hardcoden.** v4 hatte 7/9 Customer falsche Adressen + CI-Farben (Soleno bekam DD-Lila statt Schwarz/Gelb). v5 löste mit SSOT-Pattern.
+- **Person-Daten gehören in den Customer-Repo**, nicht ins Pipeline-Script. v6 löste mit `persons[]` in site-data.ts.
+- **Auto-Discovery** statt hardcoded Customer-Liste: Pipeline scannt `customer-*` Dirs selbst.
+
+## Legacy
+
+`examples/orchestrate-portfolio.sh` ist deprecated — nutze stattdessen `pnpm sig:regenerate`.
 
 ## Output-Struktur (pro Customer)
 
