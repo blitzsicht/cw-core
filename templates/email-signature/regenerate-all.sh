@@ -100,6 +100,7 @@ run_person_for_customer() {
     customer-weinkontor-sinzing) LOGO_URL_HOST="https://customer-weinkontor-sinzing.vercel.app" ;;
   esac
   local LOGO_URL="$LOGO_URL_HOST/email/logo.png"
+  local VCARD_PUBLIC_URL="$LOGO_URL_HOST/email/$SLUG.vcf"
 
   local WEBSITE_URL_DISPLAY="${CUSTOMER_URL#https://}"
   WEBSITE_URL_DISPLAY="${WEBSITE_URL_DISPLAY#http://}"
@@ -120,6 +121,7 @@ run_person_for_customer() {
     LAYOUT="$LAYOUT" \
     GOOGLE_REVIEW_URL="$GOOGLE_REVIEW_URL" \
     BOOKING_URL="$BOOKING_URL" BOOKING_LABEL="$BOOKING_LABEL" \
+    VCARD_PUBLIC_URL="$VCARD_PUBLIC_URL" \
     OUT_DIR="$SIG_OUT" \
     "$GEN" 2>&1 | grep -E "(✓|⚠|ⓘ|Layout|Fertig)" | head -12
 

@@ -57,6 +57,22 @@ const data = {
 
 Pflicht: `slug`, `name`, `email`. Alle anderen Felder optional.
 
+## Public-Hosting (v6.1)
+
+Die Pipeline kopiert pro Person zusätzlich nach `<customer>/public/email/`:
+
+| File | URL | Use-Case |
+|---|---|---|
+| `logo*.png` | `https://firma.de/email/logo.png` | Mail-Client lädt Logo aus HTML-Sig |
+| `<slug>.vcf` | `https://firma.de/email/<slug>.vcf` | "📇 Kontakt speichern (vCard)"-Link in Sig |
+| `<slug>.html` | `https://firma.de/email/<slug>.html` | Browser-Vorschau / Copy-Paste-Workflow |
+
+`regenerate-all.sh` setzt automatisch `VCARD_PUBLIC_URL=$LOGO_URL_HOST/email/$SLUG.vcf`. Der "Kontakt speichern"-Link erscheint nur wenn diese Var gesetzt ist (Opt-in über Pipeline).
+
+**Robots-Block:** Pro Customer ist `Disallow: /email/` in `public/robots.txt`. Verhindert SEO-Indexierung. Mail-Clients ignorieren robots.txt → Logo-Loading bleibt funktionsfähig.
+
+**Sitemap:** Public-Files (`/email/*`) sind nie in `sitemap.xml` (Astro-Default für statische Files). Kein Eingriff nötig.
+
 ## Was wird automatisch gezogen?
 
 Aus `customer-X/src/data/site-data.ts`:

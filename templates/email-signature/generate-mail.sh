@@ -83,6 +83,14 @@ VCARDEOF
   echo "  ✓ $SLUG.vcf (vCard)"
 fi
 
+# vCard auch public hosten (für "Kontakt speichern"-Link in Sig).
+# SIG_DIR-Struktur: customer-X/email-signatures/<slug>/ → public/email/ liegt 2 Ebenen höher.
+CUSTOMER_REPO_ROOT=$(cd "$SIG_DIR/../.." 2>/dev/null && pwd)
+if [ -n "$CUSTOMER_REPO_ROOT" ] && [ -d "$CUSTOMER_REPO_ROOT/public/email" ]; then
+  cp "$VCARD_PATH" "$CUSTOMER_REPO_ROOT/public/email/$SLUG.vcf"
+  echo "  ✓ public/email/$SLUG.vcf"
+fi
+
 # ── .eml via Python (zuverlässiges MIME-Encoding) ─────────────────────────────
 python3 - "$HTML_PATH" "$TXT_PATH" "$SLUG" "$FROM_NAME" "$FROM_EMAIL" \
              "$TO_NAME" "$TO_EMAIL" "$SALUTATION" "$SUBJECT" "$EML_OUT" \

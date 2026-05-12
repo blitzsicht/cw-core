@@ -164,6 +164,11 @@ except Exception:
     parts="${parts}<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin-top:12px;\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\">⭐ Auf Google bewerten</a></td></tr></table>"
   fi
 
+  # vCard-Download-Link ("Kontakt speichern")
+  if [ -n "${VCARD_PUBLIC_URL:-}" ]; then
+    parts="${parts}<p style=\"margin:10px 0 0 0;font-size:11px;\"><a href=\"${VCARD_PUBLIC_URL}\" style=\"color:${COLOR_PRIMARY};text-decoration:none;\">📇 Kontakt speichern (vCard)</a></p>"
+  fi
+
   printf '%s' "$parts"
 }
 
@@ -371,16 +376,21 @@ rm -rf "$STAGE_DIR"
 # Backwards-compat: auch logo.png (= light) für ältere Templates
 cp "$LOGO_PNG_LIGHT_OUT" "$OUT_DIR/assets/logo.png" 2>/dev/null || true
 
-# Public-Hosting (für Vercel): beide PNGs nach public/email/
-if [[ -d "public" ]]; then
-  mkdir -p "$(dirname "$LOGO_PNG_PUBLIC_LIGHT")"
-  cp "$LOGO_PNG_LIGHT_OUT" "$LOGO_PNG_PUBLIC_LIGHT"
-  cp "$LOGO_PNG_DARK_OUT"  "$LOGO_PNG_PUBLIC_DARK"
-  # Backwards-compat: auch logo.png (= light) für alten Customer-HTML
-  LOGO_PNG_PUBLIC_LEGACY="${LOGO_PNG_PUBLIC:-public/email/logo.png}"
-  cp "$LOGO_PNG_LIGHT_OUT" "$LOGO_PNG_PUBLIC_LEGACY" 2>/dev/null || true
-  echo "  ✓ $LOGO_PNG_PUBLIC_LIGHT"
-  echo "  ✓ $LOGO_PNG_PUBLIC_DARK"
+# Public-Hosting (für Vercel): beide PNGs + HTML nach <customer>/public/email/
+# OUT_DIR-Struktur: <customer>/email-signatures/<slug>/ → public/email/ liegt 2 Ebenen höher
+CUSTOMER_REPO_ROOT=$(cd "$OUT_DIR/../.." 2>/dev/null && pwd)
+if [ -n "$CUSTOMER_REPO_ROOT" ] && [ -d "$CUSTOMER_REPO_ROOT/public" ]; then
+  PUBLIC_EMAIL_DIR="$CUSTOMER_REPO_ROOT/public/email"
+  mkdir -p "$PUBLIC_EMAIL_DIR"
+  cp "$LOGO_PNG_LIGHT_OUT" "$PUBLIC_EMAIL_DIR/logo-light.png"
+  cp "$LOGO_PNG_DARK_OUT"  "$PUBLIC_EMAIL_DIR/logo-dark.png"
+  cp "$LOGO_PNG_LIGHT_OUT" "$PUBLIC_EMAIL_DIR/logo.png" 2>/dev/null || true
+  echo "  ✓ public/email/logo-light.png"
+  echo "  ✓ public/email/logo-dark.png"
+
+  # HTML-Sig public hosten ("https://firma.de/email/<slug>.html" für Browser-Vorschau)
+  cp "$OUT_DIR/$SLUG.html" "$PUBLIC_EMAIL_DIR/$SLUG.html" \
+    && echo "  ✓ public/email/$SLUG.html"
 fi
 
 # ── README ────────────────────────────────────────────────────────────────────
