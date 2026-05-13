@@ -2,7 +2,7 @@
 
 Standard-Service für alle Blitzsicht-Customer-Sites.
 
-## Quick-Start (v6 — fully data-driven)
+## Quick-Start (v6.5 — shared stylesheets)
 
 **Neuer Mitarbeiter, neue Signatur, alle Sigs frisch generieren:**
 
@@ -24,13 +24,47 @@ ONLY_SLUG=markus-steller pnpm sig:regenerate
 
 | Komponente | Zweck |
 |---|---|
-| `regenerate-all.sh` | Master-Orchestrator. Auto-Discovery aller `customer-*` Dirs, Loop über `persons[]`. |
+| `regenerate-all.sh` | Master-Orchestrator. Auto-Discovery aller `customer-*` Dirs, Loop über `persons[]`. Kopiert `install.css` → `customer-*/public/email/` und `preview.css` → `/tmp/cw-sigs/`. |
 | `read-customer-data.py` | SSOT-Reader. Liest `legal/gmb/booking` aus `site-data.ts` + `--color-primary/-accent` aus `tokens.css`. `--list-persons`-Flag für JSON-Output der Personen-Liste. |
-| `generate.sh` | Kern-Generator. ENV → Template-Replacement → HTML/TXT/PNG. Hybrid-Color-Swap, Aspect-Ratio-Layout-Detection. |
-| `generate-mail.sh` | Bündelt fertige Sig zu `.eml` + Browser-Preview. Auto-extracted vCard (.vcf) als 3. Anhang. |
+| `generate.sh` | Kern-Generator. ENV → Template-Replacement → HTML/TXT/PNG. Hybrid-Color-Swap, Aspect-Ratio-Layout-Detection. Install-Page lädt CSS via `<link rel="stylesheet" href="/email/install.css?v=HASH">`. |
+| `generate-mail.sh` | Bündelt fertige Sig zu `.eml` + Browser-Preview. Preview-Page lädt CSS via `<link href="preview.css?v=HASH">` (relativer Pfad in /tmp/cw-sigs/). |
+| `install.css` | **Single-Source** für alle Install-Pages (Browser-rendered). Brand-Farben via `var(--primary)` und `var(--accent)`. Style-Änderungen hier — nie inline in generate.sh. |
+| `preview.css` | **Single-Source** für alle Mail-Preview-Pages (Browser-rendered). |
 | `onboard-person.sh` | Legacy: einzelne Person manuell mit ENV-Vars. Heute selten nötig (besser: persons[] in site-data.ts + regenerate-all). |
 | `persons.schema.json` | JSON-Schema für `persons[]`-Array in customer-X/src/data/site-data.ts. |
 | `persons.d.ts` | TypeScript-Type `EmailSigPerson` für IDE-Autocomplete in site-data.ts. |
+
+### Stylesheet-Architektur (v6.5)
+
+```
+cw-core/templates/email-signature/
+  install.css      ← Single-Source für Install-Pages
+  preview.css      ← Single-Source für Mail-Previews
+  generate.sh      ← Brand-Farben inline (5 Zeilen), Rest via <link>
+  generate-mail.sh ← preview.css via relativer <link>
+  regenerate-all.sh← kopiert install.css/preview.css vor Person-Loop
+
+customer-X/public/email/
+  install.css       ← Kopie aus cw-core (1× pro Customer-Run)
+  <slug>-install.html  ← Browser-rendered, lädt via <link>
+  <slug>.html       ← Echte Sig (inline-CSS — Mail-Client-Pflicht!)
+
+/tmp/cw-sigs/
+  preview.css       ← Kopie aus cw-core (1× pro Regeneration)
+  <slug>-preview.html  ← Browser-rendered, lädt via relativer <link>
+```
+
+**Style ändern:** Nur in `install.css` oder `preview.css` editieren, dann `pnpm sig:regenerate`. Alle Install-Pages und Customer-Repos bekommen das Update automatisch.
+
+**Brand-Farben** (person-spezifisch) werden als minimaler Inline-Block injiziert:
+```html
+<style>:root { --primary: #312783; --accent: #3d7a12; }</style>
+<link rel="stylesheet" href="/email/install.css?v=a1b2c3d4">
+```
+
+**Cache-Busting:** `?v=HASH` = erste 8 Zeichen des MD5-Hashes von `install.css`. Ändert sich automatisch bei Style-Änderungen — Vercel-Edge-Cache wird invalidiert.
+
+**Mail-Client-Constraint:** Die echte Sig-HTML (`<slug>.html`) MUSS inline-CSS behalten. Mail-Clients (Outlook, Gmail, Apple Mail) laden kein externes CSS.
 
 ## persons[]-Schema
 
