@@ -61,6 +61,12 @@ interface Props {
   dsb?: { name: string; email: string };
   /** Stand-Datum für die Page. Default: Build-Time. */
   standDatum?: string;
+  /** HTML-id für den Wrapper-Div (Anchor-Ziel). Default: 'art-13-geschaeftskontakte'. */
+  id?: string;
+  /** Wenn true: Lead-Intro + Cross-Links + Stand-Datum werden ausgeblendet — für Embedding in einer übergeordneten Page (z.B. /datenschutz). Default: false. */
+  hideLeadIntro?: boolean;
+  /** Wenn true: zeigt eine Section-Headline „Informationspflichten nach Art. 13 DSGVO" als h2 oberhalb der Sections. Nur sinnvoll wenn hideLeadIntro=true. Default: false. */
+  showSectionHeading?: boolean;
 }
 
 const datenschutzDomain = (mail: string) => mail.includes('@') ? mail.split('@')[1] : 'example.com';
@@ -152,22 +158,34 @@ const {
   hatDSB = false,
   dsb,
   standDatum = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }),
+  id = 'art-13-geschaeftskontakte',
+  hideLeadIntro = false,
+  showSectionHeading = false,
 } = Astro.props;
 
 const empfaengerListe = empfaenger ?? EMPFAENGER_DEFAULTS[branche];
 const phoneTel = l.phone.replace(/\s+/g, '');
 const datenschutzPhoneNote = email;
+// Embedded-Mode: Hx-Hierarchie um 1 Level absenken — die hosting Page hat schon h2s,
+// damit InformationspflichtBlock-Sections h3 werden statt mit h2 zu kollidieren.
+const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
 ---
 
-<div class="informationspflicht-block">
-  <p class="ip-lead">
-    Informationen zur Verarbeitung personenbezogener Daten gemäß <strong>Art. 13 DSGVO</strong> —
-    für Interessenten, Neukunden und Geschäftskontakte. Diese Informationen ergänzen unsere
-    <a href="/datenschutz">Datenschutzerklärung für Website-Besucher</a> und gelten für die
-    Datenverarbeitung im Rahmen der Geschäftsanbahnung und Vertragsabwicklung.
-  </p>
+<div class="informationspflicht-block" id={id}>
+  {!hideLeadIntro && (
+    <p class="ip-lead">
+      Informationen zur Verarbeitung personenbezogener Daten gemäß <strong>Art. 13 DSGVO</strong> —
+      für Interessenten, Neukunden und Geschäftskontakte. Diese Informationen ergänzen unsere
+      <a href="/datenschutz">Datenschutzerklärung für Website-Besucher</a> und gelten für die
+      Datenverarbeitung im Rahmen der Geschäftsanbahnung und Vertragsabwicklung.
+    </p>
+  )}
 
-  <h2>1. Verantwortlicher</h2>
+  {showSectionHeading && (
+    <h2 class="ip-section-heading">Informationspflichten nach Art. 13 DSGVO (Geschäftskontakte)</h2>
+  )}
+
+  <HeadingTag>1. Verantwortlicher</HeadingTag>
   <p>Verantwortlicher für die Verarbeitung im Sinne der DSGVO ist:</p>
   <p>
     <strong>{l.owner}</strong>{l.form && <><br />{l.form}</>}<br />
@@ -181,7 +199,7 @@ const datenschutzPhoneNote = email;
     )}
   </p>
 
-  <h2>2. Datenschutzbeauftragter</h2>
+  <HeadingTag>2. Datenschutzbeauftragter</HeadingTag>
   {hatDSB && dsb ? (
     <p>
       Datenschutzbeauftragte/r: <strong>{dsb.name}</strong> — Kontakt:
@@ -198,7 +216,7 @@ const datenschutzPhoneNote = email;
     </p>
   )}
 
-  <h2>3. Zwecke und Rechtsgrundlagen der Verarbeitung</h2>
+  <HeadingTag>3. Zwecke und Rechtsgrundlagen der Verarbeitung</HeadingTag>
   <p>Wir verarbeiten Ihre personenbezogenen Daten zu folgenden Zwecken und auf folgenden Rechtsgrundlagen:</p>
   <table class="ip-table">
     <thead>
@@ -217,7 +235,7 @@ const datenschutzPhoneNote = email;
     </tbody>
   </table>
 
-  <h2>4. Kategorien personenbezogener Daten</h2>
+  <HeadingTag>4. Kategorien personenbezogener Daten</HeadingTag>
   <p>Im Rahmen der Geschäftsbeziehung verarbeiten wir folgende Kategorien:</p>
   <ul>
     <li><strong>Kontaktdaten:</strong> Name, Funktion / Position, Firmenname, Anschrift, Telefon, E-Mail-Adresse</li>
@@ -227,7 +245,7 @@ const datenschutzPhoneNote = email;
     <li><strong>Nutzungsdaten</strong> (bei Online-Anfragen): Datum / Uhrzeit der Anfrage, IP-Adresse, Browser-Informationen — siehe <a href="/datenschutz">Datenschutzerklärung</a></li>
   </ul>
 
-  <h2>5. Empfänger der Daten</h2>
+  <HeadingTag>5. Empfänger der Daten</HeadingTag>
   <p>Personenbezogene Daten werden ausschließlich an folgende Empfänger weitergegeben, soweit dies für die genannten Zwecke erforderlich ist:</p>
   <ul>
     {empfaengerListe.map((e) => (
@@ -235,7 +253,7 @@ const datenschutzPhoneNote = email;
     ))}
   </ul>
 
-  <h2>6. Übermittlung in Drittländer</h2>
+  <HeadingTag>6. Übermittlung in Drittländer</HeadingTag>
   <p>
     Eine Datenübermittlung in Länder außerhalb der EU/EWR findet grundsätzlich nicht statt.
     Ausnahme: Web-Hosting bei <strong>Vercel Inc.</strong> (USA) im Rahmen unserer Website.
@@ -244,7 +262,7 @@ const datenschutzPhoneNote = email;
     <a href="/datenschutz">Datenschutzerklärung</a>.
   </p>
 
-  <h2>7. Speicherdauer</h2>
+  <HeadingTag>7. Speicherdauer</HeadingTag>
   <p>
     Wir speichern personenbezogene Daten so lange, wie es für die genannten Zwecke erforderlich
     ist oder gesetzliche Aufbewahrungspflichten bestehen:
@@ -257,7 +275,7 @@ const datenschutzPhoneNote = email;
     <li>Nach Ablauf werden die Daten gelöscht oder anonymisiert, sofern keine gesetzlichen oder vertraglichen Pflichten entgegenstehen.</li>
   </ul>
 
-  <h2>8. Bereitstellungspflicht</h2>
+  <HeadingTag>8. Bereitstellungspflicht</HeadingTag>
   <p>
     Die Bereitstellung Ihrer personenbezogenen Daten ist weder gesetzlich noch vertraglich
     vorgeschrieben — sie ist freiwillig. Ohne die Bereitstellung der für die Geschäftsanbahnung
@@ -265,14 +283,14 @@ const datenschutzPhoneNote = email;
     kann ein Geschäftsabschluss bzw. die Vertragserfüllung jedoch nicht erfolgen.
   </p>
 
-  <h2>9. Automatisierte Entscheidungsfindung und Profiling</h2>
+  <HeadingTag>9. Automatisierte Entscheidungsfindung und Profiling</HeadingTag>
   <p>
     Eine ausschließlich automatisierte Entscheidungsfindung im Sinne von Art. 22 DSGVO,
     einschließlich Profiling, findet bei uns nicht statt. Alle für Sie rechtsverbindlichen
     Entscheidungen (z. B. Angebote, Vertragsabschlüsse, Kündigungen) werden durch Mitarbeitende getroffen.
   </p>
 
-  <h2>10. Ihre Rechte als betroffene Person</h2>
+  <HeadingTag>10. Ihre Rechte als betroffene Person</HeadingTag>
   <p>Sie haben uns gegenüber folgende Rechte hinsichtlich Sie betreffender personenbezogener Daten:</p>
   <ul>
     <li><strong>Auskunft</strong> (Art. 15 DSGVO) — welche Daten wir über Sie verarbeiten</li>
@@ -288,7 +306,7 @@ const datenschutzPhoneNote = email;
     <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a> oder per Post an die oben genannte Anschrift.
   </p>
 
-  <h2>11. Beschwerderecht bei der Aufsichtsbehörde</h2>
+  <HeadingTag>11. Beschwerderecht bei der Aufsichtsbehörde</HeadingTag>
   <p>
     Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren (Art. 77 DSGVO).
     Zuständig für uns ist:
@@ -302,7 +320,7 @@ const datenschutzPhoneNote = email;
     Web: <a href={beschwerdeStelle.url} target="_blank" rel="noopener noreferrer">{beschwerdeStelle.url.replace(/^https?:\/\//, '')}</a>
   </p>
 
-  <h2>12. Kontakt für Datenschutzanfragen</h2>
+  <HeadingTag>12. Kontakt für Datenschutzanfragen</HeadingTag>
   <p>
     Für alle Fragen zur Verarbeitung personenbezogener Daten und zur Wahrnehmung Ihrer
     Betroffenenrechte erreichen Sie uns unter:
@@ -315,16 +333,20 @@ const datenschutzPhoneNote = email;
     Telefon: <a href={`tel:${phoneTel}`}>{l.phone}</a>
   </p>
 
-  <p class="ip-cross-link">
-    Siehe auch:
-    <a href="/datenschutz">Datenschutzerklärung für Website-Besucher</a>
-    {' · '}
-    <a href="/agb">Allgemeine Geschäftsbedingungen</a>
-    {' · '}
-    <a href="/impressum">Impressum</a>
-  </p>
+  {!hideLeadIntro && (
+    <>
+      <p class="ip-cross-link">
+        Siehe auch:
+        <a href="/datenschutz">Datenschutzerklärung für Website-Besucher</a>
+        {' · '}
+        <a href="/agb">Allgemeine Geschäftsbedingungen</a>
+        {' · '}
+        <a href="/impressum">Impressum</a>
+      </p>
 
-  <p class="ip-stand">Stand: {standDatum}.</p>
+      <p class="ip-stand">Stand: {standDatum}.</p>
+    </>
+  )}
 </div>
 
 <style>
@@ -335,7 +357,7 @@ const datenschutzPhoneNote = email;
     color: var(--color-muted);
     margin-bottom: 1.5rem;
   }
-  .informationspflicht-block h2 {
+  .informationspflicht-block :is(h2, h3) {
     font-size: 1.125rem;
     margin-top: 2rem;
     margin-bottom: 0.5rem;
@@ -343,7 +365,14 @@ const datenschutzPhoneNote = email;
     border-top: 1px solid #e5e7eb;
     color: var(--color-primary);
   }
-  .informationspflicht-block h2:first-of-type { border-top: none; padding-top: 0; }
+  .informationspflicht-block :is(h2, h3):first-of-type { border-top: none; padding-top: 0; }
+  .informationspflicht-block .ip-section-heading {
+    font-size: 1.375rem;
+    margin-top: 2.5rem;
+    color: var(--color-primary);
+    border-top: 2px solid var(--color-accent, #4d9918);
+    padding-top: 2rem;
+  }
   .informationspflicht-block p, .informationspflicht-block li {
     color: var(--color-muted);
     line-height: 1.8;
