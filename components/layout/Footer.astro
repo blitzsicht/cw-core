@@ -4,6 +4,10 @@
 import { siteData } from '@/data/site-data';
 const year = new Date().getFullYear();
 const karriereEnabled = siteData.karriere?.enabled !== false;
+// UTM-Tracking: Referral-Attribution für Plausible auf blitzsicht.com
+// Slug aus siteData – Fallback "customer" falls nicht gesetzt (Altbestände)
+const customerSlug = (siteData as { slug?: string }).slug ?? 'customer';
+const blitzsichtHref = `https://blitzsicht.com?utm_source=${customerSlug}&utm_medium=referral&utm_campaign=footer_link`;
 ---
 <footer>
   <div class="container">
@@ -51,7 +55,7 @@ const karriereEnabled = siteData.karriere?.enabled !== false;
       <p>© {year} {siteData.legal.owner}{siteData.legal.form ? ` · ${siteData.legal.form}` : ''}{siteData.legal.city ? ` · ${siteData.legal.city}` : ''}</p>
       <p class="footer-credit">
         {siteData.tagline && <span class="footer-tagline">{siteData.tagline} · </span>}
-        Erstellt von <a href="https://blitzsicht.com?ref=footer" target="_blank" rel="noopener noreferrer">Blitzsicht</a>
+        Erstellt von <a href={blitzsichtHref} target="_blank" rel="noopener noreferrer">Blitzsicht</a>
       </p>
     </div>
   </div>
