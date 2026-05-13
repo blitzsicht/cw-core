@@ -36,6 +36,9 @@ export const siteData = {
     phone: 'TODO: +49 123 456789',    // Gleich wie legal.phone
     web3formsKey: 'TODO',             // web3forms.com → kostenlos registrieren, Access Key kopieren
     calendlyUrl: '',                  // Optional: Calendly-Booking-URL
+    // Optionale Adress-Überschreibung — wenn leer, wird legal.street/zip/city im Footer verwendet.
+    // Nur nötig wenn die öffentliche Adresse von der Impressum-Adresse abweicht.
+    address: undefined as { street: string; zip: string; city: string } | undefined,
   },
 
   // ─── Analytics ─────────────────────────────────────────────────────────────

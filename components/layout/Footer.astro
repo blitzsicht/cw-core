@@ -4,10 +4,17 @@
 import { siteData } from '@/data/site-data';
 const year = new Date().getFullYear();
 const karriereEnabled = siteData.karriere?.enabled !== false;
-// UTM-Tracking: Referral-Attribution für Plausible auf blitzsicht.com
+
+// UTM-Tracking: Referral-Attribution für Plausible auf blitzsicht.com (Issue #23)
 // Slug aus siteData – Fallback "customer" falls nicht gesetzt (Altbestände)
 const customerSlug = (siteData as { slug?: string }).slug ?? 'customer';
 const blitzsichtHref = `https://blitzsicht.com?utm_source=${customerSlug}&utm_medium=referral&utm_campaign=footer_link`;
+
+// Adresse: bevorzugt contact.address, Fallback auf legal.* (Issue #24)
+const addressStreet = (siteData.contact as any).address?.street ?? siteData.legal?.street;
+const addressZip    = (siteData.contact as any).address?.zip    ?? siteData.legal?.zip;
+const addressCity   = (siteData.contact as any).address?.city   ?? siteData.legal?.city;
+const hasAddress = addressStreet && addressZip && addressCity;
 ---
 <footer>
   <div class="container">
@@ -18,11 +25,20 @@ const blitzsichtHref = `https://blitzsicht.com?utm_source=${customerSlug}&utm_me
           {siteData.name}
         </a>
         <p>{siteData.description}</p>
+
+        {hasAddress && (
+          <address class="footer-address">
+            <span>{siteData.name}</span>
+            <span>{addressStreet}</span>
+            <span>{addressZip} {addressCity}</span>
+          </address>
+        )}
+
         <a href={`mailto:${siteData.contact.email}`} class="contact-link">
           {siteData.contact.email}
         </a>
         {siteData.contact.phone && (
-          <a href={`tel:${siteData.contact.phone.replace(/\s/g, '')}`} class="contact-link">
+          <a href={`tel:${siteData.contact.phone.replace(/\s/g, '')}`} class="contact-link contact-link--phone">
             {siteData.contact.phone}
           </a>
         )}
@@ -91,12 +107,27 @@ const blitzsichtHref = `https://blitzsicht.com?utm_source=${customerSlug}&utm_me
     line-height: 1.7;
     max-width: 28ch;
   }
+  .footer-address {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    font-style: normal;
+    font-size: 0.875rem;
+    color: rgba(255,255,255,0.65);
+    margin-top: 0.75rem;
+    line-height: 1.5;
+  }
   .contact-link {
-    display: inline-block;
-    margin-top: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.375rem;
+    min-height: 2.75rem; /* 44px touch target */
     color: var(--color-accent);
     text-decoration: none;
     font-size: 0.9rem;
+  }
+  .contact-link--phone {
+    font-weight: 500;
   }
   .contact-link:hover { text-decoration: underline; }
   .footer-links h3 {
