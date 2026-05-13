@@ -6,7 +6,7 @@ Code-Repo: cw-core
 Code-Repo-Path: /Volumes/SiluriWork/NAS-Spiegel/MEDIEN/CODE/CLAUDE/cw-core
 Remote-Repo: siluri/cw-core
 Branch: feature/issue-23
-PR: 
+PR: https://github.com/siluri/cw-core/pull/10
 Last-Action: PR erstellt
 Next-Step: warte auf Grader
 Open-Questions: 
