@@ -134,6 +134,35 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 - `tokens-base.css` stellt Utility-Klassen bereit, setzt aber kein `@import "tailwindcss"` — das macht die Kunden-`tokens.css`
 - Keine Google Fonts (DSGVO) — ausschließlich System-UI Stack
 
+## AI-Discovery Integration
+
+`@cw/core/integrations/ai-discovery` generiert zur Build-Zeit automatisch `/llms.txt` und
+`/llms-full.txt` nach dem [llmstxt.org](https://llmstxt.org) Standard, damit KI-Agenten
+(ChatGPT, Claude, Perplexity u. a.) die Website korrekt verstehen und zitieren können.
+
+```ts
+// astro.config.ts
+import aiDiscovery from '@cw/core/integrations/ai-discovery';
+
+export default defineConfig({
+  integrations: [
+    aiDiscovery({
+      siteData: () => import('./src/data/site-data').then(m => m.siteData),
+      faqs: (s) => s.faqs,
+      services: (s) => s.leistungen,
+    }),
+  ],
+});
+```
+
+Pflichtfelder in `siteData`: `name`, `description`, `url`, `contact`, `legal`.
+
+Generierte Dateien nach `pnpm build`:
+- `dist/llms.txt` — Kurzfassung (Name, Beschreibung, Leistungen, Kontakt)
+- `dist/llms-full.txt` — Vollständige Fassung mit Leistungsdetails und FAQs
+
+Vollständige Dokumentation: [`docs/ai-discovery.md`](./docs/ai-discovery.md)
+
 ## Versions-Tagging
 
 ```bash
