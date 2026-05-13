@@ -45,6 +45,11 @@ export type Branche = 'druck' | 'solar' | 'web' | 'handwerk' | 'beratung' | 'fer
 interface Props {
   legal: LegalProps;
   email: string;
+  /** Vollständiger juristischer Name der Gesellschaft (z.B. "Digital-Direkt GmbH").
+   *  Wenn gesetzt: wird als Verantwortlicher angezeigt, legal.owner wird als
+   *  Geschäftsführer/Vertreter darunter genannt. Wenn nicht gesetzt: Fallback auf
+   *  legal.owner + legal.form (Backwards-Compat — sinnvoll bei Einzelunternehmern). */
+  companyName?: string;
   /** Branche für vorgefertigte Empfänger-Defaults. Default: 'generic'. */
   branche?: Branche;
   /** Override der Empfänger-Liste (vollständig). Default: per Branche generiert. */
@@ -144,6 +149,7 @@ const ZWECKE_DEFAULTS: GeschaeftsZweck[] = [
 const {
   legal: l,
   email,
+  companyName,
   branche = 'generic',
   empfaenger,
   zwecke = ZWECKE_DEFAULTS,
@@ -188,7 +194,16 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
   <HeadingTag>1. Verantwortlicher</HeadingTag>
   <p>Verantwortlicher für die Verarbeitung im Sinne der DSGVO ist:</p>
   <p>
-    <strong>{l.owner}</strong>{l.form && <><br />{l.form}</>}<br />
+    {companyName ? (
+      <>
+        <strong>{companyName}</strong><br />
+        Vertreten durch: {l.owner}<br />
+      </>
+    ) : (
+      <>
+        <strong>{l.owner}</strong>{l.form && <><br />{l.form}</>}<br />
+      </>
+    )}
     {l.street}<br />
     {l.zip} {l.city}<br />
     Telefon: <a href={`tel:${phoneTel}`}>{l.phone}</a><br />
@@ -326,7 +341,8 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
     Betroffenenrechte erreichen Sie uns unter:
   </p>
   <p>
-    <strong>{l.owner}{l.form && <> – {l.form}</>}</strong><br />
+    <strong>{companyName ?? `${l.owner}${l.form ? ` – ${l.form}` : ''}`}</strong><br />
+    {companyName && <>Vertreten durch: {l.owner}<br /></>}
     {l.street}<br />
     {l.zip} {l.city}<br />
     E-Mail: <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a><br />
