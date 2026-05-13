@@ -11,6 +11,9 @@
  *     items={siteData.karriere?.stellen ?? []}
  *     siteName={siteData.name}
  *     siteUrl={siteData.url}
+ *     street={siteData.legal.street}
+ *     zip={siteData.legal.zip}
+ *     region="Bayern"
  *     city={siteData.legal.city}
  *     country={siteData.legal.country}
  *     kontaktEmail={siteData.karriere?.kontaktEmail ?? siteData.contact.email}
@@ -25,6 +28,12 @@ export interface StelleItem {
   typ: StelleTyp;
   /** Optional job description. */
   beschreibung?: string;
+  /** ISO date (YYYY-MM-DD) when the listing expires. Defaults to datePosted + 90 days. */
+  validThrough?: string;
+  /** Annual gross salary lower bound in EUR. Emitted only if both min+max are set. */
+  gehaltMin?: number;
+  /** Annual gross salary upper bound in EUR. */
+  gehaltMax?: number;
 }
 
 interface Props {
@@ -34,6 +43,12 @@ interface Props {
   siteName?: string;
   /** Canonical site URL (for JSON-LD hiringOrganization.sameAs). */
   siteUrl?: string;
+  /** Street address (JSON-LD jobLocation.address.streetAddress). */
+  street?: string;
+  /** Postal/ZIP code (JSON-LD jobLocation.address.postalCode). */
+  zip?: string;
+  /** Administrative region / Bundesland (JSON-LD jobLocation.address.addressRegion). */
+  region?: string;
   /** City of employment (JSON-LD jobLocation.address.addressLocality). */
   city?: string;
   /** ISO country code. Defaults to "DE". */
@@ -46,6 +61,9 @@ const {
   items = [],
   siteName = '',
   siteUrl = '',
+  street = '',
+  zip = '',
+  region = '',
   city = '',
   country = 'DE',
   kontaktEmail = '',
@@ -53,6 +71,22 @@ const {
 
 const hasStellen = items.length > 0;
 const datePosted = new Date().toISOString().split('T')[0];
+
+// Default validThrough: datePosted + 90 days (Google for Jobs requirement).
+const defaultValidThrough = (() => {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 90);
+  return d.toISOString().split('T')[0];
+})();
+
+const addressLD = {
+  '@type': 'PostalAddress',
+  ...(street ? { streetAddress: street } : {}),
+  ...(zip ? { postalCode: zip } : {}),
+  ...(region ? { addressRegion: region } : {}),
+  ...(city ? { addressLocality: city } : {}),
+  addressCountry: country,
+};
 ---
 <section class="stellen-section" id="stellen">
   <div class="container">
@@ -71,30 +105,45 @@ const datePosted = new Date().toISOString().split('T')[0];
       <>
         {/* JobPosting JSON-LD für Google for Jobs */}
         <script type="application/ld+json" is:inline set:html={JSON.stringify(
-          items.map((stelle: StelleItem) => ({
-            '@context': 'https://schema.org',
-            '@type': 'JobPosting',
-            title: stelle.titel,
-            description: stelle.beschreibung,
-            employmentType: stelle.typ === 'Vollzeit' ? 'FULL_TIME'
-              : stelle.typ === 'Teilzeit' ? 'PART_TIME'
-              : stelle.typ === 'Ausbildung' ? 'OTHER'
-              : 'FULL_TIME',
-            hiringOrganization: {
-              '@type': 'Organization',
-              name: siteName,
-              sameAs: siteUrl,
-            },
-            jobLocation: {
-              '@type': 'Place',
-              address: {
-                '@type': 'PostalAddress',
-                addressLocality: city,
-                addressCountry: country,
+          items.map((stelle: StelleItem) => {
+            const hasSalaryRange =
+              typeof stelle.gehaltMin === 'number' && typeof stelle.gehaltMax === 'number';
+            return {
+              '@context': 'https://schema.org',
+              '@type': 'JobPosting',
+              title: stelle.titel,
+              description: stelle.beschreibung,
+              employmentType: stelle.typ === 'Vollzeit' ? 'FULL_TIME'
+                : stelle.typ === 'Teilzeit' ? 'PART_TIME'
+                : stelle.typ === 'Ausbildung' ? 'OTHER'
+                : 'FULL_TIME',
+              hiringOrganization: {
+                '@type': 'Organization',
+                name: siteName,
+                sameAs: siteUrl,
               },
-            },
-            datePosted,
-          }))
+              jobLocation: {
+                '@type': 'Place',
+                address: addressLD,
+              },
+              datePosted,
+              validThrough: stelle.validThrough ?? defaultValidThrough,
+              ...(hasSalaryRange
+                ? {
+                    baseSalary: {
+                      '@type': 'MonetaryAmount',
+                      currency: 'EUR',
+                      value: {
+                        '@type': 'QuantitativeValue',
+                        minValue: stelle.gehaltMin,
+                        maxValue: stelle.gehaltMax,
+                        unitText: 'YEAR',
+                      },
+                    },
+                  }
+                : {}),
+            };
+          })
         )} />
 
         <div class="stellen-list">
