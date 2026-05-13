@@ -5,6 +5,7 @@
 export const siteData = {
   // ─── Basis ────────────────────────────────────────────────────────────────
   name: 'TODO: Firmenname',            // z.B. "Elektro Müller"
+  slug: 'TODO: kunden-slug',           // URL-sicherer Kurzname für UTM-Tracking, z.B. "elektro-mueller"
   tagline: 'TODO: Kurzslogan',         // z.B. "Ihr Elektriker in Regensburg"
   description: 'TODO: 1-2 Sätze',     // Für Meta-Description + Footer
   url: 'https://TODO.de',             // Live-URL ohne Slash am Ende
