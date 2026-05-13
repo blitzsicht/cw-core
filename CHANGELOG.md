@@ -6,6 +6,43 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.9.13] — 2026-05-13 (release/cw-core → main)
+
+### Highlights
+
+- Neue Block-Komponente `InformationspflichtBlock.astro` für die Art-13-DSGVO-Informationspflicht gegenüber Geschäftskontakten (Neukunden, Interessenten, Vertragspartner). Ergänzt `DatenschutzBlock.astro`, der weiterhin für die allgemeine Website-Datenschutzerklärung zuständig ist.
+
+### Added
+
+- `src/components/blocks/InformationspflichtBlock.astro` — prop-driven Art-13-Page (12 Sections: Verantwortlicher, DSB, Zwecke+Rechtsgrundlagen-Tabelle, Datenkategorien, Empfänger, Drittland-Übermittlung, Speicherdauer, Bereitstellungspflicht, Profiling, Betroffenenrechte, Beschwerde, Kontakt).
+- 7 branche-spezifische Empfänger-Default-Sets via `branche`-Prop: `druck`, `solar`, `web`, `handwerk`, `beratung`, `ferienhaus`, `generic`. Customer kann via `empfaenger`-Prop komplett überschreiben.
+- Defaults: BayLDA als Aufsichtsbehörde (override-bar), keine DSB-Pflicht angenommen (override-bar via `hatDSB`/`dsb`), Aufbewahrungspflichten HGB/AO.
+
+### Recommended Customer-Integration
+
+Customer-Site: dünne Page `src/pages/informationspflicht.astro`:
+
+```astro
+<ContentPage title="Informationspflichten nach Art. 13 DSGVO">
+  <InformationspflichtBlock
+    legal={siteData.legal}
+    email={siteData.contact.email}
+    branche="druck"
+  />
+</ContentPage>
+```
+
+Plus Footer-Link in `siteData.nav.footer.rechtliches`:
+```ts
+{ label: 'Art. 13 DSGVO', href: '/informationspflicht' }
+```
+
+### Compatibility
+
+- Additive Änderung, keine Breaking Changes.
+
+---
+
 ## [0.9.12] — 2026-05-13 (release/cw-core → main)
 
 ### Highlights
