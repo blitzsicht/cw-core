@@ -40,14 +40,7 @@ export type DatenEmpfaenger = {
   zweck: string;
 };
 
-export type Branche =
-  | 'druck'        // Drucker/Kopierer/Office-IT
-  | 'solar'        // Solar/Photovoltaik/Energie
-  | 'web'          // Web-Entwicklung/Digitalagentur
-  | 'handwerk'     // Bau/Gartenbau/Sanierung
-  | 'beratung'     // Consulting/Beratung
-  | 'ferienhaus'   // Tourismus/Vermietung
-  | 'generic';     // Fallback
+export type Branche = 'druck' | 'solar' | 'web' | 'handwerk' | 'beratung' | 'ferienhaus' | 'generic';
 
 interface Props {
   legal: LegalProps;

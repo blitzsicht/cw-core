@@ -6,6 +6,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.9.14] — 2026-05-13 (release/cw-core → main)
+
+### Fixed
+
+- `InformationspflichtBlock.astro`: `Branche`-Union-Type von Multi-Line-Leading-Pipe auf Single-Line umgestellt. esbuild lehnte die Multi-Line-Variante in Astro-Frontmatter mit "Unexpected '|'" ab.
+
+---
+
 ## [0.9.13] — 2026-05-13 (release/cw-core → main)
 
 ### Highlights
