@@ -85,7 +85,24 @@ export interface FooterConfig {
 interface Props {
   title?: string;
   description?: string;
-  ogImage?: string;
+  /**
+   * Explicit OG image override (fallback chain level 1).
+   * If omitted, BaseLayout auto-resolves via fallback chain:
+   *   heroImage → contentImage → /og/default.png → defaultOgImage
+   */
+  ogImage?: string | null | undefined;
+  /**
+   * Hero/header image for this page (fallback chain level 2).
+   * Pass siteData.hero.image here to enable automatic hero-to-OG fallback.
+   */
+  heroImage?: string | null | undefined;
+  /** First image in page content (fallback chain level 3). */
+  contentImage?: string | null | undefined;
+  /**
+   * Level 4: path to a build-time generated OG image.
+   * Defaults to /og/default.png. Set to null to skip to defaultOgImage.
+   */
+  generatedOgImage?: string | null | undefined;
   canonicalUrl?: string;
   robots?: string;
   /** Site name (passed to Header + BaseLayout). */
@@ -135,6 +152,9 @@ const {
   title,
   description,
   ogImage,
+  heroImage,
+  contentImage,
+  generatedOgImage,
   canonicalUrl,
   robots,
   siteName,
@@ -158,6 +178,9 @@ const {
   title={title}
   description={description}
   ogImage={ogImage}
+  headerImage={heroImage}
+  contentImage={contentImage}
+  generatedOgImage={generatedOgImage}
   canonicalUrl={canonicalUrl}
   robots={robots}
   siteName={siteName}
