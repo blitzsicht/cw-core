@@ -53,6 +53,10 @@ cw-core/
     site-data.template.ts  # Annotiertes Template für neue Kunden
     tokens.template.css    # CSS-Token-Template mit WCAG-Hinweisen
     vercel.template.json   # Security-Header-Basis für Vercel
+  scripts/
+    generate-og.mjs        # OG-Image-Generator (Text-OG, Hero-Crop, Batch)
+  docs/
+    og-image.md            # OG-Image Fallback-Chain Dokumentation
 ```
 
 ## Layouts
@@ -122,10 +126,35 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 
 `BaseLayout` generiert automatisch:
 - `<title>`, Meta-Description, Canonical
-- Open Graph + Twitter Card
+- Open Graph + Twitter Card (mit `og:image:width/height`)
 - `LocalBusiness + ProfessionalService` JSON-LD (Adresse, Kontakt, sameAs)
 - `WebSite` JSON-LD
 - Plausible-Analytics-Script (nur wenn `siteData.analytics.plausibleScript` gesetzt)
+
+## OG Image Fallback-Chain
+
+`BaseLayout` implementiert eine 5-stufige Fallback-Chain für `og:image`:
+
+| Level | Quelle |
+|-------|--------|
+| 1 | `ogImage` Prop (explizit an LandingPage/ContentPage) |
+| 2 | `siteData.hero.image` (automatisch via LandingPage) |
+| 3 | `contentImage` Prop (erstes Bild im Seiteninhalt) |
+| 4 | `/og/default.png` (generiert mit Logo+CTA-Overlay) |
+| 5 | `siteData.images.ogImage` (konfiguriertes Standard-OG) |
+
+**Level 4 generieren** (einmalig beim Kunden-Onboarding):
+
+```bash
+pnpm add -D sharp   # im Kunden-Projekt
+node node_modules/@cw/core/scripts/generate-og.mjs \
+  --name "Firmenname" \
+  --cta "Jetzt anfragen" \
+  --logo public/logo.png \
+  --out public/og/default.png
+```
+
+Vollständige Doku: [`docs/og-image.md`](./docs/og-image.md)
 
 ## Styling-Konventionen
 

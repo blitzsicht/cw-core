@@ -11,9 +11,18 @@ export const siteData = {
   url: 'https://TODO.de',             // Live-URL ohne Slash am Ende
 
   // ─── Logo & Bilder ────────────────────────────────────────────────────────
-  // Dateien liegen in public/images/ – Pfad beginnt mit /
+  // Dateien liegen in public/ – Pfad beginnt mit /
   images: {
-    ogImage: '/og/og-image.png',       // 1200×630px, für Social Media Previews
+    // OG-Image Fallback-Chain (5 Levels — automatisch in BaseLayout):
+    //   1. Seiten-spezifisches ogImage (prop an LandingPage/ContentPage)
+    //   2. hero.image der Seite (automatisch via LandingPage)
+    //   3. contentImage (erstes Bild im Seiteninhalt — prop an LandingPage)
+    //   4. Generiertes Standard-OG (/og/default.png — via `pnpm generate:og`)
+    //   5. Dieses Feld: Kunden-spezifisches Standard-OG (immer vorhanden)
+    //
+    // Setup: `pnpm generate:og --name "..." --cta "..." --logo public/logo.png --out public/og/default.png`
+    // Levels 4+5 erhalten automatisch Logo+CTA-Overlay.
+    ogImage: '/og/og-image.png',       // 1200×630px — Fallback-Level 5 (letzter Fallback)
     aboutTeam: undefined as string | undefined,  // z.B. '/images/team/team.webp'
     gallery: [] as string[],           // z.B. ['/images/gallery/projekt-1.webp']
   },
