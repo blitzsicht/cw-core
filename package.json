@@ -7,7 +7,12 @@
     "./layouts/*": "./layouts/*",
     "./components/*": "./components/*",
     "./styles/*": "./styles/*",
-    "./templates/*": "./templates/*"
+    "./templates/*": "./templates/*",
+    "./scripts/*": "./scripts/*"
+  },
+  "scripts": {
+    "build": "echo '@cw/core is a source-only Astro component library — no build step (consumers compile via their own Astro pipeline).'",
+    "generate:og": "node scripts/generate-og.mjs"
   },
   "peerDependencies": {
     "astro": ">=5.0.0",
