@@ -131,6 +131,36 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 - `WebSite` JSON-LD
 - Plausible-Analytics-Script (nur wenn `siteData.analytics.plausibleScript` gesetzt)
 
+### ServiceAreaSchema — Geo-Landing-Pages
+
+Für Geo-Landing-Pages (z. B. `/donaustauf`, `/regensburg`) gibt es `ServiceAreaSchema.astro`.
+Es setzt ein `Service`-Schema mit `areaServed` — **ohne** einen weiteren `LocalBusiness`-Eintrag
+(kein Google-Spam-Signal durch doppelte LocalBusiness-Schemas pro Seite).
+
+```astro
+---
+import ServiceAreaSchema from '@cw/core/components/seo/ServiceAreaSchema.astro';
+---
+<ServiceAreaSchema
+  serviceType="Immobilienbewertung"
+  areaServed="Donaustauf"
+  providerName="Gottl Richter Gomeier"
+  providerUrl="https://gottl-richter-gomeier.de"
+/>
+```
+
+**Props:**
+
+| Prop | Typ | Beschreibung |
+|------|-----|-------------|
+| `serviceType` | `string` | Leistungsbezeichnung, z. B. `"Immobilienbewertung"` |
+| `areaServed` | `string` | Stadtname, z. B. `"Donaustauf"` |
+| `providerName` | `string` | Firmenname, z. B. `"Gottl Richter Gomeier"` |
+| `providerUrl` | `string` | Kanonische URL des Anbieters |
+
+**Anti-Pattern:** `SchemaOrg.astro` (einmalig in `BaseLayout`) setzt den `LocalBusiness`-Eintrag.
+`ServiceAreaSchema` ergänzt nur den Service-Kontext — niemals `LocalBusiness` pro Geo-Seite wiederholen.
+
 ## OG Image Fallback-Chain
 
 `BaseLayout` implementiert eine 5-stufige Fallback-Chain für `og:image`:
