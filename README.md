@@ -233,3 +233,48 @@ Kundensites referenzieren das Paket via GitHub-Tag:
 ```json
 "@cw/core": "github:siluri/cw-core#v1.0.6"
 ```
+
+---
+
+## SEO-Components (cw-core/components/seo/)
+
+Drei neue Schema.org-Components für customer-Sites (gemerged 2026-05-18 via Issues #112-#114):
+
+### FAQSchema.astro
+Maschinen-lesbare FAQs als JSON-LD für AI-Citation (ChatGPT/Perplexity/Google AI Overviews).
+
+```astro
+---
+import FAQSchema from '@cw/core/components/seo/FAQSchema.astro';
+const faqs = [
+  { question: "Was kostet ein Gutachten?", answer: "Verkehrswertgutachten EFH: 1.500-3.500 EUR" },
+];
+---
+<FAQSchema items={faqs} />
+```
+
+### ServiceAreaSchema.astro
+Service+areaServed-Schema für Geo-Landing-Pages. KEIN LocalBusiness-Duplicate pro Geo.
+
+```astro
+<ServiceAreaSchema
+  serviceType="Immobilienbewertung"
+  areaServed="Donaustauf"
+  providerName="Sachverständigenbüro GRG"
+  providerUrl="https://gottl-richter-gomeier.de"
+/>
+```
+
+### PriceSpecSchema.astro
+PriceSpecification für Pricing-Pages — stärkt AI-Citation bei Preis-Queries.
+
+```astro
+const honorare = [
+  { name: "Verkehrswertgutachten EFH", minPrice: 1500, maxPrice: 3500, unit: "pro Gutachten" },
+];
+<PriceSpecSchema items={honorare} />
+```
+
+## Title-Tag-Pattern
+
+Siehe [`docs/seo-title-pattern.md`](./docs/seo-title-pattern.md) — Pattern + Beispiele aus echten Audits.
