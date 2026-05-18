@@ -131,6 +131,27 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 - `WebSite` JSON-LD
 - Plausible-Analytics-Script (nur wenn `siteData.analytics.plausibleScript` gesetzt)
 
+### FAQSchema
+
+Standalone-Komponente für `FAQPage` JSON-LD. Props-driven — kein `siteData`-Import nötig,
+dadurch auf beliebigen Seiten (z. B. eigene FAQ-Pages, Blog-Posts mit FAQ-Abschnitt) einsetzbar.
+
+```astro
+---
+import FAQSchema from '@cw/core/components/seo/FAQSchema.astro';
+
+const faqs = [
+  { question: 'Was kostet ein Webauftritt?', answer: 'Ab 1.490 € einmalig.' },
+  { question: 'Wie lange dauert die Umsetzung?', answer: 'In der Regel 2–4 Wochen.' },
+];
+---
+<FAQSchema items={faqs} />
+```
+
+Der `FAQ`-Block (`components/blocks/FAQ.astro`) rendert dieses Schema intern automatisch über
+`siteData.faqs`. `FAQSchema` ist für den Fall gedacht, dass das Schema auf einer Seite ohne
+den visuellen FAQ-Block benötigt wird oder `items` dynamisch zusammengestellt werden.
+
 ## OG Image Fallback-Chain
 
 `BaseLayout` implementiert eine 5-stufige Fallback-Chain für `og:image`:
