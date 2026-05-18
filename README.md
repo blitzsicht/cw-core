@@ -131,26 +131,35 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 - `WebSite` JSON-LD
 - Plausible-Analytics-Script (nur wenn `siteData.analytics.plausibleScript` gesetzt)
 
-### FAQSchema
+### ServiceAreaSchema — Geo-Landing-Pages
 
-Standalone-Komponente für `FAQPage` JSON-LD. Props-driven — kein `siteData`-Import nötig,
-dadurch auf beliebigen Seiten (z. B. eigene FAQ-Pages, Blog-Posts mit FAQ-Abschnitt) einsetzbar.
+Für Geo-Landing-Pages (z. B. `/donaustauf`, `/regensburg`) gibt es `ServiceAreaSchema.astro`.
+Es setzt ein `Service`-Schema mit `areaServed` — **ohne** einen weiteren `LocalBusiness`-Eintrag
+(kein Google-Spam-Signal durch doppelte LocalBusiness-Schemas pro Seite).
 
 ```astro
 ---
-import FAQSchema from '@cw/core/components/seo/FAQSchema.astro';
-
-const faqs = [
-  { question: 'Was kostet ein Webauftritt?', answer: 'Ab 1.490 € einmalig.' },
-  { question: 'Wie lange dauert die Umsetzung?', answer: 'In der Regel 2–4 Wochen.' },
-];
+import ServiceAreaSchema from '@cw/core/components/seo/ServiceAreaSchema.astro';
 ---
-<FAQSchema items={faqs} />
+<ServiceAreaSchema
+  serviceType="Immobilienbewertung"
+  areaServed="Donaustauf"
+  providerName="Gottl Richter Gomeier"
+  providerUrl="https://gottl-richter-gomeier.de"
+/>
 ```
 
-Der `FAQ`-Block (`components/blocks/FAQ.astro`) rendert dieses Schema intern automatisch über
-`siteData.faqs`. `FAQSchema` ist für den Fall gedacht, dass das Schema auf einer Seite ohne
-den visuellen FAQ-Block benötigt wird oder `items` dynamisch zusammengestellt werden.
+**Props:**
+
+| Prop | Typ | Beschreibung |
+|------|-----|-------------|
+| `serviceType` | `string` | Leistungsbezeichnung, z. B. `"Immobilienbewertung"` |
+| `areaServed` | `string` | Stadtname, z. B. `"Donaustauf"` |
+| `providerName` | `string` | Firmenname, z. B. `"Gottl Richter Gomeier"` |
+| `providerUrl` | `string` | Kanonische URL des Anbieters |
+
+**Anti-Pattern:** `SchemaOrg.astro` (einmalig in `BaseLayout`) setzt den `LocalBusiness`-Eintrag.
+`ServiceAreaSchema` ergänzt nur den Service-Kontext — niemals `LocalBusiness` pro Geo-Seite wiederholen.
 
 ## OG Image Fallback-Chain
 
