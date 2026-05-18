@@ -131,6 +131,69 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 - `WebSite` JSON-LD
 - Plausible-Analytics-Script (nur wenn `siteData.analytics.plausibleScript` gesetzt)
 
+### PriceSpecSchema — Maschinenlesbare Preise
+
+`PriceSpecSchema.astro` generiert ein `schema.org/PriceSpecification`-JSON-LD-Block für Pricing-Pages. Ziel: AI-Citations bei Preis-Queries ("Was kostet X?") in ChatGPT, Perplexity, Google AI Overviews.
+
+```astro
+---
+import PriceSpecSchema from '@cw/core/components/seo/PriceSpecSchema.astro';
+
+const preise = [
+  // Fester Preis (nur minPrice)
+  {
+    name: 'Kurzgutachten',
+    description: 'Beweiswert-Gutachten für einfache Schäden',
+    minPrice: 350,
+    unit: 'pro Gutachten',
+  },
+  // Preisrange (minPrice + maxPrice)
+  {
+    name: 'Vollgutachten',
+    description: 'Umfassendes Kfz-Schadengutachten nach GRG',
+    minPrice: 500,
+    maxPrice: 1200,
+    unit: 'pro Gutachten',
+  },
+  // Blitzsicht Website-Pakete
+  {
+    name: 'Website Starter',
+    minPrice: 1490,
+    currency: 'EUR',
+    unit: 'einmalig',
+  },
+  {
+    name: 'Website Business',
+    minPrice: 2490,
+    maxPrice: 3490,
+    currency: 'EUR',
+    unit: 'einmalig',
+  },
+];
+---
+<!-- Im <head> oder direkt im Layout -->
+<PriceSpecSchema items={preise} />
+```
+
+**Props:**
+
+| Prop | Typ | Pflicht | Default | Beschreibung |
+|------|-----|---------|---------|--------------|
+| `items` | `PriceItem[]` | ja | — | Liste der Preispositionen |
+
+**PriceItem-Interface:**
+
+| Feld | Typ | Pflicht | Beschreibung |
+|------|-----|---------|--------------|
+| `name` | `string` | ja | Leistungsname |
+| `description` | `string` | nein | Kurzbeschreibung |
+| `minPrice` | `number` | ja | Mindest- oder Festpreis |
+| `maxPrice` | `number` | nein | Höchstpreis (→ Preisrange) |
+| `currency` | `string` | nein | ISO-Währungscode, Default `"EUR"` |
+| `unit` | `string` | nein | Einheit, z.B. `"pro Gutachten"` (wird in description eingefügt) |
+
+**Generiertes Schema:** `ItemList` mit je einem `Offer` + `PriceSpecification` pro Item. Bei nur `minPrice` → fester Preis. Bei `minPrice` + `maxPrice` → Range (`minPrice`/`maxPrice` im Schema).
+
 ## OG Image Fallback-Chain
 
 `BaseLayout` implementiert eine 5-stufige Fallback-Chain für `og:image`:
