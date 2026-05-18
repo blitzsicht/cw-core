@@ -1,0 +1,87 @@
+---
+// @cw/core – PriceSpecSchema.astro
+// Generates JSON-LD PriceSpecification (or Offer) blocks for pricing pages.
+// Impact: AI-Citations bei Preis-Queries ("Was kostet X?") in ChatGPT/Perplexity.
+//
+// Ref: https://schema.org/PriceSpecification
+//      https://schema.org/Offer
+
+export interface PriceItem {
+  /** Leistungsname, z.B. "Kurzgutachten", "Website-Starter-Paket" */
+  name: string;
+  /** Optionale Beschreibung */
+  description?: string;
+  /** Mindestpreis (oder fester Preis wenn maxPrice fehlt) */
+  minPrice: number;
+  /** Höchstpreis — fehlt er, wird minPrice als fester Preis verwendet */
+  maxPrice?: number;
+  /** Währung, Default "EUR" */
+  currency?: string;
+  /** Optionale Einheit, z.B. "pro Gutachten", "pro Monat" (wird als description ergänzt) */
+  unit?: string;
+}
+
+interface Props {
+  items: PriceItem[];
+}
+
+const { items } = Astro.props;
+
+type SchemaOffer = {
+  '@type': 'Offer';
+  name: string;
+  description?: string;
+  price: number;
+  priceCurrency: string;
+  priceSpecification: {
+    '@type': 'PriceSpecification';
+    price: number;
+    priceCurrency: string;
+    minPrice?: number;
+    maxPrice?: number;
+  };
+};
+
+const offers: SchemaOffer[] = items.map((item) => {
+  const currency = item.currency ?? 'EUR';
+  const isRange = item.maxPrice !== undefined && item.maxPrice !== item.minPrice;
+
+  const description = [item.description, item.unit ? `(${item.unit})` : undefined]
+    .filter(Boolean)
+    .join(' ') || undefined;
+
+  const priceSpecification: SchemaOffer['priceSpecification'] = isRange
+    ? {
+        '@type': 'PriceSpecification',
+        price: item.minPrice,
+        priceCurrency: currency,
+        minPrice: item.minPrice,
+        maxPrice: item.maxPrice,
+      }
+    : {
+        '@type': 'PriceSpecification',
+        price: item.minPrice,
+        priceCurrency: currency,
+      };
+
+  return {
+    '@type': 'Offer',
+    name: item.name,
+    ...(description ? { description } : {}),
+    price: item.minPrice,
+    priceCurrency: currency,
+    priceSpecification,
+  };
+});
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  itemListElement: offers.map((offer, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    item: offer,
+  })),
+};
+---
+<script type="application/ld+json" set:html={JSON.stringify(schema)} />
