@@ -44,7 +44,11 @@ export type Branche = 'druck' | 'solar' | 'web' | 'handwerk' | 'beratung' | 'fer
 
 interface Props {
   legal: LegalProps;
-  email: string;
+  /** Allgemeine Kontakt-E-Mail-Adresse (aus siteData.contact.email). Wird direkt für
+   *  Datenschutzanfragen verwendet — kein auto-generiertes datenschutz@<domain> mehr.
+   *  Optional: wenn nicht gesetzt und kein datenschutzEmail-Prop, wird stattdessen
+   *  ein Hinweis "Kontaktdaten siehe Impressum" gerendert. */
+  email?: string;
   /** Vollständiger juristischer Name der Gesellschaft (z.B. "Digital-Direkt GmbH").
    *  Wenn gesetzt: wird als Verantwortlicher angezeigt, legal.owner wird als
    *  Geschäftsführer/Vertreter darunter genannt. Wenn nicht gesetzt: Fallback auf
@@ -56,7 +60,9 @@ interface Props {
   empfaenger?: DatenEmpfaenger[];
   /** Override der Zwecke+Rechtsgrundlagen-Tabelle. Default: B2B-Standardset. */
   zwecke?: GeschaeftsZweck[];
-  /** Mailbox für Datenschutzanfragen. Default: datenschutz@<email-domain>. */
+  /** Explizite Mailbox für Datenschutzanfragen. Wenn gesetzt: wird direkt verwendet.
+   *  Wenn nicht gesetzt: Fallback auf `email`-Prop (direkter Kontakt statt fiktiver
+   *  datenschutz@-Subdomain). Wenn beides leer: kein Mail-Block, Hinweis auf Impressum. */
   datenschutzEmail?: string;
   /** Aufsichtsbehörde. Default: BayLDA Bayern. */
   beschwerdeStelle?: { name: string; address: string; phone?: string; emailUrl: string; url: string };
@@ -73,8 +79,6 @@ interface Props {
   /** Wenn true: zeigt eine Section-Headline „Informationspflichten nach Art. 13 DSGVO" als h2 oberhalb der Sections. Nur sinnvoll wenn hideLeadIntro=true. Default: false. */
   showSectionHeading?: boolean;
 }
-
-const datenschutzDomain = (mail: string) => mail.includes('@') ? mail.split('@')[1] : 'example.com';
 
 const EMPFAENGER_DEFAULTS: Record<Branche, DatenEmpfaenger[]> = {
   druck: [
@@ -148,12 +152,12 @@ const ZWECKE_DEFAULTS: GeschaeftsZweck[] = [
 
 const {
   legal: l,
-  email,
+  email = '',
   companyName,
   branche = 'generic',
   empfaenger,
   zwecke = ZWECKE_DEFAULTS,
-  datenschutzEmail = `datenschutz@${datenschutzDomain(email)}`,
+  datenschutzEmail: datenschutzEmailProp,
   beschwerdeStelle = {
     name: 'Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)',
     address: 'Promenade 27, 91522 Ansbach',
@@ -169,9 +173,12 @@ const {
   showSectionHeading = false,
 } = Astro.props;
 
-const empfaengerListe = empfaenger ?? EMPFAENGER_DEFAULTS[branche];
+// Resolve datenschutzEmail: explizites Prop > direkter email-Kontakt > kein Mail-Block
+// KEIN auto-generiertes "datenschutz@<domain>" mehr — solche Adressen existieren meist nicht.
+const datenschutzEmail: string | undefined = datenschutzEmailProp || email || undefined;
+
+const empfaengerListe: DatenEmpfaenger[] = empfaenger ?? EMPFAENGER_DEFAULTS[branche as Branche];
 const phoneTel = l.phone.replace(/\s+/g, '');
-const datenschutzPhoneNote = email;
 // Embedded-Mode: Hx-Hierarchie um 1 Level absenken — die hosting Page hat schon h2s,
 // damit InformationspflichtBlock-Sections h3 werden statt mit h2 zu kollidieren.
 const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
@@ -207,7 +214,7 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
     {l.street}<br />
     {l.zip} {l.city}<br />
     Telefon: <a href={`tel:${phoneTel}`}>{l.phone}</a><br />
-    E-Mail: <a href={`mailto:${email}`}>{email}</a>
+    {email && <>E-Mail: <a href={`mailto:${email}`}>{email}</a></>}
     {l.ustIdNr && <><br />USt-IdNr.: {l.ustIdNr}</>}
     {l.registergericht && l.registerNummer && (
       <><br />Handelsregister: {l.registergericht}, {l.register?.toUpperCase()} {l.registerNummer}</>
@@ -223,11 +230,11 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
   ) : (
     <p>
       Aufgrund der Unternehmensgröße ist die Bestellung eines Datenschutzbeauftragten nicht
-      gesetzlich erforderlich (§ 38 BDSG). Anfragen zum Datenschutz richten Sie bitte direkt an:
-      <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a>
-      {datenschutzEmail !== datenschutzPhoneNote && (
-        <> (oder ersatzweise an <a href={`mailto:${email}`}>{email}</a>)</>
-      )}.
+      gesetzlich erforderlich (§ 38 BDSG). Anfragen zum Datenschutz richten Sie bitte direkt an{datenschutzEmail ? (
+        <>: <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a>.</>
+      ) : (
+        <> den Verantwortlichen (Kontaktdaten siehe <a href="/impressum">Impressum</a>).</>
+      )}
     </p>
   )}
 
@@ -241,7 +248,7 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
       </tr>
     </thead>
     <tbody>
-      {zwecke.map((z) => (
+      {zwecke.map((z: GeschaeftsZweck) => (
         <tr>
           <td>{z.zweck}</td>
           <td>{z.rechtsgrundlage}</td>
@@ -263,7 +270,7 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
   <HeadingTag>5. Empfänger der Daten</HeadingTag>
   <p>Personenbezogene Daten werden ausschließlich an folgende Empfänger weitergegeben, soweit dies für die genannten Zwecke erforderlich ist:</p>
   <ul>
-    {empfaengerListe.map((e) => (
+    {empfaengerListe.map((e: DatenEmpfaenger) => (
       <li><strong>{e.label}:</strong> {e.zweck}</li>
     ))}
   </ul>
@@ -317,8 +324,11 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
     <li><strong>Widerruf einer Einwilligung</strong> (Art. 7 Abs. 3 DSGVO) — mit Wirkung für die Zukunft</li>
   </ul>
   <p>
-    Zur Geltendmachung dieser Rechte kontaktieren Sie uns bitte unter
-    <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a> oder per Post an die oben genannte Anschrift.
+    Zur Geltendmachung dieser Rechte kontaktieren Sie uns bitte{datenschutzEmail ? (
+      <> unter <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a> oder</>
+    ) : (
+      <> (Kontaktdaten siehe <a href="/impressum">Impressum</a>) oder</>
+    )} per Post an die oben genannte Anschrift.
   </p>
 
   <HeadingTag>11. Beschwerderecht bei der Aufsichtsbehörde</HeadingTag>
@@ -345,7 +355,11 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
     {companyName && <>Vertreten durch: {l.owner}<br /></>}
     {l.street}<br />
     {l.zip} {l.city}<br />
-    E-Mail: <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a><br />
+    {datenschutzEmail ? (
+      <>E-Mail: <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a><br /></>
+    ) : (
+      <>E-Mail: siehe <a href="/impressum">Impressum</a><br /></>
+    )}
     Telefon: <a href={`tel:${phoneTel}`}>{l.phone}</a>
   </p>
 
