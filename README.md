@@ -90,6 +90,39 @@ Alle Blocks sind **prop-driven** — die Seite liest `siteData` und reicht die p
 | `StellenListe` | `stellen={siteData.karriere.stellen}` |
 | `BewerbungsForm` | `karriere={siteData.karriere}` |
 
+## Rechtliche Blöcke (DSGVO)
+
+### InformationspflichtBlock — Datenschutz-Kontakt
+
+`InformationspflichtBlock` rendert die Informationspflichten nach Art. 13 DSGVO.
+
+**Wichtig: Kein automatisches `datenschutz@<domain>` mehr (ab v0.10.1)**
+
+Die Komponente generiert keine fiktive `datenschutz@`-Adresse mehr aus dem `email`-Prop.
+Stattdessen gilt folgende Priorität für den Datenschutz-Kontakt:
+
+1. **`datenschutzEmail`-Prop gesetzt** → wird direkt verwendet (für Kunden mit echter `datenschutz@`-Mailbox)
+2. **`email`-Prop gesetzt** → wird direkt für Datenschutzanfragen verwendet (empfohlen für Kleinbetriebe)
+3. **Beide leer** → kein Mail-Block, stattdessen Hinweis "Kontaktdaten siehe Impressum"
+
+```astro
+<!-- Empfohlen: email direkt für Datenschutzanfragen -->
+<InformationspflichtBlock
+  legal={siteData.legal}
+  email={siteData.contact.email}
+  companyName={siteData.name}
+  branche="handwerk"
+/>
+
+<!-- Optional: explizite Datenschutz-Mailbox (nur wenn diese real existiert!) -->
+<InformationspflichtBlock
+  legal={siteData.legal}
+  email={siteData.contact.email}
+  datenschutzEmail="datenschutz@example.com"
+  branche="druck"
+/>
+```
+
 ## Motion-System (ab v0.5.0-alpha)
 
 Opt-in Motion-Primitives für „Flashy Landing-Page"-Look. Alle Komponenten

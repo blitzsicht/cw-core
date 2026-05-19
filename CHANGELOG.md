@@ -6,6 +6,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.1] — 2026-05-19 (release/cw-core — DSGVO-Fix datenschutzEmail)
+
+### Fixed (DSGVO-kritisch)
+
+- `InformationspflichtBlock.astro`: **Halluzinierte `datenschutz@<domain>`-Adresse entfernt.**
+  Die Komponente generierte automatisch `datenschutz@<email-domain>` wenn kein explizites
+  `datenschutzEmail`-Prop übergeben wurde — diese Adresse existiert bei allen bestehenden
+  Kunden nicht. DSGVO Art. 13/14 verlangt erreichbare Kontaktdaten. (Fixes #173)
+
+### Changed
+
+- `InformationspflichtBlock.astro`: Prop `email` ist jetzt optional (war: required string).
+  Breaking-frei: bestehende Customer-Sites übergeben `email={siteData.contact.email}` — Verhalten
+  ändert sich nur in Bezug auf den Datenschutz-Kontakt (jetzt direkte E-Mail statt fiktive Subdomain).
+- Neue Priorität für Datenschutz-Kontaktadresse:
+  1. Explizites `datenschutzEmail`-Prop (nur setzen wenn Adresse real existiert)
+  2. `email`-Prop direkt (Direktkontakt — rechtskonform, keine Halluzination)
+  3. Fallback: kein Mail-Block, Hinweis "Kontaktdaten siehe Impressum"
+- Hilfsfunktion `datenschutzDomain()` entfernt (war nur für Auto-Generation nötig).
+
+### Documentation
+
+- README: Neue Section "Rechtliche Blöcke (DSGVO)" mit Hinweis zum neuen Verhalten und Beispielen.
+
+### Compatibility
+
+- Backwards-kompatibel: Customer-Sites die `email={siteData.contact.email}` übergeben
+  rendern jetzt die reale Kontaktadresse statt einer fiktiven — kein Code-Change nötig.
+- Bestehende `datenschutzEmail`-Props werden weiterhin unverändert übernommen.
+
+---
+
 ## [0.10.0] — 2026-05-19 (release/cw-core — SEO Components)
 
 ### Added
