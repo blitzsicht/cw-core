@@ -1,0 +1,175 @@
+---
+/**
+ * @cw/core – PageTOC.astro
+ *
+ * Sticky "Jump to:" navigation for long pages.
+ * Mobile default: collapsible <details>.
+ * Desktop (≥768px): horizontal pill-nav bar.
+ * IntersectionObserver highlights the active section link.
+ *
+ * @example
+ *   <PageTOC items={[
+ *     { id: 'was-wir-pruefen', label: 'Inhalt' },
+ *     { id: 'ablauf',          label: 'Ablauf' },
+ *     { id: 'faq',             label: 'FAQ' },
+ *   ]} />
+ */
+export interface TOCItem {
+  id: string;
+  label: string;
+}
+
+interface Props {
+  items: TOCItem[];
+  /** Label for mobile <details> summary. Defaults to "Auf dieser Seite". */
+  summaryLabel?: string;
+}
+
+const { items, summaryLabel = 'Auf dieser Seite' } = Astro.props;
+---
+
+<nav class="page-toc" aria-label="Seitennavigation">
+  <!-- Mobile default: collapsible <details> -->
+  <details class="toc-details">
+    <summary class="toc-summary">{summaryLabel}</summary>
+    <ul class="toc-mobile-list" role="list">
+      {items.map((item) => (
+        <li>
+          <a href={`#${item.id}`} class="toc-link" data-toc-id={item.id}>{item.label}</a>
+        </li>
+      ))}
+    </ul>
+  </details>
+
+  <!-- Desktop (≥768px via CSS): horizontal pill list -->
+  <ul class="toc-list" role="list">
+    {items.map((item) => (
+      <li>
+        <a href={`#${item.id}`} class="toc-link" data-toc-id={item.id}>{item.label}</a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style>
+  .page-toc {
+    position: sticky;
+    top: 64px; /* below sticky header */
+    z-index: 40;
+    background: var(--color-surface, #f8f9fc);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    padding-inline: 1.5rem;
+  }
+
+  /* Mobile default: show details, hide pill list */
+  .toc-details { display: block; }
+  .toc-list    { display: none; }
+
+  /* Desktop: flip */
+  @media (min-width: 768px) {
+    .toc-details { display: none; }
+    .toc-list {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      list-style: none;
+      margin: 0;
+      padding: 0.5rem 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
+
+  /* Shared link styles */
+  .toc-link {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    border-radius: 999px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text, #1a1a1a);
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .toc-link:hover { background: rgba(0, 0, 0, 0.06); }
+
+  .toc-link[aria-current='location'] {
+    background: var(--color-primary, #1d1e3b);
+    color: white;
+  }
+
+  .toc-link:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Mobile details */
+  .toc-summary {
+    padding: 0.75rem 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+    color: var(--color-text, #1a1a1a);
+  }
+
+  .toc-summary::-webkit-details-marker { display: none; }
+  .toc-summary::after { content: ' ▾'; font-size: 0.75rem; }
+  details[open] .toc-summary::after { content: ' ▴'; }
+
+  .toc-mobile-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .toc-mobile-list .toc-link {
+    border-radius: 6px;
+    white-space: normal;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .toc-mobile-list .toc-link[aria-current='location'] {
+    background: transparent;
+    color: var(--color-accent, #ef7612);
+  }
+</style>
+
+<script>
+  const tocLinks = document.querySelectorAll<HTMLAnchorElement>('[data-toc-id]');
+
+  if (tocLinks.length && 'IntersectionObserver' in window) {
+    const ids = Array.from(new Set(Array.from(tocLinks).map((l) => l.dataset.tocId!)));
+    const sections = ids.map((id) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+
+    let activeId: string | null = null;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) activeId = entry.target.id;
+        }
+        tocLinks.forEach((link) => {
+          link.setAttribute('aria-current', link.dataset.tocId === activeId ? 'location' : 'false');
+        });
+      },
+      { rootMargin: '-20% 0px -60% 0px', threshold: 0 }
+    );
+
+    sections.forEach((s) => observer.observe(s));
+
+    // Close mobile details on link click
+    tocLinks.forEach((link) => {
+      link.addEventListener('click', () => {
+        const details = link.closest('details');
+        if (details) details.open = false;
+      });
+    });
+  }
+</script>

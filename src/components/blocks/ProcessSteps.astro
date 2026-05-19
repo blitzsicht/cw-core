@@ -1,0 +1,148 @@
+---
+/**
+ * @cw/core – ProcessSteps.astro
+ *
+ * Numbered "how it works" step grid. Prop-driven: no `@/data/site-data`
+ * import.
+ *
+ * @example
+ *   <ProcessSteps items={siteData.processSteps} />
+ */
+export interface ProcessStep {
+  /** Step number (rendered as large faded background number). */
+  nr: string | number;
+  /** Emoji or short string used as visual icon. */
+  icon: string;
+  /** Step title. */
+  title: string;
+  /** Step description. */
+  desc: string;
+}
+
+interface Props {
+  /** Step entries. Section is omitted entirely if empty. */
+  items?: readonly ProcessStep[];
+  /** Optional override for the section heading. */
+  heading?: string;
+  /** Optional override for the section subheading. `{count}` is replaced with `items.length`. */
+  subheadingTemplate?: string;
+  /** Fixed column count. Default: auto (smart calcCols). */
+  columns?: 2 | 3 | 4 | 5;
+}
+
+const {
+  items = [],
+  heading = "So funktioniert's",
+  subheadingTemplate = 'Von Erstgespräch bis Live-Gang in {count} einfachen Schritten.',
+  columns,
+} = Astro.props;
+
+// Symmetrisches Grid ohne Orphan-Zeilen.
+// Formel: cols = min(5, ceil(n/2)) — erzeugt immer ≥ 2 Zeilen mit gleichmäßiger Füllung.
+// Bei Einzelwaisen (n % cols === 1) einen Schritt runter.
+// n=4→2×2, n=5→3+2, n=6→3×2, n=7→4+3, n=8→4×2, n=9→3×3, n=10→5×2
+function calcCols(n: number): 2 | 3 | 4 | 5 | undefined {
+  if (n <= 3) return undefined;
+  let c = Math.min(5, Math.ceil(n / 2)) as 2 | 3 | 4 | 5;
+  if (n % c === 1 && c > 2) {
+    const alt = (c - 1) as 2 | 3 | 4;
+    if (n % alt !== 1) c = alt;
+  }
+  return c;
+}
+const smartColumns: 2 | 3 | 4 | 5 | undefined = columns ?? calcCols(items.length);
+
+const subheading = subheadingTemplate.replace('{count}', String(items.length));
+---
+{items.length > 0 && (
+<section class="process-section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-heading">{heading}</h2>
+      <p class="section-subheading">{subheading}</p>
+    </div>
+
+    <div class={`steps${smartColumns ? ` cols-${smartColumns}` : ''}`}>
+      {items.map((step) => (
+        <div class="step" data-step-nr={step.nr}>
+          <div class="step-body">
+            <div class="step-icon" aria-hidden="true">{step.icon}</div>
+            <h3>{step.title}</h3>
+            <p>{step.desc}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+)}
+
+<style>
+  /* Mobile-first: immer 1 Spalte auf schmalen Screens, auch wenn
+     `columns={2|3|4}` gesetzt ist. Davor brach `.cols-4` (specificity 0,2,0)
+     die `@media (max-width: 500px) .steps { 1fr }` Override (specificity 0,1,0)
+     und zwang 4 Spalten bei 375 px. */
+  .process-section { padding: 4.5rem 0 5rem; background: white; }
+  .section-header { text-align: center; margin-bottom: 2.5rem; }
+
+  .steps,
+  .steps.cols-2,
+  .steps.cols-3,
+  .steps.cols-4,
+  .steps.cols-5 {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .step { position: relative; }
+  /* Decorative big-number watermark via ::before pseudo-element.
+     Wichtig: kein DOM-Element — axe-core prüft color-contrast nicht
+     auf generated content via content: attr(...). Visueller Effekt
+     identisch zum vorherigen .step-nr (Outline via text-stroke). */
+  .step::before {
+    content: attr(data-step-nr);
+    display: block;
+    font-size: 3rem;
+    font-weight: 800;
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--color-accent);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    opacity: 0.55;
+  }
+  .step-body {
+    background: var(--color-surface);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    height: 100%;
+  }
+  .step-icon { font-size: 1.75rem; margin-bottom: 0.75rem; display: block; }
+  .step-body h3 { font-size: 1.0625rem; margin-bottom: 0.5rem; }
+  .step-body p { font-size: 0.9rem; color: var(--color-muted); line-height: 1.65; margin: 0; }
+
+  @media (min-width: 560px) {
+    .process-section { padding: 5rem 0; }
+    .section-header { margin-bottom: 3.5rem; }
+    .steps { gap: 1.5rem; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .steps.cols-2,
+    .steps.cols-3,
+    .steps.cols-4,
+    .steps.cols-5 { gap: 1.5rem; grid-template-columns: repeat(2, 1fr); }
+  }
+
+  @media (min-width: 760px) {
+    .steps.cols-3,
+    .steps.cols-4,
+    .steps.cols-5 { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (min-width: 920px) {
+    .steps.cols-4,
+    .steps.cols-5 { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  @media (min-width: 1100px) {
+    .steps.cols-5 { grid-template-columns: repeat(5, 1fr); }
+  }
+</style>

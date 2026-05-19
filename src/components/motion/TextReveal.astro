@@ -1,0 +1,105 @@
+---
+/**
+ * @cw/core – motion/TextReveal.astro
+ *
+ * Splits the slot text into words (or chars) and reveals them with a
+ * stagger when scrolled into view. CSS-only motion, runtime only
+ * touches the DOM once for the split.
+ *
+ * @example
+ *   <TextReveal as="h1" split="word" delay={0.05}>
+ *     Professionelle Website. Ohne Warteliste.
+ *   </TextReveal>
+ */
+interface Props {
+  /** Wrapping element tag. Defaults to "span". */
+  as?: string;
+  /** Split granularity. Defaults to "word". */
+  split?: 'word' | 'char';
+  /** Stagger gap in seconds. Defaults to 0.04. */
+  delay?: number;
+  /** Initial delay for first unit in seconds. Defaults to 0. */
+  start?: number;
+  class?: string;
+}
+
+const {
+  as: Tag = 'span',
+  split = 'word',
+  delay = 0.04,
+  start = 0,
+  class: className = '',
+} = Astro.props;
+
+const id = `tr-${Math.random().toString(36).slice(2, 9)}`;
+---
+<Tag id={id} class:list={['motion-text-reveal', className]} data-motion-text-reveal={split} data-motion-delay={delay} data-motion-start={start}>
+  <slot />
+</Tag>
+
+<style>
+  .motion-text-reveal :global([data-motion-text-unit]) {
+    display: inline-block;
+    opacity: 0;
+    transform: translate3d(0, 0.6em, 0);
+    transition: opacity var(--motion-duration-base, 0.6s) var(--motion-ease-out, cubic-bezier(0.22,1,0.36,1)),
+                transform var(--motion-duration-base, 0.6s) var(--motion-ease-out, cubic-bezier(0.22,1,0.36,1));
+    will-change: opacity, transform;
+  }
+  .motion-text-reveal.is-visible :global([data-motion-text-unit]) {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .motion-text-reveal :global([data-motion-text-unit]) {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+  }
+</style>
+
+<script is:inline define:vars={{ id }}>
+  (function () {
+    const root = document.getElementById(id);
+    if (!root) return;
+    const split = root.dataset.motionTextReveal || 'word';
+    const delay = parseFloat(root.dataset.motionDelay || '0.04');
+    const start = parseFloat(root.dataset.motionStart || '0');
+
+    // Walk text nodes to preserve inline HTML (e.g. <br>, <strong>).
+    const wrap = (node, counter) => {
+      const units = split === 'char'
+        ? Array.from(node.nodeValue)
+        : node.nodeValue.split(/(\s+)/);
+      const frag = document.createDocumentFragment();
+      units.forEach((u) => {
+        if (!u.trim()) { frag.appendChild(document.createTextNode(u)); return; }
+        const span = document.createElement('span');
+        span.setAttribute('data-motion-text-unit', '');
+        span.style.transitionDelay = `${start + counter.i * delay}s`;
+        span.textContent = u;
+        frag.appendChild(span);
+        counter.i += 1;
+      });
+      node.parentNode.replaceChild(frag, node);
+    };
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    const counter = { i: 0 };
+    nodes.forEach((node) => wrap(node, counter));
+
+    if (!('IntersectionObserver' in window)) { root.classList.add('is-visible'); return; }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          root.classList.add('is-visible');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.2 });
+    io.observe(root);
+  })();
+</script>

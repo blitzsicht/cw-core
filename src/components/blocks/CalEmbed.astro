@@ -1,0 +1,279 @@
+---
+/**
+ * CalEmbed — inline cal.com booking calendar embed.
+ *
+ * Loads the cal.eu embed script and renders an inline calendar widget.
+ * No script loaded on page visit until this component is rendered —
+ * DSGVO-clean (user initiates by visiting the page).
+ *
+ * **Layout-Regel:** CalEmbed IMMER in eine eigene `<section>` mit full
+ * container-width. NIEMALS in Grid-Spalten, neben Form-Feldern oder in
+ * schmale Container — der cal.com-Kalender braucht ≥ 600 px Breite,
+ * sonst wird das Widget auf Desktop gequetscht und auf Tablet
+ * unbenutzbar.
+ *
+ * Gutes Pattern:
+ *   <section class="cal-section">
+ *     <div class="container">
+ *       <h2>Termin buchen</h2>
+ *       <CalEmbed calLink="..." minHeight="680px" />
+ *     </div>
+ *   </section>
+ *
+ * Schlechtes Pattern (ehemals auf blitzsicht.com/kontakt beobachtet —
+ * Widget gequetscht auf halbe Container-Breite):
+ *   <div class="grid-2-cols">
+ *     <ContactForm />
+ *     <CalEmbed ... />   <!-- nicht machen, nur 50 % Breite -->
+ *   </div>
+ *
+ * **Lazy-Load (kein LCP-Impact):** Mit `lazy={true}` wird das Cal-Skript
+ * (~120 KB) erst beim Klick auf den Trigger-Button geladen. Der Container
+ * behält seine `minHeight` — kein CLS (kein Layout-Sprung beim Laden).
+ * Empfohlen für alle Seiten wo der Kalender below-the-fold ist.
+ *
+ * **CSP-Voraussetzung:** Der Host-Site muss `https://app.cal.eu` in
+ * `script-src`, `connect-src` und `frame-src` erlauben, sonst blockt die
+ * CSP den Embed-Loader (leere weiße Box, Console-Error). Das cw-core
+ * `vercel.template.json` setzt das by default; bei älteren Customer-Repos
+ * muss `vercel.json` manuell ergänzt werden.
+ *
+ * @example
+ *   <CalEmbed
+ *     calLink="firma/30min"
+ *     namespace="kontakt"
+ *     brandColor="#1d1e3b"
+ *     minHeight="680px"
+ *     lazy={true}
+ *   />
+ */
+interface Props {
+  /** Cal.com link path (e.g. "blitzsicht/30min", "steller-sanierungen/kostenlose-erstbesichtigung"). */
+  calLink: string;
+  /** Unique namespace for multiple embeds on the same page. */
+  namespace?: string;
+  /** Brand color for the cal.com UI (hex). Falls back to --color-primary. */
+  brandColor?: string;
+  /** Calendar layout. */
+  layout?: 'month_view' | 'week_view';
+  /** Minimum height for the embed container. */
+  minHeight?: string;
+  /** Element ID for the embed container. */
+  elementId?: string;
+  /** Lazy-load the Cal embed behind a button click. Prevents LCP impact; container pre-reserves height (no CLS). */
+  lazy?: boolean;
+  /** Label for the lazy-load trigger button. */
+  lazyLabel?: string;
+  /** Subtext below the lazy-load trigger button. */
+  lazySubtext?: string;
+}
+
+const {
+  calLink,
+  namespace = 'booking',
+  brandColor,
+  layout = 'month_view',
+  minHeight = '600px',
+  elementId = 'cal-embed',
+  lazy = false,
+  lazyLabel = 'Termin direkt buchen',
+  lazySubtext = '30 Minuten · kostenlos · sofort bestätigt',
+} = Astro.props;
+---
+
+<div id={elementId} class="cal-embed" style={lazy ? 'min-height:280px' : `min-height:${minHeight}`}>
+  {lazy && (
+    <div class="cal-placeholder">
+      <button class="cal-trigger" type="button">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        {lazyLabel}
+      </button>
+      <p class="cal-trigger-sub">{lazySubtext}</p>
+    </div>
+  )}
+</div>
+
+{lazy ? (
+  <script
+    is:inline
+    data-cal-link={calLink}
+    data-cal-namespace={namespace}
+    data-cal-brand={brandColor || ''}
+    data-cal-layout={layout}
+    data-cal-element={`#${elementId}`}
+    data-cal-lazy="true"
+    data-cal-min-height={minHeight}
+  >
+  (function() {
+    var s = document.currentScript;
+    var calLink = s.getAttribute('data-cal-link');
+    var ns = s.getAttribute('data-cal-namespace');
+    var brand = s.getAttribute('data-cal-brand');
+    var layout = s.getAttribute('data-cal-layout');
+    var elSel = s.getAttribute('data-cal-element');
+    var fullHeight = s.getAttribute('data-cal-min-height') || '680px';
+
+    var container = document.querySelector(elSel);
+    if (!container) return;
+
+    var btn = container.querySelector('.cal-trigger');
+    if (!btn) return;
+
+    var loaded = false;
+
+    btn.addEventListener('click', function onTrigger() {
+      if (loaded) return;
+      loaded = true;
+      window.plausible && window.plausible('Calendar Opened');
+
+      container.style.minHeight = fullHeight;
+
+      var placeholder = container.querySelector('.cal-placeholder');
+      if (placeholder) {
+        placeholder.style.opacity = '0';
+        placeholder.style.transition = 'opacity 0.2s';
+        setTimeout(function() {
+          if (placeholder.parentNode) placeholder.parentNode.removeChild(placeholder);
+        }, 200);
+      }
+
+      (function (C, A, L) {
+        var p = function (a, ar) { a.q.push(ar); };
+        var d = C.document;
+        C.Cal = C.Cal || function () {
+          var cal = C.Cal; var ar = arguments;
+          if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; }
+          if (ar[0] === L) { var api = function () { p(api, arguments); }; var namespace = ar[1]; api.q = api.q || []; if (typeof namespace === "string") { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]); } else p(cal, ar); return; }
+          p(cal, ar);
+        };
+      })(window, "https://app.cal.eu/embed/embed.js", "init");
+
+      Cal("init", ns, { origin: "https://app.cal.eu" });
+      Cal.ns[ns]("inline", {
+        elementOrSelector: elSel,
+        config: { layout: layout, useSlotsViewOnSmallScreen: "true" },
+        calLink: calLink,
+      });
+      Cal.ns[ns]("on", { action: "bookingSuccessful", callback: function() {
+        window.plausible && window.plausible("Booking Completed", { props: { calendar: calLink } });
+      }});
+      if (brand) {
+        Cal.ns[ns]("ui", {
+          cssVarsPerTheme: { light: { "cal-brand": brand } },
+          hideEventTypeDetails: false,
+          layout: layout,
+        });
+      }
+
+      document.addEventListener('astro:before-swap', function cleanup() {
+        if (window.Cal && window.Cal.ns && window.Cal.ns[ns]) {
+          try { window.Cal.ns[ns]('destroy'); } catch(e) {}
+        }
+        document.removeEventListener('astro:before-swap', cleanup);
+      }, { once: true });
+    });
+  })();
+  </script>
+) : (
+  <script
+    is:inline
+    data-cal-link={calLink}
+    data-cal-namespace={namespace}
+    data-cal-brand={brandColor || ''}
+    data-cal-layout={layout}
+    data-cal-element={`#${elementId}`}
+  >
+  (function() {
+    var s = document.currentScript;
+    var calLink = s.getAttribute('data-cal-link');
+    var ns = s.getAttribute('data-cal-namespace');
+    var brand = s.getAttribute('data-cal-brand');
+    var layout = s.getAttribute('data-cal-layout');
+    var el = s.getAttribute('data-cal-element');
+
+    (function (C, A, L) {
+      var p = function (a, ar) { a.q.push(ar); };
+      var d = C.document;
+      C.Cal = C.Cal || function () {
+        var cal = C.Cal; var ar = arguments;
+        if (!cal.loaded) { cal.ns = {}; cal.q = cal.q || []; d.head.appendChild(d.createElement("script")).src = A; cal.loaded = true; }
+        if (ar[0] === L) { var api = function () { p(api, arguments); }; var namespace = ar[1]; api.q = api.q || []; if (typeof namespace === "string") { cal.ns[namespace] = cal.ns[namespace] || api; p(cal.ns[namespace], ar); p(cal, ["initNamespace", namespace]); } else p(cal, ar); return; }
+        p(cal, ar);
+      };
+    })(window, "https://app.cal.eu/embed/embed.js", "init");
+
+    Cal("init", ns, { origin: "https://app.cal.eu" });
+    Cal.ns[ns]("inline", {
+      elementOrSelector: el,
+      config: { layout: layout, useSlotsViewOnSmallScreen: "true" },
+      calLink: calLink,
+    });
+    Cal.ns[ns]("on", { action: "bookingSuccessful", callback: function() {
+      window.plausible && window.plausible("Booking Completed", { props: { calendar: calLink } });
+    }});
+    if (brand) {
+      Cal.ns[ns]("ui", {
+        cssVarsPerTheme: { light: { "cal-brand": brand } },
+        hideEventTypeDetails: false,
+        layout: layout,
+      });
+    }
+  })();
+  </script>
+)}
+
+<style>
+  .cal-embed {
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: min-height 0.3s ease-out;
+  }
+
+  .cal-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 280px;
+    gap: 0.75rem;
+    background: var(--color-surface, #f9fafb);
+    border: 2px dashed #e5e7eb;
+    border-radius: 1rem;
+  }
+
+  .cal-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    background: var(--color-primary, #1d1e3b);
+    color: white;
+    border: none;
+    border-radius: 100px;
+    padding: 0.875rem 2rem;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    min-height: 52px;
+  }
+
+  .cal-trigger:hover {
+    background: var(--color-primary-dark, #141528);
+    transform: translateY(-2px);
+  }
+
+  .cal-trigger:active {
+    transform: translateY(0);
+  }
+
+  .cal-trigger-sub {
+    font-size: 0.875rem;
+    color: var(--color-muted, #6b7280);
+    margin: 0;
+  }
+</style>

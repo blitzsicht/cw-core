@@ -1,0 +1,190 @@
+---
+/**
+ * @cw/core – motion/MagneticButton.astro
+ *
+ * Wrapper that pulls its slotted child (usually a CTA link) towards the
+ * cursor when the pointer is within `radius`. On-demand rAF loop — runs
+ * only while values are converging, idle otherwise (zero ticks on still
+ * mouse). Rect cache invalidated via ResizeObserver + rAF-throttled
+ * scroll/resize listeners so the hot-path never touches layout.
+ *
+ * Respects `prefers-reduced-motion` and requires `(hover: hover) and
+ * (pointer: fine)` — iPad+Trackpad and Surface+Maus are supported,
+ * touch-only devices are skipped cleanly.
+ *
+ * Design principle: subtle. Defaults are conservative (strength 0.2,
+ * hard cap 18px translation). Use only on primary CTAs — magnetising
+ * every button makes a page feel like a demo.
+ *
+ * @example
+ *   <MagneticButton>
+ *     <a href="/kontakt" class="btn-accent">Beratung anfragen</a>
+ *   </MagneticButton>
+ */
+interface Props {
+  /** Pull factor (0..0.35). Internally clamped. Default 0.35 (at cap, spürbar). */
+  strength?: number;
+  /** Activation radius in px (cursor distance from element center). Default 140. */
+  radius?: number;
+  /** Hard translation cap in px (independent of radius*strength). Default 28. */
+  maxOffset?: number;
+  /** Extra class names on the wrapper. */
+  class?: string;
+}
+
+const {
+  strength = 0.35,
+  radius = 140,
+  maxOffset = 28,
+  class: className,
+} = Astro.props;
+
+const cfg = JSON.stringify({
+  strength: Math.min(Math.max(strength, 0), 0.35),
+  radius,
+  maxOffset,
+});
+---
+<span class:list={['motion-magnetic', className]} data-motion-magnetic data-cfg={cfg}>
+  <span class="motion-magnetic-inner"><slot /></span>
+</span>
+
+<style>
+  .motion-magnetic { display: inline-block; }
+  .motion-magnetic-inner {
+    display: inline-block;
+    will-change: transform;
+  }
+</style>
+
+<script>
+  (() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    const nodes = document.querySelectorAll<HTMLElement>('[data-motion-magnetic]');
+    if (!nodes.length) return;
+
+    interface Cfg { strength: number; radius: number; maxOffset: number; }
+    interface Item {
+      el: HTMLElement;
+      inner: HTMLElement;
+      cfg: Cfg;
+      rect: DOMRect;
+      tx: number; ty: number;
+      cx: number; cy: number;
+    }
+
+    const DEFAULT_CFG: Cfg = { strength: 0.35, radius: 140, maxOffset: 28 };
+    const clamp = (v: number, lo: number, hi: number) =>
+      v < lo ? lo : v > hi ? hi : v;
+
+    const items: Item[] = [];
+    nodes.forEach((el) => {
+      const inner = el.querySelector<HTMLElement>('.motion-magnetic-inner');
+      if (!inner) return;
+      let parsed: Cfg = DEFAULT_CFG;
+      try {
+        const raw = el.dataset.cfg;
+        if (raw) parsed = { ...DEFAULT_CFG, ...JSON.parse(raw) };
+      } catch {
+        /* keep default */
+      }
+      items.push({
+        el,
+        inner,
+        cfg: parsed,
+        rect: el.getBoundingClientRect(),
+        tx: 0, ty: 0, cx: 0, cy: 0,
+      });
+    });
+    if (!items.length) return;
+
+    let rectRefreshQueued = false;
+    const refreshAllRects = () => {
+      rectRefreshQueued = false;
+      for (const it of items) it.rect = it.el.getBoundingClientRect();
+    };
+    const queueRectRefresh = () => {
+      if (!rectRefreshQueued) {
+        rectRefreshQueued = true;
+        requestAnimationFrame(refreshAllRects);
+      }
+    };
+    window.addEventListener('scroll', queueRectRefresh, { passive: true });
+    window.addEventListener('resize', queueRectRefresh, { passive: true });
+    const ro = new ResizeObserver(queueRectRefresh);
+    for (const it of items) ro.observe(it.el);
+
+    const LERP = 0.15;
+    const EPSILON = 0.05;
+    let rafId: number | null = null;
+    let isAnimating = false;
+
+    const render = () => {
+      let stillAnimating = false;
+      for (const it of items) {
+        it.cx += (it.tx - it.cx) * LERP;
+        it.cy += (it.ty - it.cy) * LERP;
+        const delta = Math.abs(it.cx - it.tx) + Math.abs(it.cy - it.ty);
+        if (delta > EPSILON) {
+          stillAnimating = true;
+        } else if (it.tx === 0 && it.ty === 0) {
+          it.cx = 0;
+          it.cy = 0;
+        }
+        it.inner.style.transform =
+          `translate3d(${it.cx.toFixed(2)}px, ${it.cy.toFixed(2)}px, 0)`;
+      }
+      if (stillAnimating) {
+        rafId = requestAnimationFrame(render);
+      } else {
+        isAnimating = false;
+        rafId = null;
+      }
+    };
+    const kick = () => {
+      if (!isAnimating) {
+        isAnimating = true;
+        rafId = requestAnimationFrame(render);
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      let needsKick = false;
+      for (const it of items) {
+        const r = it.rect;
+        const ecx = r.left + r.width / 2;
+        const ecy = r.top + r.height / 2;
+        const dx = e.clientX - ecx;
+        const dy = e.clientY - ecy;
+        let newTx = 0;
+        let newTy = 0;
+        if (Math.hypot(dx, dy) <= it.cfg.radius) {
+          newTx = clamp(dx * it.cfg.strength, -it.cfg.maxOffset, it.cfg.maxOffset);
+          newTy = clamp(dy * it.cfg.strength, -it.cfg.maxOffset, it.cfg.maxOffset);
+        }
+        if (newTx !== it.tx || newTy !== it.ty) {
+          it.tx = newTx;
+          it.ty = newTy;
+          needsKick = true;
+        }
+      }
+      if (needsKick) kick();
+    };
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+
+    document.addEventListener(
+      'astro:before-swap',
+      () => {
+        if (rafId !== null) cancelAnimationFrame(rafId);
+        ro.disconnect();
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('scroll', queueRectRefresh);
+        window.removeEventListener('resize', queueRectRefresh);
+      },
+      { once: true }
+    );
+  })();
+</script>

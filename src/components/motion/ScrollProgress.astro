@@ -1,0 +1,54 @@
+---
+/**
+ * @cw/core – motion/ScrollProgress.astro
+ *
+ * Fixed progress bar at the top of the viewport that scales with
+ * document scroll position. Vanilla JS, no dependencies.
+ *
+ * @example
+ *   <ScrollProgress />                 // uses accent color
+ *   <ScrollProgress color="#EF7612" height="4px" />
+ */
+interface Props {
+  color?: string;
+  height?: string;
+}
+
+const { color, height = '3px' } = Astro.props;
+const style = [
+  color ? `background: ${color}` : '',
+  height ? `height: ${height}` : '',
+].filter(Boolean).join('; ');
+---
+<div class="motion-scroll-progress" data-motion-progress style={style || undefined} aria-hidden="true"></div>
+
+<script>
+  const init = () => {
+    const bar = document.querySelector<HTMLElement>('[data-motion-progress]');
+    if (!bar) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let ticking = false;
+    const update = () => {
+      const h = document.documentElement;
+      const total = h.scrollHeight - h.clientHeight;
+      const p = total > 0 ? h.scrollTop / total : 0;
+      bar.style.transform = `scaleX(${p.toFixed(4)})`;
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(update);
+        ticking = true;
+      }
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  document.addEventListener('astro:page-load', init);
+</script>

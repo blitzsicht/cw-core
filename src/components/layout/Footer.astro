@@ -1,0 +1,282 @@
+---
+import cwCorePkg from '../../../package.json';
+const cwCoreVersion = cwCorePkg.version;
+
+/**
+ * @cw/core – Footer.astro
+ *
+ * Multi-column footer with brand info, service links, legal links, and a
+ * copyright line. All content is prop-driven; no imports from customer
+ * data modules.
+ *
+ * @example
+ *   <Footer
+ *     siteName={siteData.name}
+ *     description={siteData.description}
+ *     tagline={siteData.tagline}
+ *     email={siteData.contact.email}
+ *     phone={siteData.contact.phone}
+ *     owner={siteData.legal.owner}
+ *     legalForm={siteData.legal.form}
+ *     city={siteData.legal.city}
+ *     logoSrc="/logo.svg"
+ *     leistungenLinks={siteData.nav.footer.leistungen}
+ *     rechtlichesLinks={siteData.nav.footer.rechtliches}
+ *     showKarriereLink={siteData.karriere?.enabled !== false}
+ *   />
+ */
+
+export interface FooterLink {
+  label: string;
+  href: string;
+}
+
+interface Props {
+  /** Site name (used as logo alt + text + default owner). */
+  siteName: string;
+  /** Short tagline shown bottom-right (italic). */
+  tagline?: string;
+  /** Business description shown under the logo. */
+  description?: string;
+  /** Contact email (rendered as mailto link). */
+  email?: string;
+  /** Optional phone number (rendered as tel link). */
+  phone?: string;
+  /** Logo image path (light backgrounds, default). Defaults to `/logo.svg`. */
+  logoSrc?: string;
+  /** Logo for dark backgrounds (Footer is always dark). Defaults to `logoSrc`.
+   *  Customers with a multi-color logo provide `/logo-inverted.svg` and pass it here. */
+  logoSrcDark?: string;
+  /** Logo width in px. */
+  logoWidth?: number;
+  /** Logo height in px. */
+  logoHeight?: number;
+  /** Legal owner for copyright line. Falls back to `siteName`. */
+  owner?: string;
+  /** Legal form, e.g. "Einzelunternehmen". */
+  legalForm?: string;
+  /** Legal city shown in copyright line. */
+  city?: string;
+  /** Heading for the "services" column. Defaults to "Leistungen". */
+  leistungenHeading?: string;
+  /** Links rendered in the "services" column. */
+  leistungenLinks?: readonly FooterLink[];
+  /** Heading for the "legal" column. Defaults to "Rechtliches". */
+  rechtlichesHeading?: string;
+  /** Links rendered in the "legal" column. Defaults to Impressum + Datenschutz. */
+  rechtlichesLinks?: readonly FooterLink[];
+  /** Optional 4th column heading (e.g. "Für Ihre Branche"). */
+  extraHeading?: string;
+  /** Optional 4th column links (landing pages, verticals, etc.). */
+  extraLinks?: readonly FooterLink[];
+  /** Optional 5th column heading. */
+  extraHeading2?: string;
+  /** Optional 5th column links. */
+  extraLinks2?: readonly FooterLink[];
+  /** Show "/karriere" link in the services column. */
+  showKarriereLink?: boolean;
+  /** Karriere link label. Defaults to "Karriere". */
+  karriereLabel?: string;
+  /** Karriere link href. Defaults to "/karriere". */
+  karriereHref?: string;
+}
+
+const {
+  siteName,
+  tagline,
+  description,
+  email,
+  phone,
+  logoSrc = '/logo.svg',
+  logoSrcDark,
+  logoWidth = 50,
+  logoHeight = 24,
+  owner,
+  legalForm = 'Einzelunternehmen',
+  city,
+  leistungenHeading = 'Leistungen',
+  leistungenLinks = [],
+  rechtlichesHeading = 'Rechtliches',
+  rechtlichesLinks = [
+    { label: 'Impressum', href: '/impressum' },
+    { label: 'Datenschutz', href: '/datenschutz' },
+  ],
+  extraHeading,
+  extraLinks,
+  extraHeading2,
+  extraLinks2,
+  showKarriereLink = false,
+  karriereLabel = 'Karriere',
+  karriereHref = '/karriere',
+} = Astro.props;
+
+const year = new Date().getFullYear();
+const copyrightOwner = owner ?? siteName;
+---
+<footer>
+  <div class="container">
+    <div class="footer-grid" style={(extraLinks2?.length ?? 0) > 0 ? 'grid-template-columns: 2fr 1fr 1fr 1fr 1fr' : (extraLinks?.length ?? 0) > 0 ? 'grid-template-columns: 2fr 1fr 1fr 1fr' : undefined}>
+      <div class="footer-brand">
+        <a href="/" class="logo-img">
+          <img src={logoSrcDark ?? logoSrc} alt={siteName} width={logoWidth} height={logoHeight} loading="lazy" />
+        </a>
+        <a href="/" class="logo-name">
+          {siteName}
+        </a>
+        {description && <p>{description}</p>}
+        {email && (
+          <a href={`mailto:${email}`} class="contact-link">
+            {email}
+          </a>
+        )}
+        {phone && (
+          <a href={`tel:${phone.replace(/\s/g, '')}`} class="contact-link">
+            {phone}
+          </a>
+        )}
+      </div>
+
+      <div class="footer-links">
+        <h3>{leistungenHeading}</h3>
+        <ul>
+          {leistungenLinks.map((item) => (
+            <li><a href={item.href}>{item.label}</a></li>
+          ))}
+          {showKarriereLink && <li><a href={karriereHref}>{karriereLabel}</a></li>}
+        </ul>
+      </div>
+
+      <div class="footer-links">
+        <h3>{rechtlichesHeading}</h3>
+        <ul>
+          {rechtlichesLinks.map((item) => (
+            <li><a href={item.href}>{item.label}</a></li>
+          ))}
+        </ul>
+      </div>
+
+      {(extraLinks?.length ?? 0) > 0 && (
+        <div class="footer-links">
+          <h3>{extraHeading ?? 'Mehr'}</h3>
+          <ul>
+            {extraLinks!.map((item) => (
+              <li><a href={item.href}>{item.label}</a></li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {(extraLinks2?.length ?? 0) > 0 && (
+        <div class="footer-links">
+          <h3>{extraHeading2 ?? 'Mehr'}</h3>
+          <ul>
+            {extraLinks2!.map((item) => (
+              <li><a href={item.href}>{item.label}</a></li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+
+    <div class="footer-bottom">
+      <p>© {year} {copyrightOwner}{legalForm ? ` · ${legalForm}` : ''}{city ? ` · ${city}` : ''}</p>
+      <p class="footer-credit">{tagline && <span class="footer-tagline">{tagline} · </span>}Erstellt von <a href="https://blitzsicht.com?ref=footer" target="_blank" rel="noopener">Blitzsicht</a></p>
+    </div>
+  </div>
+</footer>
+
+<script is:inline define:vars={{ cwCoreVersion }}>
+  console.log('%c@cw/core v' + cwCoreVersion, 'color:#EF7612;font-weight:bold;font-size:12px');
+</script>
+
+<style>
+  footer {
+    background: var(--color-footer-bg, var(--color-primary-dark, #111));
+    color: rgba(255,255,255,0.75);
+    padding-top: 3.5rem;
+    padding-bottom: 1.5rem;
+  }
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 3rem;
+    padding-bottom: 2.5rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .logo-img {
+    display: block;
+    margin-bottom: 1rem;
+  }
+  .logo-img img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 200px;
+    max-height: 80px;
+  }
+  .logo-name {
+    display: block;
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: white;
+    text-decoration: none;
+    margin-bottom: 0.875rem;
+  }
+  .footer-brand p {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    max-width: 28ch;
+  }
+  .contact-link {
+    display: block;
+    margin-top: 0.5rem;
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  .contact-link:hover { text-decoration: underline; color: white; }
+  .footer-links h3 {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 1rem;
+  }
+  .footer-links ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.625rem; }
+  .footer-links a {
+    color: rgba(255,255,255,0.75);
+    text-decoration: none;
+    font-size: 0.9375rem;
+    transition: color 0.15s;
+  }
+  .footer-links a:hover { color: white; }
+  .footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1.5rem;
+    font-size: 0.8125rem;
+    color: rgba(255,255,255,0.6);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .footer-tagline { font-style: italic; }
+  .footer-credit a {
+    color: rgba(255,255,255,0.55);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color 0.15s;
+  }
+  .footer-credit a:hover { color: white; }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 1023px) {
+    .footer-grid { grid-template-columns: 1fr 1fr !important; }
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 767px) {
+    .footer-grid { grid-template-columns: 1fr !important; gap: 2rem; }
+    .footer-bottom { flex-direction: column; align-items: flex-start; }
+  }
+</style>

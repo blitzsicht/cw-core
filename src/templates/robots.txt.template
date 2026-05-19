@@ -1,0 +1,81 @@
+# CUSTOMER_NAME robots.txt
+# Strategie: AI-Zitations-Bots ERLAUBT (Sichtbarkeit in AI Overviews, ChatGPT Search,
+# Perplexity, Claude Search, Gemini). Training-Only-Bots blockiert wo technisch möglich.
+#
+# WICHTIG: Google-Extended steuert SOWOHL Google AI Overviews ALS AUCH Gemini-Training.
+# Eine technische Trennung ist nicht möglich. Da AI-Zitierbarkeit Priorität hat,
+# wird Google-Extended hier ERLAUBT. Konsequenz: Google darf auch für Gemini trainieren.
+
+# Alle regulären Suchmaschinen
+User-agent: *
+Allow: /
+Disallow: /danke/
+
+# --- AI Search / Zitations-Bots (ERLAUBT — wir wollen zitiert werden) ---
+User-agent: OAI-SearchBot
+Allow: /
+Disallow: /danke/
+
+User-agent: ChatGPT-User
+Allow: /
+Disallow: /danke/
+
+User-agent: Claude-SearchBot
+Allow: /
+Disallow: /danke/
+
+User-agent: Claude-User
+Allow: /
+Disallow: /danke/
+
+User-agent: PerplexityBot
+Allow: /
+Disallow: /danke/
+
+User-agent: Perplexity-User
+Allow: /
+Disallow: /danke/
+
+User-agent: DuckAssistBot
+Allow: /
+Disallow: /danke/
+
+User-agent: Google-Extended
+Allow: /
+Disallow: /danke/
+
+# --- Training-Only-Bots (BLOCKIERT) ---
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Meta-ExternalFetcher
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: MistralAI-User
+Disallow: /
+
+User-agent: xAI-Bot
+Disallow: /
+
+Sitemap: https://DOMAIN/sitemap-index.xml

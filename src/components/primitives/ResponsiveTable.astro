@@ -1,0 +1,39 @@
+---
+interface Props {
+  caption?: string;
+  class?: string;
+}
+const { caption, class: className } = Astro.props;
+---
+<div
+  class:list={['rt-wrap', className]}
+  role="region"
+  aria-label={caption ?? 'Tabelle'}
+  tabindex="0"
+>
+  {caption && <p class="rt-caption">{caption}</p>}
+  <table>
+    <slot />
+  </table>
+</div>
+
+<style>
+  .rt-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.5rem;
+  }
+  .rt-caption {
+    font-size: 0.875rem;
+    color: var(--color-text-muted, #6b7280);
+    margin-block-end: 0.5rem;
+  }
+  table {
+    width: 100%;
+    min-width: max-content;
+    border-collapse: collapse;
+  }
+  @media (min-width: 768px) {
+    table { min-width: 100%; }
+  }
+</style>

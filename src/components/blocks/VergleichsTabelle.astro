@@ -1,0 +1,174 @@
+---
+/**
+ * VergleichsTabelle — Strukturierter Wettbewerbs-Vergleich.
+ *
+ * Rendert eine Vergleichstabelle (Brand vs. Wettbewerber) mit semantischem HTML
+ * und emittiert ein ItemList-Schema. Comparison-Content bringt ~33% der
+ * AI-Zitierungen (höchster Anteil aller Content-Typen laut Princeton GEO-Studie).
+ *
+ * @example
+ *   <VergleichsTabelle
+ *     brandName="Blitzsicht"
+ *     competitors={[
+ *       { name: 'Wix', href: 'https://wix.com' },
+ *       { name: 'Jimdo' },
+ *       { name: 'Klassische Agentur' },
+ *     ]}
+ *     criteria={[
+ *       { label: 'Lieferzeit', brand: '7 Werktage', others: ['4–8 Wochen', '4–8 Wochen', '4–12 Wochen'], brandWins: true },
+ *       { label: 'Cookie-Banner nötig', brand: 'Nein', others: ['Ja', 'Ja', 'Meist ja'], brandWins: true },
+ *     ]}
+ *   />
+ */
+
+export interface Competitor {
+  name: string;
+  href?: string;
+}
+
+export interface ComparisonRow {
+  label: string;
+  brand: string;
+  others: string[];
+  brandWins?: boolean;
+}
+
+interface Props {
+  brandName: string;
+  competitors: readonly Competitor[];
+  criteria: readonly ComparisonRow[];
+  heading?: string;
+  subheading?: string;
+}
+
+const {
+  brandName,
+  competitors,
+  criteria,
+  heading = `${brandName} im Vergleich`,
+  subheading,
+} = Astro.props;
+
+const schemaItemList = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: heading,
+  description: subheading,
+  itemListElement: criteria.map((row, i) => ({
+    '@type': 'ListItem',
+    position: i + 1,
+    name: row.label,
+    description: `${brandName}: ${row.brand}`,
+  })),
+};
+---
+
+<section class="vergleich-section">
+  <div class="container">
+    {heading && <h2 class="vergleich-heading">{heading}</h2>}
+    {subheading && <p class="vergleich-sub">{subheading}</p>}
+
+    <div class="vergleich-wrapper" tabindex="0" role="region" aria-label="Vergleichstabelle (horizontal scrollbar)">
+      <table class="vergleich-table">
+        <thead>
+          <tr>
+            <th class="col-kriterium">Kriterium</th>
+            <th class="col-brand col-brand-header">{brandName}</th>
+            {competitors.map((c) => (
+              <th class="col-other">
+                {c.href ? <a href={c.href} rel="noopener noreferrer">{c.name}</a> : c.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {criteria.map((row) => (
+            <tr class={row.brandWins ? 'row-win' : ''}>
+              <td class="col-kriterium">{row.label}</td>
+              <td class={`col-brand ${row.brandWins ? 'cell-win' : ''}`}>
+                {row.brandWins && <span class="win-icon" aria-hidden="true">✓</span>}
+                {row.brand}
+              </td>
+              {row.others.map((val) => (
+                <td class="col-other">{val}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schemaItemList)} />
+
+<style>
+  .vergleich-section {
+    padding: var(--section-padding, 5rem) 0;
+    background: var(--color-surface, #f8f9fa);
+  }
+  .vergleich-heading {
+    text-align: center;
+    margin-bottom: 0.5rem;
+  }
+  .vergleich-sub {
+    text-align: center;
+    color: var(--color-muted);
+    margin-bottom: 2.5rem;
+  }
+  .vergleich-wrapper {
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  .vergleich-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    font-size: 0.95rem;
+  }
+  .vergleich-table th,
+  .vergleich-table td {
+    padding: 0.875rem 1.25rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+    vertical-align: top;
+  }
+  .vergleich-table thead th {
+    background: var(--color-primary, #1d1e3b);
+    color: white;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .col-brand-header {
+    background: var(--color-accent, #ef7612) !important;
+  }
+  .col-brand {
+    font-weight: 600;
+    color: var(--color-primary, #1d1e3b);
+  }
+  .cell-win {
+    color: var(--color-accent, #ef7612);
+  }
+  .win-icon {
+    margin-right: 0.375rem;
+    font-weight: 700;
+  }
+  .col-other {
+    color: var(--color-muted, #6b7280);
+  }
+  .vergleich-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  .vergleich-table tbody tr:hover {
+    background: var(--color-surface, #f8f9fa);
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 640px) {
+    .vergleich-table th,
+    .vergleich-table td {
+      padding: 0.625rem 0.75rem;
+      font-size: 0.875rem;
+    }
+  }
+</style>

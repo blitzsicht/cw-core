@@ -1,0 +1,38 @@
+---
+type Breakpoint = 'sm' | 'md' | 'lg';
+
+interface Props {
+  from?: Breakpoint;
+  gap?: string;
+  align?: string;
+  justify?: string;
+  class?: string;
+}
+const { from = 'md', gap = '1rem', align = 'stretch', justify = 'start', class: className } = Astro.props;
+const bp: Record<Breakpoint, string> = { sm: '640px', md: '768px', lg: '1024px' };
+---
+<div
+  class:list={['stack', `stack--${from}`, className]}
+  style={`--stack-gap:${gap}; --stack-align:${align}; --stack-justify:${justify}`}
+>
+  <slot />
+</div>
+
+<style>
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: var(--stack-gap);
+    align-items: var(--stack-align);
+    justify-content: var(--stack-justify);
+  }
+  @media (min-width: 640px) {
+    .stack--sm { flex-direction: row; }
+  }
+  @media (min-width: 768px) {
+    .stack--md { flex-direction: row; }
+  }
+  @media (min-width: 1024px) {
+    .stack--lg { flex-direction: row; }
+  }
+</style>

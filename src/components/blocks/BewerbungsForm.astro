@@ -1,0 +1,98 @@
+---
+/**
+ * @cw/core – BewerbungsForm.astro
+ *
+ * Native application form via Web3Forms with mailto fallback when no form
+ * key is configured. Prop-driven: no `@/data/site-data` import.
+ *
+ * @example
+ *   <BewerbungsForm
+ *     siteName={siteData.name}
+ *     formKey={siteData.contact.web3formsKey}
+ *     kontaktEmail={siteData.karriere?.kontaktEmail ?? siteData.contact.email}
+ *   />
+ */
+import ContactForm from '../forms/ContactForm.astro';
+
+interface Props {
+  /** Site/employer name (interpolated into subject + mailto subject). */
+  siteName?: string;
+  /** Web3Forms access key. If empty / starts with "TODO", the mailto fallback is rendered. Ignored if `actionUrl` is set. */
+  formKey?: string;
+  /** Custom submit endpoint (e.g. "/api/contact"). When set, Web3Forms is bypassed. */
+  actionUrl?: string;
+  /** Contact email used for the mailto fallback. Required for the fallback to render meaningfully. */
+  kontaktEmail?: string;
+  /** Optional override for the section heading. */
+  heading?: string;
+  /** Optional override for the section subheading. */
+  subheading?: string;
+}
+
+const {
+  siteName = '',
+  formKey = '',
+  actionUrl,
+  kontaktEmail = '',
+  heading = 'Jetzt bewerben',
+  subheading = 'Wir melden uns innerhalb von 48 Stunden bei dir.',
+} = Astro.props;
+
+const hasEndpoint = !!actionUrl || (!!formKey && !formKey.startsWith('TODO'));
+const subject = `Bewerbung bei ${siteName}`;
+---
+<section class="bewerbung-section" id="bewerbung">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-heading">{heading}</h2>
+      <p class="section-subheading">{subheading}</p>
+    </div>
+
+    {hasEndpoint ? (
+      <div class="form-wrap">
+        <ContactForm
+          formKey={actionUrl ? undefined : formKey}
+          actionUrl={actionUrl}
+          subject={subject}
+          formType="bewerbung"
+          fallbackEmail={kontaktEmail}
+          siteName={siteName}
+        />
+      </div>
+    ) : (
+      <div class="email-fallback">
+        <p>
+          Sende deine Bewerbungsunterlagen (Anschreiben, Lebenslauf, Zeugnisse) per E-Mail an:
+        </p>
+        {kontaktEmail && (
+          <a href={`mailto:${kontaktEmail}?subject=${encodeURIComponent(subject)}`} class="btn-accent">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            {kontaktEmail}
+          </a>
+        )}
+        <p class="hint">Bitte nenne in der Betreffzeile die gewünschte Stelle oder "Initiativbewerbung".</p>
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .bewerbung-section { padding: 5rem 0; background: var(--color-surface); }
+  .section-header { text-align: center; margin-bottom: 3rem; }
+  .form-wrap { max-width: 48rem; margin-inline: auto; }
+
+  .email-fallback {
+    max-width: 32rem;
+    margin-inline: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .email-fallback p { font-size: 1rem; color: var(--color-muted); line-height: 1.7; margin: 0; }
+  .email-fallback .hint { font-size: 0.875rem; }
+</style>

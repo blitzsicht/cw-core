@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:v="urn:schemas-microsoft-com:vml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<style>
+  /* Light-Mode defaults inline below. Dark-Mode-Overrides hier: */
+  @media (prefers-color-scheme: dark) {
+    .esig-name      { color: #ffffff !important; }
+    .esig-position  { color: #cbd5e1 !important; }
+    .esig-label     { color: #94a3b8 !important; }
+    .esig-link      { color: #93c5fd !important; }
+    .esig-company   { color: #f1f5f9 !important; }
+    .esig-compliance{ color: #94a3b8 !important; }
+  }
+  [data-ogsc] .esig-name      { color: #ffffff !important; }
+  [data-ogsc] .esig-position  { color: #cbd5e1 !important; }
+  [data-ogsc] .esig-label     { color: #94a3b8 !important; }
+  [data-ogsc] .esig-link      { color: #93c5fd !important; }
+  [data-ogsc] .esig-company   { color: #f1f5f9 !important; }
+  [data-ogsc] .esig-compliance{ color: #94a3b8 !important; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:transparent;">
+
+<table cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#333333;max-width:580px;">
+  <tbody>
+    <tr>
+      <td valign="top" style="padding-right:20px;border-right:3px solid {{COLOR_PRIMARY}};width:140px;">
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="{{LOGO_URL_DARK}}">
+          <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" width="120" style="display:block;border:0;width:120px;height:auto;">
+        </picture>
+      </td>
+      <td valign="top" style="padding-left:20px;">
+        <p class="esig-name" style="margin:0 0 2px 0;font-size:16px;font-weight:bold;color:{{COLOR_PRIMARY}};">{{NAME}}</p>
+        <p class="esig-position" style="margin:0 0 10px 0;font-size:13px;color:#666666;">{{POSITION}}</p>
+        <table cellpadding="0" cellspacing="0" border="0" style="margin:0 0 10px 0;"><tbody><tr>
+          <td style="height:2px;background-color:{{COLOR_ACCENT}};width:200px;font-size:0;line-height:0;">&nbsp;</td>
+        </tr></tbody></table>
+        <p style="margin:0 0 3px 0;font-size:13px;">
+          <span class="esig-label" style="color:#888888;">Tel:</span>&nbsp;
+          <a class="esig-link" href="tel:{{PHONE}}" style="color:{{COLOR_PRIMARY}};text-decoration:none;">{{PHONE}}</a>
+        </p>
+        <p style="margin:0 0 3px 0;font-size:13px;">
+          <span class="esig-label" style="color:#888888;">E-Mail:</span>&nbsp;
+          <a class="esig-link" href="mailto:{{EMAIL}}" style="color:{{COLOR_PRIMARY}};text-decoration:none;">{{EMAIL}}</a>
+        </p>
+        <p style="margin:0 0 10px 0;font-size:13px;">
+          <span class="esig-label" style="color:#888888;">Web:</span>&nbsp;
+          <a class="esig-link" href="{{WEBSITE_FULL}}" style="color:{{COLOR_ACCENT}};text-decoration:none;">{{WEBSITE_URL}}</a>
+        </p>
+        <p class="esig-company" style="margin:0 0 2px 0;font-size:12px;font-weight:bold;color:#333333;">{{COMPANY_NAME}}</p>
+        <p class="esig-compliance" style="margin:0;font-size:11px;color:#888888;line-height:1.6;">{{COMPLIANCE_BLOCK}}</p>
+        {{EXTRAS_BLOCK}}
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,209 @@
+---
+/**
+ * TechExcellence — "Unter der Haube" Block
+ *
+ * Zeigt technische Exzellenz-Signale die normale Website-Besucher nicht sehen,
+ * aber die den entscheidenden Unterschied bei Google-Rankings, AI-Sichtbarkeit
+ * und Conversion-Rate ausmachen.
+ *
+ * Framing: "Die Details die Wix/Elementor/WordPress übersehen — wir nicht."
+ *
+ * @example Mit Default-Items (Blitzsicht-Stack):
+ *   <TechExcellence />
+ *
+ * @example Mit eigenen Items:
+ *   <TechExcellence items={[
+ *     { icon: '⚡', title: 'PageSpeed 98', tech: 'Astro + Edge-Caching', benefit: 'Ihre Seite lädt vor Wix-Konkurrenz.' },
+ *     ...
+ *   ]} />
+ */
+
+export interface TechItem {
+  /** Emoji oder SVG-URL */
+  icon: string;
+  /** User-facing Benefit-Headline */
+  title: string;
+  /** Tech-Stack-Details (klein, in grau) */
+  tech: string;
+  /** Längerer User-Benefit-Text */
+  benefit: string;
+}
+
+interface Props {
+  heading?: string;
+  subheading?: string;
+  items?: readonly TechItem[];
+}
+
+const DEFAULT_ITEMS: TechItem[] = [
+  {
+    icon: '⚡',
+    title: 'Google PageSpeed 95+',
+    tech: 'Astro · Edge-Caching · WebP',
+    benefit: 'Ihre Seite lädt in unter einer Sekunde. Elementor-Seiten brauchen 3–6 Sekunden. Google bevorzugt die schnellere.',
+  },
+  {
+    icon: '🤖',
+    title: 'Sichtbar in ChatGPT & Co.',
+    tech: 'AEO · GEO · LLMO-optimiert',
+    benefit: 'Wenn Kunden "beste Firma für X in Regensburg" bei ChatGPT oder Perplexity fragen, werden Sie als Quelle zitiert.',
+  },
+  {
+    icon: '📜',
+    title: 'llms.txt für KI-Agenten',
+    tech: 'RFC · /llms.txt · /pricing.md',
+    benefit: 'KI-Assistenten lesen strukturiert Ihre Preise und Leistungen — korrekt, ohne Fehlinformationen.',
+  },
+  {
+    icon: '🔍',
+    title: 'Rich Snippets in Google',
+    tech: 'Schema.org · JSON-LD · FAQPage',
+    benefit: 'Sterne, FAQ-Blöcke und Öffnungszeiten direkt in der Google-Suche. Mehr Klicks, bessere Positionen.',
+  },
+  {
+    icon: '🔒',
+    title: 'Security Headers & HTTPS',
+    tech: 'CSP · HSTS · A+ SSL Rating',
+    benefit: 'Maximale Browser-Sicherheit von Tag 1. Google wertet HTTPS und Security-Header als Ranking-Signale — unsichere Seiten werden abgestraft.',
+  },
+  {
+    icon: '♿',
+    title: 'Barrierefrei (BFSG-ready)',
+    tech: 'WCAG 2.1 AA · BFSG ab 2025',
+    benefit: 'Ab Juni 2025 Pflicht für viele Unternehmen. Blitzsicht-Websites sind von Tag 1 konform.',
+  },
+];
+
+const {
+  heading = 'Was andere Anbieter übersehen — wir nicht',
+  subheading = 'Die technischen Details, die Sie nicht sehen — aber Google und KI schon. Diese Signale entscheiden darüber, ob Ihre Website in 6 Monaten Kunden bringt oder von Konkurrenten überholt wird.',
+  items = DEFAULT_ITEMS,
+} = Astro.props;
+---
+
+<section class="tech-section">
+  <div class="container">
+    <div class="tech-intro">
+      <span class="tech-badge">Unter der Haube</span>
+      <h2>{heading}</h2>
+      <p class="tech-sub">{subheading}</p>
+    </div>
+
+    <div class="tech-grid">
+      {items.map((item) => (
+        <article class="tech-card">
+          <div class="tech-icon" aria-hidden="true">{item.icon}</div>
+          <h3 class="tech-title">{item.title}</h3>
+          <div class="tech-stack">{item.tech}</div>
+          <p class="tech-benefit">{item.benefit}</p>
+        </article>
+      ))}
+    </div>
+
+    <p class="tech-footer">
+      Nichts davon sehen Sie als Besucher — aber Google, ChatGPT und Perplexity schon.
+      Genau deshalb ranken Blitzsicht-Websites nach 3–6 Monaten typischerweise vor den alteingesessenen Konkurrenten.
+    </p>
+  </div>
+</section>
+
+<style>
+  .tech-section {
+    padding: var(--section-padding, 5rem) 0;
+    background: var(--color-primary, #1d1e3b);
+    color: white;
+  }
+  .container {
+    max-width: var(--container-max, 72rem);
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+  .tech-intro {
+    max-width: 48rem;
+    margin: 0 auto 3rem;
+    text-align: center;
+  }
+  .tech-badge {
+    display: inline-block;
+    padding: 0.375rem 0.875rem;
+    background: var(--color-accent, #ef7612);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+  }
+  .tech-intro h2 {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    margin: 0 0 1rem;
+    color: white;
+    line-height: 1.2;
+  }
+  .tech-sub {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.75);
+    margin: 0;
+  }
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 900px) {
+    .tech-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  .tech-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    padding: 1.75rem 1.5rem;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .tech-card:hover {
+    border-color: var(--color-accent, #ef7612);
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .tech-icon {
+    font-size: 2rem;
+    line-height: 1;
+    margin-bottom: 0.875rem;
+  }
+  .tech-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem;
+    color: white;
+  }
+  .tech-stack {
+    font-size: 0.75rem;
+    font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+    color: var(--color-accent, #ef7612);
+    margin-bottom: 0.875rem;
+    letter-spacing: 0.02em;
+  }
+  .tech-benefit {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0;
+  }
+  .tech-footer {
+    margin: 3rem auto 0;
+    max-width: 48rem;
+    text-align: center;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 640px) {
+    .tech-card {
+      padding: 1.5rem 1.25rem;
+    }
+  }
+</style>

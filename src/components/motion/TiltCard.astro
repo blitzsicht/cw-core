@@ -1,0 +1,190 @@
+---
+/**
+ * @cw/core – motion/TiltCard.astro
+ *
+ * Wrapper that gives its slotted child a subtle 3D tilt on hover. The
+ * rotation is lerp-smoothed via an on-demand rAF loop during hover;
+ * the return-to-rest on pointerleave is handled by a short CSS
+ * transition (feels more precise than transition-during-hover).
+ *
+ * Capability-gated: requires `(hover: hover) and (pointer: fine)` and
+ * respects `prefers-reduced-motion`. iPad+Trackpad works; touch-only
+ * is skipped cleanly.
+ *
+ * Design principle: subtle beats spectacular. Defaults (`maxTilt: 6`,
+ * `scale: 1.01`) are deliberately low-key for B2B sites. Dial up via
+ * props if needed — the consumer can go louder, never the other way.
+ *
+ * Use for Pakete/Offer-Cards first — cards where a user is making a
+ * decision benefit from tilt as an interactivity signal. Avoid on
+ * textheavy content (testimonials) unless the tilt is dialed way down
+ * (e.g. `maxTilt={3}`).
+ *
+ * @example
+ *   <TiltCard>
+ *     <div class="paket-card">…</div>
+ *   </TiltCard>
+ */
+interface Props {
+  /** Max tilt in degrees. Default 10 (noticeable but B2B-tauglich). */
+  maxTilt?: number;
+  /** 3D perspective distance in px. Default 1000. */
+  perspective?: number;
+  /** Hover scale. Default 1.03. */
+  scale?: number;
+  /** Extra class names on the wrapper. */
+  class?: string;
+}
+
+const {
+  maxTilt = 10,
+  perspective = 1000,
+  scale = 1.03,
+  class: className,
+} = Astro.props;
+
+const cfg = JSON.stringify({ maxTilt, perspective, scale });
+---
+<div class:list={['motion-tilt', className]} data-motion-tilt data-cfg={cfg}>
+  <div class="motion-tilt-inner"><slot /></div>
+</div>
+
+<style>
+  .motion-tilt {
+    perspective: var(--motion-tilt-perspective, 1000px);
+    display: block;
+    height: 100%;
+  }
+  .motion-tilt-inner {
+    transform-style: preserve-3d;
+    will-change: transform;
+    height: 100%;
+  }
+</style>
+
+<script>
+  (() => {
+    if (typeof window === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+
+    const nodes = document.querySelectorAll<HTMLElement>('[data-motion-tilt]');
+    if (!nodes.length) return;
+
+    interface Cfg { maxTilt: number; perspective: number; scale: number; }
+    const DEFAULT_CFG: Cfg = { maxTilt: 10, perspective: 1000, scale: 1.03 };
+
+    nodes.forEach((el) => {
+      const inner = el.querySelector<HTMLElement>('.motion-tilt-inner');
+      if (!inner) return;
+
+      let cfg: Cfg = DEFAULT_CFG;
+      try {
+        const raw = el.dataset.cfg;
+        if (raw) cfg = { ...DEFAULT_CFG, ...JSON.parse(raw) };
+      } catch {
+        /* keep default */
+      }
+
+      let rect = el.getBoundingClientRect();
+      let targetRx = 0;
+      let targetRy = 0;
+      let currentRx = 0;
+      let currentRy = 0;
+      let hovering = false;
+      let rafId: number | null = null;
+      let rectRefreshQueued = false;
+
+      const refreshRect = () => {
+        rectRefreshQueued = false;
+        if (hovering) rect = el.getBoundingClientRect();
+      };
+      const queueRectRefresh = () => {
+        if (!rectRefreshQueued) {
+          rectRefreshQueued = true;
+          requestAnimationFrame(refreshRect);
+        }
+      };
+
+      const LERP = 0.18;
+      const EPSILON = 0.02;
+
+      const applyTransform = () => {
+        inner.style.transform =
+          `perspective(${cfg.perspective}px) rotateX(${currentRx.toFixed(3)}deg) rotateY(${currentRy.toFixed(3)}deg) scale(${cfg.scale})`;
+      };
+
+      const render = () => {
+        currentRx += (targetRx - currentRx) * LERP;
+        currentRy += (targetRy - currentRy) * LERP;
+        const delta = Math.abs(currentRx - targetRx) + Math.abs(currentRy - targetRy);
+        applyTransform();
+        if (hovering && delta > EPSILON) {
+          rafId = requestAnimationFrame(render);
+        } else {
+          rafId = null;
+        }
+      };
+      const kick = () => {
+        if (rafId === null && hovering) {
+          rafId = requestAnimationFrame(render);
+        }
+      };
+
+      const onEnter = () => {
+        hovering = true;
+        rect = el.getBoundingClientRect();
+        inner.style.transition = 'none';
+        window.addEventListener('scroll', queueRectRefresh, { passive: true });
+      };
+
+      const onMove = (e: PointerEvent) => {
+        if (!hovering) return;
+        const r = rect;
+        const nx = (e.clientX - r.left) / r.width - 0.5;
+        const ny = (e.clientY - r.top) / r.height - 0.5;
+        targetRx = -ny * cfg.maxTilt;
+        targetRy = nx * cfg.maxTilt;
+        kick();
+      };
+
+      const onLeave = () => {
+        hovering = false;
+        targetRx = 0;
+        targetRy = 0;
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        inner.style.transition = 'transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1)';
+        inner.style.transform =
+          `perspective(${cfg.perspective}px) rotateX(0deg) rotateY(0deg) scale(1)`;
+        currentRx = 0;
+        currentRy = 0;
+        window.removeEventListener('scroll', queueRectRefresh);
+      };
+
+      el.addEventListener('pointerenter', onEnter);
+      el.addEventListener('pointermove', onMove, { passive: true });
+      el.addEventListener('pointerleave', onLeave);
+
+      const ro = new ResizeObserver(() => {
+        if (hovering) rect = el.getBoundingClientRect();
+      });
+      ro.observe(el);
+
+      document.addEventListener(
+        'astro:before-swap',
+        () => {
+          if (rafId !== null) cancelAnimationFrame(rafId);
+          ro.disconnect();
+          el.removeEventListener('pointerenter', onEnter);
+          el.removeEventListener('pointermove', onMove);
+          el.removeEventListener('pointerleave', onLeave);
+          window.removeEventListener('scroll', queueRectRefresh);
+        },
+        { once: true }
+      );
+    });
+  })();
+</script>

@@ -1,0 +1,335 @@
+---
+/**
+ * @cw/core – BaseLayout.astro
+ *
+ * Base HTML document with `<head>` (title, meta, OG, Twitter, Plausible,
+ * Schema.org) and `<body><slot/></body>`. Prop-driven: no
+ * `@/data/site-data` import. Customer is still expected to provide
+ * `src/styles/tokens.css` (loaded via the `@/styles/tokens.css` alias).
+ *
+ * The customer site should wrap this layout (or use LandingPage /
+ * ContentPage) and pass site-wide data (`siteName`, `siteUrl`,
+ * `defaultTitle`, `seo`, etc.) explicitly.
+ *
+ * @example
+ *   <BaseLayout
+ *     title="Kontakt"
+ *     siteName={siteData.name}
+ *     siteUrl={siteData.url}
+ *     defaultTitle={siteData.seo.defaultTitle}
+ *     defaultDescription={siteData.seo.defaultDescription}
+ *     titleTemplate={siteData.seo.titleTemplate}
+ *     defaultOgImage={siteData.seo.ogImage}
+ *     plausibleScript={siteData.analytics?.plausibleScript}
+ *     schema={{
+ *       name: siteData.name,
+ *       description: siteData.description,
+ *       url: siteData.url,
+ *       ogImage: siteData.seo.ogImage,
+ *       street: siteData.legal.street,
+ *       zip: siteData.legal.zip,
+ *       city: siteData.legal.city,
+ *       country: siteData.legal.country,
+ *       email: siteData.contact.email,
+ *       phone: siteData.contact.phone,
+ *     }}
+ *   >
+ *     <slot />
+ *   </BaseLayout>
+ */
+import SchemaOrg from '../components/seo/SchemaOrg.astro';
+import '@/styles/tokens.css';
+
+export interface SchemaProps {
+  name: string;
+  description: string;
+  url: string;
+  ogImage: string;
+  logoUrl?: string;
+  street?: string;
+  zip?: string;
+  city?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  areaServed?: string | string[] | readonly string[];
+  priceRange?: string;
+  sameAs?: string[] | readonly string[];
+  availableLanguage?: string[] | readonly string[];
+  openingHours?: string[] | readonly string[];
+  geo?: { latitude: number; longitude: number };
+  foundingDate?: string;
+  additionalTypes?: string[] | readonly string[];
+  employees?: Array<{ name: string; role?: string; title?: string; phone?: string; email?: string; credentials?: string[] | readonly string[] }> | readonly Array<{ name: string; role?: string; title?: string; phone?: string; email?: string; credentials?: string[] | readonly string[] }>;
+  services?: Array<{ label: string; shortDesc?: string; href: string }> | readonly Array<{ label: string; shortDesc?: string; href: string }>;
+  service?: { label: string; shortDesc?: string; href: string };
+  faqs?: Array<{ question: string; answer: string }> | readonly Array<{ question: string; answer: string }>;
+  knowsAbout?: string[] | readonly string[];
+  founder?: {
+    name: string;
+    jobTitle?: string;
+    description?: string;
+    image?: string;
+    email?: string;
+    phone?: string;
+    knowsAbout?: string[] | readonly string[];
+    credentials?: string[] | readonly string[];
+    sameAs?: string[] | readonly string[];
+  };
+}
+
+interface Props {
+  /** Page-specific title fragment. Combined with `titleTemplate`. */
+  title?: string;
+  /** Page-specific description (overrides `defaultDescription`). */
+  description?: string;
+  /**
+   * OG image fallback chain — resolved in order:
+   *   1. ogImage (page-level, explicit)
+   *   2. headerImage (page header/hero image — e.g. siteData.hero.image)
+   *   3. contentImage (first image in page content)
+   *   4. generatedOgImage (build-time generated, typically /og/default.png — with logo+CTA overlay)
+   *   5. defaultOgImage prop (customer standard OG — always present)
+   *
+   * All paths are relative to siteUrl (absolute paths starting with /).
+   * Pass null explicitly to skip a level and fall through to the next.
+   */
+  ogImage?: string | null | undefined;
+  /** Level 2: hero/header image for this page (e.g. siteData.hero.image). */
+  headerImage?: string | null | undefined;
+  /** Level 3: first content image on this page. */
+  contentImage?: string | null | undefined;
+  /**
+   * Level 4: path to a build-time generated OG image with logo+CTA overlay.
+   * Defaults to /og/default.png (generated via `pnpm generate:og`).
+   * Set to null to skip level 4 and fall through to defaultOgImage.
+   */
+  generatedOgImage?: string | null | undefined;
+  /** Optional canonical URL override. Defaults to `${siteUrl}${pathname}`. */
+  canonicalUrl?: string;
+  /** Optional robots meta value. */
+  robots?: string;
+  /** Site name (fallback for several defaults). */
+  siteName?: string;
+  /** Canonical site URL (no trailing slash). Required for absolute OG/canonical URLs. */
+  siteUrl: string;
+  /** Title used when `title` is not provided. */
+  defaultTitle: string;
+  /** Description used when `description` is not provided. */
+  defaultDescription: string;
+  /** Title template; `%s` is replaced with `title`. Defaults to `%s | ${siteName}`. */
+  titleTemplate?: string;
+  /** OG image used when `ogImage` not provided. */
+  defaultOgImage: string;
+  /** HTML lang attribute. Defaults to "de". */
+  lang?: string;
+  /** OG locale. Defaults to "de_DE". */
+  ogLocale?: string;
+  /**
+   * Open Graph object type. Defaults to "website".
+   * Set to "profile" for Author-/Person-Pages — Google + Social-Scraper
+   * mappen das auf einer Person-Entity (statt einer generischen Website).
+   * Andere gültige Werte: "article", "book", "video.movie" etc.
+   */
+  ogType?: 'website' | 'profile' | 'article' | (string & {});
+  /**
+   * Profile-spezifische OG-Meta. Nur ausgegeben wenn `ogType="profile"`.
+   * Quelle: https://ogp.me/#type_profile
+   */
+  ogProfile?: {
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    gender?: 'male' | 'female';
+  };
+  /** Plausible script src. If set, the Plausible snippet is injected. */
+  plausibleScript?: string;
+  /** Plausible host for preconnect. Defaults to "https://plausible.io". Set to undefined when proxying same-origin. */
+  plausibleHost?: string;
+  /** Plausible API endpoint override. Set to "/api/event" when proxying via Vercel rewrites. */
+  plausibleEndpoint?: string;
+  /** Schema.org props forwarded to `<SchemaOrg/>`. If omitted, `<SchemaOrg/>` is not rendered. */
+  schema?: SchemaProps;
+}
+
+const {
+  title,
+  description,
+  ogImage,
+  headerImage,
+  contentImage,
+  generatedOgImage,
+  canonicalUrl,
+  robots,
+  siteName = '',
+  siteUrl,
+  defaultTitle,
+  defaultDescription,
+  titleTemplate,
+  defaultOgImage,
+  lang = 'de',
+  ogLocale = 'de_DE',
+  ogType = 'website',
+  ogProfile,
+  plausibleScript,
+  plausibleHost = 'https://plausible.io',
+  plausibleEndpoint,
+  schema,
+} = Astro.props;
+
+const resolvedDescription = description ?? defaultDescription;
+
+/**
+ * OG image fallback chain (5 levels):
+ * 1. Explicit page-level ogImage prop
+ * 2. headerImage (page hero/header image)
+ * 3. contentImage (first image in page content)
+ * 4. generatedOgImage (build-time generated, /og/default.png by default)
+ * 5. defaultOgImage prop (customer-configured standard OG — always present)
+ */
+const resolvedOgImage =
+  ogImage ??
+  headerImage ??
+  contentImage ??
+  (generatedOgImage !== null ? (generatedOgImage ?? '/og/default.png') : null) ??
+  defaultOgImage;
+const resolvedTitleTemplate = titleTemplate ?? (siteName ? `%s | ${siteName}` : '%s');
+const pageTitle = title ? resolvedTitleTemplate.replace('%s', title) : defaultTitle;
+const canonical = canonicalUrl ?? new URL(Astro.url.pathname, siteUrl).toString();
+const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
+---
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={resolvedDescription} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang={lang} href={canonical} />
+    <link rel="alternate" hreflang="x-default" href={canonical} />
+    {robots && <meta name="robots" content={robots} />}
+
+    <!-- OG Tags -->
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={resolvedDescription} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content={ogType} />
+    <meta property="og:locale" content={ogLocale} />
+    {ogType === 'profile' && ogProfile && (
+      <>
+        {ogProfile.firstName && <meta property="profile:first_name" content={ogProfile.firstName} />}
+        {ogProfile.lastName && <meta property="profile:last_name" content={ogProfile.lastName} />}
+        {ogProfile.username && <meta property="profile:username" content={ogProfile.username} />}
+        {ogProfile.gender && <meta property="profile:gender" content={ogProfile.gender} />}
+      </>
+    )}
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={resolvedDescription} />
+    <meta name="twitter:image" content={ogImageUrl} />
+
+    <!-- Plausible Analytics (cookie-frei, DSGVO-konform) -->
+    <!-- Queue-Shim immer vorhanden: window.plausible() wirft keinen Fehler wenn kein Script geladen.
+         plausible.init() MUSS für Custom-Scripts (pa-XXX.js) explizit aufgerufen werden, sonst lädt
+         das Script aber initialisiert sich nicht (Install Verify schlägt fehl). -->
+    <script is:inline>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};window.plausible.init=window.plausible.init||function(i){window.plausible.o=i||{}};</script>
+    {plausibleScript && (
+      <>
+        {!plausibleEndpoint && <link rel="preconnect" href={plausibleHost} />}
+        <script is:inline async src={plausibleScript}></script>
+        <script is:inline define:vars={{ endpoint: plausibleEndpoint }}>
+          window.plausible.init(endpoint ? { endpoint } : {});
+        </script>
+      </>
+    )}
+
+    <!-- Schema.org JSON-LD -->
+    {schema && (
+      <SchemaOrg
+        name={schema.name}
+        description={schema.description}
+        url={schema.url}
+        ogImage={schema.ogImage}
+        logoUrl={schema.logoUrl}
+        street={schema.street}
+        zip={schema.zip}
+        city={schema.city}
+        country={schema.country}
+        email={schema.email}
+        phone={schema.phone}
+        areaServed={schema.areaServed}
+        priceRange={schema.priceRange}
+        sameAs={schema.sameAs}
+        availableLanguage={schema.availableLanguage}
+        openingHours={schema.openingHours}
+        geo={schema.geo}
+        foundingDate={schema.foundingDate}
+        additionalTypes={schema.additionalTypes}
+        employees={schema.employees}
+        services={schema.services}
+        service={schema.service}
+        faqs={schema.faqs}
+        knowsAbout={schema.knowsAbout}
+        founder={schema.founder}
+      />
+    )}
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
+    <link rel="apple-touch-icon" href="/favicon-192.png" />
+
+    <!-- Page-spezifische Head-Erweiterungen (zusätzliche JSON-LD, OG-Image-Dimensions, profile-Meta etc.) -->
+    <slot name="head" />
+  </head>
+  <body>
+    <slot />
+  </body>
+  <script>
+    import { track } from '../utils/analytics/track';
+    document.addEventListener('click', (e) => {
+      const a = (e.target as Element).closest('a');
+      if (!a) return;
+      const href = a.getAttribute('href') ?? '';
+      if (href.startsWith('tel:')) {
+        track('Phone Click', { number: href.replace('tel:', '') });
+      } else if (href.startsWith('mailto:')) {
+        track('Email Click', { address: href.replace('mailto:', '').split('?')[0] });
+      } else if (href.endsWith('.pdf') || href.includes('.pdf?')) {
+        const filename = href.split('/').pop()?.split('?')[0] ?? href;
+        track('File Download', { filename });
+      } else if (href.startsWith('http') && !href.includes(window.location.hostname)) {
+        try {
+          track('Outbound Click', { url: new URL(href).origin });
+        } catch {}
+      }
+    });
+
+    const depths = new Set<string>();
+    const milestones = [25, 50, 75, 100];
+    function onScroll() {
+      const el = document.documentElement;
+      const scrolled = el.scrollTop + el.clientHeight;
+      const total = el.scrollHeight;
+      const pct = Math.round((scrolled / total) * 100);
+      for (const m of milestones) {
+        if (pct >= m && !depths.has(String(m))) {
+          depths.add(String(m));
+          track('Scroll Depth', { depth: `${m}%` });
+        }
+      }
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+
+    const timeMilestones: Array<[number, string]> = [[30000, '30s'], [120000, '2min'], [300000, '5min']];
+    timeMilestones.forEach(([ms, label]) => {
+      setTimeout(() => track('Time on Page', { duration: label }), ms);
+    });
+  </script>
+</html>

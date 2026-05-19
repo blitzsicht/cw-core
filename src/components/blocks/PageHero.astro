@@ -1,0 +1,72 @@
+---
+/**
+ * PageHero — gradient banner for sub-pages (not the main Hero).
+ *
+ * Renders a dark gradient section with heading + optional subtext.
+ * Uses `--color-primary` as gradient start and auto-darkens via `color-mix`.
+ * Override `--color-primary-dark` in tokens.css for fine control.
+ *
+ * Optional `backgroundImage` prop: renders a background image with dark overlay.
+ *
+ * Used on: /pakete, /kontakt, /faq, /leistungen, /ueber-uns, /referenzen, etc.
+ */
+interface Props {
+  heading: string;
+  subtext?: string;
+  /** Path to background image (e.g. '/images/hero/wertermittlung.webp'). */
+  backgroundImage?: string;
+  /** CSS background-position for the image. Default: 'center'. */
+  backgroundPosition?: string;
+  /** Overlay darkness. Default: 'medium'. */
+  overlayStrength?: 'light' | 'medium' | 'strong';
+}
+
+const {
+  heading,
+  subtext,
+  backgroundImage,
+  backgroundPosition = 'center',
+  overlayStrength = 'medium',
+} = Astro.props;
+
+const overlayMap = {
+  light: 'rgba(29,30,59,0.45)',
+  medium: 'rgba(29,30,59,0.7)',
+  strong: 'rgba(29,30,59,0.85)',
+};
+const overlay = overlayMap[overlayStrength];
+
+const bgStyle = backgroundImage
+  ? `background: linear-gradient(${overlay}, ${overlay}), url('${backgroundImage}') ${backgroundPosition}/cover no-repeat;`
+  : undefined;
+---
+<section class="page-hero" style={bgStyle}>
+  <div class="container">
+    <h1>{heading}</h1>
+    {subtext && <p>{subtext}</p>}
+  </div>
+</section>
+
+<style>
+  .page-hero {
+    background: linear-gradient(
+      135deg,
+      var(--color-primary) 0%,
+      var(--color-primary-dark, color-mix(in srgb, var(--color-primary), black 25%)) 100%
+    );
+    color: white;
+    padding: 6rem 1.5rem 5rem;
+    text-align: center;
+  }
+  .page-hero h1 {
+    font-size: clamp(2rem, 4vw, 3rem);
+    color: white;
+    margin-bottom: 0.75rem;
+  }
+  .page-hero p {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 1.0625rem;
+    max-width: 44rem;
+    margin-inline: auto;
+  }
+</style>

@@ -1,0 +1,134 @@
+---
+/**
+ * @cw/core – motion/CountUp.astro
+ *
+ * Counts from 0 (or `from`) to `value` when it enters the viewport.
+ * Falls back to static number if `prefers-reduced-motion: reduce` or
+ * IntersectionObserver is unavailable.
+ *
+ * @example
+ *   <CountUp value={127} suffix="+" duration={1.2} />
+ *   <CountUp value={7} prefix="In " suffix=" Tagen live" />
+ */
+interface Props {
+  value: number;
+  from?: number;
+  /** Duration in seconds. Defaults to 1.5. */
+  duration?: number;
+  /** Prefix text (e.g. "€ "). */
+  prefix?: string;
+  /** Suffix text (e.g. "+", "%"). */
+  suffix?: string;
+  /** Decimal digits. Defaults to 0. */
+  decimals?: number;
+  /** Thousands separator. Defaults to "." (de-DE). */
+  separator?: string;
+  class?: string;
+  as?: string;
+}
+
+const {
+  value,
+  from = 0,
+  duration = 1.5,
+  prefix = '',
+  suffix = '',
+  decimals = 0,
+  separator = '.',
+  class: className = '',
+  as: Tag = 'span',
+} = Astro.props;
+
+const id = `cu-${Math.random().toString(36).slice(2, 9)}`;
+const fmt = (n: number) => {
+  const fixed = n.toFixed(decimals);
+  if (decimals > 0) {
+    const [intPart, decPart] = fixed.split('.');
+    return `${intPart!.replace(/\B(?=(\d{3})+(?!\d))/g, separator)},${decPart}`;
+  }
+  return fixed.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+};
+const initial = fmt(from);
+const final = fmt(value);
+---
+<Tag
+  id={id}
+  class:list={['motion-countup', className]}
+  data-motion-countup
+  data-value={value}
+  data-from={from}
+  data-duration={duration}
+  data-decimals={decimals}
+  data-separator={separator}
+  data-prefix={prefix}
+  data-suffix={suffix}
+>{prefix}<span data-motion-countup-num>{initial}</span>{suffix}<span class="sr-only">{prefix}{final}{suffix}</span></Tag>
+
+<style>
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+</style>
+
+<script is:inline define:vars={{ id }}>
+  (function () {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const numEl = el.querySelector('[data-motion-countup-num]');
+    if (!numEl) return;
+
+    const value = parseFloat(el.dataset.value || '0');
+    const from = parseFloat(el.dataset.from || '0');
+    const duration = parseFloat(el.dataset.duration || '1.5') * 1000;
+    const decimals = parseInt(el.dataset.decimals || '0', 10);
+    const separator = el.dataset.separator || '.';
+
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const format = (n) => {
+      const fixed = n.toFixed(decimals);
+      if (decimals > 0) {
+        const [i, d] = fixed.split('.');
+        return `${i.replace(/\B(?=(\d{3})+(?!\d))/g, separator)},${d}`;
+      }
+      return fixed.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
+    };
+
+    const play = () => {
+      if (reduced || !('requestAnimationFrame' in window)) {
+        numEl.textContent = format(value);
+        return;
+      }
+      const start = performance.now();
+      const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+      const tick = (now) => {
+        const t = Math.min(1, (now - start) / duration);
+        const current = from + (value - from) * ease(t);
+        numEl.textContent = format(current);
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    };
+
+    if (!('IntersectionObserver' in window)) return play();
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            play();
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(el);
+  })();
+</script>

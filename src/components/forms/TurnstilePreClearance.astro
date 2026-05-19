@@ -1,0 +1,48 @@
+---
+/**
+ * @cw/core – TurnstilePreClearance.astro
+ *
+ * Site-wide Cloudflare Turnstile Pre-Clearance widget. Rendered (invisible)
+ * on every page via LandingPage/ContentPage so every visitor receives a
+ * `cf_clearance` cookie unobtrusively. Without this, Cloudflare Bot Fight
+ * Mode JS-Challenge gates plugin-heavy / DevTools-open browsers in a loop
+ * after each cookie expiry.
+ *
+ * Pre-condition: The Turnstile widget configured at the given sitekey must
+ * have `clearance_level: "non_interactive"` so no user click is required.
+ *
+ * Cohabitates with form-level Turnstile widgets (e.g. ContactForm) — both
+ * use the same sitekey, but different `data-action` values, so Cloudflare
+ * tracks them as separate widget instances.
+ *
+ * Renders `null` if no sitekey is provided, so customers without Turnstile
+ * configured stay unaffected.
+ *
+ * @example
+ *   <TurnstilePreClearance sitekey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY} />
+ */
+interface Props {
+  sitekey?: string;
+}
+const { sitekey } = Astro.props;
+---
+{sitekey && (
+  <>
+    <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <div
+      class="cf-turnstile cf-turnstile-preclearance"
+      data-sitekey={sitekey}
+      data-action="page-load"
+      data-appearance="interaction-only"
+      aria-hidden="true"
+    ></div>
+    <style>
+      .cf-turnstile-preclearance {
+        position: fixed;
+        bottom: 1rem;
+        right: 1rem;
+        z-index: 9999;
+      }
+    </style>
+  </>
+)}

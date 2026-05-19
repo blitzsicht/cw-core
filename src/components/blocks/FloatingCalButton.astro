@@ -1,0 +1,101 @@
+---
+/**
+ * FloatingCalButton — fixed bottom-right CTA pill for cal.com booking.
+ *
+ * Opens cal.com booking page in new tab. No third-party script loaded
+ * on page visit, so the button is DSGVO-clean and doesn't impact CWV.
+ * Users who click get taken to cal.eu (their consent happens there).
+ *
+ * Typical usage: rendered on main pages; excluded from legal pages
+ * (impressum, datenschutz), post-submit pages (danke) and 404.
+ */
+interface Props {
+  /** Cal.com booking URL. Falls back to siteData.contact.calUrl if wired up. */
+  calUrl: string;
+  /** Button label (hidden on mobile, only icon shown). */
+  label?: string;
+  /** Accessible label for screen readers. */
+  ariaLabel?: string;
+}
+
+const {
+  calUrl,
+  label = 'Termin buchen',
+  ariaLabel = 'Kostenlosen Termin buchen',
+} = Astro.props;
+---
+{calUrl && (
+<a
+  class="floating-cal"
+  href={calUrl}
+  target="_blank"
+  rel="noopener noreferrer"
+  aria-label={ariaLabel}
+>
+  <span class="icon" aria-hidden="true">📅</span>
+  <span class="label">{label}</span>
+</a>
+)}
+
+<script>
+  import { track } from '../../utils/analytics/track';
+  document.querySelector('.floating-cal')?.addEventListener('click', () => {
+    track('Cal Button Click');
+  });
+</script>
+
+<style>
+  .floating-cal {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 999;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    background: var(--color-accent, #de1668);
+    color: white;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--color-accent) 35%, transparent),
+                0 2px 6px rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  .floating-cal:hover,
+  .floating-cal:focus-visible {
+    transform: translateY(-2px);
+    background: var(--color-accent-hover, color-mix(in srgb, var(--color-accent), black 15%));
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--color-accent) 45%, transparent),
+                0 3px 8px rgba(0, 0, 0, 0.12);
+  }
+  .floating-cal:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.6);
+    outline-offset: 2px;
+  }
+  .floating-cal .icon {
+    font-size: 1.125rem;
+    line-height: 1;
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 640px) {
+    .floating-cal {
+      bottom: 1rem;
+      right: 1rem;
+      padding: 0.875rem;
+    }
+    .floating-cal .label {
+      display: none;
+    }
+    .floating-cal .icon {
+      font-size: 1.375rem;
+    }
+  }
+  @media print {
+    .floating-cal {
+      display: none;
+    }
+  }
+</style>

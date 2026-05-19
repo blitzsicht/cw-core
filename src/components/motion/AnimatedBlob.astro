@@ -1,0 +1,109 @@
+---
+/**
+ * @cw/core – motion/AnimatedBlob.astro
+ *
+ * Organic mesh-gradient blob background. Pure CSS + SVG filter — no
+ * WebGL, no shaders, no library. Render inside a hero section with
+ * `position: relative` and let the blob fill the background.
+ *
+ * @example
+ *   <section class="hero" style="position:relative; overflow:hidden">
+ *     <AnimatedBlob />
+ *     <div class="hero-content">…</div>
+ *   </section>
+ */
+interface Props {
+  /** Primary blob color. Defaults to `var(--color-accent)`. */
+  colorA?: string;
+  /** Secondary blob color. Defaults to `var(--color-primary-light, #3b3d6b)`. */
+  colorB?: string;
+  /** Tertiary blob color. Defaults to `var(--color-primary, #1D1E3B)`. */
+  colorC?: string;
+  /** Base opacity 0-1. Defaults to 0.55. */
+  opacity?: number;
+  /** Blur radius. Defaults to 80px. */
+  blur?: string;
+  /** Disable blobs entirely (fallback to solid gradient). */
+  disabled?: boolean;
+  class?: string;
+}
+
+const {
+  colorA = 'var(--color-accent)',
+  colorB = 'var(--color-primary-light, #3b3d6b)',
+  colorC = 'var(--color-primary, #1D1E3B)',
+  opacity = 0.55,
+  blur = '80px',
+  disabled = false,
+  class: className = '',
+} = Astro.props;
+---
+{!disabled && (
+  <div
+    class:list={['motion-blob', className]}
+    data-motion-blob
+    aria-hidden="true"
+    style={`--blob-a: ${colorA}; --blob-b: ${colorB}; --blob-c: ${colorC}; --blob-opacity: ${opacity}; --blob-blur: ${blur};`}
+  >
+    <span class="blob blob-1"></span>
+    <span class="blob blob-2"></span>
+    <span class="blob blob-3"></span>
+  </div>
+)}
+
+<style>
+  .motion-blob {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    filter: blur(var(--blob-blur));
+    opacity: var(--blob-opacity);
+    z-index: 0;
+  }
+  .blob {
+    position: absolute;
+    display: block;
+    border-radius: 50%;
+    will-change: transform;
+  }
+  .blob-1 {
+    width: 46vmax;
+    height: 46vmax;
+    top: -10vmax;
+    left: -12vmax;
+    background: radial-gradient(circle, var(--blob-a) 0%, transparent 65%);
+    animation: motion-blob-1 18s ease-in-out infinite alternate;
+  }
+  .blob-2 {
+    width: 40vmax;
+    height: 40vmax;
+    top: 10vmax;
+    right: -14vmax;
+    background: radial-gradient(circle, var(--blob-b) 0%, transparent 65%);
+    animation: motion-blob-2 22s ease-in-out infinite alternate;
+  }
+  .blob-3 {
+    width: 34vmax;
+    height: 34vmax;
+    bottom: -12vmax;
+    left: 20%;
+    background: radial-gradient(circle, var(--blob-c) 0%, transparent 65%);
+    animation: motion-blob-3 26s ease-in-out infinite alternate;
+  }
+  @keyframes motion-blob-1 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(8vmax, 4vmax, 0) scale(1.1); }
+    100% { transform: translate3d(-4vmax, 10vmax, 0) scale(0.95); }
+  }
+  @keyframes motion-blob-2 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(-6vmax, 8vmax, 0) scale(1.15); }
+    100% { transform: translate3d(4vmax, -4vmax, 0) scale(0.9); }
+  }
+  @keyframes motion-blob-3 {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(6vmax, -6vmax, 0) scale(1.08); }
+    100% { transform: translate3d(-8vmax, 2vmax, 0) scale(1.2); }
+  }
+</style>

@@ -1,0 +1,104 @@
+---
+/**
+ * @cw/core – PlausibleEvents.astro
+ *
+ * Verdrahtet automatisch Custom-Plausible-Events für die wichtigsten
+ * Conversion-Touchpoints einer Customer-Site:
+ *
+ *   - "Phone Click"     — alle tel:- Links
+ *   - "WhatsApp Click"  — alle wa.me / api.whatsapp.com Links
+ *   - "Email Click"     — alle mailto:- Links
+ *   - "CTA Click"       — alle Elemente mit data-cta-Attribut
+ *   - "Form Submit"     — alle <form> submits
+ *   - "Scroll Depth"    — 25 / 50 / 75 / 100 % Marken (1× pro Pageview)
+ *
+ * Voraussetzung: Plausible-Script wurde via `<Plausible script="..." />`
+ * (oder via BaseLayout-Props) im Head geladen. Die Queue-Shim ist dort
+ * gesetzt; dieses Modul ergänzt nur die Event-Listener.
+ *
+ * Privacy: keine PII, nur Klick-Channels und anonyme Tiefe.
+ * Promotet aus customer-soleno (M006/S02).
+ *
+ * @example
+ *   <BaseLayout ...>
+ *     <Plausible script="..." endpoint="/api/event" />
+ *     <PlausibleEvents />
+ *     <slot />
+ *   </BaseLayout>
+ */
+---
+<script>
+  type PlausibleProps = Record<string, string | number>;
+  type PlausibleFn = (event: string, opts?: { props?: PlausibleProps }) => void;
+
+  const track = (event: string, props?: PlausibleProps) => {
+    const p = (window as unknown as { plausible?: PlausibleFn }).plausible;
+    if (typeof p === 'function') {
+      p(event, props ? { props } : undefined);
+    }
+  };
+
+  document.querySelectorAll<HTMLAnchorElement>('a[href^="tel:"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const location =
+        el.dataset.location ??
+        el.closest('[data-section]')?.getAttribute('data-section') ??
+        'unknown';
+      track('Phone Click', { location });
+    });
+  });
+
+  document.querySelectorAll<HTMLAnchorElement>('a[href*="wa.me"], a[href*="api.whatsapp.com"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      track('WhatsApp Click', { location: el.dataset.location ?? 'unknown' });
+    });
+  });
+
+  document.querySelectorAll<HTMLAnchorElement>('a[href^="mailto:"]').forEach((el) => {
+    el.addEventListener('click', () => {
+      track('Email Click', { location: el.dataset.location ?? 'unknown' });
+    });
+  });
+
+  document.querySelectorAll<HTMLElement>('[data-cta]').forEach((el) => {
+    el.addEventListener('click', () => {
+      track('CTA Click', { name: el.getAttribute('data-cta') ?? 'unnamed' });
+    });
+  });
+
+  document.querySelectorAll<HTMLFormElement>('form').forEach((form) => {
+    form.addEventListener('submit', () => {
+      const formId =
+        form.id ||
+        form.getAttribute('name') ||
+        form.getAttribute('action') ||
+        'unknown';
+      track('Form Submit', { form: formId });
+    });
+  });
+
+  // Scroll depth — once per page-view at 25/50/75/100%
+  const fired = new Set<number>();
+  const milestones = [25, 50, 75, 100];
+  let ticking = false;
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const docH = document.documentElement.scrollHeight - window.innerHeight;
+      if (docH <= 0) {
+        ticking = false;
+        return;
+      }
+      const pct = Math.round((window.scrollY / docH) * 100);
+      for (const m of milestones) {
+        if (pct >= m && !fired.has(m)) {
+          fired.add(m);
+          track('Scroll Depth', { depth: m });
+        }
+      }
+      ticking = false;
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
+</script>

@@ -1,0 +1,96 @@
+---
+/**
+ * @cw/core Template — Dynamic Leistungen Page
+ *
+ * Copy this file to: src/pages/leistungen/[slug].astro
+ * Then customize the imports and data source.
+ *
+ * Renders a full service detail page from LeistungDetail data:
+ * - PageHero with optional background image
+ * - Content section (intro, checklist, process steps)
+ * - FAQ section (from page-specific FAQs)
+ * - CTA box
+ * - Schema.org Service JSON-LD (via schema prop)
+ *
+ * Requirements:
+ * - LeistungDetail[] data in src/data/ (see leistung-detail.ts type)
+ * - FAQ data per service ({ q, a }[] format)
+ * - page-config.ts with schemaConfig export
+ */
+import type { GetStaticPaths } from 'astro';
+import LandingPage from '@cw/core/layouts/LandingPage.astro';
+import PageHero from '@cw/core/components/blocks/PageHero.astro';
+import FAQ from '@cw/core/components/blocks/FAQ.astro';
+import { landingBaseProps, schemaConfig } from '@/data/page-config';
+import { siteData } from '@/data/site-data';
+// TODO: import your LeistungDetail data
+// import { leistungen } from '@/data/leistungen';
+// TODO: import your FAQ data
+// import { faqsBySlug } from '@/data/faqs';
+
+export const getStaticPaths: GetStaticPaths = () => {
+  // TODO: replace with your data source
+  return siteData.services.map((s) => ({
+    params: { slug: s.id },
+    props: { service: s },
+  }));
+};
+
+const { slug } = Astro.params;
+const { service } = Astro.props;
+
+// TODO: look up full LeistungDetail for richer content
+// const detail = leistungen.find(l => l.slug === slug);
+// const faqs = faqsBySlug[slug] || [];
+
+const serviceForSchema = siteData.services.find(s => s.id === slug);
+---
+<LandingPage
+  {...landingBaseProps}
+  title={service.label}
+  description={service.shortDesc}
+  ogImage={`/og/${slug}.webp`}
+  schema={{...schemaConfig, service: serviceForSchema} as any}
+>
+  <PageHero
+    heading={service.label}
+    subtext={service.shortDesc}
+    backgroundImage={`/images/hero/${slug}.webp`}
+  />
+
+  <section class="content">
+    <div class="container">
+      <!-- TODO: render detail.fullContent here -->
+      <p>{service.shortDesc}</p>
+
+      <div class="cta-box">
+        <h3>Jetzt anfragen</h3>
+        <p>Kontaktieren Sie uns für ein unverbindliches Erstgespräch.</p>
+        <a href="/kontakt" class="btn-primary">Kontakt aufnehmen</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TODO: uncomment when FAQ data is available -->
+  <!-- <FAQ items={faqs} /> -->
+</LandingPage>
+
+<style>
+  .container { max-width: var(--container-max); margin: 0 auto; padding: 0 1.5rem; }
+  .content { padding: var(--section-padding) 0; }
+  .content h2 { color: var(--color-primary); font-size: 1.5rem; margin: 2.5rem 0 1rem; }
+  .content ul { padding-left: 1.25rem; }
+  .content li { margin-bottom: 0.5rem; line-height: 1.6; }
+  .cta-box {
+    margin: 3rem 0 0; padding: 2.5rem; background: var(--color-surface);
+    border-radius: 0.75rem; text-align: center; border: 1px solid #e5e7eb;
+  }
+  .cta-box h3 { color: var(--color-primary); margin: 0 0 0.5rem; }
+  .cta-box p { color: var(--color-muted); margin: 0 0 1.5rem; }
+  .btn-primary {
+    display: inline-block; background: var(--color-accent); color: #fff;
+    padding: 0.75rem 2rem; border-radius: 0.375rem; font-weight: 600;
+    text-decoration: none; transition: background 0.2s;
+  }
+  .btn-primary:hover { background: var(--color-accent-hover); }
+</style>

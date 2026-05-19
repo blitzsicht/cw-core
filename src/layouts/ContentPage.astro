@@ -1,0 +1,184 @@
+---
+/**
+ * @cw/core – ContentPage.astro
+ *
+ * Legal/content page wrapper: BaseLayout + Header + styled `<h1>` +
+ * slot + Footer. Prop-driven: forwards all SEO/site/header/footer/schema
+ * props to the underlying components.
+ *
+ * @example
+ *   <ContentPage
+ *     title="Impressum"
+ *     siteName={siteData.name}
+ *     siteUrl={siteData.url}
+ *     defaultTitle={siteData.seo.defaultTitle}
+ *     defaultDescription={siteData.seo.defaultDescription}
+ *     defaultOgImage={siteData.seo.ogImage}
+ *     header={{ navItems: siteData.nav.main }}
+ *     footer={{ siteName: siteData.name }}
+ *   >
+ *     <p>...</p>
+ *   </ContentPage>
+ */
+import BaseLayout, { type SchemaProps } from './BaseLayout.astro';
+import Header, { type NavItem } from '../components/layout/Header.astro';
+import Footer, { type FooterLink } from '../components/layout/Footer.astro';
+import TurnstilePreClearance from '../components/forms/TurnstilePreClearance.astro';
+
+export interface HeaderConfig {
+  logoSrc?: string;
+  logoSrcDark?: string;
+  logoWidth?: number;
+  logoHeight?: number;
+  navItems?: readonly NavItem[];
+  showKarriereLink?: boolean;
+  karriereLabel?: string;
+  karriereHref?: string;
+}
+
+export interface FooterConfig {
+  siteName: string;
+  tagline?: string;
+  description?: string;
+  email?: string;
+  phone?: string;
+  logoSrc?: string;
+  logoSrcDark?: string;
+  logoWidth?: number;
+  logoHeight?: number;
+  owner?: string;
+  legalForm?: string;
+  city?: string;
+  leistungenHeading?: string;
+  leistungenLinks?: readonly FooterLink[];
+  rechtlichesHeading?: string;
+  rechtlichesLinks?: readonly FooterLink[];
+  extraHeading?: string;
+  extraLinks?: readonly FooterLink[];
+  extraHeading2?: string;
+  extraLinks2?: readonly FooterLink[];
+  showKarriereLink?: boolean;
+  karriereLabel?: string;
+  karriereHref?: string;
+}
+
+interface Props {
+  /** Page title (rendered as `<h1>` and used in `<title>`). */
+  title: string;
+  description?: string;
+  ogImage?: string;
+  canonicalUrl?: string;
+  robots?: string;
+  siteName: string;
+  siteUrl: string;
+  defaultTitle: string;
+  defaultDescription: string;
+  titleTemplate?: string;
+  defaultOgImage: string;
+  plausibleScript?: string;
+  plausibleEndpoint?: string;
+  schema?: SchemaProps;
+  header?: HeaderConfig;
+  footer: FooterConfig;
+  /** See LandingPage.turnstileSiteKey — site-wide Pre-Clearance widget. */
+  turnstileSiteKey?: string;
+}
+
+const {
+  title,
+  description,
+  ogImage,
+  canonicalUrl,
+  robots,
+  siteName,
+  siteUrl,
+  defaultTitle,
+  defaultDescription,
+  titleTemplate,
+  defaultOgImage,
+  plausibleScript,
+  plausibleEndpoint,
+  schema,
+  header = {},
+  footer,
+  turnstileSiteKey,
+} = Astro.props;
+---
+<BaseLayout
+  title={title}
+  description={description}
+  ogImage={ogImage}
+  canonicalUrl={canonicalUrl}
+  robots={robots}
+  siteName={siteName}
+  siteUrl={siteUrl}
+  defaultTitle={defaultTitle}
+  defaultDescription={defaultDescription}
+  titleTemplate={titleTemplate}
+  defaultOgImage={defaultOgImage}
+  plausibleScript={plausibleScript}
+  plausibleEndpoint={plausibleEndpoint}
+  schema={schema}
+>
+  <TurnstilePreClearance sitekey={turnstileSiteKey} />
+  <Header
+    siteName={siteName}
+    logoSrc={header.logoSrc}
+    logoSrcDark={header.logoSrcDark}
+    logoWidth={header.logoWidth}
+    logoHeight={header.logoHeight}
+    navItems={header.navItems}
+    showKarriereLink={header.showKarriereLink}
+    karriereLabel={header.karriereLabel}
+    karriereHref={header.karriereHref}
+  />
+  <main class="content-page">
+    <div class="container">
+      <h1>{title}</h1>
+      <slot />
+    </div>
+  </main>
+  <Footer
+    siteName={footer.siteName}
+    tagline={footer.tagline}
+    description={footer.description}
+    email={footer.email}
+    phone={footer.phone}
+    logoSrc={footer.logoSrc}
+    logoSrcDark={footer.logoSrcDark}
+    logoWidth={footer.logoWidth}
+    logoHeight={footer.logoHeight}
+    owner={footer.owner}
+    legalForm={footer.legalForm}
+    city={footer.city}
+    leistungenHeading={footer.leistungenHeading}
+    leistungenLinks={footer.leistungenLinks}
+    rechtlichesHeading={footer.rechtlichesHeading}
+    rechtlichesLinks={footer.rechtlichesLinks}
+    extraHeading={footer.extraHeading}
+    extraLinks={footer.extraLinks}
+    extraHeading2={footer.extraHeading2}
+    extraLinks2={footer.extraLinks2}
+    showKarriereLink={footer.showKarriereLink}
+    karriereLabel={footer.karriereLabel}
+    karriereHref={footer.karriereHref}
+  />
+</BaseLayout>
+
+<style>
+  .content-page {
+    padding: 4rem 0 6rem;
+  }
+  .content-page h1 {
+    font-size: clamp(1.75rem, 3vw, 2.5rem);
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--color-surface);
+  }
+  .content-page :global(h2) { font-size: 1.375rem; margin: 2rem 0 0.75rem; }
+  .content-page :global(h3) { font-size: 1.125rem; margin: 1.5rem 0 0.5rem; }
+  .content-page :global(p) { margin-bottom: 1rem; line-height: 1.75; }
+  .content-page :global(a) { color: var(--color-accent-text); }
+  .content-page :global(ul), .content-page :global(ol) { padding-left: 1.5rem; margin-bottom: 1rem; }
+  .content-page :global(li) { margin-bottom: 0.375rem; }
+</style>

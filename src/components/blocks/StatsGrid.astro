@@ -1,0 +1,70 @@
+---
+/**
+ * StatsGrid — key figures displayed as a horizontal grid.
+ *
+ * Used on "Über uns" or similar pages to showcase numbers like
+ * "25+ Jahre Erfahrung", "200+ Projekte", etc.
+ *
+ * @example
+ *   <StatsGrid items={[
+ *     { value: '25+', label: 'Jahre Erfahrung' },
+ *     { value: '200+', label: 'Projekte' },
+ *     { value: '15', label: 'Partnerbetriebe' },
+ *   ]} />
+ */
+export interface StatItem {
+  /** Large displayed value (e.g. "25+", "200+", "15"). */
+  value: string;
+  /** Label below the value. */
+  label: string;
+}
+
+interface Props {
+  items?: readonly StatItem[];
+}
+
+const { items = [] } = Astro.props;
+---
+{items.length > 0 && (
+<section class="stats-section">
+  <div class="container">
+    <div class="stats-grid">
+      {items.map((s) => (
+        <div class="stat-card">
+          <div class="stat-value">{s.value}</div>
+          <div class="stat-label">{s.label}</div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+)}
+
+<style>
+  .stats-section {
+    padding: 3rem 0;
+    background: var(--color-surface);
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.5rem;
+  }
+  .stat-card {
+    text-align: center;
+    padding: 1.5rem;
+  }
+  .stat-value {
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    font-weight: 800;
+    color: var(--color-primary);
+    line-height: 1;
+  }
+  .stat-label {
+    margin-top: 0.5rem;
+    color: var(--color-muted, #6b7280);
+    font-size: 0.9375rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+</style>

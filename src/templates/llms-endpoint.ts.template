@@ -1,0 +1,51 @@
+// SSOT-getriebener llms.txt-Endpoint — Astro generiert public/llms.txt zur Build-Time
+// aus src/data/site-data.ts. Damit bleibt llms.txt immer synchron mit dem Site-Manifest.
+//
+// Anwendung:
+//   1. Diese Datei nach src/pages/llms.txt.ts in jedem Customer-Repo kopieren
+//   2. Falls Customer-spezifische Inhalte erweitert werden sollen: Endpoint anpassen
+//      ODER static public/llms.txt nutzen (überschreibt diesen Endpoint per Astro-Konvention)
+//   3. Keine zusätzliche pnpm-Skript-Pflege, kein Generator zur Pre-Build-Zeit
+//
+// Convention: Endpoint setzt Standard-Felder aus siteData. Customer-spezifische
+// Sections (z.B. "Warum kein Cookie-Banner?" bei blitzsicht) gehen über den
+// public/llms.txt Override.
+
+import type { APIRoute } from 'astro';
+import { siteData } from '@/data/site-data';
+
+export const GET: APIRoute = () => {
+  const s = siteData as any;
+  const services = (s.leistungen ?? []) as Array<{ title: string; description: string }>;
+  const addressParts = [
+    s.legal?.street,
+    [s.legal?.zip, s.legal?.city].filter(Boolean).join(' '),
+    s.legal?.country === 'IT' ? 'Italien' : s.legal?.country === 'AT' ? 'Österreich' : 'Deutschland',
+  ].filter(Boolean).join(', ');
+
+  const md = [
+    `# ${s.name}`,
+    '',
+    `> ${s.description ?? s.tagline ?? ''}`,
+    '',
+    `## Was macht ${s.shortName ?? s.name}?`,
+    '',
+    s.description ?? s.tagline ?? '',
+    '',
+    services.length > 0 ? '## Leistungen' : '',
+    services.length > 0 ? '' : '',
+    ...services.map(l => `- **${l.title}**: ${l.description}`),
+    services.length > 0 ? '' : '',
+    '## Kontakt',
+    '',
+    `- Website: ${s.url}`,
+    s.contact?.email ? `- E-Mail: ${s.contact.email}` : '',
+    s.contact?.phone ? `- Telefon: ${s.contact.phone}` : '',
+    addressParts ? `- Standort: ${addressParts}` : '',
+    '',
+  ].filter(line => line !== null).join('\n');
+
+  return new Response(md, {
+    headers: { 'content-type': 'text/plain; charset=utf-8' },
+  });
+};

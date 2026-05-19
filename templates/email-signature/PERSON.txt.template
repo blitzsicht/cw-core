@@ -1,0 +1,12 @@
+{{NAME}}
+{{POSITION}}
+{{COMPANY_NAME}}
+
+Tel:    {{PHONE}}
+E-Mail: {{EMAIL}}
+Web:    {{WEBSITE_FULL}}
+
+{{COMPLIANCE_BLOCK}}
+
+--
+Hinweis: Diese E-Mail und etwaige Anhänge sind ausschließlich für den bezeichneten Empfänger bestimmt.

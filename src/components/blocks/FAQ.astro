@@ -1,0 +1,131 @@
+---
+/**
+ * @cw/core – FAQ.astro
+ *
+ * Accordion FAQ list. Prop-driven: no `@/data/site-data` import.
+ *
+ * Schema: emits a FAQPage JSON-LD block when `items` is non-empty. SchemaOrg.astro
+ * intentionally does NOT emit FAQPage anymore (that prop was removed in v0.9.0
+ * to avoid duplicate schemas). FAQ.astro is the single source of truth.
+ * Do NOT pass `faqs` to <SchemaOrg> — the prop no longer exists.
+ *
+ * @example
+ *   <FAQ items={siteData.faqs} />
+ */
+export interface FAQItem {
+  /** Question text. */
+  q: string;
+  /** Answer text (plain string). */
+  a: string;
+}
+
+interface Props {
+  /** FAQ entries. Section is omitted entirely if empty. */
+  items?: readonly FAQItem[];
+  /** Optional override for the section heading. */
+  heading?: string;
+  /** Optional override for the section subheading. */
+  subheading?: string;
+}
+
+const {
+  items = [],
+  heading = 'Häufige Fragen',
+  subheading = 'Alles Wichtige auf einen Blick.',
+} = Astro.props;
+
+const faqSchema = items.length > 0
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: items.map((item) => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.a,
+        },
+      })),
+    }
+  : null;
+---
+{faqSchema && (
+<script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+)}
+{items.length > 0 && (
+<section class="faq-section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-heading">{heading}</h2>
+      <p class="section-subheading">{subheading}</p>
+    </div>
+
+    <div class="faq-list">
+      {items.map((item) => (
+        <details class="faq-item" name="faq">
+          <summary>
+            <span>{item.q}</span>
+            <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </summary>
+          <div class="faq-answer">{item.a}</div>
+        </details>
+      ))}
+    </div>
+  </div>
+</section>
+)}
+
+<script>
+  import { track } from '../../utils/analytics/track';
+  document.querySelectorAll<HTMLDetailsElement>('.faq-item').forEach((details) => {
+    details.addEventListener('toggle', () => {
+      if (details.open) {
+        const q = details.querySelector('summary span')?.textContent?.slice(0, 60) ?? '';
+        track('FAQ Open', { question: q });
+      }
+    });
+  });
+</script>
+
+<style>
+  .faq-section { padding: 5rem 0; background: white; }
+  .section-header { text-align: center; margin-bottom: 3rem; }
+  .faq-list {
+    max-width: 48rem;
+    margin-inline: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .faq-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 0.625rem;
+    overflow: hidden;
+  }
+  .faq-item[open] { border-color: var(--color-accent); }
+  summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.125rem 1.25rem;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    list-style: none;
+    user-select: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { background: var(--color-surface); }
+  summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .faq-icon { flex-shrink: 0; transition: transform 0.2s; color: var(--color-muted); }
+  .faq-item[open] .faq-icon { transform: rotate(180deg); color: var(--color-accent); }
+  .faq-answer {
+    padding: 0 1.25rem 1.25rem;
+    font-size: 0.9375rem;
+    color: var(--color-muted);
+    line-height: 1.7;
+  }
+</style>

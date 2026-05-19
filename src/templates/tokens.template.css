@@ -1,0 +1,66 @@
+/*
+ * tokens.css – Kunden-spezifische Design-Tokens
+ *
+ * 1. Farben aus Kunden-Logo ableiten (SVG in Figma öffnen, Farben extrahieren)
+ * 2. --color-accent-text MUSS WCAG AA erfüllen: mindestens 4.5:1 Kontrast auf Weiß
+ *    → Tester: https://webaim.org/resources/contrastchecker/
+ * 3. Keine Google Fonts! Nur System-UI Stack (DSGVO).
+ */
+
+/* Self-hosted fonts via fontsource (DSGVO-konform, kein Google Fonts CDN) */
+/* @import "@fontsource-variable/plus-jakarta-sans"; */
+/* @import "@fontsource-variable/inter"; */
+
+@import "tailwindcss";
+@import "@cw/core/styles/tokens-base.css";
+
+/*
+ * font-display: optional — verhindert Layout Shift (CLS) durch Font-Swap nach
+ * erstem Paint. Ohne diesen Override rendert der Browser mit Fallback-Font und
+ * tauscht nach Font-Load aus → CLS ~0.14. Mit "optional" wird der Custom Font
+ * nur beim ersten Frame verwendet wenn er bereits gecacht ist, kein Swap danach.
+ * Betrifft alle @font-face Rules die durch die @fontsource Imports oben kommen.
+ */
+@font-face { font-family: "Plus Jakarta Sans Variable"; font-display: optional; src: local(""); }
+@font-face { font-family: "Inter Variable"; font-display: optional; src: local(""); }
+
+@theme {
+  /* Hauptfarbe (dunkel) – für Header, Footer, Überschriften */
+  --color-primary: #TODO;
+
+  /* Etwas heller als primary – für Dropdown-Hintergründe */
+  --color-primary-light: #TODO;
+
+  /* Dunkler als primary – für PageHero-Gradient (optional, auto-berechnet wenn nicht gesetzt) */
+  /* --color-primary-dark: #TODO; */
+
+  /* Akzentfarbe – für Buttons, Highlights, Links */
+  --color-accent: #TODO;
+
+  /* Hover-State der Akzentfarbe (ca. 10% dunkler als accent) */
+  --color-accent-hover: #TODO;
+
+  /* Text-Variante der Akzentfarbe – MUSS WCAG AA 4.5:1 auf Weiß bestehen! */
+  /* Immer mit https://webaim.org/resources/contrastchecker/ prüfen! */
+  --color-accent-text: #TODO;
+
+  /* Textfarbe auf Accent-Buttons – Standard: white.
+   * MUSS WCAG AA 3:1 Kontrast auf --color-accent bestehen (Large Text / Buttons).
+   * Bei hellen Akzentfarben (z.B. Orange #EF7612) ggf. auf #111 (dunkel) setzen.
+   * Prüfen: https://webaim.org/resources/contrastchecker/ */
+  /* --color-accent-btn-text: white; */
+
+  /* Hintergrundfarbe für Karten und Sections (meist sehr helles Grau) */
+  --color-surface: #f8f9fa;
+
+  /* Gedämpfte Textfarbe (für Untertexte, Labels) */
+  --color-muted: #6b7280;
+
+  /* System-UI Font Stack – KEINE Google Fonts (DSGVO) */
+  --font-sans: system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+}
+
+:root {
+  --section-padding: 5rem;
+  --container-max: 72rem;
+}

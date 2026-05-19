@@ -1,0 +1,175 @@
+---
+/**
+ * @cw/core – AuthorBox.astro
+ *
+ * Kompakte Autor-Karte für Blogposts oder Artikel-Seiten.
+ *
+ * Erfüllt zwei Aufgaben:
+ *   1. Visuelles Author-Branding am Ende eines Artikels
+ *   2. SEO-Backlink von Content-Page auf die kanonische Author-Entity
+ *      (`/team/<slug>`) — Pflicht, damit jeder neue Blogpost Author-Authority
+ *      auf die Person-Page hochzählt.
+ *
+ * Erwartet, dass die Author-Page unter `profileUrl` existiert und ihr eigenes
+ * Person-Schema mit `@id={profileUrl}#person` ausspielt. Im Article-Schema des
+ * Blogposts sollte dann `author: { @id: \`${profileUrl}#person\` }` referenziert
+ * werden.
+ *
+ * @example
+ *   <AuthorBox
+ *     name="Johannes-Maximilian Gottl"
+ *     role="Gründer & Webentwickler"
+ *     image="/images/team/johannes.webp"
+ *     profileUrl="/team/johannes-gottl"
+ *     bio="7 Jahre Banking-Software-Frontend bei knowis AG. Mitglied der Mensa in Deutschland e.V."
+ *   />
+ */
+export interface Props {
+  /** Vollständiger Name. */
+  name: string;
+  /** Rolle / Job-Titel. */
+  role: string;
+  /** Pfad zum Profilfoto (WebP empfohlen). */
+  image: string;
+  /** Kanonische URL der Author-Page (`/team/<slug>`). */
+  profileUrl: string;
+  /** Kurzer Bio-Snippet (1–2 Sätze). */
+  bio: string;
+  /** Eyebrow-Label. Defaults to "Über den Autor". */
+  eyebrow?: string;
+  /** Label des CTA-Links. Defaults to "Vollständiges Profil". */
+  ctaLabel?: string;
+}
+
+const {
+  name,
+  role,
+  image,
+  profileUrl,
+  bio,
+  eyebrow = 'Über den Autor',
+  ctaLabel = 'Vollständiges Profil',
+} = Astro.props;
+---
+<aside class="author-box" aria-labelledby="author-box-name">
+  <a class="author-box-photo-wrap" href={profileUrl} aria-label={`Profil von ${name}`}>
+    <img
+      src={image}
+      alt={`Portrait von ${name}`}
+      width="120"
+      height="150"
+      loading="lazy"
+      class="author-box-photo"
+    />
+  </a>
+  <div class="author-box-meta">
+    <p class="author-box-eyebrow">{eyebrow}</p>
+    <h3 id="author-box-name" class="author-box-name">
+      <a href={profileUrl}>{name}</a>
+    </h3>
+    <p class="author-box-role">{role}</p>
+    <p class="author-box-bio">{bio}</p>
+    <a class="author-box-cta" href={profileUrl}>
+      {ctaLabel}
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M5 10h10M11 6l4 4-4 4" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    </a>
+  </div>
+</aside>
+
+<style>
+  .author-box {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: 1.25rem;
+    padding: 1.5rem;
+    margin: 3rem 0;
+    background: var(--color-surface, #f8f9fc);
+    border: 1px solid #e5e7eb;
+    border-radius: 0.875rem;
+  }
+  .author-box-photo-wrap {
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: 0.625rem;
+    background: #1d1e3b;
+    display: block;
+  }
+  .author-box-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .author-box-meta {
+    display: flex;
+    flex-direction: column;
+  }
+  .author-box-eyebrow {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    color: var(--color-muted, #6b7280);
+    font-weight: 600;
+    margin: 0 0 0.375rem;
+  }
+  .author-box-name {
+    font-size: 1.0625rem;
+    margin: 0 0 0.125rem;
+    line-height: 1.3;
+  }
+  .author-box-name a {
+    color: inherit;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 200ms;
+  }
+  .author-box-name a:hover { border-color: currentColor; }
+  .author-box-role {
+    font-size: 0.875rem;
+    color: var(--color-muted, #6b7280);
+    margin: 0 0 0.625rem;
+    font-weight: 500;
+  }
+  .author-box-bio {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: var(--color-text, #1f2937);
+    margin: 0 0 0.875rem;
+  }
+  .author-box-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--color-accent-text, #B85A0D);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    margin-top: auto;
+  }
+  .author-box-cta:hover { text-decoration: underline; }
+  .author-box-cta:focus-visible {
+    outline: 2px solid var(--color-accent, #ef7612);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  .author-box-cta svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 200ms;
+  }
+  .author-box-cta:hover svg { transform: translateX(3px); }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 480px) {
+    .author-box {
+      grid-template-columns: 80px 1fr;
+      gap: 0.875rem;
+      padding: 1rem;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .author-box-cta svg, .author-box-name a { transition: none; }
+  }
+</style>

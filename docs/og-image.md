@@ -3,15 +3,17 @@
 `@cw/core` implementiert eine 5-stufige Fallback-Chain für Open Graph Images (`og:image`).
 So wird auf jeder Seite immer ein visuell ansprechendes Bild ausgeliefert — ohne manuelle Pflege pro Seite.
 
-## Fallback-Chain (Priorität hoch → niedrig)
+> **Verfuegbarkeit:** Verfuegbar auf `release/cw-core` (portiert von PR #12 via Issue #27) und `main`.
+
+## Fallback-Chain (Prioritaet hoch → niedrig)
 
 | Level | Quelle | Wann aktiv |
 |-------|--------|------------|
 | 1 | `ogImage` Prop (explizit) | Seite hat ein spezifisches OG-Image |
-| 2 | `hero.image` (automatisch via LandingPage) | Seite hat ein Hero-Bild |
+| 2 | `heroImage` Prop (LandingPage) | Seite hat ein Hero-Bild (z.B. `siteData.hero.image`) |
 | 3 | `contentImage` Prop | Erstes Bild im Seiteninhalt |
 | 4 | `/og/default.png` (generiert) | Standard-OG mit Logo+CTA-Overlay |
-| 5 | `siteData.images.ogImage` | Kunden-spezifisches Fallback |
+| 5 | `defaultOgImage` Prop | Kunden-spezifisches Fallback |
 
 Level 4 und 5 enthalten **Logo + CTA-Text als Overlay** (generiert via `generate-og.mjs`).
 
@@ -22,7 +24,7 @@ Das generierte OG-Image (Level 4) wird einmalig beim Kunden-Onboarding erstellt:
 ```bash
 # Im Kunden-Projekt:
 pnpm generate:og \
-  --name "Elektro Müller" \
+  --name "Elektro Mueller" \
   --tagline "Ihr Elektriker in Regensburg." \
   --cta "Jetzt kostenlos anfragen" \
   --domain "elektro-mueller.de" \
@@ -39,52 +41,56 @@ pnpm add -D sharp
 
 ## Verwendung in Seiten
 
-### LandingPage (automatisch)
-
-`LandingPage` ermittelt `hero.image` automatisch als Level-2-Fallback.
-Kein zusätzlicher Aufwand nötig:
+### LandingPage — Hero-Bild automatisch als Fallback (Level 2)
 
 ```astro
 ---
 import LandingPage from '@cw/core/layouts/LandingPage.astro';
+import { siteData } from '@/data/site-data';
 ---
-<LandingPage title="Startseite">
-  <!-- hero.image aus siteData wird automatisch als headerImage verwendet -->
-  <slot />
+<LandingPage
+  title="Startseite"
+  siteName={siteData.name}
+  siteUrl={siteData.url}
+  defaultTitle={siteData.seo.defaultTitle}
+  defaultDescription={siteData.seo.defaultDescription}
+  defaultOgImage={siteData.images.ogImage}
+  heroImage={siteData.hero.image}
+  footer={{ siteName: siteData.name }}
+>
+  <!-- heroImage wird automatisch als Level-2-Fallback verwendet -->
 </LandingPage>
 ```
 
 ### Explizites OG-Image (Level 1)
 
 ```astro
----
-import LandingPage from '@cw/core/layouts/LandingPage.astro';
----
-<LandingPage title="Leistungen" ogImage="/og/leistungen.png">
-  <slot />
-</LandingPage>
+<LandingPage
+  title="Leistungen"
+  ogImage="/og/leistungen.png"
+  ...
+>
 ```
 
 ### Ersten Content-Bild als Fallback (Level 3)
 
 ```astro
----
-import LandingPage from '@cw/core/layouts/LandingPage.astro';
----
 <LandingPage
-  title="Über uns"
+  title="Ueber uns"
   contentImage="/images/team/team.webp"
+  ...
 >
-  <slot />
-</LandingPage>
 ```
 
-### Level 4 überspringen (direkt zu siteData.images.ogImage)
+### Level 4 ueberspringen (direkt zu defaultOgImage)
 
 ```astro
-<LandingPage title="Kontakt" :generatedOgImage={null}>
-  <!-- Springt direkt zu Level 5 (siteData.images.ogImage) -->
-</LandingPage>
+<LandingPage
+  title="Kontakt"
+  generatedOgImage={null}
+  ...
+>
+<!-- Springt direkt zu Level 5 (defaultOgImage) -->
 ```
 
 ## Modi des Generators
@@ -108,7 +114,7 @@ node scripts/generate-og.mjs \
 
 ### Modus 2: Hero-Bild → OG-Crop
 
-Schneidet ein vorhandenes Hero-Bild auf 1200×630 zu und fügt optional Logo+CTA als Overlay hinzu.
+Schneidet ein vorhandenes Hero-Bild auf 1200x630 zu und fuegt optional Logo+CTA als Overlay hinzu.
 
 ```bash
 node scripts/generate-og.mjs \
@@ -129,7 +135,7 @@ node scripts/generate-og.mjs \
   --cta "Jetzt anfragen"
 ```
 
-## Konfiguration in siteData
+## Konfiguration in site-data.ts
 
 ```ts
 // src/data/site-data.ts
@@ -139,19 +145,11 @@ images: {
 ```
 
 `/og/default.png` (Level 4) ist eine feste Konvention und wird automatisch verwendet,
-wenn keine höhere Fallback-Ebene greift.
+wenn keine hoehere Fallback-Ebene greift.
 
 ## Validierung
 
-OG-Image in `<head>` prüfen:
-
-```bash
-# Mit open-graph-scraper (lokal):
-npx open-graph-scraper --url https://example.com
-
-# Oder: Meta-Inspector im Browser (DevTools → Elements → <head>)
-# Suche nach: og:image
-```
+OG-Image in `<head>` pruefen:
 
 Erwartete Ausgabe in `<head>`:
 ```html
@@ -162,7 +160,7 @@ Erwartete Ausgabe in `<head>`:
 
 ## Technische Details
 
-- **Format:** PNG (1200×630px) — optimal für alle Social-Media-Plattformen
+- **Format:** PNG (1200x630px) — optimal fuer alle Social-Media-Plattformen
 - **Overlay-Technik:** Sharp compositing — keine externe Rendering-API
 - **Build-Zeit:** Einmalig beim Kunden-Onboarding, nicht bei jedem Build
 - **Dependencies:** `sharp` (optionale devDependency im Kunden-Projekt)

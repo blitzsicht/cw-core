@@ -1,0 +1,451 @@
+---
+/**
+ * @cw/core – Hero.astro
+ *
+ * Reusable hero section with two layout variants:
+ *   • `image` prop set  → Split-Layout (Text 55%, Image 45%)
+ *   • `image` not set   → Gradient-Only (Text left-aligned, full-width)
+ *
+ * Prop-driven: no imports from customer data modules. The consuming page
+ * (or a higher-level page component) is responsible for passing site data
+ * from `@/data/site-data` (or equivalent) via props.
+ *
+ * @example
+ *   <Hero
+ *     badge="Fertig in 7 Tagen"
+ *     headline="Professionelle Website.<br/>Ohne Warteliste."
+ *     subtext="…"
+ *     ctaPrimary={{ label: 'Beratung anfragen', href: '/kontakt' }}
+ *     ctaSecondary={{ label: 'Audit', href: '/website-audit' }}
+ *     usps={siteData.usps}
+ *     siteName={siteData.name}
+ *   />
+ */
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import AnimatedBlob from '../motion/AnimatedBlob.astro';
+import TextReveal from '../motion/TextReveal.astro';
+import StaggerGroup from '../motion/StaggerGroup.astro';
+import ParallaxImage from '../motion/ParallaxImage.astro';
+import MagneticButton from '../motion/MagneticButton.astro';
+import TiltCard from '../motion/TiltCard.astro';
+
+export interface HeroCollageImage {
+  src: ImageMetadata;
+  alt?: string;
+}
+
+export interface HeroCTA {
+  label: string;
+  href: string;
+}
+
+export interface HeroUSP {
+  icon: string;
+  title: string;
+}
+
+export interface HeroMotionConfig {
+  /** Animated mesh-gradient blob background. */
+  blob?: boolean;
+  /** Character/word reveal on headline. */
+  textReveal?: boolean;
+  /** Stagger USP chips. */
+  stagger?: boolean;
+  /** Parallax on hero image. */
+  parallax?: boolean;
+  /** Magnetic pull on the PRIMARY CTA (secondary stays static by design). */
+  magnetic?: boolean;
+}
+
+interface Props {
+  /** Small badge above the headline. Defaults to "Fertig in 7 Tagen – garantiert". */
+  badge?: string;
+  /** Main headline. Supports HTML (e.g. `<br/>`) via set:html. */
+  headline: string;
+  /** Sub-copy under the headline. */
+  subtext?: string;
+  /**
+   * Optional hero image. If set, triggers split layout.
+   *
+   * MUST be an `ImageMetadata` (Astro-optimierter Import), NICHT ein String-Pfad —
+   * nur so greift Astros Bild-Pipeline (responsive `srcset`, Rekompression, moderne Formate).
+   *
+   * @example
+   *   import heroImage from '@/assets/images/hero.webp';
+   *   <Hero image={heroImage} ... />
+   */
+  image?: ImageMetadata;
+  /**
+   * Optional Hero-Collage (2–3 overlapping images). If set, takes precedence
+   * over `image` and triggers a third layout mode: three staggered, rotated
+   * photos with subtle TiltCard interactivity on hover (same motion as
+   * PaketeSection). On narrow viewports the collage stacks vertically.
+   *
+   * @example
+   *   import img1 from '@/assets/images/hero/a.webp';
+   *   <Hero images={[{ src: img1 }, { src: img2 }, { src: img3 }]} ... />
+   */
+  images?: readonly HeroCollageImage[];
+  /** Alt text for the hero image. Falls back to `siteName`. */
+  imageAlt?: string;
+  /** Site name used as image alt fallback. */
+  siteName?: string;
+  /** Primary CTA (accent button). */
+  ctaPrimary?: HeroCTA;
+  /** Optional secondary CTA (outline button). */
+  ctaSecondary?: HeroCTA;
+  /** Optional USP chips shown below the CTAs. */
+  usps?: readonly HeroUSP[];
+  /** Opt-in motion effects. Any omitted flags default to off (static hero). */
+  motion?: HeroMotionConfig | boolean;
+}
+
+const {
+  badge = 'Fertig in 7 Tagen – garantiert',
+  headline,
+  subtext,
+  image,
+  images,
+  imageAlt,
+  siteName,
+  ctaPrimary = { label: 'Kostenlose Beratung anfragen', href: '/kontakt' },
+  ctaSecondary,
+  usps = [],
+  motion,
+} = Astro.props;
+
+const hasImages = Array.isArray(images) && images.length >= 2;
+const hasImage = !hasImages && !!image;
+const hasMedia = hasImages || hasImage;
+const motionCfg: HeroMotionConfig =
+  motion === true
+    ? { blob: true, textReveal: true, stagger: true, parallax: true, magnetic: true }
+    : (motion || {});
+---
+<section class:list={['hero', hasMedia && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob']}>
+  {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <svg width="14" height="14" viewBox="0 0 512 512" aria-hidden="true">
+          <polygon points="296,80 176,288 248,288 216,432 336,224 264,224" fill="currentColor"/>
+        </svg>
+        {badge}
+      </div>
+
+      {motionCfg.textReveal ? (
+        <TextReveal as="h1" split="word" delay={0.05}>
+          <Fragment set:html={headline} />
+        </TextReveal>
+      ) : (
+        <h1 set:html={headline} />
+      )}
+
+      {subtext && <p class="hero-sub">{subtext}</p>}
+
+      <div class="hero-cta">
+        {motionCfg.magnetic ? (
+          <MagneticButton>
+            <a href={ctaPrimary.href} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              {ctaPrimary.label}
+            </a>
+          </MagneticButton>
+        ) : (
+          <a href={ctaPrimary.href} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+              <polyline points="22,6 12,13 2,6"/>
+            </svg>
+            {ctaPrimary.label}
+          </a>
+        )}
+        {ctaSecondary && (
+          <a href={ctaSecondary.href} class="btn-outline" data-cta={`hero-secondary:${ctaSecondary.label}`}>
+            {ctaSecondary.label}
+          </a>
+        )}
+      </div>
+
+      {usps.length > 0 && (
+        motionCfg.stagger ? (
+          <StaggerGroup class="hero-usps" direction="up" gap={0.08} delay={0.2}>
+            {usps.map((usp: HeroUSP) => (
+              <div class="hero-usp-item">
+                <span class="usp-icon" aria-hidden="true">{usp.icon}</span>
+                <span>{usp.title}</span>
+              </div>
+            ))}
+          </StaggerGroup>
+        ) : (
+          <div class="hero-usps">
+            {usps.map((usp: HeroUSP) => (
+              <div class="hero-usp-item">
+                <span class="usp-icon" aria-hidden="true">{usp.icon}</span>
+                <span>{usp.title}</span>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+
+    {hasImage && (
+      motionCfg.parallax ? (
+        <ParallaxImage class="hero-image-wrap" speed={0.2}>
+          <Image
+            src={image!}
+            alt={imageAlt ?? siteName ?? ''}
+            widths={[400, 600, 800]}
+            sizes="(max-width: 767px) 100vw, 45vw"
+            loading="eager"
+            fetchpriority="high"
+            format="webp"
+            class="hero-img"
+          />
+        </ParallaxImage>
+      ) : (
+        <div class="hero-image-wrap">
+          <Image
+            src={image!}
+            alt={imageAlt ?? siteName ?? ''}
+            widths={[400, 600, 800]}
+            sizes="(max-width: 767px) 100vw, 45vw"
+            loading="eager"
+            fetchpriority="high"
+            format="webp"
+            class="hero-img"
+          />
+        </div>
+      )
+    )}
+
+    {hasImages && (
+      <div class="hero-collage" aria-hidden="false">
+        {images!.slice(0, 3).map((img, idx) => (
+          <TiltCard class={`hero-collage-item hero-collage-item--${idx + 1}`} maxTilt={4} scale={1.02}>
+            <div class="hero-collage-frame">
+              <Image
+                src={img.src}
+                alt={img.alt ?? imageAlt ?? siteName ?? ''}
+                widths={[320, 480, 640]}
+                sizes="(max-width: 900px) 70vw, 28vw"
+                loading="eager"
+                fetchpriority={idx === 1 ? 'high' : 'auto'}
+                format="webp"
+                class="hero-collage-img"
+              />
+            </div>
+          </TiltCard>
+        ))}
+      </div>
+    )}
+  </div>
+</section>
+
+<script>
+  import { track } from '../../utils/analytics/track';
+  document.querySelectorAll<HTMLAnchorElement>('.hero-cta a').forEach((link) => {
+    link.addEventListener('click', () => {
+      track('Hero CTA Click', { label: link.textContent?.trim() ?? '' });
+    });
+  });
+</script>
+
+<style>
+  .hero {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #0f3460) 100%);
+    color: white;
+    padding: 5rem 0 4rem;
+  }
+  /* When AnimatedBlob is rendered as a child, the section must clip and
+     stack its own content above the absolute-positioned blob layer.
+     We drop the linear-gradient so the animated blobs become the
+     dominant background layer instead of fighting a static gradient. */
+  .hero--with-blob {
+    position: relative;
+    overflow: hidden;
+    background: var(--color-primary, #1D1E3B);
+  }
+  .hero--with-blob .container { position: relative; z-index: 1; }
+
+  /* Split-Layout (mit Bild) */
+  .hero--split .container {
+    display: grid;
+    grid-template-columns: 55fr 45fr;
+    gap: 3rem;
+    align-items: center;
+  }
+  .hero-image-wrap {
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  }
+  .hero-img {
+    display: block;
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+  }
+
+  /* Bento-Layout (mit `images`-Array, 3 Bilder) — ein großes Hauptbild + zwei
+     überlappende Inset-Cards. Ersetzt das Collage-Konzept aus v0.7.0-0.7.5,
+     das im 45%-Grid-Slot visuell nicht zündete (3 gleich große Bilder ohne
+     Hierarchie stecken zu eng zusammen).
+
+     Positions-Konzept:
+     - `--1` (Big Hero): Grund-Layer oben, volle Collage-Breite
+     - `--2` (Medium Inset): rechts-unten, 50%, überlappt --1
+     - `--3` (Small Inset): mitte-unten, 42%, überlappt --2 von links
+
+     Scoping-Patterns (gereift über 5 Versionen):
+     1. `.hero-collage :global(child)` — scoped Parent bindet die data-cid,
+        :global()-Child umgeht TiltCard's eigenen Scope. Verhindert auch das
+        @media-Stripping in Astros Compiler (v0.7.4-Fix).
+     2. `height: auto` auf Items überschreibt TiltCard's internes `.motion-tilt
+        { height: 100% }`, sodass Items Content-Höhe annehmen (v0.7.5-Fix). */
+  .hero--collage :global(.hero-image-wrap) { display: none; }
+  .hero--collage .container { overflow: visible; }
+  .hero-collage {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    overflow: visible;
+  }
+  .hero-collage :global(.hero-collage-item) {
+    position: absolute;
+    height: auto;
+  }
+  /* Symmetrisches Triangle-Bento: Hero oben zentriert, zwei gleich große
+     Inset-Cards unten gespiegelt (gleiche Breite, gleiche Höhe, gleicher
+     Kantenabstand). Vertikale Symmetrie-Achse durch die Container-Mitte. */
+  .hero-collage :global(.hero-collage-item--1) {
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 95%;
+  }
+  .hero-collage :global(.hero-collage-item--2) {
+    bottom: 0;
+    right: 0;
+    width: 45%;
+    z-index: 2;
+  }
+  .hero-collage :global(.hero-collage-item--3) {
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    z-index: 2;
+  }
+  .hero-collage :global(.hero-collage-frame) {
+    border-radius: 1rem;
+    overflow: hidden;
+    background: white;
+    border: 2px solid white;
+    box-shadow: 0 14px 36px rgba(0,0,0,0.32);
+  }
+  .hero-collage :global(.hero-collage-img) {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+
+  /* Gemeinsame Styles */
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.9);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 100px;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.02em;
+  }
+  h1 {
+    font-size: clamp(2.25rem, 5vw, 3.75rem);
+    color: white;
+    margin: 0 0 1.25rem;
+    max-width: 18ch;
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 1.5vw, 1.25rem);
+    color: rgba(255,255,255,0.8);
+    max-width: 52ch;
+    line-height: 1.7;
+    margin: 0 0 2.25rem;
+  }
+  .hero-cta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 3rem;
+  }
+  .hero-usps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255,255,255,0.15);
+  }
+  .hero-usp-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.8);
+  }
+  .usp-icon { font-size: 1.125rem; }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 900px) {
+    .hero--split .container {
+      grid-template-columns: 1fr;
+    }
+    .hero-image-wrap { order: -1; max-height: 280px; }
+    .hero-img { height: 280px; }
+
+    /* Collage auf schmalen Viewports: nur das erste Bild zeigen (User-Wunsch
+       2026-04-21). Scoped-Parent `.hero-collage` MUSS dran, damit Astros Compiler
+       die @media nicht strippt (siehe Hauptblock). */
+    .hero--collage .hero-collage {
+      position: static;
+      aspect-ratio: auto;
+      order: -1;
+    }
+    .hero-collage :global(.hero-collage-item--2),
+    .hero-collage :global(.hero-collage-item--3) {
+      display: none;
+    }
+    .hero-collage :global(.hero-collage-item--1) {
+      position: static;
+      width: 100%;
+      transform: none;
+    }
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 640px) {
+    .hero { padding: 3.5rem 0 3rem; }
+    .hero-cta { flex-direction: column; align-items: stretch; }
+    .hero-cta a { width: 100%; justify-content: center; }
+    /* Primary-CTA wird von MagneticButton in zwei inline-<span> gesteckt
+       (motion-magnetic > motion-magnetic-inner). Inline-Eltern fressen
+       das width:100% des inneren <a> auf, daher hier explizit auch die
+       Wrapper auf block + full-width zwingen. :global() weil die Spans
+       eine eigene astro-cid-Scope haben. */
+    .hero-cta :global(.motion-magnetic),
+    .hero-cta :global(.motion-magnetic-inner) {
+      display: block;
+      width: 100%;
+    }
+  }
+</style>
