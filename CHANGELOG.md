@@ -6,6 +6,49 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.4] — 2026-05-19 (release/cw-core — StickyContact in cw-core hochgehoben)
+
+### Added
+
+- `blocks/StickyContact.astro`: Schwebender WhatsApp + Telefon-Button (fixed, bottom-right).
+  Bisherige Duplikate in `customer-soleno`, `customer-hausamlago` und `customer-hausammincio`
+  werden mit der nächsten Customer-Migration auf diese zentrale Komponente umgestellt.
+  (Fixes siluri/blitzsicht-ops#183 Phase 1)
+
+  **Props (API-stabil zu den Customer-Kopien):**
+  - `whatsapp?: string` — WhatsApp-Nummer inkl. Ländervorwahl
+  - `phone?: string` — Telefonnummer inkl. Ländervorwahl
+  - `prefilledMessage?: string` — Vorbefüllte WA-Nachricht (Default: generisch, Customer überschreibt)
+
+  **Features:**
+  - Mobile-first 56px Buttons, 52px auf < 480px
+  - Dezenter Puls-Effekt am WA-Button (deaktiviert bei prefers-reduced-motion)
+  - Plausible-Events: `'Sticky Contact Click'` mit `{ props: { channel } }`
+  - WCAG: `role="complementary"`, `aria-label`, `focus-visible` outline
+  - CSS Custom Properties: `--color-primary` für Phone-Button-Farbe, `--color-accent` für Focus-Ring
+
+### Migration (Customer-Repos)
+
+Customer-Repos können ihre lokale `StickyContact.astro`-Kopie löschen und auf den cw-core-Import
+umstellen:
+
+```diff
+- import StickyContact from '../components/StickyContact.astro';
++ import StickyContact from '@cw/core/components/blocks/StickyContact.astro';
+```
+
+Die Props-API ist identisch — kein weiterer Anpassungsbedarf außer dem Import-Pfad.
+Die `prefilledMessage`-Prop sollte weiterhin als Customer-spezifischer Wert übergeben werden
+(z.B. "Hallo Soleno, ich interessiere mich für eine PV-Beratung."); der neue Default
+("Hallo, ich interessiere mich für Ihr Angebot.") greift nur wenn kein Prop übergeben wird.
+
+### Compatibility
+
+- Backwards-kompatibel: API-stabil zu allen 3 Customer-Kopien.
+- Keine Breaking Changes.
+
+---
+
 ## [0.10.3] — 2026-05-19 (release/cw-core — Footer WCAG 2.1 AA Kontrast-Fix)
 
 ### Fixed (Accessibility)
