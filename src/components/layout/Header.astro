@@ -42,6 +42,13 @@ interface Props {
   karriereLabel?: string;
   /** Karriere link href. Defaults to "/karriere". */
   karriereHref?: string;
+  /**
+   * When true, suppresses the `<span>{siteName}</span>` text next to the logo image.
+   * Use this when the logo SVG already contains the brand name as text (text-logo),
+   * to avoid "Brand Name Brand Name" double rendering in the header.
+   * Defaults to `false`.
+   */
+  hideBrandName?: boolean;
 }
 
 const {
@@ -54,13 +61,14 @@ const {
   showKarriereLink = false,
   karriereLabel = 'Karriere',
   karriereHref = '/karriere',
+  hideBrandName = false,
 } = Astro.props;
 ---
 <header id="site-header">
   <div class="container">
     <a href="/" class="logo" aria-label={`${siteName} – Startseite`}>
       <img src={logoSrcDark ?? logoSrc} alt="" loading="eager" width={logoWidth} height={logoHeight} />
-      <span>{siteName}</span>
+      {!hideBrandName && <span>{siteName}</span>}
     </a>
 
     <nav id="main-nav" aria-label="Hauptnavigation">

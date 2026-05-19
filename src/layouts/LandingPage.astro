@@ -53,6 +53,11 @@ export interface HeaderConfig {
   showKarriereLink?: boolean;
   karriereLabel?: string;
   karriereHref?: string;
+  /**
+   * When true, suppresses the brand-name `<span>` next to the logo.
+   * Use for text-logos that already contain the brand name as SVG text.
+   */
+  hideBrandName?: boolean;
 }
 
 export interface FooterConfig {
@@ -210,6 +215,7 @@ const {
     showKarriereLink={header.showKarriereLink}
     karriereLabel={header.karriereLabel}
     karriereHref={header.karriereHref}
+    hideBrandName={header.hideBrandName}
   />
   <main>
     <slot />
