@@ -1,0 +1,44 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import FAQHonest from '@cw/core/components/blocks/FAQHonest.astro';
+---
+<ExampleLayout
+  title="FAQHonest"
+  description="FAQ-Variante mit minAnswerChars-Check. Antworten unter Schwelle werden visuell gezeigt, aber NICHT ins Schema aufgenommen (Thin-Content-Prevention)."
+>
+  <div class="example-section">
+    <h2>Mit gemischten Answer-Längen (1 Item unter Schwelle)</h2>
+    <FAQHonest
+      heading="Ehrliche Antworten"
+      subheading="Häufige Fragen — substantiell beantwortet. Kürzere Antworten kommen nicht ins Schema."
+      minAnswerChars={150}
+      items={[
+        {
+          q: "Wie lange dauert die Reparatur?",
+          a: "Bei Standardfällen 2-4 Stunden vor Ort — Anfahrt, Diagnose, Behebung. Komplexe Fälle (alte Bleimuffen, schwere Verstopfungen) brauchen einen zweiten Termin nach Materialbestellung, in der Regel innerhalb 48h. Wir nennen die voraussichtliche Dauer nach dem ersten Vor-Ort-Termin."
+        },
+        {
+          q: "Kommt ihr auch sonntags?",
+          a: "Ja, Notdienst läuft 24/7."   // <150 chars → NICHT im Schema
+        },
+        {
+          q: "Was kostet der Notdienst?",
+          a: "Der Notdienst-Aufschlag beträgt 50-100% des Standard-Tarifs, abhängig von Tageszeit (Nacht/Wochenende). Wir nennen den exakten Preis am Telefon bevor wir losfahren — keine versteckten Kosten am Standort."
+        },
+      ]}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<FAQHonest
+  heading="..."
+  subheading="..."
+  minAnswerChars={150}    // Items unter Schwelle: visuell sichtbar, NICHT im Schema
+  items={[
+    { q: "...", a: "..." },
+    // ...
+  ]}
+/>`}</pre>
+  </div>
+</ExampleLayout>

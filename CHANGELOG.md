@@ -6,6 +6,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.11.0-rc.3] — 2026-05-19 (release/cw-core — Component-Showcase + quality-checks)
+
+### Added (Plan-Phase 1.6 — Component-Showcase via Examples-Pattern)
+
+- `examples/` — Mini-Astro-Project mit Demo-Page pro neuer Component.
+  - 9 Pages total (1 Übersicht + 8 Component-Demos)
+  - Lokaler Start: `pnpm examples:dev` (Port 4322)
+  - Build grün: 9 pages in 811ms
+- pnpm-Scripts in Root: `examples:dev` + `examples:build`
+
+**Hintergrund:** User-Plan-Antwort vom 19.05. war "Storybook 8". Aber Storybook + Astro 5 ist Mai 2026 noch nicht stabil — `@storybook/addon-astro` existiert nicht in npm registry, nur Community-Package `storybook-astro@0.2.1` (3 Versionen). Pragmatische Entscheidung: Examples-Pattern statt Storybook. Erfüllt den Zweck (interaktive Component-Demos für interne Doku + Customer-Calls) ohne experimentelles Ökosystem.
+
+### Verbleibend Plan-Phase 1
+
+(keine — Phase 1 komplett mit RC3. Promotion zu v0.11.0-final nach Smoke-Build auf ≥3 Customer-Sites.)
+
+---
+
 ## [0.11.0-rc.2] — 2026-05-19 (release/cw-core — Quality-Checks-Integration)
 
 ### Added (Plan-Phase 1.3 — Build-Time-Checks)

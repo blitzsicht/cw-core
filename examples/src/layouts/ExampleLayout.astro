@@ -1,0 +1,90 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+const { title, description } = Astro.props;
+---
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <title>{title} — cw-core Examples</title>
+  {description && <meta name="description" content={description} />}
+  <style is:global>
+    :root {
+      --color-primary: #1D1E3B;
+      --color-primary-dark: #15162e;
+      --color-accent: #EF7612;
+      --color-accent-dark: #d6610a;
+      --color-surface: #f8fafc;
+      --color-surface-emph: #fef3c7;
+      --color-border: #e2e8f0;
+      --color-text: #1e293b;
+      --color-text-muted: #475569;
+      --color-muted: #64748b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      color: var(--color-text);
+      background: #ffffff;
+      line-height: 1.55;
+    }
+    .example-shell {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    .example-back {
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      color: var(--color-muted);
+      font-size: 0.875rem;
+      text-decoration: none;
+    }
+    .example-back:hover { color: var(--color-primary); }
+    .example-title {
+      font-size: 2rem;
+      color: var(--color-primary);
+      margin: 0 0 0.5rem;
+    }
+    .example-meta {
+      color: var(--color-muted);
+      font-size: 0.9375rem;
+      margin: 0 0 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .example-section {
+      margin: 2.5rem 0;
+    }
+    .example-section h2 {
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--color-muted);
+      margin: 0 0 1rem;
+    }
+    .example-section pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 1rem 1.25rem;
+      border-radius: 6px;
+      font-size: 0.8125rem;
+      overflow-x: auto;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="example-shell">
+    <a href="/" class="example-back">← Übersicht</a>
+    <h1 class="example-title">{title}</h1>
+    {description && <p class="example-meta">{description}</p>}
+    <slot />
+  </main>
+</body>
+</html>

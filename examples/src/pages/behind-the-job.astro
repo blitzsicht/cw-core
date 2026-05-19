@@ -1,0 +1,42 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import BehindTheJob from '@cw/core/components/blocks/BehindTheJob.astro';
+---
+<ExampleLayout
+  title="BehindTheJob"
+  description="Erfahrungs-Block mit Learnings + ehrlichen Fehlern + Konsequenz. Article-Schema mit Author=Organization."
+>
+  <div class="example-section">
+    <h2>Beispiel mit Fehlern (höhere Authentizität)</h2>
+    <BehindTheJob
+      title="Warum wir bei Altbau-Sanierungen nie ohne Kamera-Inspektion arbeiten"
+      learnings={[
+        "Hauptleitungen in Häusern vor 1925 haben oft Blei-Muffen die unter Druck brechen.",
+        "Hochdruck-Spülung allein reicht nicht — der Druck verschiebt die Bruchstelle nur weiter.",
+        "Bei Altbauten muss der Service-Slot mindestens 4h enthalten — sonst kann Folgeauftrag nötig werden.",
+      ]}
+      mistakes={[
+        "Beim ersten Altbau-Auftrag haben wir ohne Inspektion gespült — Folge: zwei Wochen später Notruf, weil Wasser an neuer Stelle austrat.",
+      ]}
+      result="Heute machen wir bei Häusern vor 1925 immer eine 15-Minuten-Kamera-Inspektion (kostet 80€). Spart oft 800€ Folgeauftrag und Kundenzeit."
+      publishedDate="2025-11-15"
+      provider={{ name: "Mustermann Sanitär", url: "https://example.com" }}
+      logoUrl="https://example.com/logo.png"
+      pageUrl="https://example.com/wissen/blei-muffen-altbau"
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<BehindTheJob
+  title="..."
+  learnings={[...]}           // 3-7 konkrete Items
+  mistakes={[...]}            // optional aber empfohlen
+  result="..."
+  publishedDate="2025-11-15"
+  provider={{ name: "...", url: "https://..." }}
+  logoUrl="https://.../logo.png"
+  pageUrl="https://..."
+/>`}</pre>
+  </div>
+</ExampleLayout>

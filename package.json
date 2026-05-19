@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.11.0-rc.2",
+  "version": "0.11.0-rc.3",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -29,7 +29,9 @@
     "generate:og": "node scripts/generate-og.mjs",
     "lint:css": "stylelint 'src/**/*.{astro,css}'",
     "sig:regenerate": "bash templates/email-signature/regenerate-all.sh",
-    "sig:person": "bash templates/email-signature/onboard-person.sh"
+    "sig:person": "bash templates/email-signature/onboard-person.sh",
+    "examples:dev": "cd examples && pnpm dev",
+    "examples:build": "cd examples && pnpm build"
   },
   "peerDependencies": {
     "astro": ">=5.0.0",

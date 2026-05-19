@@ -1,0 +1,44 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import RecentlyUpdated from '@cw/core/components/blocks/RecentlyUpdated.astro';
+
+const today = new Date().toISOString().slice(0, 10);
+const fortyDaysAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const hundredFiftyDaysAgo = new Date(Date.now() - 150 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+---
+<ExampleLayout
+  title="RecentlyUpdated"
+  description="dateModified-Badge mit Stale-Warning (>90 Tage). Variants: badge (Pill) und banner."
+>
+  <div class="example-section">
+    <h2>Badge — Fresh (&lt;30 Tage)</h2>
+    <RecentlyUpdated date={today} />
+  </div>
+
+  <div class="example-section">
+    <h2>Badge — OK (30-90 Tage)</h2>
+    <RecentlyUpdated date={fortyDaysAgo} />
+  </div>
+
+  <div class="example-section">
+    <h2>Badge — Stale (&gt;90 Tage)</h2>
+    <RecentlyUpdated date={hundredFiftyDaysAgo} />
+  </div>
+
+  <div class="example-section">
+    <h2>Banner — Fresh</h2>
+    <RecentlyUpdated date={today} variant="banner" />
+  </div>
+
+  <div class="example-section">
+    <h2>Banner — Stale</h2>
+    <RecentlyUpdated date={hundredFiftyDaysAgo} variant="banner" />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<RecentlyUpdated date="2026-05-19" />
+<RecentlyUpdated date="2026-05-19" variant="banner" />
+<RecentlyUpdated date={frontmatter.dateModified} staleAfterDays={60} />`}</pre>
+  </div>
+</ExampleLayout>

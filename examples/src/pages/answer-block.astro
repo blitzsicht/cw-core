@@ -1,0 +1,46 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import AnswerBlock from '@cw/core/components/blocks/AnswerBlock.astro';
+---
+<ExampleLayout
+  title="AnswerBlock"
+  description="Lead-with-Answer-Block für Service-Pages. Schema: Question/Answer JSON-LD. Build-Warning bei directAnswer >80 Wörter."
+>
+  <div class="example-section">
+    <h2>Typisches Beispiel (Handwerker-Service)</h2>
+    <AnswerBlock
+      question="Was kostet eine Rohrreinigung in Regensburg?"
+      directAnswer="Eine Rohrreinigung kostet bei uns zwischen 180€ und 320€ — Festpreis nach Vor-Ort-Termin. Notdienst außerhalb Öffnungszeiten: 240–480€."
+      details="Der Preis hängt von Zugang zur Leitung, Art der Verstopfung und Zugangshöhe ab. Wir nennen den Festpreis nach 10-Minuten-Vor-Ort-Termin — keine versteckten Kosten."
+      priceRange="180€ – 320€"
+      timeline="2–4 Stunden vor Ort"
+      highlights={[
+        "Festpreis nach Vor-Ort-Termin",
+        "Notdienst 24/7 mit Aufschlag",
+        "Kameraschauinklusion bei Verdacht auf Defekt",
+      ]}
+      pageUrl="https://example.com/rohrreinigung-regensburg"
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Minimal-Variante (nur directAnswer)</h2>
+    <AnswerBlock
+      question="Welche Heizung passt zu meinem Altbau?"
+      directAnswer="Bei Altbauten vor 1925 empfehlen wir aktuell eine Wärmepumpe mit Pufferspeicher und alten Heizkörpern als Übergang — der Gas-Notnagel kostet langfristig mehr."
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<AnswerBlock
+  question="..."
+  directAnswer="..."           // max 50 Wörter empfohlen
+  details="..."                 // optional
+  priceRange="180€ – 320€"     // optional
+  timeline="2–4 Stunden"       // optional
+  highlights={[...]}            // max 5
+  pageUrl="https://..."         // für Schema.mainEntityOfPage
+/>`}</pre>
+  </div>
+</ExampleLayout>

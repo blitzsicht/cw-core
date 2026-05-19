@@ -1,0 +1,40 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import CTAPrimary from '@cw/core/components/blocks/CTAPrimary.astro';
+---
+<ExampleLayout
+  title="CTAPrimary"
+  description="Agent-Friendly Primary-CTA mit data-cta-type-Attribut. Build-Warning bei vagen Labels."
+>
+  <div class="example-section">
+    <h2>Phone-CTA (primary)</h2>
+    <CTAPrimary href="tel:+49891234567" label="Jetzt anrufen" ctaType="phone" />
+  </div>
+
+  <div class="example-section">
+    <h2>Quote-CTA (accent)</h2>
+    <CTAPrimary href="/kontakt" label="Angebot anfordern" ctaType="quote" variant="accent" />
+  </div>
+
+  <div class="example-section">
+    <h2>Booking-CTA (outline)</h2>
+    <CTAPrimary href="https://cal.com/example" label="Termin buchen" ctaType="booking" variant="outline" target="_blank" />
+  </div>
+
+  <div class="example-section">
+    <h2>WhatsApp-CTA (accent)</h2>
+    <CTAPrimary href="https://wa.me/491234567" label="WhatsApp schreiben" ctaType="whatsapp" variant="accent" target="_blank" />
+  </div>
+
+  <div class="example-section">
+    <h2>data-cta-type sichtbar machen</h2>
+    <p style="font-size:0.875rem;color:#64748b;">Inspiziere den HTML-Output: jeder Button hat ein <code>data-cta-type="..."</code>-Attribut. Browser-Agents (UCP) können darüber den Intent ohne Visual-Parsing erkennen.</p>
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<CTAPrimary href="tel:..." label="Jetzt anrufen" ctaType="phone" />
+<CTAPrimary href="/kontakt" label="Angebot anfordern" ctaType="quote" variant="accent" />
+<CTAPrimary href="https://cal.com/..." label="Termin buchen" ctaType="booking" variant="outline" target="_blank" />`}</pre>
+  </div>
+</ExampleLayout>

@@ -1,0 +1,163 @@
+---
+const components = [
+  {
+    name: 'AnswerBlock',
+    href: '/answer-block',
+    description: 'Lead-with-Answer für Service-Pages. Question/Answer JSON-LD.',
+    phase: '1.1',
+  },
+  {
+    name: 'RecentlyUpdated',
+    href: '/recently-updated',
+    description: 'dateModified-Badge mit Stale-Warning (>90 Tage).',
+    phase: '1.1',
+  },
+  {
+    name: 'CTAPrimary',
+    href: '/cta-primary',
+    description: 'Agent-Friendly CTA-Primitive mit data-cta-type-Attribut.',
+    phase: '1.1',
+  },
+  {
+    name: 'CaseStudyBlock',
+    href: '/case-study',
+    description: 'Customer/Location/Problem/Approach/Outcome. CreativeWork + Review.',
+    phase: '1.1',
+  },
+  {
+    name: 'BehindTheJob',
+    href: '/behind-the-job',
+    description: 'Learnings/Mistakes/Result. Article-Schema.',
+    phase: '1.1',
+  },
+  {
+    name: 'PriceTransparency',
+    href: '/price-transparency',
+    description: 'Preis-Range pro Service + Faktoren. Offer + PriceSpecification.',
+    phase: '1.1',
+  },
+  {
+    name: 'LocalProofMap',
+    href: '/local-proof-map',
+    description: 'Lokale Referenzen ohne Map-Embed. ItemList of Place.',
+    phase: '1.1',
+  },
+  {
+    name: 'FAQHonest',
+    href: '/faq-honest',
+    description: 'FAQ mit minAnswerChars-Check (Thin-Content-Prevention).',
+    phase: '1.1',
+  },
+];
+---
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <title>cw-core Component-Showcase</title>
+  <style is:global>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.55;
+    }
+    .shell {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 3rem 1.5rem 5rem;
+    }
+    .heading {
+      font-size: 2.5rem;
+      color: #1D1E3B;
+      margin: 0 0 0.5rem;
+    }
+    .lead {
+      font-size: 1.0625rem;
+      color: #64748b;
+      margin: 0 0 0.5rem;
+      max-width: 60ch;
+    }
+    .lead-meta {
+      font-size: 0.875rem;
+      color: #94a3b8;
+      margin: 0 0 2.5rem;
+    }
+    .components {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .component-card {
+      display: block;
+      padding: 1.25rem 1.5rem;
+      background: #ffffff;
+      border-radius: 8px;
+      border-left: 4px solid #EF7612;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .component-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .component-name {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: #1D1E3B;
+      margin: 0 0 0.25rem;
+      font-family: ui-monospace, monospace;
+    }
+    .component-meta {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin: 0 0 0.5rem;
+    }
+    .component-desc {
+      font-size: 0.875rem;
+      color: #475569;
+      margin: 0;
+      line-height: 1.5;
+    }
+    .footer-note {
+      margin-top: 3rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e2e8f0;
+      font-size: 0.8125rem;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <h1 class="heading">cw-core Component-Showcase</h1>
+    <p class="lead">
+      Demo-Pages für die in v0.11+ neu hinzugekommenen Non-Commodity-Components.
+      Quelle: <code>/Users/johannesgottl/.claude-blitzsicht/plans/kunde-markus-eule-will-spicy-pike.md</code>
+    </p>
+    <p class="lead-meta">Plan-Phase 1.6 — als Astro-Mini-Project (statt Storybook 8, das mit Astro 5 noch nicht stabil läuft).</p>
+
+    <div class="components">
+      {components.map((c) => (
+        <a href={c.href} class="component-card">
+          <div class="component-meta">Phase {c.phase}</div>
+          <h2 class="component-name">{c.name}</h2>
+          <p class="component-desc">{c.description}</p>
+        </a>
+      ))}
+    </div>
+
+    <div class="footer-note">
+      <strong>Lokal starten:</strong> <code>pnpm --filter @cw/core-examples dev</code> oder
+      <code>cd examples && pnpm dev</code>. Port 4322 um nicht mit Customer-Sites
+      (Default 4321) zu kollidieren.
+    </div>
+  </main>
+</body>
+</html>

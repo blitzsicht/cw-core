@@ -1,0 +1,50 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import PriceTransparency from '@cw/core/components/blocks/PriceTransparency.astro';
+---
+<ExampleLayout
+  title="PriceTransparency"
+  description="Service+PriceRange+Factors. Schema: ItemList of Offer + PriceSpecification. Verhindert 'auf Anfrage'-Antipattern."
+>
+  <div class="example-section">
+    <h2>Sanitär-Service mit drei Leistungen</h2>
+    <PriceTransparency
+      heading="Preise — transparent."
+      intro="Wir nennen Preise vor dem Auftrag. Festpreis nach Vor-Ort-Termin, keine Stundenabrechnung im Zeitnachweis."
+      services={[
+        {
+          name: "Rohrreinigung Standard",
+          priceRange: "180€ – 320€",
+          factors: ["Zugang zur Leitung", "Länge der Verstopfung", "Höhe (EG / OG)"],
+        },
+        {
+          name: "Notdienst (außerhalb Öffnungszeiten)",
+          priceRange: "240€ – 480€",
+          factors: ["Anfahrtszeit", "Tageszeit (Wochenende +20%)"],
+        },
+        {
+          name: "Kamera-Inspektion",
+          priceRange: "ab 80€",
+          factors: ["Inspektion 15 Min", "Optional als Add-on zu Rohrreinigung"],
+        },
+      ]}
+      provider={{ name: "Mustermann Sanitär" }}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<PriceTransparency
+  heading="Preise — transparent."
+  intro="..."
+  services={[
+    {
+      name: "Rohrreinigung Standard",
+      priceRange: "180€ – 320€",
+      factors: ["Zugang", "Länge", "Höhe"],
+    },
+  ]}
+  provider={{ name: "..." }}
+/>`}</pre>
+  </div>
+</ExampleLayout>

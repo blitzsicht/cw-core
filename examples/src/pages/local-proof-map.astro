@@ -1,0 +1,40 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import LocalProofMap from '@cw/core/components/blocks/LocalProofMap.astro';
+---
+<ExampleLayout
+  title="LocalProofMap"
+  description="Lokale Referenzen ohne Map-Embed (Privacy + Performance). Schema: ItemList of Place."
+>
+  <div class="example-section">
+    <h2>Service-Area-Business mit 9 Referenzen in 5 Städten</h2>
+    <LocalProofMap
+      heading="Aufträge in der Region"
+      primaryRegion="Oberpfalz"
+      references={[
+        { city: "Regensburg", serviceType: "Rohrreinigung Hauptleitung", year: 2025 },
+        { city: "Regensburg", serviceType: "Heizungssanierung Reihenhaus", year: 2025 },
+        { city: "Regensburg", serviceType: "Notdienst Wasserschaden", year: 2024 },
+        { city: "Kelheim", serviceType: "Bad-Komplettsanierung", year: 2025 },
+        { city: "Kelheim", serviceType: "Pumpentausch Brunnen", year: 2024 },
+        { city: "Straubing", serviceType: "Notdienst Rohrbruch", year: 2025 },
+        { city: "Cham", serviceType: "Heizkörpertausch", year: 2024 },
+        { city: "Cham", serviceType: "Sanitär-Wartung Gewerbe", year: 2023 },
+        { city: "Schwandorf", serviceType: "Boilertausch", year: 2025 },
+      ]}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<LocalProofMap
+  heading="..."
+  primaryRegion="Oberpfalz"
+  references={[
+    { city: "Regensburg", serviceType: "...", year: 2025 },
+    { city: "Kelheim", serviceType: "...", year: 2024 },
+    // ...
+  ]}
+/>`}</pre>
+  </div>
+</ExampleLayout>

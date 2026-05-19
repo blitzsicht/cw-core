@@ -1,0 +1,57 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import CaseStudyBlock from '@cw/core/components/blocks/CaseStudyBlock.astro';
+---
+<ExampleLayout
+  title="CaseStudyBlock"
+  description="Customer/Location/Problem/Approach/Outcome. Schema: CreativeWork + optional Review (mit Rating)."
+>
+  <div class="example-section">
+    <h2>Mit Quote + Rating (vollständig)</h2>
+    <CaseStudyBlock
+      customer="Familie Huber"
+      location="Regensburg"
+      problem="Verstopfte Hauptleitung im Altbau (Bj. 1908) — nach Starkregen stand Wasser im Keller."
+      approach="Kamera-Inspektion zeigte gerissene Bleimuffe. Hochdruck-Spülung + Muffen-Tausch (Tagesarbeit)."
+      outcome="Abfluss läuft seit 8 Monaten störungsfrei. Garantie auf die Muffe: 5 Jahre."
+      date="2025-09-15"
+      quote={{
+        text: "Sehr professionell, kein Dreck hinterlassen. Preis-Festlegung vorab — keine Überraschungen.",
+        author: "Frau Huber",
+        ratingValue: 5,
+      }}
+      provider={{ name: "Mustermann Sanitär", url: "https://example.com" }}
+      pageUrl="https://example.com/referenzen/familie-huber"
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Compact-Mode (kein H2-Header)</h2>
+    <CaseStudyBlock
+      customer="Praxis Dr. Schmidt"
+      location="Straubing"
+      problem="Komplettsanierung Sanitärbereich nach Wasserschaden."
+      approach="Drei Tage Baustelle, Trockenbau-Erneuerung, neue Armaturen."
+      outcome="Praxis konnte Donnerstag wieder öffnen — keine Patienten-Termine ausgefallen."
+      date="2025-11"
+      provider={{ name: "Mustermann Sanitär" }}
+      pageUrl="https://example.com/referenzen/praxis-schmidt"
+      compact={true}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<CaseStudyBlock
+  customer="Familie Huber"
+  location="Regensburg"
+  problem="..."
+  approach="..."
+  outcome="..."
+  date="2025-09-15"
+  quote={{ text: "...", author: "Frau Huber", ratingValue: 5 }}
+  provider={{ name: "...", url: "https://..." }}
+  pageUrl="https://.../referenzen/familie-huber"
+/>`}</pre>
+  </div>
+</ExampleLayout>
