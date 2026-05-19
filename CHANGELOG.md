@@ -6,6 +6,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.2] — 2026-05-19 (release/cw-core — email-Prop optional in ImpressumBlock + DatenschutzBlock)
+
+### Changed
+
+- `ImpressumBlock.astro`: Prop `email` ist jetzt optional (`string?` statt `string`).
+  Render-Stellen (`E-Mail:`-Link in §Kontakt) mit Truthy-Guard geschützt.
+  Wenn kein `email` gesetzt: E-Mail-Link wird nicht gerendert, nur Kontaktformular
+  als elektronischer Kontaktweg. (Fixes siluri/blitzsicht-ops#174)
+- `DatenschutzBlock.astro`: Prop `email` ist jetzt optional (`string?` statt `string`).
+  Render-Stellen in §1 Verantwortlicher und §10 Betroffenenrechte mit Truthy-Guard.
+  Fallback ohne E-Mail: "wenden Sie sich an den Verantwortlichen (Kontaktdaten siehe Impressum)".
+  (Fixes siluri/blitzsicht-ops#174)
+
+### Compatibility
+
+- Backwards-kompatibel: alle bestehenden Customer-Sites übergeben
+  `email={siteData.contact.email}` als string — Verhalten unverändert.
+  Neu: Customer-Sites die `email` auf `undefined` setzen (z.B. Eule-Phase-2) brechen
+  nicht mehr mit TypeScript-Fehler, sondern rendern graceful ohne E-Mail-Link.
+
+---
+
 ## [0.10.1] — 2026-05-19 (release/cw-core — DSGVO-Fix datenschutzEmail)
 
 ### Fixed (DSGVO-kritisch)
