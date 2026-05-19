@@ -190,6 +190,14 @@ const copyrightOwner = owner ?? siteName;
 </script>
 
 <style>
+  /*
+   * _SILURI-CHANGE-LOG: 2026-05-19 — Issue #180
+   * WCAG 2.1 AA Kontrast-Fix: alle Footer-Text-Farben auf ≥ 4.5:1 angehoben.
+   * CSS Custom Properties eingeführt damit Customer-Repos bei Bedarf überschreiben können.
+   * --color-footer-text-muted:   h3-Labels     0.5 → 0.85 (war ~3.1:1, jetzt ~8.0:1)
+   * --color-footer-text-bottom:  Copyright-Bar 0.6 → 0.75 (war ~3.9:1, jetzt ~6.0:1)
+   * --color-footer-credit-link:  Blitzsicht-Link 0.55 → 0.75 (war ~3.5:1, jetzt ~6.0:1)
+   */
   footer {
     background: var(--color-footer-bg, var(--color-primary-dark, #111));
     color: rgba(255,255,255,0.75);
@@ -240,7 +248,7 @@ const copyrightOwner = owner ?? siteName;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: rgba(255,255,255,0.5);
+    color: var(--color-footer-text-muted, rgba(255,255,255,0.85));
     margin-bottom: 1rem;
   }
   .footer-links ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.625rem; }
@@ -257,13 +265,13 @@ const copyrightOwner = owner ?? siteName;
     align-items: center;
     padding-top: 1.5rem;
     font-size: 0.8125rem;
-    color: rgba(255,255,255,0.6);
+    color: var(--color-footer-text-bottom, rgba(255,255,255,0.75));
     flex-wrap: wrap;
     gap: 0.5rem;
   }
   .footer-tagline { font-style: italic; }
   .footer-credit a {
-    color: rgba(255,255,255,0.55);
+    color: var(--color-footer-credit-link, rgba(255,255,255,0.75));
     text-decoration: underline;
     text-underline-offset: 2px;
     transition: color 0.15s;

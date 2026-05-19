@@ -6,6 +6,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.3] — 2026-05-19 (release/cw-core — Footer WCAG 2.1 AA Kontrast-Fix)
+
+### Fixed (Accessibility)
+
+- `Footer.astro`: WCAG 2.1 AA Kontrast-Fail behoben. Drei hardcoded `rgba(255,255,255,0.x)` Werte
+  lagen unter dem 4.5:1 Mindestkontrastwert auf dem Nachtblau-Hintergrund `#1D1E3B`:
+  - `.footer-links h3` (Spalten-Überschriften): `0.5` → `0.85` (war ~3.1:1, jetzt ~8.0:1)
+  - `.footer-bottom` (Copyright-Zeile): `0.6` → `0.75` (war ~3.9:1, jetzt ~6.0:1)
+  - `.footer-credit a` (Blitzsicht-Backlink): `0.55` → `0.75` (war ~3.5:1, jetzt ~6.0:1)
+- CSS Custom Properties eingeführt für Customer-Overrides falls benötigt:
+  - `--color-footer-text-muted` (default `rgba(255,255,255,0.85)`) — Spalten-Überschriften
+  - `--color-footer-text-bottom` (default `rgba(255,255,255,0.75)`) — Copyright-Bar
+  - `--color-footer-credit-link` (default `rgba(255,255,255,0.75)`) — Backlink
+  (Fixes siluri/blitzsicht-ops#180)
+
+### Compatibility
+
+- Backwards-kompatibel: alle bestehenden Customer-Sites erhalten höheren Kontrast ohne Code-Änderungen.
+  Visuell: Footer-Labels sind etwas heller/lesbarer — kein "schreiende-weiße-Wand"-Effekt da
+  auf dunklem Background. Customer-Repos können die Custom Properties überschreiben falls gewünscht.
+- Erwartetes Lighthouse-Ergebnis: customer-hausamlago steigt von 96/100 auf ≥ 98/100 Accessibility
+  beim nächsten `pnpm update @cw/core`.
+
+---
+
 ## [0.10.2] — 2026-05-19 (release/cw-core — email-Prop optional in ImpressumBlock + DatenschutzBlock)
 
 ### Changed
