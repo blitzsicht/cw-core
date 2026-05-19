@@ -1,0 +1,62 @@
+---
+/**
+ * @cw/core – StickyMobileCTA.astro
+ *
+ * Fixed CTA bar at the bottom of the viewport — visible on mobile, hidden on desktop.
+ * Mobile-First: displayed by default, hidden at ≥768px.
+ *
+ * Add padding-bottom to the page footer to prevent overlap:
+ *   footer { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
+ *
+ * @example
+ *   <StickyMobileCTA href="/website-audit" label="Kostenloser Website-Audit" />
+ */
+interface Props {
+  href: string;
+  label: string;
+  /** Optional: target attribute. Defaults to "_self". */
+  target?: string;
+}
+
+const { href, label, target = '_self' } = Astro.props;
+---
+
+<a class="sticky-mobile-cta" href={href} target={target}>{label} →</a>
+
+<style>
+  /* Mobile default: visible */
+  .sticky-mobile-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 1rem 1.5rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    background: var(--color-accent, #ef7612);
+    color: var(--color-accent-btn-text, white);
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    z-index: 50;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+    transition: background 0.15s;
+    min-height: 56px;
+  }
+
+  .sticky-mobile-cta:hover {
+    background: var(--color-accent-hover, #d46610);
+  }
+
+  .sticky-mobile-cta:focus-visible {
+    outline: 3px solid white;
+    outline-offset: -3px;
+  }
+
+  /* Desktop: hidden */
+  @media (min-width: 768px) {
+    .sticky-mobile-cta { display: none; }
+  }
+</style>

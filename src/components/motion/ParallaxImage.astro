@@ -1,0 +1,72 @@
+---
+/**
+ * @cw/core – motion/ParallaxImage.astro
+ *
+ * Translates a child image on the Y axis at a fraction of the scroll
+ * speed using `requestAnimationFrame`. Drop-in for Astro `<Image>` or
+ * raw `<img>`. Respects `prefers-reduced-motion` (tokens-base.css disables
+ * the transform entirely).
+ *
+ * @example
+ *   <ParallaxImage speed={0.3}>
+ *     <Image src={hero} alt="…" />
+ *   </ParallaxImage>
+ */
+interface Props {
+  /** Parallax strength. Positive = slower than scroll (floats up), 0.3 by default. */
+  speed?: number;
+  class?: string;
+}
+
+const { speed = 0.3, class: className = '' } = Astro.props;
+const id = `plx-${Math.random().toString(36).slice(2, 9)}`;
+---
+<div id={id} class:list={['motion-parallax', className]} data-motion-parallax={speed}>
+  <slot />
+</div>
+
+<style>
+  .motion-parallax {
+    overflow: hidden;
+    display: block;
+  }
+  .motion-parallax > :global(img),
+  .motion-parallax > :global(picture),
+  .motion-parallax > :global(picture > img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    will-change: transform;
+  }
+</style>
+
+<script is:inline define:vars={{ id, speed }}>
+  (function () {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const target = el.querySelector('img, picture > img') || el.firstElementChild;
+    if (!target) return;
+
+    let ticking = false;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // 0 when element is below viewport, 1 when it has fully scrolled past top.
+      const progress = 1 - (rect.top + rect.height) / (vh + rect.height);
+      const clamped = Math.max(0, Math.min(1, progress));
+      const offset = (clamped - 0.5) * rect.height * speed;
+      target.style.transform = `translate3d(0, ${offset.toFixed(2)}px, 0)`;
+      ticking = false;
+    };
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(update);
+        ticking = true;
+      }
+    };
+    update();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+  })();
+</script>

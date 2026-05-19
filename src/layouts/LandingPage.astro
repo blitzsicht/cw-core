@@ -1,0 +1,242 @@
+---
+/**
+ * @cw/core – LandingPage.astro
+ *
+ * Marketing/landing page wrapper: BaseLayout + Header + main slot +
+ * Footer. Prop-driven: forwards all SEO/site/header/footer/schema props
+ * to the underlying components.
+ *
+ * @example
+ *   <LandingPage
+ *     title="Startseite"
+ *     siteName={siteData.name}
+ *     siteUrl={siteData.url}
+ *     defaultTitle={siteData.seo.defaultTitle}
+ *     defaultDescription={siteData.seo.defaultDescription}
+ *     defaultOgImage={siteData.seo.ogImage}
+ *     header={{ navItems: siteData.nav.main, showKarriereLink: true }}
+ *     footer={{
+ *       siteName: siteData.name,
+ *       email: siteData.contact.email,
+ *       leistungenLinks: siteData.nav.footer.leistungen,
+ *       rechtlichesLinks: siteData.nav.footer.rechtliches,
+ *     }}
+ *     schema={{ name: siteData.name, description: siteData.description, url: siteData.url, ogImage: siteData.seo.ogImage }}
+ *   >
+ *     <slot />
+ *   </LandingPage>
+ */
+import BaseLayout, { type SchemaProps } from './BaseLayout.astro';
+import Header, { type NavItem } from '../components/layout/Header.astro';
+import Footer, { type FooterLink } from '../components/layout/Footer.astro';
+import SmoothScroll from '../components/motion/SmoothScroll.astro';
+import ScrollProgress from '../components/motion/ScrollProgress.astro';
+import CustomCursor from '../components/motion/CustomCursor.astro';
+import TurnstilePreClearance from '../components/forms/TurnstilePreClearance.astro';
+
+export interface MotionLayerConfig {
+  /** Enable Lenis smooth-scroll globally. Requires `lenis` peer dep. */
+  smoothScroll?: boolean;
+  /** Fixed accent progress bar at the top of the viewport. */
+  progress?: boolean;
+  /** Replace the native cursor with a follow-circle (desktop only). */
+  cursor?: boolean;
+}
+
+export interface HeaderConfig {
+  logoSrc?: string;
+  /** Inverted logo for the dark Header background. See CI branding guide. */
+  logoSrcDark?: string;
+  logoWidth?: number;
+  logoHeight?: number;
+  navItems?: readonly NavItem[];
+  showKarriereLink?: boolean;
+  karriereLabel?: string;
+  karriereHref?: string;
+}
+
+export interface FooterConfig {
+  siteName: string;
+  tagline?: string;
+  description?: string;
+  email?: string;
+  phone?: string;
+  logoSrc?: string;
+  /** Inverted logo for the dark Footer background. See CI branding guide. */
+  logoSrcDark?: string;
+  logoWidth?: number;
+  logoHeight?: number;
+  owner?: string;
+  legalForm?: string;
+  city?: string;
+  leistungenHeading?: string;
+  leistungenLinks?: readonly FooterLink[];
+  rechtlichesHeading?: string;
+  rechtlichesLinks?: readonly FooterLink[];
+  extraHeading?: string;
+  extraLinks?: readonly FooterLink[];
+  extraHeading2?: string;
+  extraLinks2?: readonly FooterLink[];
+  showKarriereLink?: boolean;
+  karriereLabel?: string;
+  karriereHref?: string;
+}
+
+interface Props {
+  title?: string;
+  description?: string;
+  /**
+   * Explicit OG image override (fallback chain level 1).
+   * If omitted, BaseLayout auto-resolves via fallback chain:
+   *   heroImage → contentImage → /og/default.png → defaultOgImage
+   */
+  ogImage?: string | null | undefined;
+  /**
+   * Hero/header image for this page (fallback chain level 2).
+   * Pass siteData.hero.image here to enable automatic hero-to-OG fallback.
+   */
+  heroImage?: string | null | undefined;
+  /** First image in page content (fallback chain level 3). */
+  contentImage?: string | null | undefined;
+  /**
+   * Level 4: path to a build-time generated OG image.
+   * Defaults to /og/default.png. Set to null to skip to defaultOgImage.
+   */
+  generatedOgImage?: string | null | undefined;
+  canonicalUrl?: string;
+  robots?: string;
+  /** Site name (passed to Header + BaseLayout). */
+  siteName: string;
+  /** Canonical site URL. */
+  siteUrl: string;
+  /** Default title (used when `title` not set). */
+  defaultTitle: string;
+  /** Default description. */
+  defaultDescription: string;
+  /** Title template. */
+  titleTemplate?: string;
+  /** Default OG image. */
+  defaultOgImage: string;
+  /** Plausible script src. */
+  plausibleScript?: string;
+  /** Plausible API endpoint override (for same-origin proxy setups). */
+  plausibleEndpoint?: string;
+  /** Schema.org props. */
+  schema?: SchemaProps;
+  /** Open Graph object type. Defaults to "website". Set to "profile" for Author-Pages. */
+  ogType?: 'website' | 'profile' | 'article' | (string & {});
+  /** Profile-spezifische OG-Meta. Nur ausgegeben wenn ogType="profile". */
+  ogProfile?: {
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+    gender?: 'male' | 'female';
+  };
+  /** Header config. */
+  header?: HeaderConfig;
+  /** Footer config. Required because Footer requires `siteName`. */
+  footer: FooterConfig;
+  /** Opt-in site-wide motion layer (smooth scroll, progress bar, custom cursor). */
+  motion?: MotionLayerConfig;
+  /**
+   * Cloudflare Turnstile site key for site-wide Pre-Clearance.
+   * Renders an invisible widget on every page so visitors receive a
+   * `cf_clearance` cookie without interaction. Requires `clearance_level:
+   * "non_interactive"` configured on the Turnstile widget. Skip this prop
+   * to disable Pre-Clearance for a customer.
+   */
+  turnstileSiteKey?: string;
+}
+
+const {
+  title,
+  description,
+  ogImage,
+  heroImage,
+  contentImage,
+  generatedOgImage,
+  canonicalUrl,
+  robots,
+  siteName,
+  siteUrl,
+  defaultTitle,
+  defaultDescription,
+  titleTemplate,
+  defaultOgImage,
+  plausibleScript,
+  plausibleEndpoint,
+  schema,
+  ogType,
+  ogProfile,
+  header = {},
+  footer,
+  motion,
+  turnstileSiteKey,
+} = Astro.props;
+---
+<BaseLayout
+  title={title}
+  description={description}
+  ogImage={ogImage}
+  headerImage={heroImage}
+  contentImage={contentImage}
+  generatedOgImage={generatedOgImage}
+  canonicalUrl={canonicalUrl}
+  robots={robots}
+  siteName={siteName}
+  siteUrl={siteUrl}
+  defaultTitle={defaultTitle}
+  defaultDescription={defaultDescription}
+  titleTemplate={titleTemplate}
+  defaultOgImage={defaultOgImage}
+  plausibleScript={plausibleScript}
+  plausibleEndpoint={plausibleEndpoint}
+  schema={schema}
+  ogType={ogType}
+  ogProfile={ogProfile}
+>
+  <slot name="head" slot="head" />
+  {motion?.smoothScroll && <SmoothScroll />}
+  {motion?.progress && <ScrollProgress />}
+  {motion?.cursor && <CustomCursor />}
+  <TurnstilePreClearance sitekey={turnstileSiteKey} />
+  <Header
+    siteName={siteName}
+    logoSrc={header.logoSrc}
+    logoSrcDark={header.logoSrcDark}
+    logoWidth={header.logoWidth}
+    logoHeight={header.logoHeight}
+    navItems={header.navItems}
+    showKarriereLink={header.showKarriereLink}
+    karriereLabel={header.karriereLabel}
+    karriereHref={header.karriereHref}
+  />
+  <main>
+    <slot />
+  </main>
+  <Footer
+    siteName={footer.siteName}
+    tagline={footer.tagline}
+    description={footer.description}
+    email={footer.email}
+    phone={footer.phone}
+    logoSrc={footer.logoSrc}
+    logoSrcDark={footer.logoSrcDark}
+    logoWidth={footer.logoWidth}
+    logoHeight={footer.logoHeight}
+    owner={footer.owner}
+    legalForm={footer.legalForm}
+    city={footer.city}
+    leistungenHeading={footer.leistungenHeading}
+    leistungenLinks={footer.leistungenLinks}
+    rechtlichesHeading={footer.rechtlichesHeading}
+    rechtlichesLinks={footer.rechtlichesLinks}
+    extraHeading={footer.extraHeading}
+    extraLinks={footer.extraLinks}
+    extraHeading2={footer.extraHeading2}
+    extraLinks2={footer.extraLinks2}
+    showKarriereLink={footer.showKarriereLink}
+    karriereLabel={footer.karriereLabel}
+    karriereHref={footer.karriereHref}
+  />
+</BaseLayout>

@@ -1,0 +1,41 @@
+---
+/**
+ * @cw/core – motion/FullBleed.astro
+ *
+ * Wrapper für viewport-füllende Statement-Sections mit Soft-Scroll-Snap.
+ * Kombiniert das Layout-Primitiv `.section-fullbleed` (siehe tokens-base.css)
+ * mit der Reveal-Animation von ScrollReveal — eine Section füllt den
+ * Viewport auf Desktop (90vh, 100vh bei `hero`) und greift sanft beim
+ * Scrollen. Mobile + reduced-motion: kein Snap, normales Stack-Verhalten.
+ *
+ * @example
+ *   <FullBleed>
+ *     <USPSection items={...} />
+ *   </FullBleed>
+ *
+ *   <FullBleed hero reveal="none">
+ *     <Hero ... />
+ *   </FullBleed>
+ */
+export type FullBleedReveal = 'up' | 'down' | 'left' | 'right' | 'zoom' | 'fade' | 'none';
+
+interface Props {
+  /** Wenn true: min-height 100vh statt 90vh. Für den ersten Hero-Block. */
+  hero?: boolean;
+  /** Reveal-Animation analog ScrollReveal. "none" deaktiviert Reveal. */
+  reveal?: FullBleedReveal;
+  /** Zusätzliche Klassennamen am Wrapper. */
+  class?: string;
+}
+
+const { hero = false, reveal = 'up', class: className = '' } = Astro.props;
+
+const revealAttr = reveal === 'none' ? undefined : reveal === 'fade' ? '' : reveal;
+const classes = ['section-fullbleed', hero ? 'is-hero' : '', className].filter(Boolean).join(' ');
+---
+<div
+  class={classes}
+  {...(revealAttr !== undefined ? { 'data-motion-reveal': revealAttr } : {})}
+>
+  <slot />
+</div>

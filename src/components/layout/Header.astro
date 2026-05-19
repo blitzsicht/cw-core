@@ -1,0 +1,206 @@
+---
+/**
+ * @cw/core – Header.astro
+ *
+ * Sticky site header with logo + main navigation + mobile hamburger.
+ * Prop-driven: no `@/data/site-data` import.
+ *
+ * @example
+ *   <Header
+ *     siteName={siteData.name}
+ *     navItems={siteData.nav.main}
+ *     showKarriereLink={siteData.karriere?.enabled !== false}
+ *   />
+ */
+export interface NavItem {
+  /** Link label. */
+  label: string;
+  /** Link target. */
+  href: string;
+  /** When true, renders as accent button (CTA). */
+  highlight?: boolean;
+}
+
+interface Props {
+  /** Site name (used as logo alt + text). */
+  siteName: string;
+  /** Logo image path (light backgrounds, default). Defaults to `/logo.svg`. */
+  logoSrc?: string;
+  /** Logo for dark backgrounds (Header is always dark). Defaults to `logoSrc`.
+   *  Customers with a multi-color logo provide `/logo-inverted.svg` and pass it here
+   *  per CI branding convention. */
+  logoSrcDark?: string;
+  /** Logo width in px. */
+  logoWidth?: number;
+  /** Logo height in px. */
+  logoHeight?: number;
+  /** Main nav items. */
+  navItems?: readonly NavItem[];
+  /** Whether to render the "/karriere" link. */
+  showKarriereLink?: boolean;
+  /** Karriere link label. Defaults to "Karriere". */
+  karriereLabel?: string;
+  /** Karriere link href. Defaults to "/karriere". */
+  karriereHref?: string;
+}
+
+const {
+  siteName,
+  logoSrc = '/logo.svg',
+  logoSrcDark,
+  logoWidth = 58,
+  logoHeight = 28,
+  navItems = [],
+  showKarriereLink = false,
+  karriereLabel = 'Karriere',
+  karriereHref = '/karriere',
+} = Astro.props;
+---
+<header id="site-header">
+  <div class="container">
+    <a href="/" class="logo" aria-label={`${siteName} – Startseite`}>
+      <img src={logoSrcDark ?? logoSrc} alt="" loading="eager" width={logoWidth} height={logoHeight} />
+      <span>{siteName}</span>
+    </a>
+
+    <nav id="main-nav" aria-label="Hauptnavigation">
+      {navItems.map((item: NavItem) =>
+        item.highlight
+          ? <a href={item.href} class="btn-accent" data-cta={`nav-highlight:${item.label}`}>{item.label}</a>
+          : <a href={item.href} data-cta={`nav:${item.label}`}>{item.label}</a>
+      )}
+      {showKarriereLink && <a href={karriereHref} data-cta={`nav:${karriereLabel}`}>{karriereLabel}</a>}
+    </nav>
+
+    <button id="nav-toggle" aria-controls="main-nav" aria-expanded="false" aria-label="Menü öffnen">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<style>
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--color-primary);
+    color: white;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.3);
+    /* Containing block für den absolut positionierten Mobile-Nav */
+    isolation: isolate;
+  }
+  header .container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-block: 1rem;
+  }
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+    color: white;
+    text-decoration: none;
+    min-height: 44px;
+    padding-block: 2px;
+  }
+  /* KONVENTION Logo auf dunklem Hintergrund (gilt für Header + Footer):
+       - logoSrc      = Markenfarben-Version (/logo.svg) für helle Hintergründe
+       - logoSrcDark  = Invertiert-Variante (/logo-inverted.svg) für dunklen Header/Footer
+     Kein CSS-Filter: Die SVG-Datei selbst enthält die richtigen Farben per
+     CI-Branding-Guide (orange bleibt, navy → rgba(255,255,255,0.9)).
+     Kunden ohne logoSrcDark bekommen einfach dieselbe Datei auf beiden Hintergründen. */
+  .logo img {
+    display: block;
+    width: auto;
+    height: 40px;
+  }
+  #main-nav {
+    display: flex;
+    align-items: center;
+    gap: clamp(0.75rem, 1.5vw, 1.75rem);
+  }
+  #main-nav a:not(.btn-accent) {
+    color: rgba(255,255,255,0.85);
+    text-decoration: none;
+    font-size: 0.9375rem;
+    transition: color 0.15s;
+  }
+  #main-nav a:not(.btn-accent):hover { color: white; }
+  #main-nav a:not(.btn-accent):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  #main-nav .btn-accent { padding: 0.5rem 1.125rem; font-size: 0.9375rem; }
+
+  /* Hamburger */
+  #nav-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 14px 10px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  #nav-toggle:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+  #nav-toggle span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: white;
+    border-radius: 2px;
+    transition: transform 0.2s, opacity 0.2s;
+  }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 1099px) {
+    #nav-toggle { display: flex; }
+    .logo span { display: none; }
+    #main-nav {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--color-primary-light, var(--color-primary, #1D1E3B));
+      flex-direction: column;
+      align-items: stretch;
+      padding: 1rem 1.5rem 1.5rem;
+      gap: 0;
+      z-index: 49;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+    #main-nav.open { display: flex; }
+    #main-nav a:not(.btn-accent) {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    #main-nav .btn-accent { margin-top: 1rem; justify-content: center; }
+  }
+</style>
+
+<script>
+  import { track } from '../../utils/analytics/track';
+  const toggle = document.getElementById('nav-toggle');
+  const nav = document.getElementById('main-nav');
+  toggle?.addEventListener('click', () => {
+    const open = nav?.classList.toggle('open');
+    toggle.setAttribute('aria-expanded', String(open));
+    if (open) track('Mobile Nav Open');
+  });
+  document.querySelectorAll<HTMLAnchorElement>('#main-nav a').forEach((link) => {
+    link.addEventListener('click', () => {
+      track('Nav Click', { label: link.textContent?.trim() ?? '', href: link.getAttribute('href') ?? '' });
+    });
+  });
+</script>

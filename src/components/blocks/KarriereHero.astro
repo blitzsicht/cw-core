@@ -1,0 +1,148 @@
+---
+/**
+ * @cw/core – KarriereHero.astro
+ *
+ * Hero section for career pages. Optional split layout when a team image
+ * is provided. Prop-driven: no `@/data/site-data` import.
+ *
+ * @example
+ *   <KarriereHero
+ *     siteName={siteData.name}
+ *     headline={siteData.karriere?.headline}
+ *     subtext={siteData.karriere?.subtext}
+ *     teamImage={siteData.images?.aboutTeam}
+ *   />
+ */
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
+interface Props {
+  /** Site/employer name (used in default headline + image alt). */
+  siteName?: string;
+  /** Optional override for the headline. Defaults to `Karriere bei ${siteName}`. */
+  headline?: string;
+  /** Optional override for the subtext. */
+  subtext?: string;
+  /**
+   * Optional team image. MUST be an Astro `ImageMetadata` (optimierter Import),
+   * damit die responsive Bild-Pipeline greift.
+   *
+   * @example
+   *   import teamImage from '@/assets/images/team.webp';
+   *   <KarriereHero teamImage={teamImage} ... />
+   */
+  teamImage?: ImageMetadata;
+  /** Alt text override for the team image. Defaults to `Team ${siteName}`. */
+  teamImageAlt?: string;
+  /** Badge text. Defaults to "Wir stellen ein". */
+  badge?: string;
+  /** CTA label. Defaults to "Offene Stellen ansehen". */
+  ctaLabel?: string;
+  /** CTA href. Defaults to "#stellen". */
+  ctaHref?: string;
+}
+
+const {
+  siteName = '',
+  headline,
+  subtext,
+  teamImage,
+  teamImageAlt,
+  badge = 'Wir stellen ein',
+  ctaLabel = 'Offene Stellen ansehen',
+  ctaHref = '#stellen',
+} = Astro.props;
+
+const resolvedHeadline = headline ?? `Karriere bei ${siteName}`;
+const resolvedSubtext = subtext ?? 'Wir suchen Verstärkung. Werde Teil unseres Teams.';
+const resolvedAlt = teamImageAlt ?? `Team ${siteName}`;
+const hasImage = !!teamImage;
+---
+<section class="karriere-hero">
+  <div class="container">
+    <div class:list={['hero-content', hasImage && 'hero-content--split']}>
+      <div class="hero-text">
+        <div class="hero-badge">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          {badge}
+        </div>
+        <h1>{resolvedHeadline}</h1>
+        <p class="hero-sub">{resolvedSubtext}</p>
+        <a href={ctaHref} class="btn-accent">{ctaLabel}</a>
+      </div>
+
+      {hasImage && (
+        <div class="hero-image-wrap">
+          <Image
+            src={teamImage!}
+            alt={resolvedAlt}
+            width={560}
+            height={400}
+            loading="eager"
+            format="webp"
+            class="hero-img"
+          />
+        </div>
+      )}
+    </div>
+  </div>
+</section>
+
+<style>
+  .karriere-hero {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark, #0f3460) 100%);
+    color: white;
+    padding: 5rem 0 4rem;
+  }
+  .hero-content--split {
+    display: grid;
+    grid-template-columns: 55fr 45fr;
+    gap: 3rem;
+    align-items: center;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.9);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 100px;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.02em;
+  }
+  h1 {
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    color: white;
+    margin: 0 0 1.25rem;
+    max-width: 20ch;
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 1.5vw, 1.2rem);
+    color: rgba(255,255,255,0.8);
+    max-width: 52ch;
+    line-height: 1.7;
+    margin: 0 0 2rem;
+  }
+  .hero-image-wrap {
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  }
+  .hero-img { display: block; width: 100%; height: auto; object-fit: cover; }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 900px) {
+    .hero-content--split { grid-template-columns: 1fr; }
+    .hero-image-wrap { order: -1; max-height: 250px; }
+    .hero-img { height: 250px; }
+  }
+</style>

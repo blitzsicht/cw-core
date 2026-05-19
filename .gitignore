@@ -1,3 +1,10 @@
-
-# Captain-Worker Tracking
+node_modules/
+.astro/
+.gstack/
+dist/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
 STATE.md

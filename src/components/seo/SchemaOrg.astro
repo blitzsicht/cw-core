@@ -1,0 +1,381 @@
+---
+/**
+ * @cw/core – SchemaOrg.astro
+ *
+ * Emits JSON-LD scripts into the `<head>`:
+ *   1. LocalBusiness + ProfessionalService (+ optional additionalTypes)
+ *   2. WebSite
+ *   3. Service (if `service` provided — for individual service pages)
+ *
+ * Prop-driven: no imports from customer data modules. Pass business data
+ * from your site-data module (or wherever it lives).
+ *
+ * NOTE: FAQPage JSON-LD is emitted exclusively by FAQ.astro (the block component).
+ * Do NOT pass faqs to SchemaOrg — that would create duplicate FAQPage schemas.
+ *
+ * @example
+ *   <SchemaOrg
+ *     name={siteData.name}
+ *     description={siteData.description}
+ *     url={siteData.url}
+ *     ogImage={siteData.seo.ogImage}
+ *     street={siteData.legal.street}
+ *     zip={siteData.legal.zip}
+ *     city={siteData.legal.city}
+ *     country={siteData.legal.country}
+ *     email={siteData.contact.email}
+ *     phone={siteData.contact.phone}
+ *     additionalTypes={['RealEstateAgent']}
+ *     employees={siteData.team}
+ *     services={siteData.services}
+ *   />
+ */
+import type { WithContext, LocalBusiness, WebSite } from 'schema-dts';
+
+export interface EmployeeData {
+  name: string;
+  role?: string;
+  title?: string;
+  phone?: string;
+  email?: string;
+  credentials?: string[] | readonly string[];
+}
+
+/**
+ * Founder/Owner für E-E-A-T (Google + KI-Quellvertrauen).
+ * Mindestens `name` setzen — alles andere optional. Erscheint als eigenständige
+ * Person-Entity mit @id und wird auf der Organization als `founder` referenziert,
+ * sodass `<a rel="author" href="#person-...">` aus dem sichtbaren Markup auf
+ * dieselbe Entity verweisen kann.
+ */
+export interface FounderData {
+  name: string;
+  jobTitle?: string;
+  /** Bio/Beschreibung — z.B. „Seit 1998 im GaLaBau, Galabau-Meister 2010". */
+  description?: string;
+  /** Profilfoto-URL (absolute oder relativ zur Site-URL). */
+  image?: string;
+  email?: string;
+  phone?: string;
+  /** Themen die der Founder beherrscht — getrennt von knowsAbout der Organization. */
+  knowsAbout?: string[] | readonly string[];
+  /** Credentials/Ausbildungen/Mitgliedschaften. */
+  credentials?: string[] | readonly string[];
+  /** Profile-URLs für Cross-Identity (LinkedIn, Xing). Werden als sameAs gerendert. */
+  sameAs?: string[] | readonly string[];
+}
+
+export interface ServiceData {
+  label: string;
+  shortDesc?: string;
+  href: string;
+}
+
+interface Props {
+  /** Business name. */
+  name: string;
+  /** Business description. */
+  description: string;
+  /** Canonical site URL (no trailing slash). */
+  url: string;
+  /** Path or absolute URL to OG image (resolved against `url`). */
+  ogImage: string;
+  /** Path or absolute URL to logo. Defaults to `${url}/logo.png`. */
+  logoUrl?: string;
+  /** Street address. */
+  street?: string;
+  /** Postal code. */
+  zip?: string;
+  /** City. */
+  city?: string;
+  /** ISO country code (e.g. "DE"). */
+  country?: string;
+  /** Contact email. */
+  email?: string;
+  /** Optional phone number. Emitted at LocalBusiness root AND in ContactPoint. */
+  phone?: string;
+  /**
+   * Area served. Single city/region or array for multi-location coverage.
+   * Emitted as schema.org `Place` objects so Google can map them to GEO entities.
+   * Example: `['Regensburg', 'Barbing', 'Neutraubling']` or `'DE'`.
+   */
+  areaServed?: string | string[] | readonly string[];
+  /** Schema.org `priceRange` hint. Defaults to "€€". */
+  priceRange?: string;
+  /** List of profile URLs (sameAs). Google Business Profile, Facebook, LinkedIn, etc. */
+  sameAs?: string[] | readonly string[];
+  /** Available languages for the contact point. Defaults to `['German']`. */
+  availableLanguage?: string[] | readonly string[];
+  /**
+   * Opening hours in schema.org format.
+   * Example: `['Mo-Fr 08:00-17:00', 'Sa 09:00-12:00']`.
+   */
+  openingHours?: string[] | readonly string[];
+  /** Geographic coordinates for GEO ranking. */
+  geo?: { latitude: number; longitude: number };
+  /** Founding date (ISO 8601). */
+  foundingDate?: string;
+
+  // --- New props ---
+
+  /**
+   * Additional schema.org @type values merged into the LocalBusiness node.
+   * Example: `['RealEstateAgent']` → `@type: ['LocalBusiness', 'ProfessionalService', 'RealEstateAgent']`
+   */
+  additionalTypes?: string[] | readonly string[];
+
+  /**
+   * Team members. Emitted as `employee` array with Person + credentials.
+   * Each entry maps to a schema.org Person with EducationalOccupationalCredential.
+   */
+  employees?: EmployeeData[] | readonly EmployeeData[];
+
+  /**
+   * Business services. Emitted as `hasOfferCatalog` on the LocalBusiness node.
+   * Also used for individual Service schemas on subpages (via `service` prop).
+   */
+  services?: ServiceData[] | readonly ServiceData[];
+
+  /**
+   * Single service for the current page (emits a standalone Service schema).
+   * Pass the service object for the current Leistungsseite.
+   */
+  service?: ServiceData;
+
+  /**
+   * Topics the business knows about. Emitted as `knowsAbout` on LocalBusiness.
+   * Example: `['Immobilienbewertung', 'Verkehrswertgutachten']`
+   */
+  knowsAbout?: string[] | readonly string[];
+
+  /**
+   * Founder/Owner — wird als eigenständige Person-Entity mit @id gerendert
+   * und auf der Organization als `founder` referenziert. Stärkt E-E-A-T
+   * (Google + KI-Quellvertrauen). rel="author"-Links im sichtbaren Markup
+   * können via `#person-<slug>` auf dieselbe Entity zeigen.
+   */
+  founder?: FounderData;
+}
+
+const {
+  name,
+  description,
+  url,
+  ogImage,
+  logoUrl,
+  street,
+  zip,
+  city,
+  country,
+  email,
+  phone,
+  areaServed = 'DE',
+  priceRange = '€€',
+  sameAs = [],
+  availableLanguage = ['German'],
+  openingHours,
+  geo,
+  foundingDate,
+  additionalTypes = [],
+  employees,
+  services,
+  service,
+  knowsAbout,
+  founder,
+} = Astro.props;
+
+// Founder/Owner Person-Entity bauen, falls Prop gesetzt.
+// @id ist stabil aus dem Namen-Slug — sichtbares rel="author" markup verlinkt darauf.
+function slugifyName(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+const founderSlug = founder?.name ? slugifyName(founder.name) : null;
+const founderId = founderSlug ? `${url}/#person-${founderSlug}` : null;
+const founderImageUrl = founder?.image
+  ? new URL(founder.image, url).toString()
+  : undefined;
+
+// areaServed as Place[] is more precise than a raw string for multi-city GEO.
+// Single string stays as-is (covers "DE" country-level and simple city cases).
+const areaServedArr = Array.isArray(areaServed) ? areaServed : null;
+const areaServedValue = areaServedArr
+  ? areaServedArr.map((a) => ({ '@type': 'Place', name: a }))
+  : areaServed;
+
+const resolvedLogo = logoUrl ?? `${url}/logo.png`;
+const resolvedImage = new URL(ogImage, url).toString();
+
+// Build @type array: always LocalBusiness + ProfessionalService, plus any extras
+const typeArray = ['LocalBusiness', 'ProfessionalService', ...(additionalTypes as string[])];
+
+// schema-dts enforces a single `@type` literal per object; we emit an array
+// because JSON-LD allows multiple types per node. Cast the composite object.
+// Stabile @id-Anker für Entity-Resolution. Person-Schemas auf Author-Pages
+// können via { @id: `${url}/#organization` } auf die Organization referenzieren —
+// LLMs und Google erkennen so wiederkehrende Entities zuverlässig.
+const orgId = `${url}/#organization`;
+const websiteId = `${url}/#website`;
+
+const localBusinessSchema = {
+  '@context': 'https://schema.org',
+  '@type': typeArray,
+  '@id': orgId,
+  name,
+  description,
+  url,
+  logo: resolvedLogo,
+  image: resolvedImage,
+  ...(phone ? { telephone: phone } : {}),
+  ...(street || zip || city || country
+    ? {
+        address: {
+          '@type': 'PostalAddress',
+          ...(street ? { streetAddress: street } : {}),
+          ...(zip ? { postalCode: zip } : {}),
+          ...(city ? { addressLocality: city } : {}),
+          ...(country ? { addressCountry: country } : {}),
+        },
+      }
+    : {}),
+  ...(geo
+    ? {
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: geo.latitude,
+          longitude: geo.longitude,
+        },
+      }
+    : {}),
+  ...(openingHours && openingHours.length
+    ? { openingHours: [...openingHours] }
+    : {}),
+  ...(foundingDate ? { foundingDate } : {}),
+  ...(email
+    ? {
+        contactPoint: {
+          '@type': 'ContactPoint',
+          contactType: 'customer service',
+          email,
+          ...(phone ? { telephone: phone } : {}),
+          availableLanguage,
+        },
+      }
+    : {}),
+  areaServed: areaServedValue,
+  priceRange,
+  sameAs: [...sameAs],
+  // --- New fields ---
+  ...(employees && employees.length
+    ? {
+        employee: [...employees].map((m) => ({
+          '@type': 'Person',
+          '@id': `${url}/#person-${m.name.toLowerCase().replace(/[^a-z]+/g, '-')}`,
+          name: m.name,
+          ...(m.role ? { jobTitle: m.role } : {}),
+          ...(m.title ? { honorificSuffix: m.title } : {}),
+          ...(m.phone ? { telephone: m.phone } : {}),
+          ...(m.email ? { email: m.email } : {}),
+          worksFor: { '@type': 'Organization', '@id': orgId, name },
+          ...(m.credentials && m.credentials.length
+            ? {
+                hasCredential: [...m.credentials].map((c) => ({
+                  '@type': 'EducationalOccupationalCredential',
+                  credentialCategory: 'certification',
+                  name: c,
+                })),
+              }
+            : {}),
+        })),
+      }
+    : {}),
+  ...(services && services.length
+    ? {
+        hasOfferCatalog: {
+          '@type': 'OfferCatalog',
+          name: 'Leistungen',
+          itemListElement: [...services].map((s, i) => ({
+            '@type': 'Offer',
+            itemOffered: {
+              '@type': 'Service',
+              name: s.label,
+              ...(s.shortDesc ? { description: s.shortDesc } : {}),
+              url: `${url}${s.href}`,
+            },
+            position: i + 1,
+          })),
+        },
+      }
+    : {}),
+  ...(knowsAbout && knowsAbout.length ? { knowsAbout: [...knowsAbout] } : {}),
+  ...(founderId ? { founder: { '@id': founderId } } : {}),
+} as unknown as WithContext<LocalBusiness>;
+
+// Standalone Person-Schema für Founder (E-E-A-T).
+// Wird als eigener JSON-LD-Block emittiert UND von LocalBusiness via founder.@id referenziert.
+const founderSchema = founder && founderId
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Person',
+      '@id': founderId,
+      name: founder.name,
+      ...(founder.jobTitle ? { jobTitle: founder.jobTitle } : {}),
+      ...(founder.description ? { description: founder.description } : {}),
+      ...(founderImageUrl ? { image: founderImageUrl } : {}),
+      ...(founder.email ? { email: founder.email } : {}),
+      ...(founder.phone ? { telephone: founder.phone } : {}),
+      worksFor: { '@id': orgId },
+      ...(founder.knowsAbout && founder.knowsAbout.length
+        ? { knowsAbout: [...founder.knowsAbout] }
+        : {}),
+      ...(founder.credentials && founder.credentials.length
+        ? {
+            hasCredential: [...founder.credentials].map((c) => ({
+              '@type': 'EducationalOccupationalCredential',
+              credentialCategory: 'certification',
+              name: c,
+            })),
+          }
+        : {}),
+      ...(founder.sameAs && founder.sameAs.length
+        ? { sameAs: [...founder.sameAs] }
+        : {}),
+      url: `${url}/#${founderSlug}`,
+    }
+  : null;
+
+const webSiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  '@id': websiteId,
+  name,
+  description,
+  url,
+  publisher: { '@id': orgId },
+} as unknown as WithContext<WebSite>;
+
+// Standalone Service schema (for individual Leistungsseiten)
+const serviceSchema = service
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'Service',
+      name: service.label,
+      ...(service.shortDesc ? { description: service.shortDesc } : {}),
+      url: `${url}${service.href}`,
+      provider: {
+        '@type': typeArray,
+        name,
+        url,
+      },
+      areaServed: areaServedValue,
+    }
+  : null;
+---
+<script is:inline type="application/ld+json" set:html={JSON.stringify(localBusinessSchema)} />
+<script is:inline type="application/ld+json" set:html={JSON.stringify(webSiteSchema)} />
+{founderSchema && <script is:inline type="application/ld+json" set:html={JSON.stringify(founderSchema)} />}
+{serviceSchema && <script is:inline type="application/ld+json" set:html={JSON.stringify(serviceSchema)} />}

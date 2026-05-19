@@ -1,0 +1,172 @@
+---
+/**
+ * KundenfeedbackSection — Marquee-Karussell für anonymisierte Stimmen
+ * OHNE Schema.org Review-Markup.
+ *
+ * Alternative zu Testimonials.astro für Kunden mit paraphrasierten
+ * Aussagen (nicht von Google verifiziert). Keine Sterne, keine Namen —
+ * nur Zitate, die in einer kontinuierlich nach links scrollenden Bahn
+ * vorbeilaufen. Hover/Focus pausiert; prefers-reduced-motion fällt auf
+ * statisches Center-Wrap zurück (Duplikate werden ausgeblendet).
+ *
+ * Hat in v0.9.1 das 3-Spalten-Grid abgelöst — Karussell skaliert
+ * gleichmäßig für 3 wie für 30 Stimmen, ohne dass das Layout kippt.
+ *
+ * @example
+ *   <KundenfeedbackSection
+ *     items={selectedFeedback}
+ *     heading="Was Kunden sagen"
+ *     note="Paraphrasierte Kundenaussagen."
+ *   />
+ */
+export interface FeedbackItem {
+  /** Quote text. */
+  text: string;
+}
+
+interface Props {
+  items?: readonly FeedbackItem[];
+  heading?: string;
+  subheading?: string;
+  /** Disclaimer note shown below the grid. */
+  note?: string;
+}
+
+const {
+  items = [],
+  heading = 'Was Kunden sagen',
+  subheading,
+  note,
+} = Astro.props;
+
+const loop = [...items, ...items];
+---
+{items.length > 0 && (
+<section class="feedback-section">
+  <div class="container">
+    <div class="feedback-header">
+      <h2>{heading}</h2>
+      {subheading && <p>{subheading}</p>}
+    </div>
+  </div>
+
+  <div class="feedback-track-wrap" role="region" aria-label="Kundenstimmen (scrollend)">
+    <div class="feedback-track">
+      {loop.map((f, i) => (
+        <blockquote
+          class="feedback-card"
+          aria-hidden={i >= items.length ? 'true' : undefined}
+        >
+          <p>{f.text}</p>
+        </blockquote>
+      ))}
+    </div>
+  </div>
+
+  {note && (
+    <div class="container">
+      <p class="feedback-note">{note}</p>
+    </div>
+  )}
+</section>
+)}
+
+<style>
+  .feedback-section {
+    padding: var(--section-padding, 5rem) 0;
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+  .feedback-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    max-width: 44rem;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .feedback-header h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    color: var(--color-primary);
+    margin-bottom: 0.75rem;
+  }
+  .feedback-header p {
+    color: var(--color-muted, #4b5563);
+    font-size: 1rem;
+    line-height: 1.55;
+  }
+
+  .feedback-track-wrap {
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+            mask-image: linear-gradient(90deg, transparent 0, #000 6%, #000 94%, transparent 100%);
+  }
+  .feedback-track {
+    display: flex;
+    gap: 1.5rem;
+    width: max-content;
+    padding: 1rem 2rem;
+    animation: cw-feedback-slide 50s linear infinite;
+  }
+  .feedback-track:hover,
+  .feedback-track:focus-within { animation-play-state: paused; }
+
+  .feedback-card {
+    flex: 0 0 auto;
+    width: 320px;
+    background: white;
+    border-radius: 0.75rem;
+    padding: 1.75rem;
+    border: 1px solid #e5e7eb;
+    margin: 0;
+    position: relative;
+  }
+  .feedback-card::before {
+    content: "\201C";
+    position: absolute;
+    top: 0.5rem;
+    left: 1rem;
+    font-size: 3rem;
+    line-height: 1;
+    color: var(--color-primary);
+    opacity: 0.2;
+    font-family: Georgia, serif;
+  }
+  .feedback-card p {
+    position: relative;
+    margin: 0;
+    padding-top: 1rem;
+    line-height: 1.65;
+    color: var(--color-text, #1f2937);
+    font-size: 0.9375rem;
+  }
+
+  @keyframes cw-feedback-slide {
+    from { transform: translate3d(0, 0, 0); }
+    to   { transform: translate3d(-50%, 0, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feedback-track {
+      animation: none;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      padding-inline: 1.5rem;
+    }
+    .feedback-track-wrap {
+      -webkit-mask-image: none;
+              mask-image: none;
+    }
+    .feedback-card[aria-hidden="true"] { display: none; }
+  }
+
+  .feedback-note {
+    margin: 3rem auto 0;
+    max-width: 44rem;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--color-muted, #6b7280);
+    font-style: italic;
+    line-height: 1.55;
+  }
+</style>

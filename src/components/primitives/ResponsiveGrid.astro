@@ -1,0 +1,22 @@
+---
+interface Props {
+  min?: string;
+  gap?: string;
+  class?: string;
+}
+const { min = '280px', gap = '1rem', class: className } = Astro.props;
+---
+<div
+  class:list={['rg', className]}
+  style={`--rg-min:${min}; --rg-gap:${gap}`}
+>
+  <slot />
+</div>
+
+<style>
+  .rg {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--rg-min), 100%), 1fr));
+    gap: var(--rg-gap);
+  }
+</style>

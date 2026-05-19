@@ -1,0 +1,55 @@
+---
+/**
+ * @cw/core – motion/CustomCursor.astro
+ *
+ * Replaces the native cursor with a small circle that interpolates
+ * towards the pointer position each frame. Enlarges when hovering
+ * interactive elements. Auto-disabled on touch/coarse-pointer devices
+ * and when `prefers-reduced-motion: reduce` is set.
+ *
+ * @example
+ *   <CustomCursor />
+ */
+interface Props {
+  /** Selector for hover-enlarge targets. Defaults to common interactives. */
+  hoverTargets?: string;
+  /** Disable globally (easy brand-level opt-out). */
+  disabled?: boolean;
+}
+
+const {
+  hoverTargets = 'a, button, [role="button"], input, textarea, select, summary, .btn-accent, .btn-outline',
+  disabled = false,
+} = Astro.props;
+---
+{!disabled && <div class="motion-cursor" data-motion-cursor aria-hidden="true"></div>}
+
+<script is:inline define:vars={{ hoverTargets }}>
+  (function () {
+    const cursor = document.querySelector('[data-motion-cursor]');
+    if (!cursor) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
+
+    let tx = window.innerWidth / 2, ty = window.innerHeight / 2;
+    let cx = tx, cy = ty;
+
+    window.addEventListener('pointermove', (e) => {
+      tx = e.clientX;
+      ty = e.clientY;
+    }, { passive: true });
+
+    const render = () => {
+      cx += (tx - cx) * 0.18;
+      cy += (ty - cy) * 0.18;
+      cursor.style.transform = `translate3d(${cx}px, ${cy}px, 0) translate(-50%, -50%)`;
+      requestAnimationFrame(render);
+    };
+    render();
+
+    document.querySelectorAll(hoverTargets).forEach((el) => {
+      el.addEventListener('pointerenter', () => cursor.classList.add('motion-cursor--hover'));
+      el.addEventListener('pointerleave', () => cursor.classList.remove('motion-cursor--hover'));
+    });
+  })();
+</script>

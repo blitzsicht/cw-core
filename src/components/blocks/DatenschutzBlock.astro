@@ -1,0 +1,197 @@
+---
+/**
+ * @cw/core – DatenschutzBlock.astro
+ *
+ * Reusable Datenschutzerklärung gemäß Art. 13/14 DSGVO + § 25 TDDDG.
+ * Wird in customer-{slug}/src/pages/datenschutz.astro innerhalb von <ContentPage> verwendet.
+ *
+ * Standardannahme:
+ *   - Plausible Self-Hosted (kein non-essential Cookie → Banner unnötig)
+ *   - Hosting Vercel (USA — DPF-zertifiziert, Schrems-II-konform)
+ *   - Form-Backend cw-core's contact-handler.js (Resend für Mail-Delivery, optional Telegram-Push)
+ *
+ * Bei Customer-spezifischen Tracking-Erweiterungen (Meta-Pixel, Google Analytics)
+ * MUSS der Customer-Repo zusätzliche Sections via slot="cookies" oder slot="extra" ergänzen.
+ *
+ * @example
+ *   <ContentPage {...landingBaseProps} title="Datenschutzerklärung">
+ *     <DatenschutzBlock legal={siteData.legal} email={siteData.contact.email} />
+ *   </ContentPage>
+ */
+import type { LegalProps } from './ImpressumBlock.astro';
+
+interface Props {
+  legal: LegalProps;
+  email: string;
+  /** Domain ohne https://. Default: aus URL des Browsers. */
+  domain?: string | undefined;
+  /** Aufsichtsbehörde Datenschutz. Default: BayLDA für Bayern; Customer überschreibt für andere Bundesländer. */
+  beschwerdeStelle?: { name: string; address: string; url: string };
+  /** Hat die Site Cookies oder Tracking-Tools die Consent verlangen? Default false (cw-core-Plausible-Setup). */
+  hasNonEssentialCookies?: boolean;
+}
+
+const {
+  legal: l,
+  email,
+  domain,
+  beschwerdeStelle = {
+    name: 'Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)',
+    address: 'Promenade 27, 91522 Ansbach',
+    url: 'https://www.lda.bayern.de',
+  },
+  hasNonEssentialCookies = false,
+} = Astro.props;
+---
+
+<div class="datenschutz-block">
+  <h2>1. Verantwortlicher</h2>
+  <p>
+    Verantwortlich für die Datenverarbeitung auf dieser Website ist:<br />
+    {l.owner}<br />
+    {l.form}<br />
+    {l.street}<br />
+    {l.zip} {l.city}<br />
+    Telefon: <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a><br />
+    E-Mail: <a href={`mailto:${email}`}>{email}</a>
+  </p>
+
+  <h2>2. Allgemeines zur Datenverarbeitung</h2>
+  <p>
+    Wir verarbeiten personenbezogene Daten unserer Nutzer grundsätzlich nur, soweit dies zur
+    Bereitstellung einer funktionsfähigen Website sowie unserer Inhalte und Leistungen erforderlich
+    ist. Die Verarbeitung erfolgt regelmäßig nur nach Einwilligung des Nutzers oder bei einer in
+    den gesetzlichen Vorschriften vorgesehenen Erlaubnis.
+  </p>
+
+  <h2>3. Rechtsgrundlagen</h2>
+  <ul>
+    <li>Art. 6 Abs. 1 lit. a DSGVO — Einwilligung der betroffenen Person</li>
+    <li>Art. 6 Abs. 1 lit. b DSGVO — Vertragserfüllung / vorvertragliche Maßnahmen</li>
+    <li>Art. 6 Abs. 1 lit. c DSGVO — Erfüllung rechtlicher Verpflichtungen</li>
+    <li>Art. 6 Abs. 1 lit. f DSGVO — Berechtigte Interessen (siehe Sektion „Berechtigte Interessen")</li>
+  </ul>
+
+  <h2>4. Bereitstellung der Website (Hosting)</h2>
+  <p>
+    Diese Website wird bei Vercel Inc. (340 S Lemon Ave #4133, Walnut, CA 91789, USA) gehostet.
+    Vercel ist nach dem EU-US Data Privacy Framework (DPF) zertifiziert; die Datenübermittlung
+    in die USA basiert auf Art. 45 DSGVO (Angemessenheitsbeschluss). Beim Aufruf der Website
+    werden technische Daten (IP-Adresse, User-Agent, Datum/Uhrzeit, angeforderte URL, Referrer)
+    in Logs verarbeitet (Rechtsgrundlage Art. 6 Abs. 1 lit. f DSGVO — Bereitstellung des Dienstes,
+    Sicherheit, Performance-Analyse). Speicherdauer: max. 30 Tage.
+  </p>
+
+  <h2>5. Reichweitenmessung mit Plausible (cookie-frei)</h2>
+  <p>
+    Diese Site nutzt Plausible Analytics — eine Privacy-by-Design-Reichweitenmessung ohne Cookies
+    und ohne Erfassung personenbezogener Daten. Plausible aggregiert Seitenaufrufe + Verweisquellen
+    in anonymen Tageszahlen. Es findet kein Cross-Site-Tracking statt; keine IP-Adressen-Speicherung
+    auf Tagesebene. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
+    Reichweitenmessung) sowie § 25 Abs. 2 Nr. 2 TDDDG (technisch erforderlich für die Bereitstellung).
+  </p>
+
+  {hasNonEssentialCookies && (
+    <>
+      <h2>5a. Cookies und Tracking</h2>
+      <p>
+        Diese Website setzt non-essential Cookies / Tracking-Pixel. Bei Erstaufruf wird ein
+        Cookie-Banner angezeigt; eine Verarbeitung erfolgt erst nach aktiver Einwilligung
+        (§ 25 Abs. 1 TDDDG, Art. 6 Abs. 1 lit. a DSGVO). Die Einwilligung kann jederzeit über
+        den Footer-Link „Cookie-Einstellungen" widerrufen werden.
+      </p>
+    </>
+  )}
+
+  <h2>6. Kontaktaufnahme (E-Mail / Kontaktformular)</h2>
+  <p>
+    Bei Kontaktaufnahme über das Kontaktformular oder per E-Mail werden Ihre Angaben (Name,
+    E-Mail-Adresse, Inhalt der Nachricht) zur Bearbeitung der Anfrage und für den Fall von
+    Anschlussfragen gespeichert. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (vorvertraglich)
+    bzw. Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse). Mail-Versand erfolgt über
+    Resend (Resend Inc., USA — DPF-zertifiziert). Speicherdauer: bis zur abschließenden
+    Bearbeitung Ihrer Anfrage, ggf. + gesetzliche Aufbewahrungsfristen (HGB/AO 6–10 Jahre bei
+    Vertragsabschluss).
+  </p>
+
+  <h2>7. Spam-Schutz (Cloudflare Turnstile)</h2>
+  <p>
+    Zum Schutz vor automatisierten Anfragen setzen wir Cloudflare Turnstile ein (Cloudflare Inc.,
+    101 Townsend St, San Francisco, CA 94107, USA — DPF-zertifiziert). Turnstile analysiert
+    technische Browser-Signale ohne Cookies; eine Identifikation einzelner Personen erfolgt nicht.
+    Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Schutz vor Missbrauch).
+  </p>
+
+  <h2>8. Empfänger</h2>
+  <ul>
+    <li>Vercel Inc. — Hosting</li>
+    <li>Resend Inc. — Mail-Delivery für Kontaktformular</li>
+    <li>Cloudflare Inc. — Turnstile Anti-Bot</li>
+    <li>Plausible.io (oder Self-Hosted) — Reichweitenmessung</li>
+  </ul>
+
+  <h2>9. Speicherdauer</h2>
+  <p>
+    Personenbezogene Daten werden nur so lange gespeichert, wie es für den jeweiligen Zweck
+    erforderlich ist oder gesetzliche Aufbewahrungspflichten dies verlangen (HGB § 257, AO § 147:
+    6–10 Jahre für vertragsrelevante Korrespondenz).
+  </p>
+
+  <h2>10. Ihre Rechte als Betroffene/r</h2>
+  <ul>
+    <li>Auskunft (Art. 15 DSGVO)</li>
+    <li>Berichtigung (Art. 16 DSGVO)</li>
+    <li>Löschung (Art. 17 DSGVO)</li>
+    <li>Einschränkung der Verarbeitung (Art. 18 DSGVO)</li>
+    <li>Datenübertragbarkeit (Art. 20 DSGVO)</li>
+    <li>Widerspruch gegen Verarbeitung auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO (Art. 21 DSGVO)</li>
+    <li>Widerruf erteilter Einwilligungen mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO)</li>
+  </ul>
+  <p>
+    Zur Wahrnehmung Ihrer Rechte: <a href={`mailto:${email}`}>{email}</a>
+  </p>
+
+  <h2>11. Beschwerderecht bei der Aufsichtsbehörde</h2>
+  <p>
+    Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren (Art. 77 DSGVO).
+    Zuständig ist:<br />
+    {beschwerdeStelle.name}<br />
+    {beschwerdeStelle.address}<br />
+    <a href={beschwerdeStelle.url} target="_blank" rel="noopener">{beschwerdeStelle.url}</a>
+  </p>
+
+  <h2>12. Änderungen dieser Datenschutzerklärung</h2>
+  <p>
+    Wir behalten uns vor, diese Datenschutzerklärung anzupassen, wenn dies aufgrund neuer Funktionen
+    oder geänderter Rechtslage erforderlich ist. Die jeweils aktuelle Version finden Sie auf dieser Seite{domain ? <> unter <code>https://{domain}/datenschutz</code></> : null}.
+  </p>
+
+  <slot name="extra" />
+</div>
+
+<style>
+  .datenschutz-block :global(h2) {
+    font-size: 1.375rem;
+    margin: 2rem 0 0.75rem;
+  }
+  .datenschutz-block :global(p) {
+    margin-bottom: 1rem;
+    line-height: 1.75;
+  }
+  .datenschutz-block :global(ul) {
+    padding-left: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .datenschutz-block :global(li) {
+    margin-bottom: 0.375rem;
+  }
+  .datenschutz-block :global(a) {
+    color: var(--color-accent-text);
+  }
+  .datenschutz-block :global(code) {
+    font-size: 0.95em;
+    background: var(--color-surface);
+    padding: 0.1rem 0.375rem;
+    border-radius: 0.25rem;
+  }
+</style>

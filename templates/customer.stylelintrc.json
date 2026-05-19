@@ -1,0 +1,12 @@
+{
+  "plugins": ["./node_modules/@cw/core/scripts/stylelint-no-max-width.js"],
+  "rules": {
+    "plugin/no-max-width-media": true
+  },
+  "overrides": [
+    {
+      "files": ["**/*.astro"],
+      "customSyntax": "postcss-html"
+    }
+  ]
+}

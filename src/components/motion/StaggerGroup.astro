@@ -1,0 +1,89 @@
+---
+/**
+ * @cw/core – motion/StaggerGroup.astro
+ *
+ * Reveals direct children one after another with a configurable stagger.
+ * Uses CSS transition-delay stamping — no JS library required beyond
+ * the IntersectionObserver bootstrap included in ScrollReveal.astro.
+ *
+ * @example
+ *   <StaggerGroup direction="up" gap={0.08}>
+ *     <div>1</div><div>2</div><div>3</div>
+ *   </StaggerGroup>
+ */
+export type StaggerDirection = 'up' | 'down' | 'left' | 'right' | 'zoom';
+
+interface Props {
+  direction?: StaggerDirection;
+  /** Stagger gap between children in seconds. Defaults to 0.08. */
+  gap?: number;
+  /** Initial delay for the first child in seconds. Defaults to 0. */
+  delay?: number;
+  class?: string;
+  as?: string;
+}
+
+const {
+  direction = 'up',
+  gap = 0.08,
+  delay = 0,
+  class: className = '',
+  as: Tag = 'div',
+} = Astro.props;
+
+const groupId = `stg-${Math.random().toString(36).slice(2, 9)}`;
+---
+<Tag
+  id={groupId}
+  class:list={['motion-stagger', className]}
+  data-motion-stagger={direction}
+  data-motion-gap={gap}
+  data-motion-delay={delay}
+>
+  <slot />
+</Tag>
+
+<script is:inline define:vars={{ groupId, direction, gap, delay }}>
+  (function () {
+    const root = document.getElementById(groupId);
+    if (!root) return;
+    const kids = Array.from(root.children);
+    kids.forEach((child, i) => {
+      child.setAttribute('data-motion-reveal', direction);
+      const d = delay + i * gap;
+      const prev = child.getAttribute('style') || '';
+      child.setAttribute('style', `${prev}; transition-delay: ${d}s`);
+    });
+  })();
+</script>
+
+<script>
+  // Share the IntersectionObserver bootstrap with ScrollReveal by relying
+  // on the same `[data-motion-reveal]` selector.
+  const init = () => {
+    const els = document.querySelectorAll<HTMLElement>('[data-motion-reveal]:not(.is-visible)');
+    if (!els.length) return;
+    if (!('IntersectionObserver' in window)) {
+      els.forEach((el) => el.classList.add('is-visible'));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            io.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -10% 0px' },
+    );
+    els.forEach((el) => io.observe(el));
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  document.addEventListener('astro:page-load', init);
+</script>

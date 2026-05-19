@@ -1,0 +1,151 @@
+---
+/**
+ * @cw/core – LeistungenSection.astro
+ *
+ * Feature/services grid. Accepts an array of items and renders a responsive
+ * card grid. Returns nothing if `items` is empty.
+ *
+ * Prop-driven: no imports from customer data modules.
+ *
+ * @example
+ *   <LeistungenSection
+ *     heading="Unsere Leistungen"
+ *     subheading={siteData.tagline}
+ *     items={siteData.leistungen}
+ *   />
+ */
+
+export interface LeistungItem {
+  /** Emoji or short string used as a decorative icon. */
+  icon?: string;
+  /** Short title of the service/feature. */
+  title: string;
+  /** Optional descriptive body text. */
+  description?: string;
+  /** Optional link target. If set, a "Mehr erfahren" link is rendered. */
+  href?: string;
+}
+
+interface Props {
+  /** Section heading. Defaults to "Unsere Leistungen". */
+  heading?: string;
+  /** Section subheading, typically a tagline. */
+  subheading?: string;
+  /** Feature items to render. Section is hidden if array is empty. */
+  items?: readonly LeistungItem[];
+  /** Label for the "read more" link. Defaults to "Mehr erfahren". */
+  readMoreLabel?: string;
+  /** Max columns on desktop. Defaults to 2. */
+  columns?: 2 | 3 | 4;
+}
+
+const {
+  heading = 'Unsere Leistungen',
+  subheading,
+  items = [],
+  readMoreLabel = 'Mehr erfahren',
+  columns = 2,
+} = Astro.props;
+---
+
+{items.length > 0 && (
+  <section class="leistungen-section">
+    <div class="container">
+      <h2 class="section-heading">{heading}</h2>
+      {subheading && <p class="section-subheading">{subheading}</p>}
+      <div class="leistungen-grid" style={`--cols:${columns}`}>
+        {items.map((item) => (
+          <div class="leistung-card">
+            {item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>}
+            <h3>{item.title}</h3>
+            {item.description && <p>{item.description}</p>}
+            {item.href && (
+              <a href={item.href} class="leistung-link">
+                {readMoreLabel}<span class="sr-only"> über {item.title}</span>
+                <span aria-hidden="true"> →</span>
+              </a>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .leistungen-section {
+    padding: var(--section-padding, 5rem) 0;
+    background: white;
+  }
+
+  .leistungen-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 2), 1fr);
+    gap: 1.5rem;
+    margin-top: 3rem;
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
+  @media (max-width: 640px) {
+    .leistungen-grid { grid-template-columns: 1fr; }
+  }
+
+  .leistung-card {
+    background: var(--color-surface);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    border: 1px solid #e5e7eb;
+    transition: box-shadow 0.2s, transform 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+
+  .leistung-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transform: translateY(-2px);
+  }
+
+  .leistung-icon {
+    font-size: 2.25rem;
+    line-height: 1;
+    margin-bottom: 0.25rem;
+  }
+
+  .leistung-card h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0;
+  }
+
+  .leistung-card p {
+    font-size: 0.9rem;
+    color: var(--color-muted);
+    line-height: 1.6;
+    margin: 0;
+    flex: 1;
+  }
+
+  .leistung-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-accent-text);
+    text-decoration: none;
+  }
+
+  .leistung-link:hover {
+    text-decoration: underline;
+  }
+</style>
+
+<script>
+  import { track } from '../../utils/analytics/track';
+  document.querySelectorAll<HTMLAnchorElement>('.leistung-link').forEach((link) => {
+    link.addEventListener('click', () => {
+      const service = link.closest('.leistung-card')?.querySelector('h3')?.textContent?.trim() ?? '';
+      track('Service Click', { service });
+    });
+  });
+</script>

@@ -1,0 +1,431 @@
+---
+/**
+ * @cw/core – InformationspflichtBlock.astro
+ *
+ * Informationspflichten gemäß Art. 13 DSGVO für B2B-Geschäftskontakte
+ * (Anbahnung, Vertrag, Service) — getrennt von der allgemeinen
+ * Datenschutzerklärung für Website-Besucher (siehe DatenschutzBlock.astro).
+ *
+ * Branche-spezifische Empfänger-Defaults sind eingebaut; Customer kann
+ * via `empfaenger`-Prop komplett überschreiben oder via `branche` einen
+ * vorgefertigten Default wählen.
+ *
+ * Standardannahme:
+ *   - Aufsichtsbehörde: BayLDA (Bayern) — override für andere Bundesländer
+ *   - Aufbewahrungspflichten: HGB §257 (6 Jahre) + AO §147 (10 Jahre)
+ *   - Kein DSB (Unternehmen < 20 Personen — wenn größer, Customer override)
+ *
+ * @example
+ *   <ContentPage {...landingBaseProps} title="Informationspflichten nach Art. 13 DSGVO">
+ *     <InformationspflichtBlock
+ *       legal={siteData.legal}
+ *       email={siteData.contact.email}
+ *       branche="druck"
+ *     />
+ *   </ContentPage>
+ */
+import type { LegalProps } from './ImpressumBlock.astro';
+
+export type GeschaeftsZweck = {
+  /** Verarbeitungszweck (kurze Beschreibung). */
+  zweck: string;
+  /** Rechtsgrundlage als String (z. B. "Art. 6 Abs. 1 lit. b DSGVO"). */
+  rechtsgrundlage: string;
+};
+
+export type DatenEmpfaenger = {
+  /** Kategorie des Empfängers (z. B. "Hersteller", "Leasinggeber"). */
+  label: string;
+  /** Erläuterung warum/wofür Daten an diese Kategorie gehen. */
+  zweck: string;
+};
+
+export type Branche = 'druck' | 'solar' | 'web' | 'handwerk' | 'beratung' | 'ferienhaus' | 'generic';
+
+interface Props {
+  legal: LegalProps;
+  email: string;
+  /** Vollständiger juristischer Name der Gesellschaft (z.B. "Digital-Direkt GmbH").
+   *  Wenn gesetzt: wird als Verantwortlicher angezeigt, legal.owner wird als
+   *  Geschäftsführer/Vertreter darunter genannt. Wenn nicht gesetzt: Fallback auf
+   *  legal.owner + legal.form (Backwards-Compat — sinnvoll bei Einzelunternehmern). */
+  companyName?: string;
+  /** Branche für vorgefertigte Empfänger-Defaults. Default: 'generic'. */
+  branche?: Branche;
+  /** Override der Empfänger-Liste (vollständig). Default: per Branche generiert. */
+  empfaenger?: DatenEmpfaenger[];
+  /** Override der Zwecke+Rechtsgrundlagen-Tabelle. Default: B2B-Standardset. */
+  zwecke?: GeschaeftsZweck[];
+  /** Mailbox für Datenschutzanfragen. Default: datenschutz@<email-domain>. */
+  datenschutzEmail?: string;
+  /** Aufsichtsbehörde. Default: BayLDA Bayern. */
+  beschwerdeStelle?: { name: string; address: string; phone?: string; emailUrl: string; url: string };
+  /** DSB bestellt? Default false (typisch <20 Personen). */
+  hatDSB?: boolean;
+  /** DSB-Kontaktdaten falls hatDSB=true. */
+  dsb?: { name: string; email: string };
+  /** Stand-Datum für die Page. Default: Build-Time. */
+  standDatum?: string;
+  /** HTML-id für den Wrapper-Div (Anchor-Ziel). Default: 'art-13-geschaeftskontakte'. */
+  id?: string;
+  /** Wenn true: Lead-Intro + Cross-Links + Stand-Datum werden ausgeblendet — für Embedding in einer übergeordneten Page (z.B. /datenschutz). Default: false. */
+  hideLeadIntro?: boolean;
+  /** Wenn true: zeigt eine Section-Headline „Informationspflichten nach Art. 13 DSGVO" als h2 oberhalb der Sections. Nur sinnvoll wenn hideLeadIntro=true. Default: false. */
+  showSectionHeading?: boolean;
+}
+
+const datenschutzDomain = (mail: string) => mail.includes('@') ? mail.split('@')[1] : 'example.com';
+
+const EMPFAENGER_DEFAULTS: Record<Branche, DatenEmpfaenger[]> = {
+  druck: [
+    { label: 'IT-Dienstleister / Auftragsverarbeiter', zweck: 'Web-Hosting (Vercel), Kontaktformular (Web3Forms), Reichweitenmessung (Plausible), Bot-Schutz (Cloudflare Turnstile) — auf Basis von AVV nach Art. 28 DSGVO' },
+    { label: 'Hersteller von Druck- und Kopiersystemen', zweck: 'Konfiguration, Bestellung, Garantie-Abwicklung bestellter Geräte (Canon, Ricoh, Konica Minolta, HP, Kyocera, Xerox etc.)' },
+    { label: 'Finanzierungspartner / Leasinggeber', zweck: 'Anbahnung und Abwicklung von Leasingverträgen, Bonitätsprüfung' },
+    { label: 'Versanddienstleister', zweck: 'Auslieferung von Geräten, Toner und Verbrauchsmaterial' },
+    { label: 'Steuerberater / externe Buchhaltung', zweck: 'Erfüllung gesetzlicher Aufbewahrungspflichten' },
+    { label: 'Inkassodienstleister / Rechtsanwälte', zweck: 'Berechtigter Forderungseinzug bei Zahlungsausfall' },
+    { label: 'Behörden und öffentliche Stellen', zweck: 'Bei gesetzlicher Verpflichtung zur Übermittlung (Finanzamt, Sozialversicherung etc.)' },
+  ],
+  solar: [
+    { label: 'IT-Dienstleister / Auftragsverarbeiter', zweck: 'Web-Hosting, Kontaktformular, Reichweitenmessung — auf Basis von AVV nach Art. 28 DSGVO' },
+    { label: 'Netzbetreiber und Energieversorger', zweck: 'Anmeldung der Photovoltaikanlage, Einspeisemanagement, Marktstammdatenregister' },
+    { label: 'Modul- und Komponentenhersteller', zweck: 'Garantie-Abwicklung, technischer Support' },
+    { label: 'Förderstellen (KfW, BAFA, kommunal)', zweck: 'Antragsbearbeitung Förderprogramme, sofern vom Kunden beauftragt' },
+    { label: 'Versicherungen', zweck: 'Anbahnung Photovoltaik-Versicherungen, sofern vom Kunden beauftragt' },
+    { label: 'Subunternehmer / Installateure', zweck: 'Montage, Inbetriebnahme und Wartung der Anlage' },
+    { label: 'Steuerberater / externe Buchhaltung', zweck: 'Erfüllung gesetzlicher Aufbewahrungspflichten' },
+    { label: 'Behörden und öffentliche Stellen', zweck: 'Bei gesetzlicher Verpflichtung (Finanzamt etc.)' },
+  ],
+  web: [
+    { label: 'IT-Dienstleister / Auftragsverarbeiter', zweck: 'Web-Hosting (Vercel), Kontaktformular, Reichweitenmessung — auf Basis von AVV nach Art. 28 DSGVO' },
+    { label: 'Hosting- und Domain-Provider', zweck: 'Bereitstellung von Kunden-Hosting, Domain-Registrierung im Auftrag' },
+    { label: 'Externe Auftragnehmer und Freelancer', zweck: 'Bei Bedarf für spezifische Projektarbeit (Design, Texte, Übersetzung) — Vertraulichkeitsvereinbarung vorausgesetzt' },
+    { label: 'Drittanbieter-APIs', zweck: 'Sofern für die beauftragte Anwendung erforderlich (Zahlungsanbieter, Mail-Services etc.)' },
+    { label: 'Steuerberater / externe Buchhaltung', zweck: 'Erfüllung gesetzlicher Aufbewahrungspflichten' },
+    { label: 'Behörden und öffentliche Stellen', zweck: 'Bei gesetzlicher Verpflichtung' },
+  ],
+  handwerk: [
+    { label: 'IT-Dienstleister / Auftragsverarbeiter', zweck: 'Web-Hosting, Kontaktformular, Reichweitenmessung — auf Basis von AVV nach Art. 28 DSGVO' },
+    { label: 'Subunternehmer und Nachunternehmer', zweck: 'Ausführung von Teilgewerken auf der Baustelle' },
+    { label: 'Material- und Großhandelslieferanten', zweck: 'Bestellung und Lieferung von Baumaterial direkt zur Baustelle' },
+    { label: 'Versanddienstleister und Speditionen', zweck: 'Lieferung von Material und Geräten' },
+    { label: 'Steuerberater / externe Buchhaltung', zweck: 'Erfüllung gesetzlicher Aufbewahrungspflichten' },
+    { label: 'Inkassodienstleister / Rechtsanwälte', zweck: 'Berechtigter Forderungseinzug' },
+    { label: 'Behörden und öffentliche Stellen', zweck: 'Bei gesetzlicher Verpflichtung (Finanzamt, Bauamt etc.)' },
+  ],
+  beratung: [
+    { label: 'IT-Dienstleister / Auftragsverarbeiter', zweck: 'Web-Hosting, Kontaktformular, Reichweitenmessung — auf Basis von AVV nach Art. 28 DSGVO' },
+    { label: 'Externe Spezialisten', zweck: 'Hinzugezogene Fachexperten für spezifische Mandate (mit Vertraulichkeitsvereinbarung)' },
+    { label: 'Steuerberater / externe Buchhaltung', zweck: 'Erfüllung gesetzlicher Aufbewahrungspflichten' },
+    { label: 'Berufshaftpflicht-Versicherung', zweck: 'Im Schadensfall, soweit zur Anspruchsklärung erforderlich' },
+    { label: 'Behörden und öffentliche Stellen', zweck: 'Bei gesetzlicher Verpflichtung' },
+  ],
+  ferienhaus: [
+    { label: 'IT-Dienstleister / Auftragsverarbeiter', zweck: 'Web-Hosting, Buchungsformular, Reichweitenmessung — auf Basis von AVV nach Art. 28 DSGVO' },
+    { label: 'Buchungsplattformen', zweck: 'Sofern Buchung über Drittanbieter erfolgte (Booking.com, Airbnb etc.)' },
+    { label: 'Reinigungs- und Hausmeisterdienste', zweck: 'Vorbereitung der Unterkunft, Schlüsselübergabe' },
+    { label: 'Zahlungsdienstleister', zweck: 'Abwicklung von Buchungszahlungen' },
+    { label: 'Meldebehörden / Tourismus-Abgaben', zweck: 'Erfüllung gesetzlicher Meldepflichten (Kurtaxe etc.)' },
+    { label: 'Steuerberater / externe Buchhaltung', zweck: 'Erfüllung gesetzlicher Aufbewahrungspflichten' },
+    { label: 'Behörden und öffentliche Stellen', zweck: 'Bei gesetzlicher Verpflichtung' },
+  ],
+  generic: [
+    { label: 'IT-Dienstleister / Auftragsverarbeiter', zweck: 'Web-Hosting, Kontaktformular, Reichweitenmessung — auf Basis von AVV nach Art. 28 DSGVO' },
+    { label: 'Externe Dienstleister im Geschäftsverlauf', zweck: 'Sofern für die Vertragserfüllung erforderlich' },
+    { label: 'Steuerberater / externe Buchhaltung', zweck: 'Erfüllung gesetzlicher Aufbewahrungspflichten' },
+    { label: 'Inkassodienstleister / Rechtsanwälte', zweck: 'Berechtigter Forderungseinzug' },
+    { label: 'Behörden und öffentliche Stellen', zweck: 'Bei gesetzlicher Verpflichtung' },
+  ],
+};
+
+const ZWECKE_DEFAULTS: GeschaeftsZweck[] = [
+  { zweck: 'Geschäftsanbahnung, Angebotserstellung, Bedarfsanalyse', rechtsgrundlage: 'Art. 6 Abs. 1 lit. b DSGVO (vorvertragliche Maßnahmen)' },
+  { zweck: 'Vertragsabwicklung (Leistungserbringung, Service, Lieferung)', rechtsgrundlage: 'Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung)' },
+  { zweck: 'Rechnungsstellung, Buchhaltung, Steuer', rechtsgrundlage: 'Art. 6 Abs. 1 lit. c DSGVO i. V. m. § 147 AO, § 257 HGB' },
+  { zweck: 'Bestandskundenpflege, B2B-Kommunikation, Service-Erinnerungen', rechtsgrundlage: 'Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse)' },
+  { zweck: 'Erfüllung rechtlicher Verpflichtungen (z. B. Auskunftspflichten)', rechtsgrundlage: 'Art. 6 Abs. 1 lit. c DSGVO' },
+];
+
+const {
+  legal: l,
+  email,
+  companyName,
+  branche = 'generic',
+  empfaenger,
+  zwecke = ZWECKE_DEFAULTS,
+  datenschutzEmail = `datenschutz@${datenschutzDomain(email)}`,
+  beschwerdeStelle = {
+    name: 'Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)',
+    address: 'Promenade 27, 91522 Ansbach',
+    phone: '+49 981 180093-0',
+    emailUrl: 'mailto:poststelle@lda.bayern.de',
+    url: 'https://www.lda.bayern.de',
+  },
+  hatDSB = false,
+  dsb,
+  standDatum = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }),
+  id = 'art-13-geschaeftskontakte',
+  hideLeadIntro = false,
+  showSectionHeading = false,
+} = Astro.props;
+
+const empfaengerListe = empfaenger ?? EMPFAENGER_DEFAULTS[branche];
+const phoneTel = l.phone.replace(/\s+/g, '');
+const datenschutzPhoneNote = email;
+// Embedded-Mode: Hx-Hierarchie um 1 Level absenken — die hosting Page hat schon h2s,
+// damit InformationspflichtBlock-Sections h3 werden statt mit h2 zu kollidieren.
+const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
+---
+
+<div class="informationspflicht-block" id={id}>
+  {!hideLeadIntro && (
+    <p class="ip-lead">
+      Informationen zur Verarbeitung personenbezogener Daten gemäß <strong>Art. 13 DSGVO</strong> —
+      für Interessenten, Neukunden und Geschäftskontakte. Diese Informationen ergänzen unsere
+      <a href="/datenschutz">Datenschutzerklärung für Website-Besucher</a> und gelten für die
+      Datenverarbeitung im Rahmen der Geschäftsanbahnung und Vertragsabwicklung.
+    </p>
+  )}
+
+  {showSectionHeading && (
+    <h2 class="ip-section-heading">Informationspflichten nach Art. 13 DSGVO (Geschäftskontakte)</h2>
+  )}
+
+  <HeadingTag>1. Verantwortlicher</HeadingTag>
+  <p>Verantwortlicher für die Verarbeitung im Sinne der DSGVO ist:</p>
+  <p>
+    {companyName ? (
+      <>
+        <strong>{companyName}</strong><br />
+        Vertreten durch: {l.owner}<br />
+      </>
+    ) : (
+      <>
+        <strong>{l.owner}</strong>{l.form && <><br />{l.form}</>}<br />
+      </>
+    )}
+    {l.street}<br />
+    {l.zip} {l.city}<br />
+    Telefon: <a href={`tel:${phoneTel}`}>{l.phone}</a><br />
+    E-Mail: <a href={`mailto:${email}`}>{email}</a>
+    {l.ustIdNr && <><br />USt-IdNr.: {l.ustIdNr}</>}
+    {l.registergericht && l.registerNummer && (
+      <><br />Handelsregister: {l.registergericht}, {l.register?.toUpperCase()} {l.registerNummer}</>
+    )}
+  </p>
+
+  <HeadingTag>2. Datenschutzbeauftragter</HeadingTag>
+  {hatDSB && dsb ? (
+    <p>
+      Datenschutzbeauftragte/r: <strong>{dsb.name}</strong> — Kontakt:
+      <a href={`mailto:${dsb.email}`}>{dsb.email}</a>
+    </p>
+  ) : (
+    <p>
+      Aufgrund der Unternehmensgröße ist die Bestellung eines Datenschutzbeauftragten nicht
+      gesetzlich erforderlich (§ 38 BDSG). Anfragen zum Datenschutz richten Sie bitte direkt an:
+      <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a>
+      {datenschutzEmail !== datenschutzPhoneNote && (
+        <> (oder ersatzweise an <a href={`mailto:${email}`}>{email}</a>)</>
+      )}.
+    </p>
+  )}
+
+  <HeadingTag>3. Zwecke und Rechtsgrundlagen der Verarbeitung</HeadingTag>
+  <p>Wir verarbeiten Ihre personenbezogenen Daten zu folgenden Zwecken und auf folgenden Rechtsgrundlagen:</p>
+  <table class="ip-table">
+    <thead>
+      <tr>
+        <th scope="col">Zweck</th>
+        <th scope="col">Rechtsgrundlage</th>
+      </tr>
+    </thead>
+    <tbody>
+      {zwecke.map((z) => (
+        <tr>
+          <td>{z.zweck}</td>
+          <td>{z.rechtsgrundlage}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  <HeadingTag>4. Kategorien personenbezogener Daten</HeadingTag>
+  <p>Im Rahmen der Geschäftsbeziehung verarbeiten wir folgende Kategorien:</p>
+  <ul>
+    <li><strong>Kontaktdaten:</strong> Name, Funktion / Position, Firmenname, Anschrift, Telefon, E-Mail-Adresse</li>
+    <li><strong>Anfrage- und Vertragsdaten:</strong> Anfrageinhalt, Bedarfsbeschreibung, Vertragsparameter, Leistungsdaten</li>
+    <li><strong>Zahlungsdaten:</strong> Bankverbindung, USt-IdNr., Rechnungsadressen</li>
+    <li><strong>Korrespondenz:</strong> E-Mail-Verkehr, Telefonnotizen, Gesprächsprotokolle, Service-Tickets</li>
+    <li><strong>Nutzungsdaten</strong> (bei Online-Anfragen): Datum / Uhrzeit der Anfrage, IP-Adresse, Browser-Informationen — siehe <a href="/datenschutz">Datenschutzerklärung</a></li>
+  </ul>
+
+  <HeadingTag>5. Empfänger der Daten</HeadingTag>
+  <p>Personenbezogene Daten werden ausschließlich an folgende Empfänger weitergegeben, soweit dies für die genannten Zwecke erforderlich ist:</p>
+  <ul>
+    {empfaengerListe.map((e) => (
+      <li><strong>{e.label}:</strong> {e.zweck}</li>
+    ))}
+  </ul>
+
+  <HeadingTag>6. Übermittlung in Drittländer</HeadingTag>
+  <p>
+    Eine Datenübermittlung in Länder außerhalb der EU/EWR findet grundsätzlich nicht statt.
+    Ausnahme: Web-Hosting bei <strong>Vercel Inc.</strong> (USA) im Rahmen unserer Website.
+    Vercel ist nach dem EU-US Data Privacy Framework (DPF) zertifiziert; die Übermittlung
+    basiert auf Art. 45 DSGVO (Angemessenheitsbeschluss). Details siehe
+    <a href="/datenschutz">Datenschutzerklärung</a>.
+  </p>
+
+  <HeadingTag>7. Speicherdauer</HeadingTag>
+  <p>
+    Wir speichern personenbezogene Daten so lange, wie es für die genannten Zwecke erforderlich
+    ist oder gesetzliche Aufbewahrungspflichten bestehen:
+  </p>
+  <ul>
+    <li><strong>Während laufender Geschäftsbeziehung:</strong> Daten bleiben für Vertragsabwicklung und Kommunikation gespeichert.</li>
+    <li><strong>Handelsbriefe (E-Mails, Schriftverkehr):</strong> 6 Jahre nach § 257 Abs. 4 HGB.</li>
+    <li><strong>Buchungsbelege, Rechnungen, Verträge:</strong> 10 Jahre nach § 147 Abs. 3 AO und § 257 Abs. 4 HGB.</li>
+    <li><strong>Angebote / Anfragen ohne Vertragsabschluss:</strong> in der Regel 3 Jahre (Verjährungsfrist nach § 195 BGB).</li>
+    <li>Nach Ablauf werden die Daten gelöscht oder anonymisiert, sofern keine gesetzlichen oder vertraglichen Pflichten entgegenstehen.</li>
+  </ul>
+
+  <HeadingTag>8. Bereitstellungspflicht</HeadingTag>
+  <p>
+    Die Bereitstellung Ihrer personenbezogenen Daten ist weder gesetzlich noch vertraglich
+    vorgeschrieben — sie ist freiwillig. Ohne die Bereitstellung der für die Geschäftsanbahnung
+    und Vertragsabwicklung erforderlichen Daten (insbesondere Kontakt- und Vertragsdaten)
+    kann ein Geschäftsabschluss bzw. die Vertragserfüllung jedoch nicht erfolgen.
+  </p>
+
+  <HeadingTag>9. Automatisierte Entscheidungsfindung und Profiling</HeadingTag>
+  <p>
+    Eine ausschließlich automatisierte Entscheidungsfindung im Sinne von Art. 22 DSGVO,
+    einschließlich Profiling, findet bei uns nicht statt. Alle für Sie rechtsverbindlichen
+    Entscheidungen (z. B. Angebote, Vertragsabschlüsse, Kündigungen) werden durch Mitarbeitende getroffen.
+  </p>
+
+  <HeadingTag>10. Ihre Rechte als betroffene Person</HeadingTag>
+  <p>Sie haben uns gegenüber folgende Rechte hinsichtlich Sie betreffender personenbezogener Daten:</p>
+  <ul>
+    <li><strong>Auskunft</strong> (Art. 15 DSGVO) — welche Daten wir über Sie verarbeiten</li>
+    <li><strong>Berichtigung</strong> (Art. 16 DSGVO) — Korrektur unrichtiger oder Vervollständigung unvollständiger Daten</li>
+    <li><strong>Löschung</strong> (Art. 17 DSGVO) — soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen</li>
+    <li><strong>Einschränkung der Verarbeitung</strong> (Art. 18 DSGVO)</li>
+    <li><strong>Datenübertragbarkeit</strong> (Art. 20 DSGVO) — Erhalt Ihrer Daten in einem strukturierten, gängigen Format</li>
+    <li><strong>Widerspruch</strong> (Art. 21 DSGVO) — gegen Verarbeitungen auf Grundlage berechtigter Interessen, insbesondere Direktwerbung</li>
+    <li><strong>Widerruf einer Einwilligung</strong> (Art. 7 Abs. 3 DSGVO) — mit Wirkung für die Zukunft</li>
+  </ul>
+  <p>
+    Zur Geltendmachung dieser Rechte kontaktieren Sie uns bitte unter
+    <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a> oder per Post an die oben genannte Anschrift.
+  </p>
+
+  <HeadingTag>11. Beschwerderecht bei der Aufsichtsbehörde</HeadingTag>
+  <p>
+    Sie haben das Recht, sich bei einer Datenschutz-Aufsichtsbehörde zu beschweren (Art. 77 DSGVO).
+    Zuständig für uns ist:
+  </p>
+  <p>
+    <strong>{beschwerdeStelle.name}</strong><br />
+    {beschwerdeStelle.address}
+    {beschwerdeStelle.phone && <><br />Telefon: {beschwerdeStelle.phone}</>}
+    <br />
+    E-Mail: <a href={beschwerdeStelle.emailUrl}>{beschwerdeStelle.emailUrl.replace('mailto:', '')}</a><br />
+    Web: <a href={beschwerdeStelle.url} target="_blank" rel="noopener noreferrer">{beschwerdeStelle.url.replace(/^https?:\/\//, '')}</a>
+  </p>
+
+  <HeadingTag>12. Kontakt für Datenschutzanfragen</HeadingTag>
+  <p>
+    Für alle Fragen zur Verarbeitung personenbezogener Daten und zur Wahrnehmung Ihrer
+    Betroffenenrechte erreichen Sie uns unter:
+  </p>
+  <p>
+    <strong>{companyName ?? `${l.owner}${l.form ? ` – ${l.form}` : ''}`}</strong><br />
+    {companyName && <>Vertreten durch: {l.owner}<br /></>}
+    {l.street}<br />
+    {l.zip} {l.city}<br />
+    E-Mail: <a href={`mailto:${datenschutzEmail}`}>{datenschutzEmail}</a><br />
+    Telefon: <a href={`tel:${phoneTel}`}>{l.phone}</a>
+  </p>
+
+  {!hideLeadIntro && (
+    <>
+      <p class="ip-cross-link">
+        Siehe auch:
+        <a href="/datenschutz">Datenschutzerklärung für Website-Besucher</a>
+        {' · '}
+        <a href="/agb">Allgemeine Geschäftsbedingungen</a>
+        {' · '}
+        <a href="/impressum">Impressum</a>
+      </p>
+
+      <p class="ip-stand">Stand: {standDatum}.</p>
+    </>
+  )}
+</div>
+
+<style>
+  .informationspflicht-block { max-width: 48rem; margin: 0 auto; padding: 2rem 1.5rem 5rem; }
+  .ip-lead {
+    font-size: 1rem;
+    line-height: 1.7;
+    color: var(--color-muted);
+    margin-bottom: 1.5rem;
+  }
+  .informationspflicht-block :is(h2, h3) {
+    font-size: 1.125rem;
+    margin-top: 2rem;
+    margin-bottom: 0.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    color: var(--color-primary);
+  }
+  .informationspflicht-block :is(h2, h3):first-of-type { border-top: none; padding-top: 0; }
+  .informationspflicht-block .ip-section-heading {
+    font-size: 1.375rem;
+    margin-top: 2.5rem;
+    color: var(--color-primary);
+    border-top: 2px solid var(--color-accent, #4d9918);
+    padding-top: 2rem;
+  }
+  .informationspflicht-block p, .informationspflicht-block li {
+    color: var(--color-muted);
+    line-height: 1.8;
+    margin-bottom: 0.5rem;
+    font-size: 0.9375rem;
+  }
+  .informationspflicht-block ul { padding-left: 1.25rem; margin-bottom: 0.75rem; }
+  .informationspflicht-block a { color: var(--color-accent-text, var(--color-primary)); }
+  .ip-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0 1.5rem;
+    font-size: 0.9375rem;
+  }
+  .ip-table th, .ip-table td {
+    text-align: left;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid #e5e7eb;
+    color: var(--color-muted);
+    line-height: 1.55;
+    vertical-align: top;
+  }
+  .ip-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: var(--color-primary);
+  }
+  .ip-cross-link {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 0.875rem !important;
+  }
+  .ip-cross-link a { font-weight: 500; }
+  .ip-stand {
+    margin-top: 2rem;
+    font-size: 0.8125rem !important;
+    color: #9ca3af !important;
+  }
+</style>

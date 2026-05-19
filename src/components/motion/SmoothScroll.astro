@@ -1,0 +1,68 @@
+---
+/**
+ * @cw/core – motion/SmoothScroll.astro
+ *
+ * Initializes Lenis for buttery scrolling across the whole page.
+ * Drop once inside the layout (e.g. via LandingPage's `motion` prop).
+ * Requires `lenis` as a peer dependency in the consuming project.
+ *
+ * Config is passed via a `data-*` attribute on the mount node so the
+ * bundled `<script>` (which Vite must transform to resolve the `lenis`
+ * import) can read it without falling back to `is:inline`.
+ *
+ * @example
+ *   <SmoothScroll />                             // defaults
+ *   <SmoothScroll lerp={0.08} wheelMultiplier={1.0} />
+ */
+interface Props {
+  lerp?: number;
+  wheelMultiplier?: number;
+  duration?: number;
+  disableOnTouch?: boolean;
+}
+
+const {
+  lerp = 0.1,
+  wheelMultiplier = 1,
+  duration = 1.2,
+  disableOnTouch = true,
+} = Astro.props;
+
+const cfg = JSON.stringify({ lerp, wheelMultiplier, duration, disableOnTouch });
+---
+<meta data-motion-smoothscroll data-cfg={cfg} />
+
+<script>
+  // Bundled (non-inline) so Vite can resolve `import('lenis')` properly.
+  (async () => {
+    if (typeof window === 'undefined') return;
+    const mount = document.querySelector('[data-motion-smoothscroll]') as HTMLElement | null;
+    if (!mount) return;
+    const raw = mount.dataset.cfg;
+    const cfg = raw ? JSON.parse(raw) : { lerp: 0.1, wheelMultiplier: 1, duration: 1.2, disableOnTouch: true };
+
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (cfg.disableOnTouch && window.matchMedia('(hover: none), (pointer: coarse)').matches) return;
+    if ((window as any).__lenisInit) return;
+    (window as any).__lenisInit = true;
+
+    try {
+      const { default: Lenis } = await import('lenis');
+      const lenis = new Lenis({
+        lerp: cfg.lerp,
+        wheelMultiplier: cfg.wheelMultiplier,
+        duration: cfg.duration,
+        smoothWheel: true,
+      });
+      (window as any).__lenis = lenis;
+
+      const raf = (time: number) => {
+        lenis.raf(time);
+        requestAnimationFrame(raf);
+      };
+      requestAnimationFrame(raf);
+    } catch (err) {
+      console.warn('[cw-core motion] Lenis not installed. Install with `pnpm add lenis`.', err);
+    }
+  })();
+</script>
