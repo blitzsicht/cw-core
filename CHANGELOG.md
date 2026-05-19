@@ -6,6 +6,39 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.7] — 2026-05-19 (release/cw-core — Header hideBrandName-Prop)
+
+### Added
+
+- `layout/Header.astro`: **Neue Prop `hideBrandName`** (default `false`) — unterdrückt den
+  `<span>{siteName}</span>` Text neben dem Logo-Bild. Verwenden wenn das Logo-SVG selbst bereits
+  den Markennamen als `<text>`-Element enthält (Text-Logo), um Doppel-Anzeige im Header zu vermeiden.
+  (Fixes siluri/blitzsicht-ops#202)
+
+- `layouts/LandingPage.astro`: **`HeaderConfig.hideBrandName`** — neue optionale Prop im
+  `header`-Config-Objekt, wird transparent an `Header.astro` weitergegeben.
+
+### Compatibility
+
+- Backwards-kompatibel: `hideBrandName` Default ist `false` — HTML-Output für alle bestehenden
+  Customers identisch zu v0.10.6.
+- Keine Prop-Entfernungen, keine Umbenennungen.
+
+### Migration (Customers mit Text-Logo-SVG)
+
+```ts
+// page-config.ts
+export const headerConfig = {
+  navItems: siteData.nav.main,
+  showKarriereLink: false,
+  logoSrc: '/logo.svg',
+  logoSrcDark: '/logo-dark.svg',
+  hideBrandName: true,  // ← neu: SVG enthält bereits Text, Span unterdrücken
+};
+```
+
+---
+
 ## [0.10.6] — 2026-05-19 (release/cw-core — StickyMobileCTA WCAG-Fix + primaryVariant)
 
 ### Fixed (Accessibility)
