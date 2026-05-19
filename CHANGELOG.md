@@ -11,7 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 ### Fixed (Accessibility)
 
 - `blocks/StickyMobileCTA.astro`: **WhatsApp-Default-Color WCAG 2.1 AA Fix** — `secondaryVariant="whatsapp"`
-  Background von `#25D366` (2.96:1, FAIL) auf `#197F40` (5.06:1, PASS) geändert.
+  Background von `#25D366` (1.98:1, FAIL) auf `#197F40` (5.06:1, PASS) geändert.
   Hover von `#1ebd5a` auf `#136A35`. Konsistent mit Hero-Card-Buttons der Customer-Sites.
   (Fixes siluri/blitzsicht-ops#195)
 

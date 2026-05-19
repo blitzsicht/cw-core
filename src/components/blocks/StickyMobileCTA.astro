@@ -67,7 +67,7 @@ const isSplit = secondaryHref && secondaryLabel;
 
 {isSplit ? (
   <div class="sticky-mobile-cta sticky-mobile-cta--split">
-    <a class={`sticky-mobile-cta__btn sticky-mobile-cta__btn--primary sticky-mobile-cta__btn--primary-${primaryVariant}`} href={href} target={target}>
+    <a class={`sticky-mobile-cta__btn sticky-mobile-cta__btn--primary${primaryVariant === 'primary' ? ' sticky-mobile-cta__btn--primary-primary' : ''}`} href={href} target={target}>
       <slot name="primary-icon" />{label} →
     </a>
     <a
@@ -153,19 +153,16 @@ const isSplit = secondaryHref && secondaryLabel;
   }
 
   .sticky-mobile-cta__btn--primary {
+    /* Default: accent (backwards-compat with v0.10.5 — same selector + property) */
+    background: var(--color-accent, #ef7612);
     border-right: 1px solid rgba(255, 255, 255, 0.25);
   }
 
-  /* primaryVariant="accent" (default — backwards-compat) */
-  .sticky-mobile-cta__btn--primary-accent {
-    background: var(--color-accent, #ef7612);
-  }
-
-  .sticky-mobile-cta__btn--primary-accent:hover {
+  .sticky-mobile-cta__btn--primary:hover {
     background: var(--color-accent-hover, #d46610);
   }
 
-  /* primaryVariant="primary" */
+  /* primaryVariant="primary" — override default accent with brand-primary */
   .sticky-mobile-cta__btn--primary-primary {
     background: var(--color-primary, #1d1e3b);
   }
