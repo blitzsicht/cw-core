@@ -42,7 +42,10 @@ export interface LegalProps {
 
 interface Props {
   legal: LegalProps;
-  email: string;
+  /** Kontakt-E-Mail-Adresse für das Impressum (§ 5 Abs. 1 Nr. 2 DDG — schnelle elektronische
+   *  Kontaktaufnahme). Optional: wenn nicht gesetzt, wird kein E-Mail-Link gerendert und
+   *  nur das Kontaktformular als elektronischer Kontaktweg aufgeführt. */
+  email?: string;
   /** § 18 Abs. 2 MStV — bei journalistisch-redaktionellen Inhalten Pflicht. Default false. */
   hasEditorial?: boolean;
   /** V.i.S.d.P.-Name falls hasEditorial=true. Default: legal.owner. */
@@ -75,13 +78,13 @@ const registerLabel: Record<LegalProps['register'], string> = {
   <h2>Kontakt</h2>
   <p>
     Telefon: <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a><br />
-    E-Mail: <a href={`mailto:${email}`}>{email}</a><br />
+    {email && <>E-Mail: <a href={`mailto:${email}`}>{email}</a><br /></>}
     Kontaktformular: <a href={contactFormPath}>{contactFormPath}</a>
   </p>
   <p>
     <small>
       Schnelle elektronische Kontaktaufnahme nach § 5 Abs. 1 Nr. 2 DDG erfolgt über das Kontaktformular
-      oder direkt per E-Mail.
+      {email && <>oder direkt per E-Mail</>}.
     </small>
   </p>
 
