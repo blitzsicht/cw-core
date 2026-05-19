@@ -8,23 +8,65 @@
  * Add padding-bottom to the page footer to prevent overlap:
  *   footer { padding-bottom: calc(56px + env(safe-area-inset-bottom)); }
  *
- * @example
+ * @example Single CTA (backwards-compatible)
  *   <StickyMobileCTA href="/website-audit" label="Kostenloser Website-Audit" />
+ *
+ * @example Split CTA (new in 0.10.5)
+ *   <StickyMobileCTA
+ *     href="/kontakt"
+ *     label="Jetzt anfragen"
+ *     secondaryHref="https://wa.me/49151xxxxxxxx"
+ *     secondaryLabel="WhatsApp"
+ *     secondaryVariant="whatsapp"
+ *   />
  */
 interface Props {
   href: string;
   label: string;
   /** Optional: target attribute. Defaults to "_self". */
   target?: string;
+  /** Secondary button href. When set together with secondaryLabel, renders split layout. */
+  secondaryHref?: string;
+  /** Secondary button label. Required when secondaryHref is set. */
+  secondaryLabel?: string;
+  /** Optional: target attribute for secondary button. Defaults to "_self". */
+  secondaryTarget?: string;
+  /** Visual variant for secondary button. Defaults to "accent". */
+  secondaryVariant?: 'whatsapp' | 'accent';
 }
 
-const { href, label, target = '_self' } = Astro.props;
+const {
+  href,
+  label,
+  target = '_self',
+  secondaryHref,
+  secondaryLabel,
+  secondaryTarget = '_self',
+  secondaryVariant = 'accent',
+} = Astro.props;
+
+const isSplit = secondaryHref && secondaryLabel;
 ---
 
-<a class="sticky-mobile-cta" href={href} target={target}>{label} →</a>
+{isSplit ? (
+  <div class="sticky-mobile-cta sticky-mobile-cta--split">
+    <a class="sticky-mobile-cta__btn sticky-mobile-cta__btn--primary" href={href} target={target}>
+      <slot name="primary-icon" />{label} →
+    </a>
+    <a
+      class={`sticky-mobile-cta__btn sticky-mobile-cta__btn--secondary sticky-mobile-cta__btn--${secondaryVariant}`}
+      href={secondaryHref}
+      target={secondaryTarget}
+    >
+      <slot name="secondary-icon" />{secondaryLabel} →
+    </a>
+  </div>
+) : (
+  <a class="sticky-mobile-cta" href={href} target={target}>{label} →</a>
+)}
 
 <style>
-  /* Mobile default: visible */
+  /* ─── Single CTA (unchanged, backwards-compat) ─── */
   .sticky-mobile-cta {
     display: flex;
     align-items: center;
@@ -58,5 +100,70 @@ const { href, label, target = '_self' } = Astro.props;
   /* Desktop: hidden */
   @media (min-width: 768px) {
     .sticky-mobile-cta { display: none; }
+  }
+
+  /* ─── Split CTA (new) ─── */
+  .sticky-mobile-cta--split {
+    display: flex;
+    align-items: stretch;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.18);
+    min-height: 56px;
+  }
+
+  .sticky-mobile-cta__btn {
+    flex: 1 1 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 1rem 0.75rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    color: var(--color-accent-btn-text, white);
+    transition: background 0.15s;
+  }
+
+  .sticky-mobile-cta__btn:focus-visible {
+    outline: 3px solid white;
+    outline-offset: -3px;
+  }
+
+  .sticky-mobile-cta__btn--primary {
+    background: var(--color-accent, #ef7612);
+    border-right: 1px solid rgba(255, 255, 255, 0.25);
+  }
+
+  .sticky-mobile-cta__btn--primary:hover {
+    background: var(--color-accent-hover, #d46610);
+  }
+
+  /* accent variant (default for secondary) */
+  .sticky-mobile-cta__btn--accent {
+    background: var(--color-accent, #ef7612);
+  }
+
+  .sticky-mobile-cta__btn--accent:hover {
+    background: var(--color-accent-hover, #d46610);
+  }
+
+  /* whatsapp variant */
+  .sticky-mobile-cta__btn--whatsapp {
+    background: #25D366;
+  }
+
+  .sticky-mobile-cta__btn--whatsapp:hover {
+    background: #1ebd5a;
+  }
+
+  /* Desktop: hidden */
+  @media (min-width: 768px) {
+    .sticky-mobile-cta--split { display: none; }
   }
 </style>

@@ -6,6 +6,67 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.5] — 2026-05-19 (release/cw-core — StickyMobileCTA Split-CTA + StickyContact hideOnMobile)
+
+### Added
+
+- `blocks/StickyMobileCTA.astro`: **Split-CTA Layout** — neue Props `secondaryHref`, `secondaryLabel`,
+  `secondaryTarget`, `secondaryVariant` (`'whatsapp' | 'accent'`). Wenn `secondaryHref` + `secondaryLabel`
+  gesetzt: Flex-Layout mit 2 Buttons à 50% Breite, border-Trenner statt Gap. Einzelner CTA verhält sich
+  **HTML-identisch zu v0.10.4** (Backwards-Compat-Pflicht). (Fixes siluri/blitzsicht-ops#192)
+
+  Neue Props:
+  - `secondaryHref?: string` — href des zweiten Buttons
+  - `secondaryLabel?: string` — Label des zweiten Buttons
+  - `secondaryTarget?: string` — target-Attribut (Default: `'_self'`)
+  - `secondaryVariant?: 'whatsapp' | 'accent'` — Farbvariante; Default `'accent'` (gleiche Farbe wie Primary).
+    `'whatsapp'` → Hintergrund `#25D366`, hover `#1ebd5a`.
+
+  Optional Slot-API für Icons direkt vor dem Label:
+  - `<slot name="primary-icon" />` im primären Button
+  - `<slot name="secondary-icon" />` im sekundären Button
+
+- `blocks/StickyContact.astro`: **`hideOnMobile` Prop** — blendet den schwebenden Kontakt-Button
+  auf mobilen Viewports (< 768px) aus. Nützlich wenn gleichzeitig `StickyMobileCTA` sichtbar ist
+  und ein visuelles Überlappen verhindert werden soll. Default `false` → unverändert. (Fixes siluri/blitzsicht-ops#192)
+
+### Migration (Customers)
+
+**Single CTA — unverändert:**
+```astro
+{/* Kein Code-Change nötig — HTML-Output identisch */}
+<StickyMobileCTA href="/website-audit" label="Kostenloser Website-Audit" />
+```
+
+**Split CTA — neu:**
+```astro
+<StickyMobileCTA
+  href="/kontakt"
+  label="Jetzt anfragen"
+  secondaryHref="https://wa.me/49151xxxxxxxx"
+  secondaryLabel="WhatsApp"
+  secondaryVariant="whatsapp"
+  secondaryTarget="_blank"
+/>
+```
+
+**StickyContact auf Mobile ausblenden (z.B. wenn StickyMobileCTA aktiv):**
+```astro
+<StickyContact
+  whatsapp="+49151xxxxxxxx"
+  phone="+498xxxxxxxxxxx"
+  hideOnMobile={true}
+/>
+```
+
+### Compatibility
+
+- Backwards-kompatibel: `StickyMobileCTA` ohne Secondary-Props rendert HTML-identisch zu v0.10.4.
+- `StickyContact` ohne `hideOnMobile` (oder `hideOnMobile={false}`) verhält sich unverändert.
+- Keine Breaking Changes.
+
+---
+
 ## [0.10.4] — 2026-05-19 (release/cw-core — StickyContact in cw-core hochgehoben)
 
 ### Added
