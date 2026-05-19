@@ -6,6 +6,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.1] — 2026-05-19 (main — release/cw-core merge)
+
+### Changed
+
+- `release/cw-core` erfolgreich in `main` gemerged (--allow-unrelated-histories).
+  Alte root-level Struktur (`components/`, `layouts/`, `styles/`) durch `src/`-Struktur ersetzt.
+- Alle 4 add/add-Konflikte (.gitignore, README.md, package.json, docs/og-image.md) zugunsten `release/cw-core` aufgelöst (autoritativere, neuere Version).
+
+### Migration
+
+Customer-Sites müssen Import-Pfade anpassen: `@cw/core/components/` → `@cw/core/components/` über `src/index.ts`-Re-Exports oder direkte `src/`-Pfade.
+Detaillierte Breaking-Changes: siehe [0.9.10]-Eintrag.
+
+---
+
 ## [0.10.0] — 2026-05-19 (release/cw-core — SEO Components)
 
 ### Added
