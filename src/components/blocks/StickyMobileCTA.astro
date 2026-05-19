@@ -19,12 +19,28 @@
  *     secondaryLabel="WhatsApp"
  *     secondaryVariant="whatsapp"
  *   />
+ *
+ * @example Split CTA with primary-colored primary button (new in 0.10.6)
+ *   <StickyMobileCTA
+ *     href="/kontakt"
+ *     label="Jetzt anfragen"
+ *     primaryVariant="primary"
+ *     secondaryHref="https://wa.me/49151xxxxxxxx"
+ *     secondaryLabel="WhatsApp"
+ *     secondaryVariant="whatsapp"
+ *   />
  */
 interface Props {
   href: string;
   label: string;
   /** Optional: target attribute. Defaults to "_self". */
   target?: string;
+  /**
+   * Visual variant for the primary button. Defaults to "accent".
+   * - "accent": uses --color-accent / --color-accent-hover (default, backwards-compat)
+   * - "primary": uses --color-primary / --color-primary-dark
+   */
+  primaryVariant?: 'accent' | 'primary';
   /** Secondary button href. When set together with secondaryLabel, renders split layout. */
   secondaryHref?: string;
   /** Secondary button label. Required when secondaryHref is set. */
@@ -39,6 +55,7 @@ const {
   href,
   label,
   target = '_self',
+  primaryVariant = 'accent',
   secondaryHref,
   secondaryLabel,
   secondaryTarget = '_self',
@@ -50,7 +67,7 @@ const isSplit = secondaryHref && secondaryLabel;
 
 {isSplit ? (
   <div class="sticky-mobile-cta sticky-mobile-cta--split">
-    <a class="sticky-mobile-cta__btn sticky-mobile-cta__btn--primary" href={href} target={target}>
+    <a class={`sticky-mobile-cta__btn sticky-mobile-cta__btn--primary${primaryVariant === 'primary' ? ' sticky-mobile-cta__btn--primary-primary' : ''}`} href={href} target={target}>
       <slot name="primary-icon" />{label} →
     </a>
     <a
@@ -136,12 +153,22 @@ const isSplit = secondaryHref && secondaryLabel;
   }
 
   .sticky-mobile-cta__btn--primary {
+    /* Default: accent (backwards-compat with v0.10.5 — same selector + property) */
     background: var(--color-accent, #ef7612);
     border-right: 1px solid rgba(255, 255, 255, 0.25);
   }
 
   .sticky-mobile-cta__btn--primary:hover {
     background: var(--color-accent-hover, #d46610);
+  }
+
+  /* primaryVariant="primary" — override default accent with brand-primary */
+  .sticky-mobile-cta__btn--primary-primary {
+    background: var(--color-primary, #1d1e3b);
+  }
+
+  .sticky-mobile-cta__btn--primary-primary:hover {
+    background: var(--color-primary-dark, #13142a);
   }
 
   /* accent variant (default for secondary) */
@@ -153,13 +180,13 @@ const isSplit = secondaryHref && secondaryLabel;
     background: var(--color-accent-hover, #d46610);
   }
 
-  /* whatsapp variant */
+  /* whatsapp variant — WCAG 2.1 AA konform: #197F40 = 5.06:1 auf weiß */
   .sticky-mobile-cta__btn--whatsapp {
-    background: #25D366;
+    background: #197f40;
   }
 
   .sticky-mobile-cta__btn--whatsapp:hover {
-    background: #1ebd5a;
+    background: #136a35;
   }
 
   /* Desktop: hidden */

@@ -6,6 +6,57 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.6] — 2026-05-19 (release/cw-core — StickyMobileCTA WCAG-Fix + primaryVariant)
+
+### Fixed (Accessibility)
+
+- `blocks/StickyMobileCTA.astro`: **WhatsApp-Default-Color WCAG 2.1 AA Fix** — `secondaryVariant="whatsapp"`
+  Background von `#25D366` (1.98:1, FAIL) auf `#197F40` (5.06:1, PASS) geändert.
+  Hover von `#1ebd5a` auf `#136A35`. Konsistent mit Hero-Card-Buttons der Customer-Sites.
+  (Fixes siluri/blitzsicht-ops#195)
+
+### Added
+
+- `blocks/StickyMobileCTA.astro`: **Neue Prop `primaryVariant`** — steuert Hintergrundfarbe des primären
+  Buttons im Split-Layout:
+  - `'accent'` (Default): `--color-accent` / `--color-accent-hover` — bisheriges Verhalten, Backwards-Compat.
+  - `'primary'`: `--color-primary` / `--color-primary-dark` — Nachtblau als Primary-Button.
+  (Fixes siluri/blitzsicht-ops#195)
+
+### Migration (Customers)
+
+**WhatsApp-Color — kein Code-Change nötig:**
+```astro
+{/* secondaryVariant="whatsapp" rendert jetzt automatisch WCAG-konformes #197F40 */}
+<StickyMobileCTA
+  href="/kontakt"
+  label="Jetzt anfragen"
+  secondaryHref="https://wa.me/49151xxxxxxxx"
+  secondaryLabel="WhatsApp"
+  secondaryVariant="whatsapp"
+/>
+```
+
+**primaryVariant="primary" — neues Feature:**
+```astro
+<StickyMobileCTA
+  href="/kontakt"
+  label="Jetzt anfragen"
+  primaryVariant="primary"
+  secondaryHref="https://wa.me/49151xxxxxxxx"
+  secondaryLabel="WhatsApp"
+  secondaryVariant="whatsapp"
+/>
+```
+
+### Compatibility
+
+- Backwards-kompatibel: `primaryVariant` Default ist `'accent'` — HTML-Output identisch zu v0.10.5.
+- WhatsApp-Farbänderung ist visuell (etwas dunkler/satter), kein Breaking Change.
+- Keine Prop-Entfernungen, keine Umbenennungen.
+
+---
+
 ## [0.10.5] — 2026-05-19 (release/cw-core — StickyMobileCTA Split-CTA + StickyContact hideOnMobile)
 
 ### Added
