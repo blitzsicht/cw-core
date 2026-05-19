@@ -6,6 +6,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.11.0-rc.2] — 2026-05-19 (release/cw-core — Quality-Checks-Integration)
+
+### Added (Plan-Phase 1.3 — Build-Time-Checks)
+
+- `integrations/quality-checks/index.ts` — neue Astro-Integration (opt-in).
+  Im `astro:build:done`-Hook scannt sie `dist/*.html` und prüft:
+  - **1× `<h1>` pro Page** (h1Count !== 1 → Warning oder Build-Fail in strict-Mode)
+  - **AnswerBlock-Pflicht** für Pages die einem `servicePagePatterns`-Regex matchen
+- Default-Mode: Soft-Warnings (kein Build-Fail). `strict: true` macht es hart.
+- ignorePaths-Default: /404, /danke, /impressum, /datenschutz, /agb
+- Aktivierung pro Customer-Site (opt-in via `astro.config.ts`).
+
+### Package-Exports erweitert
+
+- `./integrations/quality-checks` → `src/integrations/quality-checks/index.ts`
+
+---
+
 ## [0.11.0-rc.1] — 2026-05-19 (release/cw-core — Google AI Optimization Guide Phase 1)
 
 > **Release-Candidate.** Trifft erstmals den Plan-Phase-1-Scope (Google AI
