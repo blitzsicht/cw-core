@@ -41,12 +41,20 @@ interface Props {
    * mich für eine PV-Beratung.").
    */
   prefilledMessage?: string;
+  /**
+   * Wenn true: StickyContact wird auf mobilen Viewports (< 768px) ausgeblendet.
+   * Nützlich wenn StickyMobileCTA bereits vorhanden ist und ein visuelles
+   * Überlappen der beiden Floating-Elemente verhindert werden soll.
+   * Default: false (unverändert sichtbar auf allen Viewports).
+   */
+  hideOnMobile?: boolean;
 }
 
 const {
   whatsapp,
   phone,
   prefilledMessage = 'Hallo, ich interessiere mich für Ihr Angebot.',
+  hideOnMobile = false,
 } = Astro.props;
 
 const waNumber = whatsapp?.replace(/\D/g, '');
@@ -56,7 +64,7 @@ const waLink = waNumber
 const telLink = phone ? `tel:${phone.replace(/\s/g, '')}` : null;
 ---
 {(waLink || telLink) && (
-  <div class="sticky-contact" role="complementary" aria-label="Schnellkontakt">
+  <div class:list={['sticky-contact', { 'sticky-contact--hide-mobile': hideOnMobile }]} role="complementary" aria-label="Schnellkontakt">
     {waLink && (
       <a
         href={waLink}
@@ -178,5 +186,10 @@ const telLink = phone ? `tel:${phone.replace(/\s/g, '')}` : null;
   @media (prefers-reduced-motion: reduce) {
     .sticky-btn--wa::after { animation: none; }
     .sticky-btn { transition: none; }
+  }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- siluri/blitzsicht-ops#184 */
+  @media (max-width: 767px) {
+    .sticky-contact--hide-mobile { display: none; }
   }
 </style>
