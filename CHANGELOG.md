@@ -6,6 +6,85 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.11.0-rc.1] — 2026-05-19 (release/cw-core — Google AI Optimization Guide Phase 1)
+
+> **Release-Candidate.** Trifft erstmals den Plan-Phase-1-Scope (Google AI
+> Optimization Guide Rollout). Customer-Sites können auf diesen Commit-Hash
+> pinnen für Beta-Testing. Promotion zu 0.11.0 nach Smoke-Build auf ≥3 Customer.
+
+### Added (Plan-Phase 1.1 — 8 neue Components)
+
+- `blocks/AnswerBlock.astro` — Lead-with-Answer-Block für Service-Pages. Props:
+  `question`, `directAnswer` (max 50 Wörter empfohlen), `details?`, `priceRange?`,
+  `timeline?`, `highlights?`. Schema: `Question`/`Answer` JSON-LD. Build-Warning
+  bei `directAnswer > 80 Wörter`. **Plan-Hintergrund:** 44.2% AI-Citations aus
+  ersten 30% Page-Content (Mai 2026).
+- `blocks/RecentlyUpdated.astro` — sichtbares "Aktualisiert am DD.MM.YYYY"-Badge
+  mit Stale-Warning bei >90 Tagen. Variants: `badge` (Pill) und `banner` (volle Breite).
+  Dev-Mode-Console-Warning bei stale Content. **Plan-Hintergrund:** Pages <30 Tage
+  bekommen 3.2× mehr AI-Citations.
+- `blocks/CTAPrimary.astro` — Agent-Friendly Primary-CTA-Primitive mit
+  `data-cta-type`-Attribut (contact/quote/phone/booking/whatsapp/email). Build-Warning
+  bei vagen Labels ("hier klicken", "weiter lesen").
+- `blocks/CaseStudyBlock.astro` — Customer/Location/Problem/Approach/Outcome-Block.
+  Schema: `CreativeWork` + optional `Review` (mit Rating). Compact-Mode für
+  Referenzen-Grids.
+- `blocks/BehindTheJob.astro` — Erfahrungs-Block mit Learnings + ehrlichen Fehlern +
+  Konsequenz. Schema: `Article` mit Author=Organization.
+- `blocks/PriceTransparency.astro` — Preis-Range-Block mit Faktoren-Liste pro
+  Service. Verhindert "auf Anfrage"-Antipattern. Schema: `ItemList` of `Offer` +
+  `PriceSpecification`.
+- `blocks/LocalProofMap.astro` — lokale Referenzen-Liste (City + Service + Year)
+  ohne Map-Embed (Privacy + Performance). Schema: `ItemList` of `Place`.
+- `blocks/FAQHonest.astro` — FAQ-Variante mit `minAnswerChars` (default 150).
+  Antworten unter Schwelle werden visuell gezeigt aber NICHT ins FAQPage-Schema
+  aufgenommen — vermeidet Thin-Content-Flag von Google.
+
+### Added (Plan-Phase 1.2 — Schema-Helpers konsolidiert)
+
+- `schema/local-business.ts` — **Subtype-aware** `localBusinessSchema(input)`.
+  `BusinessType` → Schema.org-Subtype-Mapping (Plumber, Electrician, HVACBusiness,
+  Bakery, WineStore, BedAndBreakfast, RoofingContractor, ...). Plus
+  `validateLocalBusiness()` für Compile-Time-Warnings.
+- `schema/article.ts` — `articleSchema(input)` für BehindTheJob + Blog-Pages.
+- `schema/creative-work.ts` — `caseStudySchema(input)` für CaseStudyBlock
+  (CreativeWork + optional Review).
+- `schema/breadcrumb-list.ts` — `breadcrumbListSchema(items)` — schließt
+  bisherige JSON-LD-Lücke (Breadcrumbs.astro hat keinen Schema-Output).
+- `schema/service.ts` — `serviceSchema(input)` pro Service-Page mit
+  areaServed + offers.
+- `schema/index.ts` — Re-Export aller Helpers für `import { ... } from '@cw/core/schema'`.
+
+### Added (Plan-Phase 1.4 — IndexNow-Integration, Default-Aktiv)
+
+- `integrations/bing-indexnow/index.ts` — Astro-Integration für Post-Build-Ping
+  an Bing/Yandex IndexNow-API. Liest Sitemap, generiert Verifikations-Key-File,
+  Bulk-Ping (max 10.000 URLs). **Default-Aktiv** (im Gegensatz zu llms.txt:
+  IndexNow hat nachgewiesenen Nutzen für ChatGPT-Sichtbarkeit).
+
+### Package-Exports erweitert
+
+- `./integrations/bing-indexnow` → `src/integrations/bing-indexnow/index.ts`
+- `./schema` → `src/schema/index.ts`
+- `./schema/*` → `src/schema/*.ts`
+
+### Compatibility
+
+- **Voll backwards-kompatibel** zu v0.10.7. Alle neuen Components sind
+  additive (keine Breaking-Changes an existing). Schema-Helpers können
+  parallel zu existing `components/seo/*.astro` genutzt werden.
+- IndexNow-Integration ist opt-in via `astro.config.ts` — wird nicht
+  automatisch aktiviert beim Bump.
+
+### Verbleibend Plan-Phase 1 (kommen in folgenden RCs)
+
+- 1.3: Build-Time-Checks in BaseLayout (1× h1 / Page, AnswerBlock-Pflicht für Service-Pages)
+- 1.5: Doku-Update für ai-discovery + neue optional-features.md
+- 1.6: Storybook 8 Setup
+- 1.7: docs/non-commodity-content-guide.md + google-ai-guide-compliance.md
+
+---
+
 ## [0.10.7] — 2026-05-19 (release/cw-core — Header hideBrandName-Prop)
 
 ### Added

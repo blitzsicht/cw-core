@@ -1,0 +1,206 @@
+---
+/**
+ * @cw/core – CaseStudyBlock.astro
+ *
+ * Non-Commodity Case-Study Block (Plan-Phase 1.1).
+ * Strukturierter Customer/Location/Problem/Approach/Outcome-Block mit
+ * Schema.org CreativeWork + optionalem Review JSON-LD.
+ *
+ * @example
+ *   <CaseStudyBlock
+ *     customer="Familie Huber"
+ *     location="Regensburg"
+ *     problem="Verstopfte Hauptleitung im Altbau (Bj. 1908) — Wasser stand im Keller."
+ *     approach="Kamera-Inspektion, Hochdruck-Spülung, Tausch der defekten Muffe."
+ *     outcome="Abfluss läuft seit 8 Monaten störungsfrei. Garantie auf die Muffe: 5 Jahre."
+ *     date="2025-09"
+ *     quote={{
+ *       text: "Sehr professionell, kein Dreck hinterlassen.",
+ *       author: "Frau Huber",
+ *       ratingValue: 5
+ *     }}
+ *     provider={{ name: "Mustermann Sanitär", url: "https://..." }}
+ *     pageUrl="https://.../referenzen/familie-huber"
+ *   />
+ */
+import { caseStudySchema, type CaseStudyInput } from '@cw/core/schema/creative-work';
+
+interface Props {
+  customer: string;
+  location?: string;
+  problem: string;
+  approach: string;
+  outcome: string;
+  date?: string;
+  quote?: {
+    text: string;
+    author?: string;
+    ratingValue?: number;
+  };
+  images?: string[];
+  provider: {
+    name: string;
+    url?: string;
+  };
+  pageUrl: string;
+  /** Optional: Compact-Mode (kein H2-Heading, kleinere Padding). */
+  compact?: boolean;
+}
+
+const {
+  customer,
+  location,
+  problem,
+  approach,
+  outcome,
+  date,
+  quote,
+  images = [],
+  provider,
+  pageUrl,
+  compact = false,
+} = Astro.props;
+
+const schemaInput: CaseStudyInput = {
+  customer,
+  location,
+  problem,
+  approach,
+  outcome,
+  date,
+  quote,
+  images,
+  provider,
+  url: pageUrl,
+};
+const schema = caseStudySchema(schemaInput);
+---
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+
+<article class={`case-study ${compact ? 'is-compact' : ''}`} data-cw-case-study>
+  {!compact && (
+    <header class="case-study-header">
+      <h2 class="case-study-customer">{customer}</h2>
+      {location && <p class="case-study-location">{location}</p>}
+      {date && <time datetime={date} class="case-study-date">{date}</time>}
+    </header>
+  )}
+
+  <div class="case-study-body">
+    <section class="case-study-section">
+      <h3 class="case-study-label">Problem</h3>
+      <p>{problem}</p>
+    </section>
+
+    <section class="case-study-section">
+      <h3 class="case-study-label">Lösung</h3>
+      <p>{approach}</p>
+    </section>
+
+    <section class="case-study-section">
+      <h3 class="case-study-label">Ergebnis</h3>
+      <p>{outcome}</p>
+    </section>
+
+    {quote && (
+      <blockquote class="case-study-quote">
+        <p>„{quote.text}"</p>
+        {quote.author && <footer class="case-study-quote-author">— {quote.author}{quote.ratingValue !== undefined && (<span class="case-study-rating" aria-label={`${quote.ratingValue} von 5 Sternen`}>{' · ' + '★'.repeat(quote.ratingValue)}</span>)}</footer>}
+      </blockquote>
+    )}
+
+    {images.length > 0 && (
+      <div class="case-study-gallery">
+        {images.slice(0, 3).map((src) => <img src={src} alt={`Bild: ${customer}`} loading="lazy" />)}
+      </div>
+    )}
+  </div>
+</article>
+
+<style>
+  .case-study {
+    background: var(--color-surface, #f8fafc);
+    border-radius: 8px;
+    padding: 1.75rem 2rem;
+    border: 1px solid var(--color-border, #e2e8f0);
+  }
+  .case-study.is-compact {
+    padding: 1.25rem 1.5rem;
+  }
+  .case-study-header {
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.875rem;
+    border-bottom: 2px solid var(--color-accent, #EF7612);
+  }
+  .case-study-customer {
+    font-size: clamp(1.25rem, 2vw, 1.5rem);
+    font-weight: 700;
+    color: var(--color-primary, #1D1E3B);
+    margin: 0 0 0.25rem;
+  }
+  .case-study-location {
+    font-size: 0.9375rem;
+    color: var(--color-muted, #64748b);
+    margin: 0 0 0.25rem;
+  }
+  .case-study-date {
+    font-size: 0.8125rem;
+    color: var(--color-muted, #64748b);
+    font-family: ui-monospace, monospace;
+  }
+  .case-study-section {
+    margin-bottom: 1rem;
+  }
+  .case-study-section:last-of-type {
+    margin-bottom: 0.5rem;
+  }
+  .case-study-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-accent, #EF7612);
+    margin: 0 0 0.25rem;
+  }
+  .case-study-section p {
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    margin: 0;
+    color: var(--color-text, #1e293b);
+  }
+  .case-study-quote {
+    margin: 1.25rem 0 0;
+    padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, 0.7);
+    border-left: 3px solid var(--color-primary, #1D1E3B);
+    border-radius: 0 6px 6px 0;
+    font-style: italic;
+  }
+  .case-study-quote p {
+    margin: 0 0 0.375rem;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+  .case-study-quote-author {
+    font-style: normal;
+    font-size: 0.8125rem;
+    color: var(--color-muted, #64748b);
+  }
+  .case-study-rating {
+    color: var(--color-accent, #EF7612);
+    margin-left: 0.25rem;
+  }
+  .case-study-gallery {
+    margin-top: 1.25rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+  }
+  .case-study-gallery img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+</style>

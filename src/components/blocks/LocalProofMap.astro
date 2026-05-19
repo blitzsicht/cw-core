@@ -1,0 +1,215 @@
+---
+/**
+ * @cw/core – LocalProofMap.astro
+ *
+ * Lokaler Proof: echte Referenzen (Stadt + Service + Jahr) als Statik-Liste
+ * (Plan-Phase 1.1). KEINE Map-Embed (Privacy + Performance). Stattdessen
+ * visualisierte Region-Liste + Schema-Integration mit Place-References.
+ *
+ * @example
+ *   <LocalProofMap
+ *     references={[
+ *       { city: "Regensburg", serviceType: "Rohrreinigung Hauptleitung", year: 2025 },
+ *       { city: "Kelheim", serviceType: "Notdienst-Einsatz", year: 2025 },
+ *       { city: "Straubing", serviceType: "Badsanierung", year: 2024 }
+ *     ]}
+ *     primaryRegion="Oberpfalz"
+ *     heading="Wir haben in diesen Orten gearbeitet"
+ *   />
+ */
+
+export interface LocalReference {
+  city: string;
+  serviceType: string;
+  year: number;
+  /** Optional: GeoCoordinates für besseres Schema. */
+  geo?: { latitude: number; longitude: number };
+}
+
+interface Props {
+  references: LocalReference[];
+  /** Hauptregion (für Schema areaServed). */
+  primaryRegion?: string;
+  /** Heading-Override. */
+  heading?: string;
+  /** Subheading. */
+  subheading?: string;
+  /** Max sichtbare Einträge (Rest "+N weitere"). */
+  maxVisible?: number;
+}
+
+const {
+  references,
+  primaryRegion,
+  heading = 'Aufträge in der Region',
+  subheading,
+  maxVisible = 12,
+} = Astro.props;
+
+// Aggregiere unique Cities
+const cityCount = new Map<string, number>();
+for (const ref of references) {
+  cityCount.set(ref.city, (cityCount.get(ref.city) ?? 0) + 1);
+}
+const uniqueCities = [...cityCount.keys()].sort();
+
+// Schema: ItemList von Places + (optional) ServiceArea
+const placeListSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: heading,
+  itemListElement: uniqueCities.map((city, idx) => {
+    const matching = references.find((r) => r.city === city);
+    return {
+      '@type': 'ListItem',
+      position: idx + 1,
+      item: {
+        '@type': 'Place',
+        name: city,
+        ...(matching?.geo && {
+          geo: {
+            '@type': 'GeoCoordinates',
+            latitude: matching.geo.latitude,
+            longitude: matching.geo.longitude,
+          },
+        }),
+      },
+    };
+  }),
+};
+
+// Group references by city → display compactly
+type Grouped = { city: string; entries: LocalReference[] };
+const grouped: Grouped[] = uniqueCities.map((city) => ({
+  city,
+  entries: references.filter((r) => r.city === city).sort((a, b) => b.year - a.year),
+}));
+
+const visibleCities = grouped.slice(0, maxVisible);
+const overflowCount = grouped.length - visibleCities.length;
+---
+<script is:inline type="application/ld+json" set:html={JSON.stringify(placeListSchema)} />
+
+<section class="local-proof-map" data-cw-local-proof-map>
+  <header class="lpm-header">
+    <h2 class="lpm-heading">{heading}</h2>
+    {subheading && <p class="lpm-subheading">{subheading}</p>}
+    <p class="lpm-meta">
+      <strong>{references.length}</strong> dokumentierte Aufträge
+      {primaryRegion && <> · Hauptregion <strong>{primaryRegion}</strong></>}
+    </p>
+  </header>
+
+  <ul class="lpm-cities">
+    {visibleCities.map(({ city, entries }) => (
+      <li class="lpm-city">
+        <div class="lpm-city-name">{city}</div>
+        <div class="lpm-city-count">{entries.length} Auftr{entries.length === 1 ? 'ag' : 'äge'}</div>
+        <ul class="lpm-services">
+          {entries.slice(0, 3).map((e) => (
+            <li class="lpm-service">
+              <span class="lpm-year">{e.year}</span>
+              <span class="lpm-service-type">{e.serviceType}</span>
+            </li>
+          ))}
+          {entries.length > 3 && (
+            <li class="lpm-service lpm-service-more">+{entries.length - 3} weitere</li>
+          )}
+        </ul>
+      </li>
+    ))}
+  </ul>
+
+  {overflowCount > 0 && (
+    <p class="lpm-overflow">+ {overflowCount} weitere Orte</p>
+  )}
+</section>
+
+<style>
+  .local-proof-map {
+    margin: 2rem 0;
+  }
+  .lpm-header {
+    margin-bottom: 1.25rem;
+  }
+  .lpm-heading {
+    font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+    font-weight: 700;
+    color: var(--color-primary, #1D1E3B);
+    margin: 0 0 0.375rem;
+  }
+  .lpm-subheading {
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--color-text-muted, #475569);
+    margin: 0 0 0.5rem;
+  }
+  .lpm-meta {
+    font-size: 0.875rem;
+    color: var(--color-muted, #64748b);
+    margin: 0;
+  }
+  .lpm-cities {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.875rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .lpm-city {
+    background: var(--color-surface, #f8fafc);
+    border-radius: 6px;
+    padding: 0.875rem 1rem;
+    border-left: 3px solid var(--color-accent, #EF7612);
+  }
+  .lpm-city-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-primary, #1D1E3B);
+    margin-bottom: 0.125rem;
+  }
+  .lpm-city-count {
+    font-size: 0.75rem;
+    color: var(--color-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+  }
+  .lpm-services {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border-top: 1px dashed var(--color-border, #e2e8f0);
+    padding-top: 0.5rem;
+  }
+  .lpm-service {
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+    font-size: 0.8125rem;
+    padding: 0.125rem 0;
+    color: var(--color-text-muted, #475569);
+  }
+  .lpm-year {
+    font-family: ui-monospace, monospace;
+    font-weight: 700;
+    color: var(--color-accent, #EF7612);
+    flex: 0 0 auto;
+  }
+  .lpm-service-type {
+    flex: 1;
+    line-height: 1.4;
+  }
+  .lpm-service-more {
+    font-style: italic;
+    color: var(--color-muted, #94a3b8);
+  }
+  .lpm-overflow {
+    margin-top: 1rem;
+    text-align: center;
+    font-size: 0.875rem;
+    color: var(--color-muted, #64748b);
+    font-style: italic;
+  }
+</style>

@@ -1,0 +1,206 @@
+---
+/**
+ * @cw/core – PriceTransparency.astro
+ *
+ * Preis-Transparenz-Block (Plan-Phase 1.1).
+ * Verhindert das "auf Anfrage"-Antipattern. AI-Crawler bevorzugen
+ * konkrete Preis-Ranges in Page-Content.
+ *
+ * Visual + Schema.org Offer/PriceSpecification.
+ *
+ * @example
+ *   <PriceTransparency
+ *     services={[
+ *       {
+ *         name: "Rohrreinigung Standard",
+ *         priceRange: "180€ – 320€",
+ *         factors: ["Zugang zur Leitung", "Länge der Verstopfung"]
+ *       },
+ *       {
+ *         name: "Notdienst (außerhalb Öffnungszeiten)",
+ *         priceRange: "240€ – 480€",
+ *         factors: ["Anfahrtszeit", "Tageszeit"]
+ *       }
+ *     ]}
+ *     provider={{ name: "Mustermann Sanitär" }}
+ *     intro="Wir nennen Preise vor dem Auftrag. Festpreis nach Vor-Ort-Termin."
+ *   />
+ */
+
+export interface PriceService {
+  name: string;
+  /** String wie "180€ – 320€" oder "ab 99€". */
+  priceRange: string;
+  /** Was den Preis bestimmt — 2-4 Stichpunkte. */
+  factors?: string[];
+  /** Optional: Detail-Beschreibung. */
+  description?: string;
+}
+
+interface Props {
+  services: PriceService[];
+  /** Provider für Schema (Organization-Name). */
+  provider: {
+    name: string;
+  };
+  /** Optional: Intro-Text vor der Tabelle. */
+  intro?: string;
+  /** Currency ISO 4217, default 'EUR'. */
+  currency?: string;
+  /** Heading-Override. */
+  heading?: string;
+}
+
+const {
+  services,
+  provider,
+  intro,
+  currency = 'EUR',
+  heading = 'Preise — transparent.',
+} = Astro.props;
+
+// Schema: ItemList of Offer
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'ItemList',
+  name: heading,
+  itemListElement: services.map((s, idx) => ({
+    '@type': 'ListItem',
+    position: idx + 1,
+    item: {
+      '@type': 'Offer',
+      name: s.name,
+      ...(s.description && { description: s.description }),
+      priceCurrency: currency,
+      priceSpecification: {
+        '@type': 'PriceSpecification',
+        price: s.priceRange,
+        priceCurrency: currency,
+      },
+      offeredBy: {
+        '@type': 'Organization',
+        name: provider.name,
+      },
+    },
+  })),
+};
+---
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+
+<section class="price-transparency" data-cw-price-transparency>
+  <header class="pt-header">
+    <h2 class="pt-heading">{heading}</h2>
+    {intro && <p class="pt-intro">{intro}</p>}
+  </header>
+
+  <div class="pt-services">
+    {services.map((s) => (
+      <article class="pt-service">
+        <header class="pt-service-header">
+          <h3 class="pt-service-name">{s.name}</h3>
+          <div class="pt-service-price">{s.priceRange}</div>
+        </header>
+        {s.description && <p class="pt-service-desc">{s.description}</p>}
+        {s.factors && s.factors.length > 0 && (
+          <div class="pt-factors">
+            <span class="pt-factors-label">Preis hängt ab von:</span>
+            <ul class="pt-factors-list">
+              {s.factors.map((f) => <li>{f}</li>)}
+            </ul>
+          </div>
+        )}
+      </article>
+    ))}
+  </div>
+</section>
+
+<style>
+  .price-transparency {
+    margin: 2rem 0;
+  }
+  .pt-header {
+    margin-bottom: 1.5rem;
+  }
+  .pt-heading {
+    font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+    font-weight: 700;
+    color: var(--color-primary, #1D1E3B);
+    margin: 0 0 0.5rem;
+  }
+  .pt-intro {
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--color-text-muted, #475569);
+    margin: 0;
+    max-width: 60ch;
+  }
+  .pt-services {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  .pt-service {
+    background: var(--color-surface, #f8fafc);
+    border-radius: 8px;
+    padding: 1.25rem 1.5rem;
+    border-top: 4px solid var(--color-accent, #EF7612);
+  }
+  .pt-service-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  .pt-service-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text, #1e293b);
+    margin: 0;
+  }
+  .pt-service-price {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--color-primary, #1D1E3B);
+    white-space: nowrap;
+    font-feature-settings: "tnum";
+  }
+  .pt-service-desc {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--color-text-muted, #475569);
+    margin: 0 0 0.875rem;
+  }
+  .pt-factors {
+    padding-top: 0.625rem;
+    border-top: 1px dashed var(--color-border, #e2e8f0);
+  }
+  .pt-factors-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-muted, #64748b);
+    display: block;
+    margin-bottom: 0.375rem;
+  }
+  .pt-factors-list {
+    margin: 0;
+    padding: 0 0 0 1.125rem;
+    list-style: none;
+  }
+  .pt-factors-list li {
+    position: relative;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--color-text-muted, #475569);
+    padding: 0.125rem 0;
+  }
+  .pt-factors-list li::before {
+    content: "·";
+    position: absolute;
+    left: -0.75rem;
+    color: var(--color-accent, #EF7612);
+    font-weight: 700;
+  }
+</style>

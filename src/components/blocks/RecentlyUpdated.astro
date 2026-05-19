@@ -1,0 +1,115 @@
+---
+/**
+ * @cw/core – RecentlyUpdated.astro
+ *
+ * Sichtbares "Aktualisiert am DD.MM.YYYY"-Badge (Plan-Phase 1.1).
+ *
+ * Hintergrund: Pages <30 Tage alt bekommen 3.2× mehr AI-Citations
+ * (Mai-2026-Studien). Sichtbare Freshness-Signale helfen sowohl
+ * Crawler als auch User-Trust.
+ *
+ * Auto-Stale-Warning im Dev-Mode bei dateModified >90 Tage.
+ *
+ * @example
+ *   <RecentlyUpdated date="2026-05-19" />
+ *   <RecentlyUpdated date={Astro.url.searchParams.get('updated') || frontmatter.dateModified} />
+ */
+
+interface Props {
+  /** ISO 8601 — z.B. "2026-05-19" oder volles ISO-Datum. */
+  date: string;
+  /** Optional: Variant. 'badge' (default, kleine Pill) oder 'banner' (volle Breite). */
+  variant?: 'badge' | 'banner';
+  /** Optional: zeigt Stale-Warning wenn älter (in Tagen). Default 90. */
+  staleAfterDays?: number;
+}
+
+const {
+  date,
+  variant = 'badge',
+  staleAfterDays = 90,
+} = Astro.props;
+
+const parsed = new Date(date);
+const isValid = !isNaN(parsed.getTime());
+const ageDays = isValid ? Math.floor((Date.now() - parsed.getTime()) / (1000 * 60 * 60 * 24)) : Infinity;
+const isStale = ageDays > staleAfterDays;
+const isFresh = ageDays < 30;
+
+const formatted = isValid
+  ? parsed.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  : date;
+
+// Dev-Mode Stale-Warning
+if (import.meta.env.DEV && isStale) {
+  console.warn(`[RecentlyUpdated] Content ist ${ageDays} Tage alt (>${staleAfterDays}d). Refresh empfohlen für AI-Citation-Sichtbarkeit.`);
+}
+---
+{variant === 'banner' ? (
+  <div class={`updated-banner ${isFresh ? 'is-fresh' : isStale ? 'is-stale' : 'is-ok'}`} role="status">
+    <time datetime={isValid ? parsed.toISOString() : date} class="updated-time">
+      Aktualisiert am {formatted}
+    </time>
+    {isFresh && <span class="updated-tag">aktuell</span>}
+  </div>
+) : (
+  <span class={`updated-badge ${isFresh ? 'is-fresh' : isStale ? 'is-stale' : 'is-ok'}`}>
+    <time datetime={isValid ? parsed.toISOString() : date}>
+      Aktualisiert am {formatted}
+    </time>
+  </span>
+)}
+
+<style>
+  .updated-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--color-muted, #64748b);
+    background: var(--color-surface, #f1f5f9);
+  }
+  .updated-badge.is-fresh {
+    color: #166534;
+    background: #dcfce7;
+  }
+  .updated-badge.is-stale {
+    color: #854d0e;
+    background: #fef9c3;
+  }
+  .updated-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.625rem 1rem;
+    background: var(--color-surface, #f8fafc);
+    border-left: 3px solid var(--color-muted, #94a3b8);
+    border-radius: 0 6px 6px 0;
+    margin: 1rem 0;
+    font-size: 0.875rem;
+  }
+  .updated-banner.is-fresh {
+    border-left-color: #16a34a;
+  }
+  .updated-banner.is-stale {
+    border-left-color: #d97706;
+  }
+  .updated-time {
+    color: var(--color-muted, #64748b);
+    font-weight: 500;
+  }
+  .updated-tag {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #166534;
+    background: #dcfce7;
+    padding: 0.125rem 0.5rem;
+    border-radius: 4px;
+  }
+</style>

@@ -1,0 +1,184 @@
+---
+/**
+ * @cw/core – FAQHonest.astro
+ *
+ * FAQ-Variante mit Min-Length-Constraint (Plan-Phase 1.1).
+ *
+ * Hintergrund: Existing FAQ.astro emittiert FAQPage-Schema für jede non-empty
+ * items[]-Liste. Aber: 1-Satz-Antworten triggern AI-Citations nicht — sie
+ * brauchen substantielle Antworten. FAQHonest enforced `minAnswerChars`
+ * (default 150) und emittiert Schema NUR für Items die die Schwelle erfüllen.
+ *
+ * Items mit kurzen Antworten werden visuell angezeigt aber NICHT als
+ * FAQPage-Schema markiert (sonst flagged Google das als "thin" und stuft
+ * die ganze FAQPage runter).
+ *
+ * @example
+ *   <FAQHonest
+ *     items={[
+ *       {
+ *         q: "Wie lange dauert die Reparatur?",
+ *         a: "Bei Standardfällen 2-4 Stunden — Anfahrt, Diagnose, Behebung. Komplexe Fälle (alte Bleimuffen, schwere Verstopfungen) brauchen einen zweiten Termin nach Materialbestellung, in der Regel innerhalb 48h."
+ *       }
+ *     ]}
+ *     minAnswerChars={150}
+ *   />
+ */
+export interface FAQHonestItem {
+  q: string;
+  a: string;
+}
+
+interface Props {
+  items: readonly FAQHonestItem[];
+  heading?: string;
+  subheading?: string;
+  /** Min-Length pro Answer, damit Item ins Schema kommt. Default 150 Zeichen. */
+  minAnswerChars?: number;
+}
+
+const {
+  items = [],
+  heading = 'Ehrliche Antworten',
+  subheading,
+  minAnswerChars = 150,
+} = Astro.props;
+
+// Filter für Schema: nur Items mit substantieller Antwort
+const schemaItems = items.filter((it) => it.a.length >= minAnswerChars);
+const skippedCount = items.length - schemaItems.length;
+
+const faqSchema = schemaItems.length > 0
+  ? {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: schemaItems.map((item) => ({
+        '@type': 'Question',
+        name: item.q,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: item.a,
+        },
+      })),
+    }
+  : null;
+
+if (import.meta.env.DEV && skippedCount > 0) {
+  console.warn(`[FAQHonest] ${skippedCount} von ${items.length} Items unter minAnswerChars=${minAnswerChars} — werden visuell gezeigt aber NICHT im Schema gelistet (vermeidet Thin-Content-Flag).`);
+}
+---
+{faqSchema && (
+<script is:inline type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+)}
+
+{items.length > 0 && (
+<section class="faq-honest" data-cw-faq-honest>
+  <header class="fh-header">
+    <h2 class="fh-heading">{heading}</h2>
+    {subheading && <p class="fh-subheading">{subheading}</p>}
+  </header>
+
+  <div class="fh-items">
+    {items.map((item) => {
+      const isThin = item.a.length < minAnswerChars;
+      return (
+        <details class={`fh-item ${isThin ? 'is-thin' : ''}`}>
+          <summary class="fh-question">
+            {item.q}
+          </summary>
+          <div class="fh-answer">
+            {item.a.split(/\n\n/).map((para) => <p>{para}</p>)}
+          </div>
+        </details>
+      );
+    })}
+  </div>
+
+  {skippedCount > 0 && import.meta.env.DEV && (
+    <p class="fh-dev-note">
+      Dev-Hinweis: {skippedCount} von {items.length} Antworten unter {minAnswerChars} Zeichen — werden nicht ins Schema aufgenommen.
+    </p>
+  )}
+</section>
+)}
+
+<style>
+  .faq-honest {
+    margin: 2rem 0;
+  }
+  .fh-header {
+    margin-bottom: 1.5rem;
+  }
+  .fh-heading {
+    font-size: clamp(1.375rem, 2.5vw, 1.75rem);
+    font-weight: 700;
+    color: var(--color-primary, #1D1E3B);
+    margin: 0 0 0.5rem;
+  }
+  .fh-subheading {
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--color-text-muted, #475569);
+    margin: 0;
+    max-width: 60ch;
+  }
+  .fh-items {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .fh-item {
+    background: var(--color-surface, #f8fafc);
+    border-radius: 6px;
+    border-left: 3px solid var(--color-accent, #EF7612);
+  }
+  .fh-item.is-thin {
+    border-left-color: #94a3b8;
+  }
+  .fh-question {
+    padding: 0.875rem 1.125rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-primary, #1D1E3B);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+  .fh-question::-webkit-details-marker { display: none; }
+  .fh-question::after {
+    content: "+";
+    font-size: 1.25rem;
+    color: var(--color-accent, #EF7612);
+    transition: transform 0.2s;
+    flex: 0 0 auto;
+  }
+  details[open] .fh-question::after {
+    transform: rotate(45deg);
+  }
+  .fh-answer {
+    padding: 0 1.125rem 1rem;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    color: var(--color-text, #1e293b);
+  }
+  .fh-answer p {
+    margin: 0 0 0.625rem;
+  }
+  .fh-answer p:last-child {
+    margin-bottom: 0;
+  }
+  .fh-dev-note {
+    margin-top: 1rem;
+    padding: 0.5rem 0.75rem;
+    background: #fef3c7;
+    border-left: 3px solid #f59e0b;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.8125rem;
+    color: #92400e;
+    font-family: ui-monospace, monospace;
+  }
+</style>

@@ -1,0 +1,136 @@
+---
+/**
+ * @cw/core – CTAPrimary.astro
+ *
+ * Agent-Friendly Primary-CTA mit data-cta-type-Attribut (Plan-Phase 1.3).
+ *
+ * Hintergrund: Emerging Browser-Agents (UCP) brauchen stabile, semantische
+ * Anker-Punkte für Conversion-Aktionen. data-cta-type liefert den
+ * Intent-Klassifikator (contact/quote/phone/booking), unabhängig vom
+ * Visuellen Label.
+ *
+ * Ersetzt KEINE existing CTABlock.astro — komplementär als Primitive für
+ * neue Components (AnswerBlock, CaseStudyBlock etc.).
+ *
+ * @example
+ *   <CTAPrimary
+ *     href="tel:+49..."
+ *     label="Jetzt anrufen"
+ *     ctaType="phone"
+ *   />
+ *   <CTAPrimary
+ *     href="/kontakt"
+ *     label="Angebot anfordern"
+ *     ctaType="quote"
+ *     variant="accent"
+ *   />
+ */
+
+export type CTAType = 'contact' | 'quote' | 'phone' | 'booking' | 'whatsapp' | 'email';
+
+interface Props {
+  href: string;
+  label: string;
+  /**
+   * Intent-Klassifikator für Browser-Agents. Pflicht für Conversion-CTAs.
+   * Rendert als data-cta-type-Attribut.
+   */
+  ctaType: CTAType;
+  /** Visuelle Variante. */
+  variant?: 'primary' | 'accent' | 'outline';
+  /** Target — external links sollten 'noopener noreferrer' bekommen. */
+  target?: '_self' | '_blank';
+  /** Optional: aria-label override (Default: label). */
+  ariaLabel?: string;
+  /** Optional: zusätzliche CSS-Klasse. */
+  class?: string;
+  /** Optional: aria-describedby. */
+  ariaDescribedby?: string;
+}
+
+const {
+  href,
+  label,
+  ctaType,
+  variant = 'primary',
+  target = '_self',
+  ariaLabel,
+  class: cls,
+  ariaDescribedby,
+} = Astro.props;
+
+const isExternal = target === '_blank';
+const rel = isExternal ? 'noopener noreferrer' : undefined;
+
+// Build-Time-Validation: vague labels warnen
+const vaguePatterns = [/hier\s+klicken/i, /click\s+here/i, /weiter\s*lesen/i];
+const isVague = vaguePatterns.some((re) => re.test(label));
+if (isVague && import.meta.env.DEV) {
+  console.warn(`[CTAPrimary] Label "${label}" ist vage. Spezifischer Action-Verb empfohlen (z.B. "Angebot anfordern" statt "hier klicken").`);
+}
+---
+<a
+  href={href}
+  data-cta-type={ctaType}
+  class={`cta-primary cta-${variant} ${cls ?? ''}`.trim()}
+  target={target}
+  rel={rel}
+  aria-label={ariaLabel ?? label}
+  aria-describedby={ariaDescribedby}
+>
+  {label}
+</a>
+
+<style>
+  .cta-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.5rem;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, transform 0.1s;
+    min-height: 44px; /* WCAG touch target */
+    line-height: 1.2;
+  }
+  .cta-primary:hover {
+    transform: translateY(-1px);
+  }
+  .cta-primary:active {
+    transform: translateY(0);
+  }
+  .cta-primary:focus-visible {
+    outline: 2px solid var(--color-accent, #EF7612);
+    outline-offset: 2px;
+  }
+
+  .cta-primary {
+    background: var(--color-primary, #1D1E3B);
+    color: #ffffff;
+  }
+  .cta-primary:hover {
+    background: var(--color-primary-dark, #15162e);
+  }
+
+  .cta-accent {
+    background: var(--color-accent, #EF7612);
+    color: #ffffff;
+  }
+  .cta-accent:hover {
+    background: var(--color-accent-dark, #d6610a);
+  }
+
+  .cta-outline {
+    background: transparent;
+    color: var(--color-primary, #1D1E3B);
+    border: 2px solid var(--color-primary, #1D1E3B);
+    padding: calc(0.875rem - 2px) calc(1.5rem - 2px);
+  }
+  .cta-outline:hover {
+    background: var(--color-primary, #1D1E3B);
+    color: #ffffff;
+  }
+</style>

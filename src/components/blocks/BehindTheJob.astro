@@ -1,0 +1,199 @@
+---
+/**
+ * @cw/core – BehindTheJob.astro
+ *
+ * "Was wir dabei gelernt haben"-Block (Plan-Phase 1.1).
+ * Schema.org Article mit Author=Organization.
+ *
+ * Hintergrund: First-hand-Learning-Content ist Non-Commodity per Definition
+ * und damit AI-Citation-relevant.
+ *
+ * @example
+ *   <BehindTheJob
+ *     title="Warum wir bei Altbau-Sanierungen nie ohne Kamera-Inspektion arbeiten"
+ *     learnings={[
+ *       "Hauptleitungen in Häusern vor 1925 haben oft Blei-Muffen die brechen.",
+ *       "Hochdruck-Spülung allein reicht nicht — der Druck verschiebt die Bruchstelle."
+ *     ]}
+ *     mistakes={[
+ *       "Beim ersten Auftrag haben wir ohne Inspektion gespült — Folge: zwei Wochen später erneuter Notruf."
+ *     ]}
+ *     result="Heute machen wir bei Häusern vor 1925 immer eine 15-Minuten-Inspektion. Kostet 80€, spart oft 800€ Folgeauftrag."
+ *     publishedDate="2025-11-15"
+ *     provider={{ name: "Mustermann Sanitär", url: "https://..." }}
+ *     logoUrl="https://.../logo.png"
+ *     pageUrl="https://.../wissen/blei-muffen-altbau"
+ *   />
+ */
+import { articleSchema, type ArticleInput } from '@cw/core/schema/article';
+
+interface Props {
+  title: string;
+  /** 3-7 konkrete Learnings — keine generischen Tipps. */
+  learnings: string[];
+  /** Optional: ehrliche Fehler-Reflexion. Macht den Content authentisch. */
+  mistakes?: string[];
+  /** Take-away / Konsequenz für die Praxis. */
+  result: string;
+  /** ISO 8601 Datum. */
+  publishedDate: string;
+  /** Provider/Organization. */
+  provider: {
+    name: string;
+    url?: string;
+  };
+  /** Absolute Logo-URL für Publisher-Schema. */
+  logoUrl: string;
+  /** Page-URL für Schema. */
+  pageUrl: string;
+  /** Optional: Modified-Date (falls Artikel aktualisiert). */
+  modifiedDate?: string;
+  /** Optional: Cover-Image. */
+  coverImage?: string;
+}
+
+const {
+  title,
+  learnings,
+  mistakes = [],
+  result,
+  publishedDate,
+  provider,
+  logoUrl,
+  pageUrl,
+  modifiedDate,
+  coverImage,
+} = Astro.props;
+
+const articleBody = [
+  `Learnings:\n${learnings.map((l) => `• ${l}`).join('\n')}`,
+  mistakes.length > 0 ? `Fehler:\n${mistakes.map((m) => `• ${m}`).join('\n')}` : '',
+  `Konsequenz: ${result}`,
+].filter(Boolean).join('\n\n');
+
+const schemaInput: ArticleInput = {
+  headline: title,
+  datePublished: publishedDate,
+  dateModified: modifiedDate ?? publishedDate,
+  url: pageUrl,
+  author: {
+    type: 'Organization',
+    name: provider.name,
+    url: provider.url,
+  },
+  publisher: {
+    name: provider.name,
+    logo: logoUrl,
+  },
+  articleBody,
+  ...(coverImage && { image: coverImage }),
+};
+const schema = articleSchema(schemaInput);
+---
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+
+<article class="behind-the-job" data-cw-behind-the-job>
+  <header class="btj-header">
+    <h2 class="btj-title">{title}</h2>
+    <time datetime={publishedDate} class="btj-date">
+      Aus unserem Alltag · {new Date(publishedDate).toLocaleDateString('de-DE', { day: '2-digit', month: 'long', year: 'numeric' })}
+    </time>
+  </header>
+
+  <section class="btj-section">
+    <h3 class="btj-label">Was wir dabei gelernt haben</h3>
+    <ul class="btj-list">
+      {learnings.map((l) => <li>{l}</li>)}
+    </ul>
+  </section>
+
+  {mistakes.length > 0 && (
+    <section class="btj-section btj-section-mistakes">
+      <h3 class="btj-label">Wo wir uns geirrt haben</h3>
+      <ul class="btj-list">
+        {mistakes.map((m) => <li>{m}</li>)}
+      </ul>
+    </section>
+  )}
+
+  <section class="btj-section btj-section-result">
+    <h3 class="btj-label">Was wir heute anders machen</h3>
+    <p>{result}</p>
+  </section>
+</article>
+
+<style>
+  .behind-the-job {
+    background: linear-gradient(to bottom right, var(--color-surface, #f8fafc), #ffffff);
+    border-radius: 10px;
+    padding: 2rem 2.25rem;
+    border: 1px solid var(--color-border, #e2e8f0);
+    margin: 1.5rem 0;
+  }
+  .btj-header {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--color-border, #e2e8f0);
+  }
+  .btj-title {
+    font-size: clamp(1.25rem, 2.5vw, 1.625rem);
+    font-weight: 700;
+    color: var(--color-primary, #1D1E3B);
+    margin: 0 0 0.5rem;
+    line-height: 1.25;
+  }
+  .btj-date {
+    font-size: 0.8125rem;
+    color: var(--color-muted, #64748b);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .btj-section {
+    margin-bottom: 1.5rem;
+  }
+  .btj-section:last-of-type {
+    margin-bottom: 0;
+  }
+  .btj-section-result {
+    padding: 1rem 1.25rem;
+    background: var(--color-surface-emph, #fef3c7);
+    border-left: 4px solid var(--color-accent, #EF7612);
+    border-radius: 0 6px 6px 0;
+  }
+  .btj-label {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-accent, #EF7612);
+    margin: 0 0 0.625rem;
+  }
+  .btj-list {
+    margin: 0;
+    padding: 0 0 0 1.25rem;
+    list-style: none;
+  }
+  .btj-list li {
+    position: relative;
+    padding: 0.375rem 0;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+  }
+  .btj-list li::before {
+    content: "•";
+    position: absolute;
+    left: -1rem;
+    color: var(--color-accent, #EF7612);
+    font-weight: 700;
+  }
+  .btj-section-mistakes .btj-list li::before {
+    color: #d97706;
+  }
+  .btj-section-result p {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--color-text, #1e293b);
+    font-weight: 500;
+  }
+</style>
