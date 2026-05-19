@@ -6,6 +6,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.10.0] — 2026-05-19 (release/cw-core — SEO Components)
+
+### Added
+
+- `FAQSchema.astro` — standalone props-driven FAQPage JSON-LD (cherry-pick #16 von main)
+- `ServiceAreaSchema.astro` — GeoShape-Schema für Geo-Landing-Pages (cherry-pick #14)
+- `PriceSpecSchema.astro` — JSON-LD PriceSpecification für Pricing-Pages (cherry-pick #17)
+- `docs/seo-title-pattern.md` — SEO-Title-Tag-Pattern-Dokumentation (cherry-pick #15)
+
+### Hinweis zur Versionsnummer
+
+Diese Version läuft auf dem `release/cw-core` Branch (Customer-Pins). Der `main`-Branch
+ist bei v1.0.8 (Major-Bump nach ContactForm-Refactor). `release/cw-core` wurde bewusst
+auf v0.10.0 gehoben (nächster Minor nach 0.9.16) um den Main-Branch-API-Bruch zu umgehen.
+Customer-Upgrade: `"@cw/core": "github:siluri/cw-core#release/cw-core/v0.10.0"`
+
+### Compatibility
+
+- Additive Änderung, keine Breaking Changes. Nur neue SEO-Components hinzugefügt.
+
+---
+
 ## [0.9.16] — 2026-05-13 (release/cw-core → main)
 
 ### Fixed (kritisch)

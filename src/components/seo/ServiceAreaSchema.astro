@@ -1,0 +1,35 @@
+---
+// @cw/core – ServiceAreaSchema.astro
+// Service JSON-LD mit areaServed für Geo-Landing-Pages
+// WICHTIG: Kein LocalBusiness-Duplicate — nur Service mit areaServed.
+// LocalBusiness wird einmalig durch SchemaOrg.astro (BaseLayout) gesetzt.
+
+interface Props {
+  /** Leistungsbezeichnung, z. B. "Immobilienbewertung" */
+  serviceType: string;
+  /** Stadtname, z. B. "Donaustauf" */
+  areaServed: string;
+  /** Firmenname, z. B. "Gottl Richter Gomeier" */
+  providerName: string;
+  /** Kanonische URL des Anbieters, z. B. "https://gottl-richter-gomeier.de" */
+  providerUrl: string;
+}
+
+const { serviceType, areaServed, providerName, providerUrl } = Astro.props;
+
+const serviceSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  serviceType,
+  areaServed: {
+    '@type': 'Place',
+    name: areaServed,
+  },
+  provider: {
+    '@type': 'LocalBusiness',
+    name: providerName,
+    url: providerUrl,
+  },
+};
+---
+<script type="application/ld+json" set:html={JSON.stringify(serviceSchema)} />
