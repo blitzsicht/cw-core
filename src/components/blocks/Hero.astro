@@ -89,6 +89,21 @@ interface Props {
   images?: readonly HeroCollageImage[];
   /** Alt text for the hero image. Falls back to `siteName`. */
   imageAlt?: string;
+  /**
+   * Set to `true` for cut-out / transparent-background hero images
+   * (PNG/WebP with alpha channel — e.g. freigestellte Person, Produkt).
+   *
+   * Effects:
+   * - Removes the card-style frame (no border-radius, no box-shadow, no overflow-clip)
+   *   so the rectangle around the silhouette disappears.
+   * - Replaces the box-shadow with a `drop-shadow()` filter that follows the alpha mask.
+   * - On mobile (≤900px) drops the fixed `height: 280px` cap so the motive isn't cropped;
+   *   uses `max-height: 60vh` + `object-fit: contain` instead.
+   *
+   * Leave `false` (default) for opaque/photographic hero images that should fill
+   * the card with `object-fit: cover`.
+   */
+  transparentImage?: boolean;
   /** Site name used as image alt fallback. */
   siteName?: string;
   /** Primary CTA (accent button). */
@@ -108,6 +123,7 @@ const {
   image,
   images,
   imageAlt,
+  transparentImage = false,
   siteName,
   ctaPrimary = { label: 'Kostenlose Beratung anfragen', href: '/kontakt' },
   ctaSecondary,
@@ -123,7 +139,7 @@ const motionCfg: HeroMotionConfig =
     ? { blob: true, textReveal: true, stagger: true, parallax: true, magnetic: true }
     : (motion || {});
 ---
-<section class:list={['hero', hasMedia && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob']}>
+<section class:list={['hero', hasMedia && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image']}>
   {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}
   <div class="container">
     <div class="hero-content">
@@ -292,6 +308,19 @@ const motionCfg: HeroMotionConfig =
     object-fit: cover;
   }
 
+  /* Cut-out / transparent hero motive — remove card frame, use silhouette-following
+     drop-shadow instead. Opt-in via the `transparentImage` prop. */
+  .hero--transparent-image .hero-image-wrap {
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    overflow: visible;
+  }
+  .hero--transparent-image .hero-img {
+    object-fit: contain;
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.35));
+  }
+
   /* Bento-Layout (mit `images`-Array, 3 Bilder) — ein großes Hauptbild + zwei
      überlappende Inset-Cards. Ersetzt das Collage-Konzept aus v0.7.0-0.7.5,
      das im 45%-Grid-Slot visuell nicht zündete (3 gleich große Bilder ohne
@@ -413,6 +442,16 @@ const motionCfg: HeroMotionConfig =
     }
     .hero-image-wrap { order: -1; max-height: 280px; }
     .hero-img { height: 280px; }
+
+    /* Transparent motives: don't crop on mobile — let the silhouette breathe.
+       max-height keeps the hero from dominating short viewports. */
+    .hero--transparent-image .hero-image-wrap {
+      max-height: none;
+    }
+    .hero--transparent-image .hero-img {
+      height: auto;
+      max-height: 60vh;
+    }
 
     /* Collage auf schmalen Viewports: nur das erste Bild zeigen (User-Wunsch
        2026-04-21). Scoped-Parent `.hero-collage` MUSS dran, damit Astros Compiler
