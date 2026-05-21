@@ -1,0 +1,728 @@
+---
+/**
+ * @cw/core – BriefingForm
+ *
+ * Generische Single-Page-Briefing-Form. Customer-Repos rendern damit ihre
+ * /onboarding-Page in ~20 Zeilen:
+ *
+ *   ---
+ *   import ContentPage from '@cw/core/layouts/ContentPage.astro';
+ *   import BriefingForm from '@cw/core/components/forms/BriefingForm.astro';
+ *   import { briefingSections } from '@/data/briefing-fields';
+ *   ---
+ *   <ContentPage title="Onboarding-Briefing" robots="noindex,nofollow">
+ *     <BriefingForm
+ *       sections={briefingSections}
+ *       actionUrl="/api/onboarding"
+ *       storageKey="mika-onboarding-draft"
+ *       successRedirect="/danke?from=onboarding"
+ *       customerName="Mika Elektrotechnik"
+ *     />
+ *   </ContentPage>
+ *
+ * Garantien:
+ * - 7 Field-Types: text / textarea / email / phone / select / checkbox / radio
+ * - localStorage Auto-Save (Key MUST sein per `storageKey`-Prop — kein default)
+ * - Progress-Bar (Gesamt + Pflichtfelder, dual-source)
+ * - Sticky-TOC links (mobile collapsible mit aria-expanded)
+ * - Submit-Button disabled bis alle Required-Felder gefuellt
+ * - Reset-Button mit confirm-Dialog
+ * - On 200: localStorage cleanup + Redirect zu `successRedirect`
+ * - is:inline Vanilla-JS (kein React etc.) — DSGVO-clean, kein extern Script-Load
+ * - Brand-aware: nutzt `var(--color-primary)` / `var(--color-accent)` /
+ *   `var(--color-muted)` / `var(--color-surface)` — keine hardcoded Hex
+ *
+ * Backward-compat-Note (m14):
+ *   Turnstile bewusst NICHT integriert — Briefing-URLs sind privat (per
+ *   E-Mail an den Kunden, nicht im Site-Navi verlinkt + Page hat robots
+ *   noindex/nofollow). Bot-Spam ist hier kein realistisches Threat-Model.
+ */
+import type { BriefingSection } from '../../types/briefing.js';
+
+interface Props {
+  /** Section-Schema mit allen Feldern. */
+  sections: BriefingSection[];
+  /** API-Endpoint fuer den Submit (z.B. '/api/onboarding'). */
+  actionUrl: string;
+  /**
+   * localStorage-Key fuer Auto-Save. PFLICHT — kein Default, weil sonst
+   * Customer-Konflikte (Mika und Zink schreiben in den gleichen Slot).
+   */
+  storageKey: string;
+  /** Redirect-Ziel nach erfolgreichem Submit. Default '/danke?from=onboarding'. */
+  successRedirect?: string;
+  /** Anzeigename des Kunden — in Intro-Heading + Bestaetigungstext. */
+  customerName: string;
+  /** Optional: ID des Form-Elements (Default 'briefing-form'). Erlaubt mehrere Forms pro Page. */
+  formId?: string;
+}
+
+const {
+  sections,
+  actionUrl,
+  storageKey,
+  successRedirect = '/danke?from=onboarding',
+  customerName,
+  formId = 'briefing-form',
+} = Astro.props;
+
+// Pflicht: storageKey darf nicht leer sein — sonst customer-conflicts (MAJ-6).
+if (!storageKey || typeof storageKey !== 'string') {
+  throw new Error(
+    '[@cw/core BriefingForm] `storageKey` prop is required and must be a non-empty string. ' +
+    'Pick a customer-specific key (e.g. "mika-onboarding-draft") to avoid localStorage collisions.',
+  );
+}
+
+// Pre-computed fuer Astro-Render + inline-script.
+const requiredIds: string[] = [];
+let totalFields = 0;
+for (const section of sections) {
+  for (const field of section.fields) {
+    totalFields++;
+    if (field.required) requiredIds.push(field.id);
+  }
+}
+const requiredCount = requiredIds.length;
+const requiredIdsJson = JSON.stringify(requiredIds);
+---
+
+<div class="cw-briefing-wrapper" data-briefing-customer={customerName}>
+  <aside class="cw-briefing-toc" aria-label="Inhaltsverzeichnis">
+    <button
+      type="button"
+      class="cw-briefing-toc-toggle"
+      data-toc-toggle
+      aria-expanded="false"
+      aria-controls={`${formId}-toc-list`}
+    >
+      Sektionen anzeigen
+    </button>
+    <nav id={`${formId}-toc-list`} class="cw-briefing-toc-list">
+      <ol>
+        {sections.map((s) => (
+          <li class={`cw-briefing-toc-${s.priority}`}>
+            <a href={`#${formId}-section-${s.id}`}>
+              <span class="cw-briefing-toc-emoji" aria-hidden="true">{s.emoji}</span>
+              {s.title}
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
+  </aside>
+
+  <main class="cw-briefing-main">
+    <section class="cw-briefing-intro">
+      <p>
+        Hallo {customerName}-Team — schön dass Du hier bist. Auf dieser Seite findest Du
+        alle Briefing-Fragen, gegliedert nach
+        <span class="cw-briefing-prio-pflicht">🔴 Pflicht</span>,
+        <span class="cw-briefing-prio-wichtig">🟡 Wichtig</span> und
+        <span class="cw-briefing-prio-nice">🟢 Nice-to-have</span>.
+      </p>
+      <ul class="cw-briefing-intro-bullets">
+        <li>Du kannst <strong>jederzeit pausieren</strong> — der Browser merkt sich Deinen Stand.</li>
+        <li>Erst wenn alle <strong>🔴-Pflichtfelder</strong> ausgefüllt sind, wird der Absenden-Button aktiv.</li>
+        <li>Optionale Felder kannst Du leer lassen — wir fragen ggf. später nach.</li>
+      </ul>
+    </section>
+
+    <div class="cw-briefing-progress" aria-live="polite">
+      <div class="cw-briefing-progress-bar">
+        <div class="cw-briefing-progress-fill" data-progress-fill style="width: 0%"></div>
+      </div>
+      <p class="cw-briefing-progress-label">
+        <span data-progress-text>0</span> von {totalFields} Feldern ausgefüllt
+        <span class="cw-briefing-progress-required">
+          (Pflicht: <span data-progress-required-text>0</span> / {requiredCount})
+        </span>
+      </p>
+    </div>
+
+    <form id={formId} novalidate>
+      {sections.map((section) => (
+        <section
+          class={`cw-briefing-section cw-briefing-section-${section.priority}`}
+          id={`${formId}-section-${section.id}`}
+          data-section-id={section.id}
+        >
+          <header class="cw-briefing-section-header">
+            <h2>
+              <span class="cw-briefing-section-emoji" aria-hidden="true">{section.emoji}</span>
+              {section.title}
+            </h2>
+            {section.subtitle && <p class="cw-briefing-section-subtitle">{section.subtitle}</p>}
+          </header>
+
+          <div class="cw-briefing-fields">
+            {section.fields.map((field) => {
+              const fieldId = `${formId}_f_${field.id}`;
+              return (
+                <div class="cw-briefing-field" data-field-wrap data-field-id={field.id}>
+                  <label for={fieldId}>
+                    {field.label}
+                    {field.required && <span class="cw-briefing-req-marker" aria-label="Pflichtfeld"> *</span>}
+                  </label>
+                  {field.hint && <p class="cw-briefing-hint">{field.hint}</p>}
+
+                  {field.type === 'textarea' && (
+                    <textarea
+                      id={fieldId}
+                      name={field.id}
+                      rows={3}
+                      placeholder={field.placeholder}
+                      data-required={field.required ? 'true' : 'false'}
+                    />
+                  )}
+
+                  {field.type === 'select' && (
+                    <select
+                      id={fieldId}
+                      name={field.id}
+                      data-required={field.required ? 'true' : 'false'}
+                    >
+                      <option value="">— Bitte wählen —</option>
+                      {(field.options ?? []).map((opt) => (
+                        <option value={opt}>{opt}</option>
+                      ))}
+                    </select>
+                  )}
+
+                  {field.type === 'radio' && (
+                    <div class="cw-briefing-radio-group">
+                      {(field.options ?? []).map((opt, idx) => (
+                        <label class="cw-briefing-radio-option" for={`${fieldId}_${idx}`}>
+                          <input
+                            type="radio"
+                            id={`${fieldId}_${idx}`}
+                            name={field.id}
+                            value={opt}
+                            data-required={field.required ? 'true' : 'false'}
+                          />
+                          <span>{opt}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {field.type === 'checkbox' && (
+                    <label class="cw-briefing-checkbox-option" for={fieldId}>
+                      <input
+                        type="checkbox"
+                        id={fieldId}
+                        name={field.id}
+                        value="ja"
+                        data-required={field.required ? 'true' : 'false'}
+                      />
+                      <span>Ja</span>
+                    </label>
+                  )}
+
+                  {(field.type === 'text' || field.type === 'email' || field.type === 'phone') && (
+                    <input
+                      type={field.type === 'phone' ? 'tel' : field.type}
+                      id={fieldId}
+                      name={field.id}
+                      placeholder={field.placeholder}
+                      autocomplete="off"
+                      data-required={field.required ? 'true' : 'false'}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ))}
+
+      <section class="cw-briefing-submit-section">
+        <p class="cw-briefing-submit-hint">
+          Sobald alle <strong>🔴-Pflichtfelder</strong> ausgefüllt sind, wird der Absenden-Button aktiv.
+        </p>
+        <div class="cw-briefing-submit-row">
+          <button type="submit" data-submit-btn disabled>Briefing absenden</button>
+          <button type="button" data-reset-btn class="cw-briefing-reset-btn">
+            Zwischenstand löschen
+          </button>
+        </div>
+        <p class="cw-briefing-submit-status" data-submit-status role="status" aria-live="polite"></p>
+      </section>
+    </form>
+  </main>
+</div>
+
+<script is:inline define:vars={{ formId, storageKey, actionUrl, successRedirect, requiredIdsJson }}>
+  (function () {
+    var form = document.getElementById(formId);
+    if (!form) return;
+
+    var requiredIds = JSON.parse(requiredIdsJson);
+    var submitBtn = form.querySelector('[data-submit-btn]');
+    var resetBtn = form.querySelector('[data-reset-btn]');
+    var statusEl = form.querySelector('[data-submit-status]');
+    var wrapper = form.closest('.cw-briefing-wrapper');
+    var progressFill = wrapper ? wrapper.querySelector('[data-progress-fill]') : null;
+    var progressText = wrapper ? wrapper.querySelector('[data-progress-text]') : null;
+    var progressReqText = wrapper ? wrapper.querySelector('[data-progress-required-text]') : null;
+    var tocToggle = wrapper ? wrapper.querySelector('[data-toc-toggle]') : null;
+    var tocList = wrapper ? wrapper.querySelector('.cw-briefing-toc-list') : null;
+
+    // ---------- TOC (mobile collapsible) ----------
+    if (tocToggle && tocList) {
+      tocToggle.addEventListener('click', function () {
+        var open = tocList.classList.toggle('open');
+        tocToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        tocToggle.textContent = open ? 'Sektionen ausblenden' : 'Sektionen anzeigen';
+      });
+    }
+
+    // ---------- Sammeln aller Form-Felder ----------
+    function getAllFields() {
+      var seen = {};
+      var result = [];
+      var inputs = form.querySelectorAll('input[name], textarea[name], select[name]');
+      for (var i = 0; i < inputs.length; i++) {
+        var name = inputs[i].name;
+        if (!seen[name]) {
+          seen[name] = true;
+          result.push(name);
+        }
+      }
+      return result;
+    }
+
+    function valueFor(name) {
+      var els = form.querySelectorAll('[name="' + name + '"]');
+      if (els.length === 0) return '';
+      var first = els[0];
+      if (first.type === 'radio') {
+        for (var i = 0; i < els.length; i++) {
+          if (els[i].checked) return els[i].value;
+        }
+        return '';
+      }
+      if (first.type === 'checkbox') {
+        return first.checked ? first.value : '';
+      }
+      return (first.value || '').toString();
+    }
+
+    function setValue(name, value) {
+      var els = form.querySelectorAll('[name="' + name + '"]');
+      if (els.length === 0) return;
+      var first = els[0];
+      if (first.type === 'radio') {
+        for (var i = 0; i < els.length; i++) {
+          els[i].checked = (els[i].value === value);
+        }
+        return;
+      }
+      if (first.type === 'checkbox') {
+        first.checked = !!value;
+        return;
+      }
+      first.value = value || '';
+    }
+
+    // ---------- Auto-Save ----------
+    function snapshot() {
+      var data = {};
+      var fields = getAllFields();
+      for (var i = 0; i < fields.length; i++) {
+        var v = valueFor(fields[i]);
+        if (v) data[fields[i]] = v;
+      }
+      return data;
+    }
+
+    function saveDraft() {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(snapshot()));
+      } catch (_e) { /* private-mode etc */ }
+    }
+
+    function restoreDraft() {
+      try {
+        var raw = localStorage.getItem(storageKey);
+        if (!raw) return;
+        var data = JSON.parse(raw);
+        for (var k in data) {
+          if (Object.prototype.hasOwnProperty.call(data, k)) {
+            setValue(k, data[k]);
+          }
+        }
+      } catch (_e) { /* ignore */ }
+    }
+
+    function clearDraft() {
+      try { localStorage.removeItem(storageKey); } catch (_e) { /* ignore */ }
+    }
+
+    // ---------- Progress + Submit-Enable ----------
+    function updateProgress() {
+      var fields = getAllFields();
+      var filled = 0;
+      for (var i = 0; i < fields.length; i++) {
+        if (valueFor(fields[i]).trim()) filled++;
+      }
+      var filledRequired = 0;
+      for (var j = 0; j < requiredIds.length; j++) {
+        if (valueFor(requiredIds[j]).trim()) filledRequired++;
+      }
+      var total = fields.length;
+      var pct = total > 0 ? Math.round((filled / total) * 100) : 0;
+      if (progressFill) progressFill.style.width = pct + '%';
+      if (progressText) progressText.textContent = String(filled);
+      if (progressReqText) progressReqText.textContent = String(filledRequired);
+
+      var allRequired = (filledRequired === requiredIds.length);
+      if (submitBtn) submitBtn.disabled = !allRequired;
+    }
+
+    // ---------- Submit ----------
+    function showStatus(msg, kind) {
+      if (!statusEl) return;
+      statusEl.textContent = msg;
+      statusEl.className = 'cw-briefing-submit-status cw-briefing-status-' + (kind || 'info');
+    }
+
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (submitBtn && submitBtn.disabled) return;
+      if (submitBtn) submitBtn.disabled = true;
+      showStatus('Senden …', 'info');
+
+      var payload = snapshot();
+      fetch(actionUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(payload),
+      }).then(function (res) {
+        return res.json().then(function (j) { return { status: res.status, body: j }; })
+          .catch(function () { return { status: res.status, body: {} }; });
+      }).then(function (r) {
+        if (r.status >= 200 && r.status < 300 && r.body && r.body.ok) {
+          clearDraft();
+          window.location.href = successRedirect;
+        } else {
+          var msg = (r.body && r.body.error) || 'Senden fehlgeschlagen. Bitte erneut versuchen.';
+          showStatus(msg, 'error');
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      }).catch(function () {
+        showStatus('Netzwerkfehler. Bitte erneut versuchen.', 'error');
+        if (submitBtn) submitBtn.disabled = false;
+      });
+    });
+
+    // ---------- Reset ----------
+    if (resetBtn) {
+      resetBtn.addEventListener('click', function () {
+        if (!window.confirm('Zwischenstand wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) return;
+        clearDraft();
+        form.reset();
+        updateProgress();
+        showStatus('Zwischenstand gelöscht.', 'info');
+      });
+    }
+
+    // ---------- Event-Wiring ----------
+    form.addEventListener('input', function () {
+      saveDraft();
+      updateProgress();
+    });
+    form.addEventListener('change', function () {
+      saveDraft();
+      updateProgress();
+    });
+
+    // ---------- Init ----------
+    restoreDraft();
+    updateProgress();
+  })();
+</script>
+
+<style>
+  .cw-briefing-wrapper {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 78rem;
+    margin: 0 auto;
+    padding: 1rem 1rem 5rem;
+    gap: 2rem;
+  }
+
+  @media (min-width: 64rem) {
+    .cw-briefing-wrapper {
+      grid-template-columns: 16rem 1fr;
+    }
+  }
+
+  /* ----------- TOC ----------- */
+  .cw-briefing-toc { position: relative; }
+
+  .cw-briefing-toc-toggle {
+    width: 100%;
+    background: var(--color-surface, #f7faf9);
+    border: 1px solid var(--color-border, #d6e0dc);
+    border-radius: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.9375rem;
+    cursor: pointer;
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  .cw-briefing-toc-list {
+    margin-top: 0.75rem;
+    background: #ffffff;
+    border: 1px solid var(--color-border, #e5ebe9);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    display: none;
+  }
+
+  .cw-briefing-toc-list.open { display: block; }
+
+  .cw-briefing-toc-list ol {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .cw-briefing-toc-list li {
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+
+  .cw-briefing-toc-list a {
+    color: var(--color-primary);
+    text-decoration: none;
+    display: inline-flex;
+    gap: 0.4rem;
+    align-items: baseline;
+  }
+
+  .cw-briefing-toc-list a:hover { text-decoration: underline; }
+
+  .cw-briefing-toc-emoji { flex-shrink: 0; }
+
+  @media (min-width: 64rem) {
+    .cw-briefing-toc {
+      position: sticky;
+      top: 1rem;
+      align-self: start;
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+    }
+    .cw-briefing-toc-toggle { display: none; }
+    .cw-briefing-toc-list { display: block; margin-top: 0; }
+  }
+
+  /* ----------- Intro ----------- */
+  .cw-briefing-intro {
+    background: var(--color-surface, #f7faf9);
+    padding: 1.25rem 1.5rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border, #d6e0dc);
+    margin-bottom: 1.5rem;
+  }
+  .cw-briefing-intro p { margin: 0 0 0.75rem; line-height: 1.55; }
+  .cw-briefing-intro-bullets { margin: 0; padding-left: 1.25rem; line-height: 1.6; }
+  .cw-briefing-intro-bullets li { margin-bottom: 0.25rem; }
+  .cw-briefing-prio-pflicht { color: #b91c1c; font-weight: 600; }
+  .cw-briefing-prio-wichtig { color: #b45309; font-weight: 600; }
+  .cw-briefing-prio-nice { color: var(--color-accent-text, var(--color-accent)); font-weight: 600; }
+
+  /* ----------- Progress ----------- */
+  .cw-briefing-progress {
+    background: #ffffff;
+    border: 1px solid var(--color-border, #d6e0dc);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    margin-bottom: 1.75rem;
+    position: sticky;
+    top: 0.5rem;
+    z-index: 10;
+  }
+  .cw-briefing-progress-bar {
+    height: 0.5rem;
+    background: #eaf0ee;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .cw-briefing-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary) 0%, var(--color-accent) 100%);
+    transition: width 0.2s ease;
+  }
+  .cw-briefing-progress-label {
+    margin: 0.5rem 0 0;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+  }
+  .cw-briefing-progress-required {
+    margin-left: 0.5rem;
+    color: var(--color-primary);
+    font-weight: 600;
+  }
+
+  /* ----------- Sections ----------- */
+  .cw-briefing-section {
+    background: #ffffff;
+    border: 1px solid var(--color-border, #e5ebe9);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    scroll-margin-top: 5rem;
+  }
+  .cw-briefing-section-pflicht { border-left: 4px solid #b91c1c; }
+  .cw-briefing-section-wichtig { border-left: 4px solid #b45309; }
+  .cw-briefing-section-nice    { border-left: 4px solid var(--color-accent); }
+
+  .cw-briefing-section-header { margin-bottom: 1.25rem; }
+  .cw-briefing-section-header h2 {
+    margin: 0;
+    color: var(--color-primary);
+    font-size: 1.1875rem;
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  .cw-briefing-section-subtitle {
+    margin: 0.375rem 0 0;
+    color: var(--color-muted);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+  }
+
+  /* ----------- Fields ----------- */
+  .cw-briefing-field { margin-bottom: 1.25rem; }
+  .cw-briefing-field:last-child { margin-bottom: 0; }
+
+  .cw-briefing-field label {
+    display: block;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+  }
+  .cw-briefing-req-marker { color: #b91c1c; }
+  .cw-briefing-hint {
+    margin: 0 0 0.4rem;
+    color: var(--color-muted);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+  }
+
+  .cw-briefing-field input[type="text"],
+  .cw-briefing-field input[type="email"],
+  .cw-briefing-field input[type="tel"],
+  .cw-briefing-field textarea,
+  .cw-briefing-field select {
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid var(--color-border, #d6e0dc);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-family: inherit;
+    background: #fafdfc;
+    color: #1a1a1a;
+    line-height: 1.4;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .cw-briefing-field textarea { resize: vertical; min-height: 4.25rem; }
+  .cw-briefing-field input:focus,
+  .cw-briefing-field textarea:focus,
+  .cw-briefing-field select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(0, 70, 80, 0.15);
+    background: #ffffff;
+  }
+
+  .cw-briefing-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .cw-briefing-radio-option,
+  .cw-briefing-checkbox-option {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid var(--color-border, #d6e0dc);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 400;
+    background: #fafdfc;
+    transition: background 0.15s;
+  }
+  .cw-briefing-radio-option:hover,
+  .cw-briefing-checkbox-option:hover { background: #eef5f2; }
+  .cw-briefing-radio-option input,
+  .cw-briefing-checkbox-option input {
+    margin-top: 0.2rem;
+    flex-shrink: 0;
+  }
+
+  /* ----------- Submit ----------- */
+  .cw-briefing-submit-section {
+    background: var(--color-surface, #f7faf9);
+    border: 1px solid var(--color-border, #d6e0dc);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-top: 2rem;
+  }
+  .cw-briefing-submit-hint {
+    margin: 0 0 1rem;
+    color: var(--color-muted);
+    font-size: 0.9375rem;
+  }
+  .cw-briefing-submit-row {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .cw-briefing-submit-row [data-submit-btn] {
+    background: var(--color-primary);
+    color: #ffffff;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .cw-briefing-submit-row [data-submit-btn]:hover:not(:disabled) {
+    background: var(--color-primary-light, var(--color-primary));
+  }
+  .cw-briefing-submit-row [data-submit-btn]:disabled {
+    background: #c5cfcb;
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  .cw-briefing-reset-btn {
+    background: transparent;
+    border: 1px solid var(--color-border, #d6e0dc);
+    color: var(--color-muted);
+    padding: 0.6875rem 1.25rem;
+    border-radius: 0.5rem;
+    font-size: 0.9375rem;
+    cursor: pointer;
+  }
+  .cw-briefing-reset-btn:hover { background: #ffffff; }
+
+  .cw-briefing-submit-status {
+    margin: 0.75rem 0 0;
+    font-size: 0.9375rem;
+    min-height: 1.25rem;
+  }
+  .cw-briefing-status-info { color: var(--color-primary); }
+  .cw-briefing-status-error { color: #b91c1c; }
+</style>

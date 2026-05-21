@@ -6,6 +6,112 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.12.0-alpha] — 2026-05-21 (release/cw-core — Briefing-Handler + BriefingForm)
+
+> **Phase A des `glistening-snacking-papert`-Plans.** Generischer Onboarding-
+> Briefing-Endpoint + Single-Page-Form, extrahiert aus Mika-Elektrotechnik
+> (Anti-Pattern: 700-Zeilen inline). Mika und Zink konsumieren ab jetzt in
+> ~20 Zeilen.
+
+### Added — `@cw/core/api/briefing-handler`
+
+- `createBriefingHandler(config)` — Factory analog zu `createContactHandler`.
+  - **Required-Field-Validation** wird aus `config.sections` derived — keine
+    magische ID-Liste mehr im Customer-Repo.
+  - **Mail-Versand awaited** (internal + customer-confirmation) **VOR** dem
+    200-Response — fixt den Mika-M1-Bug (fire-and-forget killt das Promise
+    sobald die Vercel-Function-Response gesendet ist).
+  - **`emitLead`/Telegram detached** NACH dem Response — User wartet nicht
+    auf das 5s-Timeout.
+  - **Payload-Cap 256 KB** (413 bei Überschreitung).
+  - **Origin-Check** mit optionalem Vercel-Preview-Bypass
+    (`allowVercelPreviewOrigins`, default `true`).
+  - **Rate-Limit** via Upstash KV (Vercel-Marketplace + Legacy) mit in-memory
+    Fallback.
+  - **Optionale Overrides**: `subjectInternal`, `subjectConfirmation`,
+    `fromEmail`, `confirmationFromEmail`, `rateLimitMax`,
+    `rateLimitWindowMs`, `brand` (für customer-spezifische Mail-Akzente).
+  - **Server-side Email-Regex** (m13) für das `email_kontakt`-Feld.
+
+### Added — `@cw/core/components/forms/BriefingForm.astro`
+
+- Generic Single-Page-Briefing-Form mit 7 Field-Types
+  (`text` / `textarea` / `email` / `phone` / `select` / `checkbox` / `radio`).
+- localStorage-Auto-Save mit **`storageKey` als REQUIRED prop** — kein default,
+  damit Customer-Konflikte (Mika ↔ Zink) ausgeschlossen sind.
+- Progress-Bar (dual-source: Gesamt-Felder + Pflichtfelder, live update).
+- Sticky-TOC links (mobile collapsible mit `aria-expanded`).
+- Submit-Button disabled bis alle Required-Felder gefüllt.
+- Reset-Button mit confirm-Dialog.
+- On 200: localStorage cleanup + Redirect zu `successRedirect`
+  (default `/danke?from=onboarding`).
+- `is:inline` Vanilla-JS-Script — DSGVO-clean, kein extern Script-Load.
+- Brand-aware Styles via `var(--color-*)` — keine hardcoded Hex-Werte.
+- **Note (m14):** Turnstile bewusst NICHT integriert (Briefing-URLs sind
+  privat per E-Mail + Page hat `noindex,nofollow`).
+
+### Added — `@cw/core/types/briefing`
+
+- `BriefingField`, `BriefingSection`, `FieldType`, `SectionPriority`
+  Type-Definitions — Source-of-Truth für Customer-Repos.
+- Convenience-Helpers: `getRequiredFieldIds(sections)`,
+  `getTotalFieldCount(sections)`, `findFieldById(sections, id)`.
+
+### Added — `@cw/core/utils/forms/build-briefing-email`
+
+- `buildBriefingEmail(input)` — rendert HTML + Plain-Text für die zwei
+  Briefing-Mails (intern + Confirmation), Pattern aus Mika übernommen.
+- Brand-Akzent parametrisiert (`brand.primary` + `brand.accent`), Default =
+  Blitzsicht Nachtblau/Orange.
+- Customer-Submission-URL als Param (NICHT hardcoded).
+
+### Added — `@cw/core/utils/net/get-client-ip`
+
+- Shared `getClientIp(req)` Utility — bevorzugt
+  `x-vercel-forwarded-for` (single value, Vercel-signed) > `x-forwarded-for`
+  **LAST** entry > `x-real-ip` > `socket.remoteAddress`.
+- **Sicherheits-Fix:** XFF-LAST statt XFF-FIRST (Client kann FIRST-Slot
+  spoofen, LAST kommt vom nächsten trusted Proxy).
+
+### Changed — `@cw/core/api/contact-handler`
+
+- IP-Extraction migriert auf shared `getClientIp` Utility — der alte
+  `[0]`-Lookup-Pattern (Client-spoofbar) ist weg. **Non-breaking** für
+  bestehende Customer (gleiche Funktionssignatur, sicherere Default-Reihen-
+  folge).
+
+### Changed — `@cw/core/api/lead-sink`
+
+- `Lead.kind`-Union um `'briefing-form'` erweitert.
+- `formatTelegramMessage` hat einen eigenen Briefing-Branch:
+  - Format: `📋 Briefing · {Customer} · {filled}/{total} Pflicht`
+  - Plus Preview der ersten 2 ausgefüllten Felder.
+  - Hard-Cap **200 Zeichen** (Contact-Form bleibt bei 1024).
+- Neue optionale Felder im Lead-Type: `customerName`, `requiredFilled`,
+  `requiredTotal`, `briefingPayload`.
+
+### Added — Tests
+
+- `tests/api/briefing-handler.test.js` — Node-native (`node --test`,
+  kein vitest-Install nötig). 6 Tests:
+  1. Required-Field-Validation derived from sections (CRIT-Anchor MAJ-12.1).
+  2. IP-Extraction prefers x-vercel-forwarded-for + XFF LAST (MAJ-12.2 / CRIT-5).
+  3. Promise-Ordering: Mails awaited, Telegram detached (MAJ-12.3 / MAJ-7).
+  4. Payload-Size 413 (MAJ-10).
+  5. Telegram-Briefing-Branch formatting + Cap (CRIT-2).
+  6. Method-Check 405.
+- Neuer Script: `pnpm test` (`node --test tests/**/*.test.js`).
+
+### Version
+
+- `0.11.0-rc.3` → **`0.12.0-alpha`**.
+- **Rationale:** RC3 ist noch nicht final-promoted (kein ≥3-Customer-
+  Smoketest), und Briefing-Handler ist ein neues Feature-Surface.
+  `v0.12.0-alpha` signalisiert: stabil genug für Mika/Zink, aber noch
+  Alpha-Tag — Final-Promotion folgt nach Smoketest-Cycle.
+
+---
+
 ## [0.11.0-rc.3] — 2026-05-19 (release/cw-core — Component-Showcase + quality-checks)
 
 ### Added (Plan-Phase 1.6 — Component-Showcase via Examples-Pattern)

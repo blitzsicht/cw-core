@@ -1,5 +1,6 @@
 // @ts-check
 import { buildLeadEmail } from '../utils/forms/build-lead-email.js';
+import { getClientIp } from '../utils/net/get-client-ip.js';
 import { emitLead } from './lead-sink.js';
 
 /**
@@ -134,21 +135,6 @@ async function checkRateLimit(ip, max, windowMs) {
   hits.push(now);
   inMemoryRateLimit.set(ip, hits);
   return true;
-}
-
-/**
- * @param {{ headers: Record<string, string | string[] | undefined> }} req
- * @returns {string}
- */
-function getClientIp(req) {
-  const fwd = req.headers['x-forwarded-for'];
-  if (typeof fwd === 'string') {
-    const first = fwd.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  const real = req.headers['x-real-ip'];
-  if (typeof real === 'string' && real) return real;
-  return 'unknown';
 }
 
 /**

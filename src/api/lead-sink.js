@@ -26,7 +26,11 @@
  * @property {string} [phone]
  * @property {string} [website]
  * @property {string} [message]
- * @property {'contact-form'|'audit'|'bewerbung'} [kind]
+ * @property {'contact-form'|'audit'|'bewerbung'|'briefing-form'} [kind]
+ * @property {string} [customerName]              – Briefing-only: Anzeigename des Kunden.
+ * @property {number} [requiredFilled]            – Briefing-only: ausgefuellte Pflichtfelder.
+ * @property {number} [requiredTotal]             – Briefing-only: Gesamt-Pflichtfelder.
+ * @property {Record<string,string>} [briefingPayload] – Briefing-only: Form-Payload fuer Preview.
  */
 
 /**
@@ -80,6 +84,42 @@ function esc(s = '') {
  */
 function formatTelegramMessage(lead, ctx) {
   const project = esc(lead.project || 'unknown');
+  const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+  // Briefing-Form bekommt eine kompakte eigene Darstellung (≤200 Zeichen Pflicht aus CRIT-2).
+  if (lead.kind === 'briefing-form') {
+    const customer = esc(lead.customerName || lead.fromName || project);
+    const filled = typeof lead.requiredFilled === 'number' ? lead.requiredFilled : 0;
+    const total = typeof lead.requiredTotal === 'number' ? lead.requiredTotal : 0;
+
+    // Preview: erste 2 ausgefuellte Felder aus dem Briefing-Payload — IDs wie
+    // 'firmenname_offiziell', 'ansprechpartner', 'geschaeftsfuehrung' bevorzugen.
+    /** @type {string[]} */
+    const previewItems = [];
+    const payload = lead.briefingPayload || {};
+    const preferredKeys = ['firmenname_offiziell', 'firma', 'ansprechpartner', 'geschaeftsfuehrung', 'name'];
+    for (const k of preferredKeys) {
+      if (previewItems.length >= 2) break;
+      const v = (payload[k] || '').trim();
+      if (v) {
+        const short = v.length > 40 ? v.slice(0, 40) + '…' : v;
+        previewItems.push(`${esc(k)}: ${esc(short)}`);
+      }
+    }
+
+    const lines = [
+      `📋 *Briefing* · ${esc(customer)} · ${filled}/${total} Pflicht`,
+    ];
+    if (previewItems.length > 0) {
+      lines.push('', ...previewItems);
+    }
+    // Footer-Zeile mit Stamp+Origin (gespiegelt vom Contact-Path)
+    lines.push('', `_${esc(stamp + ' UTC')} · ${esc(ctx.origin || '')}_`);
+    // Hard-Cap auf 200 Zeichen (inkl. Markdown-Escapes) wie in CRIT-2 spezifiziert
+    return lines.join('\n').slice(0, 200);
+  }
+
+  // Default: Contact-Form / audit / bewerbung — bisheriger Renderer.
   const lines = [
     `🆕 *Lead* · ${project}`,
     '',
@@ -94,7 +134,6 @@ function formatTelegramMessage(lead, ctx) {
       : lead.message;
     lines.push('', esc(trimmed));
   }
-  const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
   lines.push('', `_${esc(stamp + ' UTC')} · ${esc(ctx.origin || '')}_`);
   return lines.join('\n').slice(0, 1024);
 }

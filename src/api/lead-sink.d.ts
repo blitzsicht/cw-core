@@ -4,12 +4,22 @@ export interface Lead {
   /** Anzeigename des Customers (gleich wie ContactHandlerConfig.fromName). */
   fromName: string;
   name?: string;
+  /** Bei `kind: 'briefing-form'` darf email leer sein (Briefing kann ohne Mail-Adresse abgegeben werden). */
   email: string;
   company?: string;
   phone?: string;
   website?: string;
   message?: string;
-  kind?: 'contact-form' | 'audit' | 'bewerbung';
+  kind?: 'contact-form' | 'audit' | 'bewerbung' | 'briefing-form';
+
+  /** Briefing-only: Anzeigename des Kunden ("Mika Elektrotechnik"). */
+  customerName?: string;
+  /** Briefing-only: ausgefuellte Pflichtfelder. */
+  requiredFilled?: number;
+  /** Briefing-only: Gesamt-Pflichtfelder. */
+  requiredTotal?: number;
+  /** Briefing-only: Form-Payload fuer Telegram-Preview. */
+  briefingPayload?: Record<string, string>;
 }
 
 export interface LeadCtx {
