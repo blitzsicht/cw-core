@@ -367,15 +367,14 @@ export function createBriefingHandler(config) {
       }
     }
 
-    // ---- 12. Antwort raus, BEVOR Telegram detached startet ----
-    res.status(200).json({ ok: true });
-
-    // ---- 13. emitLead — DETACHED nach Response (MAJ-7) ----
-    // Telegram-AbortSignal in lead-sink limitiert auf 5s; soll den User nicht warten lassen.
-    // void+catch sorgt dafuer dass Vercel die Function-Lifetime nicht beendet bevor das
-    // Promise resolved — Node behandelt das als microtask, beide Patterns sind ok in
-    // serverless. Falls Outage: silent (emitLead throws nie).
-    void emitLead(
+    // ---- 12. emitLead — AWAITED vor 200 ----
+    // Detached/void-Pattern hat in Vercel Serverless NICHT funktioniert: die Function
+    // wurde nach res.status(200) gekillt bevor der Telegram-fetch resolved (MAJ-7-Bug
+    // identifiziert 2026-05-21 in Mika-Production-Test). emitLead hat in lead-sink eine
+    // 5s-AbortSignal-Timeout, also worst-case 5s zusätzliche Response-Latenz —
+    // akzeptabel für Briefing-Forms (low traffic). Outage-tolerant: lead-sink wirft nie,
+    // wir wrappen trotzdem in catch falls sich das später ändert.
+    await emitLead(
       {
         project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
         fromName,
@@ -394,5 +393,8 @@ export function createBriefingHandler(config) {
     ).catch((err) => {
       console.warn('[briefing-handler] emitLead failed (non-fatal):', err);
     });
+
+    // ---- 13. Antwort raus ----
+    res.status(200).json({ ok: true });
   };
 }

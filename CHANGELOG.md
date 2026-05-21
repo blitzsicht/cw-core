@@ -6,6 +6,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.12.1-alpha] — 2026-05-21 (release/cw-core — Briefing-Handler: Telegram-Push-Fix)
+
+> **Hotfix für v0.12.0-alpha.** `emitLead` wurde fälschlicherweise via `void`-Pattern
+> NACH `res.status(200)` aufgerufen — Vercel Serverless killt die Function aber
+> bevor das detached promise resolvt, dadurch kam **kein Telegram-Push** für
+> Briefing-Submissions an (in Mika-Production-Test am 21.05. festgestellt).
+
+### Fixed
+
+- `briefing-handler.js` Zeile 370–397: `await emitLead(...)` VOR `res.status(200)`
+  statt `void emitLead(...)` danach. Worst-case 5s zusätzliche Response-Latenz
+  (durch `AbortSignal.timeout(5_000)` in `lead-sink.js` begrenzt) — akzeptabel
+  für low-traffic Briefing-Forms. Vorteil: Telegram-Push-Reliability 100% statt 0%.
+
+### Affected
+
+- Alle Customer-Sites die `createBriefingHandler` aus v0.12.0-alpha nutzen (aktuell
+  Mika + Zink) — benötigen `package.json`-Bump auf `v0.12.1-alpha` + Re-Deploy.
+
+---
+
 ## [0.12.0-alpha] — 2026-05-21 (release/cw-core — Briefing-Handler + BriefingForm)
 
 > **Phase A des `glistening-snacking-papert`-Plans.** Generischer Onboarding-
