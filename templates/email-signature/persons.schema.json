@@ -43,7 +43,7 @@
       },
       "animationEffect": {
         "type": "string",
-        "enum": ["shine-sweep", "fade-reveal", "subtle-pulse", "color-shift", "underline-grow"],
+        "enum": ["shine-sweep", "fade-reveal", "subtle-pulse", "color-shift", "underline-grow", "accent-sweep"],
         "description": "Optional: Aktiviert animiertes Logo (APNG). Wenn gesetzt, wird zusätzlich zu logo-light.png eine logo-light-animated.png generiert und in der HTML-Sig referenziert. Erstes Frame zeigt ruhendes Logo als Outlook-Fallback."
       }
     }

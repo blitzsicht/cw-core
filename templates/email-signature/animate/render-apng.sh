@@ -32,8 +32,8 @@ ANIMATION_EFFECT="${ANIMATION_EFFECT:?'ANIMATION_EFFECT fehlt — z.B. shine-swe
 # Allowlist — Effekt-Name darf nur einer aus der bekannten Bibliothek sein.
 # Verhindert Path-Traversal über das Template-Lookup.
 case "$ANIMATION_EFFECT" in
-  shine-sweep|fade-reveal|subtle-pulse|color-shift|underline-grow) ;;
-  *) echo "ABORT: Unbekannter ANIMATION_EFFECT: $ANIMATION_EFFECT (erlaubt: shine-sweep, fade-reveal, subtle-pulse, color-shift, underline-grow)"; exit 1 ;;
+  shine-sweep|fade-reveal|subtle-pulse|color-shift|underline-grow|accent-sweep) ;;
+  *) echo "ABORT: Unbekannter ANIMATION_EFFECT: $ANIMATION_EFFECT (erlaubt: shine-sweep, fade-reveal, subtle-pulse, color-shift, underline-grow, accent-sweep)"; exit 1 ;;
 esac
 
 COLOR_PRIMARY="${COLOR_PRIMARY:-#312783}"

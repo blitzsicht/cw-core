@@ -34,5 +34,5 @@ export type EmailSigPerson = {
    * Optional: Aktiviert animiertes Logo (APNG). Erstes Frame zeigt ruhendes
    * Logo, wird in Outlook Desktop als statisches Bild gerendert.
    */
-  animationEffect?: 'shine-sweep' | 'fade-reveal' | 'subtle-pulse' | 'color-shift' | 'underline-grow';
+  animationEffect?: 'shine-sweep' | 'fade-reveal' | 'subtle-pulse' | 'color-shift' | 'underline-grow' | 'accent-sweep';
 };
