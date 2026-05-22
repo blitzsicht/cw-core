@@ -6,6 +6,74 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.14.0-rc.1] — 2026-05-22 (release/cw-core — Pricing-Refresh: PaketeSection detailedFeatures + AddOnsSection)
+
+> **Blitzsicht Pricing-Pakete Refresh** (Plan: `kunde-markus-eule-will-spicy-pike.md` v2).
+> Macht 30 Standard-Services in Paket-Karten sichtbar + ermöglicht Cal-Booking-Tiering
+> (Starter: Add-On +29€/Mo, Business/Enterprise: inkl.) + neue Add-On-Sektion für
+> paket-unabhängige Zusatzleistungen.
+
+### Added
+
+- `PaketeSection.astro` — neues optionales Prop `detailedFeatures: PaketeFeature[]`
+  mit Variants `'included' | 'excluded' | 'addon'`. Ermöglicht differenzierte
+  Feature-Matrix pro Paket (✓ / — / ✓ +Preis-Badge). Backward-compatible:
+  bestehende Customer-Sites mit `features: string[]` rendern unverändert.
+- `PaketeFeature` Type exportiert (`label`, `variant`, `tooltip?`, `addonPrice?`).
+- `AddOnsSection.astro` (NEU) — eigenständige Sektion für Add-On-Items mit
+  optionalem Kategorie-Filter (booking/content/seo/legal/support). Sortiertes
+  Grid-Layout, Default-CTA `/kontakt?anfrage=<slug>`, Plausible-Tracking.
+- `AddOnItem` + `AddOnCategory` + `AddOnPriceModel` Types exportiert.
+
+### Use-Case
+
+```astro
+<PaketeSection
+  items={[
+    {
+      name: 'Starter',
+      subtitle: 'Für Solo + kleine Teams',
+      priceSetup: 2490,
+      priceMonthly: 79,
+      features: [],
+      detailedFeatures: [
+        { label: 'AI-SEO Starter-Pack', variant: 'included' },
+        { label: 'Plausible-Events', variant: 'excluded' },
+        { label: 'Cal-Booking', variant: 'addon', addonPrice: '+29 €/Mo',
+          tooltip: 'Bei Business/Enterprise inkl.' },
+      ],
+    },
+    // …Business / Enterprise mit unterschiedlichen Variants…
+  ]}
+/>
+
+<AddOnsSection
+  items={[
+    { slug: 'gmb-aktivierung', name: 'GMB-Aktivierung', description: 'Monatliche Profil-Pflege …',
+      price: '290 €/Mo', priceModel: 'monthly', category: 'seo' },
+    // …
+  ]}
+/>
+```
+
+### Affected
+
+- Alle Customer-Sites die nur `features: string[]` nutzen → kein Update nötig.
+- Customer-Sites die auf detaillierte Tiering-Sichtbarkeit upgraden wollen → optional
+  `detailedFeatures` befüllen + ggf. AddOnsSection einbinden.
+- customer-blitzsicht ist Pilot — eigener Folge-PR pinnt diesen Commit + füllt
+  Pakete-Daten + neue `/pakete` Seite.
+
+### Migration
+
+Kein Breaking Change. Sites die ihre Pakete mit den neuen Variants schärfen wollen:
+
+1. cw-core auf v0.13.0 Commit pinnen
+2. `src/data/site-data.ts` Paket-Einträge um `detailedFeatures` erweitern
+3. Optional: `<AddOnsSection items={…} />` unter `<PaketeSection>` einbinden
+
+---
+
 ## [0.12.1-alpha] — 2026-05-21 (release/cw-core — Briefing-Handler: Telegram-Push-Fix)
 
 > **Hotfix für v0.12.0-alpha.** `emitLead` wurde fälschlicherweise via `void`-Pattern

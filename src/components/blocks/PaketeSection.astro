@@ -16,6 +16,24 @@
  */
 import TiltCard from '../motion/TiltCard.astro';
 
+/**
+ * Feature-Variant für gestaffelte Paket-Differenzierung (v0.12).
+ *
+ * - `included`: ✓ — Feature ist im Paket enthalten
+ * - `excluded`: — — Feature ist nicht enthalten (graues Em-Dash, kein roter Strike)
+ * - `addon`: ✓ +Preis — Feature ist als monatlicher Add-On verfügbar (z.B. Cal-Booking auf Starter)
+ */
+export interface PaketeFeature {
+  /** Label, kann HTML enthalten (vorsichtig — wird via set:html gerendert). */
+  label: string;
+  /** Anzeige-Variante. */
+  variant: 'included' | 'excluded' | 'addon';
+  /** Optionaler Tooltip (Hover/Tap-Erklärung). */
+  tooltip?: string;
+  /** Add-On-Preis-Label, z.B. "+29 €/Mo". Nur bei variant='addon'. */
+  addonPrice?: string;
+}
+
 export interface PaketeItem {
   /** Package name (large heading). */
   name: string;
@@ -27,8 +45,19 @@ export interface PaketeItem {
   priceMonthly: number;
   /** Optional pages/scope hint (rendered as small pill). */
   pages?: string;
-  /** Bullet feature list. */
+  /**
+   * Bullet feature list (Legacy/Simple-Modus).
+   *
+   * Wenn `detailedFeatures` gesetzt ist, wird `features` ignoriert.
+   */
   features: readonly string[];
+  /**
+   * Detaillierte Feature-Matrix mit Variants (v0.12, optional).
+   *
+   * Wenn gesetzt, ersetzt `features` und ermöglicht ✓/—/✓+Preis-Differenzierung
+   * pro Item. Plan-Phase 2 Pricing-Refresh.
+   */
+  detailedFeatures?: readonly PaketeFeature[];
   /** If true, the card is highlighted (accent border, shadow, "Meistgewählt" badge). */
   highlighted?: boolean;
   /** CTA href; defaults to `/kontakt`. */
@@ -101,16 +130,43 @@ const {
 
             {pkg.pages && <p class="paket-pages">{pkg.pages}</p>}
 
-            <ul class="feature-list">
-              {pkg.features.map((f) => (
-                <li>
-                  <svg class="check-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                  </svg>
-                  {f}
-                </li>
-              ))}
-            </ul>
+            {pkg.detailedFeatures && pkg.detailedFeatures.length > 0 ? (
+              <ul class="feature-list feature-list--detailed">
+                {pkg.detailedFeatures.map((f) => (
+                  <li class:list={['feature-row', `feature-row--${f.variant}`]} title={f.tooltip}>
+                    {f.variant === 'included' && (
+                      <svg class="check-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                      </svg>
+                    )}
+                    {f.variant === 'excluded' && (
+                      <span class="dash-icon" aria-hidden="true">—</span>
+                    )}
+                    {f.variant === 'addon' && (
+                      <svg class="plus-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+                      </svg>
+                    )}
+                    <span class="feature-label" set:html={f.label} />
+                    {f.variant === 'addon' && f.addonPrice && (
+                      <span class="addon-price-badge">{f.addonPrice}</span>
+                    )}
+                    {f.tooltip && <span class="feature-info" aria-hidden="true">ⓘ</span>}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul class="feature-list">
+                {pkg.features.map((f) => (
+                  <li>
+                    <svg class="check-icon" width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <a
               href={pkg.ctaHref ?? '/kontakt'}
@@ -236,6 +292,39 @@ const {
   }
   .feature-list li { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.875rem; line-height: 1.5; }
   .check-icon { flex-shrink: 0; margin-top: 1px; color: var(--color-accent); }
+
+  /* v0.12 — Detailed Features mit Variants (included/excluded/addon) */
+  .feature-list--detailed .feature-row {
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .feature-list--detailed .feature-label { flex: 1; }
+  .feature-row--excluded { color: var(--color-muted, #9ca3af); }
+  .feature-row--excluded .feature-label { opacity: 0.7; }
+  .dash-icon {
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+    color: var(--color-muted, #9ca3af);
+    font-weight: 600;
+  }
+  .plus-icon { flex-shrink: 0; margin-top: 1px; color: var(--color-accent); }
+  .addon-price-badge {
+    flex-shrink: 0;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    background: rgba(239, 118, 18, 0.1);
+    color: var(--color-accent-text, #B85A0D);
+    padding: 0.125rem 0.5rem;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .feature-info {
+    cursor: help;
+    color: var(--color-muted, #9ca3af);
+    font-size: 0.75rem;
+    margin-left: auto;
+  }
   .paket-cta {
     display: block;
     text-align: center;
