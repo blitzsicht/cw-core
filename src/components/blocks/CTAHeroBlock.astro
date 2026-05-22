@@ -83,7 +83,7 @@ const {
   .cta-hero-block {
     position: relative;
     overflow: hidden;
-    padding: 4.5rem 0 0;
+    padding: var(--section-padding, 5rem) 0;
   }
   .cta-hero-block.bg-accent { background: var(--color-accent); color: var(--color-primary); }
   .cta-hero-block.bg-primary { background: var(--color-primary); color: white; }
@@ -149,23 +149,39 @@ const {
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
   }
 
-  /* Layered-Signet-Pattern (3 Signets versetzt im unteren Bereich) */
+  /* Layered-Signet-Pattern (3 Signets versetzt mit Drop-Shadow für Tiefe).
+     Wenn die CI keinen Schatten zulässt: per Customer-Override `--signet-shadow: none` setzen. */
   .cta-hero-signets {
     position: relative;
     width: 100%;
     height: 280px;
-    margin-top: 2rem;
+    margin-top: 1rem;
   }
   .cta-hero-signets img {
     position: absolute;
-    bottom: -2rem;
+    bottom: 0;
     width: 38%;
     max-width: 320px;
     height: auto;
+    filter: var(--signet-shadow, drop-shadow(0 8px 16px rgba(0, 0, 0, 0.18)));
   }
-  .cta-hero-signets .signet-back { left: 0; opacity: 0.85; filter: brightness(0) saturate(100%); }     /* schwarze Variante als Layer hinten */
-  .cta-hero-signets .signet-mid { left: 14%; opacity: 1; }                                                /* originales Sea-Green */
-  .cta-hero-signets .signet-front { left: 28%; filter: brightness(0) invert(1); opacity: 0.95; }          /* weiße Layer vorn */
+  /* Layer-Reihenfolge: hinten (Dark-Blue-Green) → Mitte (Sea-Green, dunkler durch Shadow) → vorn (Weiß) */
+  .cta-hero-signets .signet-back {
+    left: 4%;
+    bottom: 1rem;
+    transform: rotate(-3deg);
+    filter: brightness(0) saturate(100%) invert(15%) sepia(50%) saturate(900%) hue-rotate(160deg) var(--signet-shadow, drop-shadow(0 6px 12px rgba(0, 0, 0, 0.22)));
+  }
+  .cta-hero-signets .signet-mid {
+    left: 22%;
+    filter: var(--signet-shadow, drop-shadow(0 10px 18px rgba(0, 0, 0, 0.25)));
+  }
+  .cta-hero-signets .signet-front {
+    left: 40%;
+    bottom: -1rem;
+    transform: rotate(3deg);
+    filter: brightness(0) invert(1) var(--signet-shadow, drop-shadow(0 12px 20px rgba(0, 0, 0, 0.20)));
+  }
 
   .cta-hero-signet-single {
     position: relative;
