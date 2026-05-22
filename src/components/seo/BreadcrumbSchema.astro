@@ -1,0 +1,42 @@
+---
+/**
+ * @cw/core – BreadcrumbSchema.astro
+ *
+ * Emits JSON-LD BreadcrumbList in the page <head>. No visible output.
+ * Pair with Breadcrumbs.astro if you also want visible breadcrumbs.
+ *
+ * @example
+ *   <BreadcrumbSchema
+ *     items={[
+ *       { name: 'Start', url: 'https://example.com/' },
+ *       { name: 'Leistungen', url: 'https://example.com/#leistungen' },
+ *       { name: 'Photovoltaik', url: 'https://example.com/leistungen/photovoltaik' },
+ *     ]}
+ *   />
+ */
+export interface BreadcrumbItem {
+  name: string;
+  /** Absolute URL — already resolved against the site URL by the caller. */
+  url: string;
+}
+
+interface Props {
+  items: readonly BreadcrumbItem[] | BreadcrumbItem[];
+}
+
+const { items } = Astro.props;
+
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: items.map((item, index) => ({
+    '@type': 'ListItem',
+    position: index + 1,
+    name: item.name,
+    item: item.url,
+  })),
+};
+---
+{items.length >= 2 && (
+  <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />
+)}

@@ -64,22 +64,28 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
       <h2 class="section-heading">{heading}</h2>
       {subheading && <p class="section-subheading">{subheading}</p>}
       <div class="leistungen-grid" style={`--cols:${columns}`}>
-        {items.map((item) => (
-          <div class="leistung-card">
-            {item.iconSvg
-              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
-              : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
-            }
-            <h3>{item.title}</h3>
-            {item.description && <p>{item.description}</p>}
-            {item.href && (
-              <a href={item.href} class="leistung-link">
-                {readMoreLabel}<span class="sr-only"> über {item.title}</span>
-                <span aria-hidden="true"> →</span>
-              </a>
-            )}
-          </div>
-        ))}
+        {items.map((item) => {
+          const Wrapper = item.href ? 'a' : 'div';
+          const wrapperClass = item.href ? 'leistung-card leistung-card-link' : 'leistung-card';
+          const wrapperExtraProps: Record<string, string> = item.href
+            ? { href: item.href, 'data-cta': `leistung-card:${item.title}` }
+            : {};
+          return (
+            <Wrapper class={wrapperClass} {...wrapperExtraProps}>
+              {item.iconSvg
+                ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
+                : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
+              }
+              <h3>{item.title}</h3>
+              {item.description && <p>{item.description}</p>}
+              {item.href && (
+                <span class="leistung-link" aria-hidden="true">
+                  {readMoreLabel}<span> →</span>
+                </span>
+              )}
+            </Wrapper>
+          );
+        })}
       </div>
     </div>
   </section>
@@ -107,7 +113,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
     border-radius: 0.75rem;
     padding: 2rem;
     border: 1px solid #e5e7eb;
-    transition: box-shadow 0.2s, transform 0.2s;
+    transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
     display: flex;
     flex-direction: column;
     gap: 0.625rem;
@@ -116,6 +122,21 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
   .leistung-card:hover {
     box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     transform: translateY(-2px);
+  }
+
+  /* Ganze Karte klickbar wenn href gesetzt — Card als <a>. */
+  .leistung-card-link {
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  .leistung-card-link:hover {
+    box-shadow: 0 8px 28px rgba(0, 70, 80, 0.15);
+    border-color: var(--color-accent);
+  }
+  .leistung-card-link:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
   }
 
   .leistung-icon {
