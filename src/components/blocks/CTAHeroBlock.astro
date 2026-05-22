@@ -1,0 +1,195 @@
+---
+/**
+ * @cw/core – CTAHeroBlock.astro
+ *
+ * Vollflächige CTA-Section mit Brand-Plakat-Look:
+ *   • Sea-Green (oder Dark-Blue-Green) Vollflächen-Background
+ *   • Bold-Italic-Headline links/oben
+ *   • Optional Sub-Text + CTA-Button
+ *   • Layered-Signet-Element (2-3 Signets versetzt) als Hauptgestaltungselement
+ *
+ * Vorbild: MIKA Elektrotechnik PV-Plakat „IHR DACH? HAT POTENZIAL!"
+ * (kreativmaleins-Styleguide 07/2025).
+ *
+ * Prop-driven: kein @/data-Import. Customer übergibt alle Inhalte.
+ *
+ * @example
+ *   <CTAHeroBlock
+ *     headline="Ihr Dach? Hat Potenzial!"
+ *     sub="Ihr Dach ist ideal für Solarenergie."
+ *     ctaLabel="Unverbindliche Beratung"
+ *     ctaHref="/leistungen/photovoltaik"
+ *     background="accent"
+ *     signetSrc="/signet.svg"
+ *     signetLayered={true}
+ *   />
+ */
+interface Props {
+  /** Bold-Italic-Hauptclaim. Pflicht. */
+  headline: string;
+  /** Sub-Text unter der Headline. */
+  sub?: string;
+  /** Primärer CTA-Button-Label. */
+  ctaLabel?: string;
+  /** CTA-Button-Ziel. */
+  ctaHref?: string;
+  /** Background-Variante. 'accent' = Sea-Green-Vollfläche, 'primary' = Dark-Blue-Green. Default: 'accent'. */
+  background?: 'accent' | 'primary';
+  /** Signet-SVG-Pfad. Default: '/signet.svg'. */
+  signetSrc?: string;
+  /** Signet als Layered-Pattern (3-fach versetzt). Default: true. */
+  signetLayered?: boolean;
+}
+
+const {
+  headline,
+  sub,
+  ctaLabel,
+  ctaHref,
+  background = 'accent',
+  signetSrc = '/signet.svg',
+  signetLayered = true,
+} = Astro.props;
+---
+
+<section class:list={['cta-hero-block', `bg-${background}`]}>
+  <div class="cta-hero-container">
+    <div class="cta-hero-content">
+      <h2 class="cta-hero-headline">{headline}</h2>
+      {sub && <p class="cta-hero-sub">{sub}</p>}
+      {ctaLabel && ctaHref && (
+        <a class="cta-hero-button" href={ctaHref} data-cta={`cta-hero:${ctaLabel}`}>
+          {ctaLabel}
+          <span aria-hidden="true"> →</span>
+        </a>
+      )}
+    </div>
+
+    {signetLayered ? (
+      <div class="cta-hero-signets" aria-hidden="true">
+        <img class="signet-back" src={signetSrc} alt="" />
+        <img class="signet-mid" src={signetSrc} alt="" />
+        <img class="signet-front" src={signetSrc} alt="" />
+      </div>
+    ) : (
+      <div class="cta-hero-signet-single" aria-hidden="true">
+        <img src={signetSrc} alt="" />
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .cta-hero-block {
+    position: relative;
+    overflow: hidden;
+    padding: 4.5rem 0 0;
+  }
+  .cta-hero-block.bg-accent { background: var(--color-accent); color: var(--color-primary); }
+  .cta-hero-block.bg-primary { background: var(--color-primary); color: white; }
+
+  .cta-hero-container {
+    max-width: var(--container-max, 72rem);
+    margin-inline: auto;
+    padding: 0 1.5rem;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .cta-hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 40rem;
+  }
+
+  .cta-hero-headline {
+    font-family: var(--font-heading);
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 700;
+    font-style: italic;
+    text-transform: uppercase;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    margin: 0 0 1.5rem;
+  }
+  .bg-accent .cta-hero-headline { color: var(--color-primary); }
+  .bg-primary .cta-hero-headline { color: white; }
+
+  .cta-hero-sub {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    margin: 0 0 2rem;
+    max-width: 32rem;
+  }
+  .bg-accent .cta-hero-sub { color: var(--color-primary); opacity: 0.85; }
+  .bg-primary .cta-hero-sub { color: rgba(255, 255, 255, 0.85); }
+
+  .cta-hero-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.75rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .bg-accent .cta-hero-button {
+    background: var(--color-primary);
+    color: white;
+  }
+  .bg-primary .cta-hero-button {
+    background: var(--color-accent);
+    color: var(--color-primary);
+  }
+  .cta-hero-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Layered-Signet-Pattern (3 Signets versetzt im unteren Bereich) */
+  .cta-hero-signets {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    margin-top: 2rem;
+  }
+  .cta-hero-signets img {
+    position: absolute;
+    bottom: -2rem;
+    width: 38%;
+    max-width: 320px;
+    height: auto;
+  }
+  .cta-hero-signets .signet-back { left: 0; opacity: 0.85; filter: brightness(0) saturate(100%); }     /* schwarze Variante als Layer hinten */
+  .cta-hero-signets .signet-mid { left: 14%; opacity: 1; }                                                /* originales Sea-Green */
+  .cta-hero-signets .signet-front { left: 28%; filter: brightness(0) invert(1); opacity: 0.95; }          /* weiße Layer vorn */
+
+  .cta-hero-signet-single {
+    position: relative;
+    width: 100%;
+    max-width: 300px;
+    margin: 2rem auto -1rem;
+  }
+  .cta-hero-signet-single img { width: 100%; height: auto; }
+
+  /* Layered-Variante in bg-primary nutzt invertierte Layer-Reihenfolge */
+  .bg-primary .cta-hero-signets .signet-back { filter: brightness(0) invert(1); opacity: 0.4; }
+  .bg-primary .cta-hero-signets .signet-mid { opacity: 1; }
+  .bg-primary .cta-hero-signets .signet-front { filter: brightness(0) saturate(100%); opacity: 0.8; }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media */
+  @media (min-width: 768px) {
+    .cta-hero-container {
+      grid-template-columns: 1fr 1fr;
+      align-items: end;
+      padding-bottom: 0;
+    }
+    .cta-hero-signets {
+      height: 360px;
+      margin-top: 0;
+    }
+  }
+</style>
