@@ -64,28 +64,28 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
       <h2 class="section-heading">{heading}</h2>
       {subheading && <p class="section-subheading">{subheading}</p>}
       <div class="leistungen-grid" style={`--cols:${columns}`}>
-        {items.map((item) => {
-          const Wrapper = item.href ? 'a' : 'div';
-          const wrapperClass = item.href ? 'leistung-card leistung-card-link' : 'leistung-card';
-          const wrapperExtraProps: Record<string, string> = item.href
-            ? { href: item.href, 'data-cta': `leistung-card:${item.title}` }
-            : {};
-          return (
-            <Wrapper class={wrapperClass} {...wrapperExtraProps}>
-              {item.iconSvg
-                ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
-                : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
-              }
-              <h3>{item.title}</h3>
-              {item.description && <p>{item.description}</p>}
-              {item.href && (
-                <span class="leistung-link" aria-hidden="true">
-                  {readMoreLabel}<span> →</span>
-                </span>
-              )}
-            </Wrapper>
-          );
-        })}
+        {items.map((item) => item.href ? (
+          <a href={item.href} class="leistung-card leistung-card-link" data-cta={`leistung-card:${item.title}`}>
+            {item.iconSvg
+              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
+              : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
+            }
+            <h3>{item.title}</h3>
+            {item.description && <p>{item.description}</p>}
+            <span class="leistung-link" aria-hidden="true">
+              {readMoreLabel}<span> →</span>
+            </span>
+          </a>
+        ) : (
+          <div class="leistung-card">
+            {item.iconSvg
+              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
+              : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
+            }
+            <h3>{item.title}</h3>
+            {item.description && <p>{item.description}</p>}
+          </div>
+        ))}
       </div>
     </div>
   </section>
