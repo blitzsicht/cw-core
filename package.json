@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.13.1-alpha",
+  "version": "0.13.2-alpha",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
