@@ -18,6 +18,8 @@
 export interface LeistungItem {
   /** Emoji or short string used as a decorative icon. */
   icon?: string;
+  /** Path to an SVG icon (e.g. `/icons/zahnrad.svg`). When set, overrides `icon`. */
+  iconSvg?: string;
   /** Short title of the service/feature. */
   title: string;
   /** Optional descriptive body text. */
@@ -56,7 +58,10 @@ const {
       <div class="leistungen-grid" style={`--cols:${columns}`}>
         {items.map((item) => (
           <div class="leistung-card">
-            {item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>}
+            {item.iconSvg
+              ? <div class="leistung-icon leistung-icon-svg" aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
+              : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
+            }
             <h3>{item.title}</h3>
             {item.description && <p>{item.description}</p>}
             {item.href && (
@@ -109,6 +114,17 @@ const {
     font-size: 2.25rem;
     line-height: 1;
     margin-bottom: 0.25rem;
+  }
+
+  .leistung-icon-svg {
+    width: 3rem;
+    height: 3rem;
+    margin-bottom: 0.5rem;
+  }
+  .leistung-icon-svg img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   .leistung-card h3 {
