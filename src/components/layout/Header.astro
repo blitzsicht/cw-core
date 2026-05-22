@@ -173,7 +173,6 @@ const {
   /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
   @media (max-width: 1099px) {
     #nav-toggle { display: flex; }
-    .logo span { display: none; }
     #main-nav {
       display: none;
       position: absolute;
@@ -194,6 +193,11 @@ const {
       border-bottom: 1px solid rgba(255,255,255,0.1);
     }
     #main-nav .btn-accent { margin-top: 1rem; justify-content: center; }
+  }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Brand-Name auf sehr schmalen Viewports verstecken */
+  @media (max-width: 720px) {
+    .logo span { display: none; }
   }
 </style>
 
