@@ -39,6 +39,10 @@ interface Props {
   readMoreLabel?: string;
   /** Max columns on desktop. Defaults to 2. */
   columns?: 2 | 3 | 4;
+  /** Visual style for icons. 'plain' = SVG direkt. 'container' = SVG in farbigem Kreis-Container (Brand-V2-Print-Style). */
+  iconStyle?: 'plain' | 'container';
+  /** Hintergrundfarbe des Icon-Containers (nur wenn iconStyle='container'). Default: var(--color-accent). */
+  iconContainerColor?: string;
 }
 
 const {
@@ -47,7 +51,11 @@ const {
   items = [],
   readMoreLabel = 'Mehr erfahren',
   columns = 2,
+  iconStyle = 'plain',
+  iconContainerColor,
 } = Astro.props;
+
+const containerStyle = iconContainerColor ? `--icon-container-color:${iconContainerColor}` : undefined;
 ---
 
 {items.length > 0 && (
@@ -59,7 +67,7 @@ const {
         {items.map((item) => (
           <div class="leistung-card">
             {item.iconSvg
-              ? <div class="leistung-icon leistung-icon-svg" aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
+              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
               : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
             }
             <h3>{item.title}</h3>
@@ -122,6 +130,23 @@ const {
     margin-bottom: 0.5rem;
   }
   .leistung-icon-svg img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  /* Brand-V2 Container-Variant: Icon im farbigen Kreis (Print-Style aus Designer-Flyer). */
+  .leistung-icon-svg.style-container {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    background: var(--icon-container-color, var(--color-accent));
+    display: grid;
+    place-items: center;
+    padding: 0.625rem;
+    margin-bottom: 0.75rem;
+  }
+  .leistung-icon-svg.style-container img {
     width: 100%;
     height: 100%;
     object-fit: contain;

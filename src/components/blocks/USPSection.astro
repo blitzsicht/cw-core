@@ -8,8 +8,10 @@
  *   <USPSection items={siteData.usps} />
  */
 export interface USPItem {
-  /** Emoji or short string used as visual icon. */
-  icon: string;
+  /** Emoji or short string used as visual icon. Optional — Cards können auch textbasiert rendern. */
+  icon?: string;
+  /** SVG-Pfad (z.B. /icons/zahnrad.svg). Wenn gesetzt, gewinnt es über `icon`. */
+  iconSvg?: string;
   /** Card heading. */
   title: string;
   /** Card body copy. */
@@ -19,9 +21,14 @@ export interface USPItem {
 interface Props {
   /** USP items to render. Section is omitted entirely if empty. */
   items?: readonly USPItem[];
+  /** Icon-Style. 'plain' = SVG direkt. 'container' = farbiger Kreis (Brand-V2-Print). Default: 'plain'. */
+  iconStyle?: 'plain' | 'container';
+  /** Container-Hintergrund (nur wenn iconStyle='container'). Default: var(--color-accent). */
+  iconContainerColor?: string;
 }
 
-const { items = [] } = Astro.props;
+const { items = [], iconStyle = 'plain', iconContainerColor } = Astro.props;
+const containerStyle = iconContainerColor ? `--icon-container-color:${iconContainerColor}` : undefined;
 ---
 {items.length > 0 && (
 <section class="usp-section">
@@ -29,7 +36,10 @@ const { items = [] } = Astro.props;
     <div class="usp-grid">
       {items.map((usp) => (
         <div class="usp-card">
-          <div class="usp-icon" aria-hidden="true">{usp.icon}</div>
+          {usp.iconSvg
+            ? <div class:list={["usp-icon usp-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={usp.iconSvg} alt="" /></div>
+            : usp.icon && <div class="usp-icon" aria-hidden="true">{usp.icon}</div>
+          }
           <h3>{usp.title}</h3>
           <p>{usp.description}</p>
         </div>
@@ -58,6 +68,18 @@ const { items = [] } = Astro.props;
     transform: translateY(-2px);
   }
   .usp-icon { font-size: 2rem; margin-bottom: 0.875rem; display: block; }
+  .usp-icon-svg { width: 2.5rem; height: 2.5rem; margin-bottom: 0.875rem; }
+  .usp-icon-svg img { width: 100%; height: 100%; object-fit: contain; }
+  /* Brand-V2 Container-Variant analog LeistungenSection */
+  .usp-icon-svg.style-container {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--icon-container-color, var(--color-accent));
+    display: grid;
+    place-items: center;
+    padding: 0.5rem;
+  }
   .usp-card h3 { font-size: 1rem; margin-bottom: 0.5rem; color: var(--color-primary); }
   .usp-card p { font-size: 0.9rem; color: var(--color-muted); line-height: 1.6; margin: 0; }
 </style>

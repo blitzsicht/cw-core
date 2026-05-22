@@ -1,0 +1,127 @@
+---
+/**
+ * @cw/core – ServiceTrioSection.astro
+ *
+ * 3-Card-Layout für Service-Stufen (z.B. Beratung — Montage — After-Sales).
+ * Visual: kreisförmiger Icon-Container in `--color-primary` mit weißem
+ * Linien-Icon darin, auf Sea-Green-Vollflächen-Background (Brand-V2 Print-Style).
+ *
+ * @example
+ *   <ServiceTrioSection
+ *     heading="Unser Service"
+ *     items={[
+ *       { iconSvg: '/icons/dark/gluehbirne.svg', title: 'Individuelle Beratung und Planung' },
+ *       { iconSvg: '/icons/dark/strommast.svg', title: 'Montage und Anmeldung' },
+ *       { iconSvg: '/icons/dark/kreislauf.svg', title: 'After-Sales-Service' },
+ *     ]}
+ *   />
+ */
+export interface ServiceItem {
+  /** SVG-Pfad zum Icon (z.B. /icons/dark/gluehbirne.svg). */
+  iconSvg: string;
+  /** Kurz-Titel der Service-Stufe. */
+  title: string;
+}
+
+interface Props {
+  /** Section-Heading. Default: "Unser Service". */
+  heading?: string;
+  /** Italic-Bold-Heading (Brand-Stil Plakat-Look). Default: true. */
+  italic?: boolean;
+  /** Background-Variant. 'surface' = Light-Mint-Green, 'accent' = Sea-Green-Vollfläche. Default: 'accent'. */
+  background?: 'surface' | 'accent';
+  /** 3 Service-Items (mehr/weniger funktionieren aber sind kein Trio mehr). */
+  items: readonly ServiceItem[];
+}
+
+const { heading = 'Unser Service', italic = true, background = 'accent', items } = Astro.props;
+---
+
+{items.length > 0 && (
+  <section class:list={['service-trio', `bg-${background}`]}>
+    <div class="container">
+      <h2 class:list={[italic && 'italic']}>{heading}</h2>
+      <div class="service-grid">
+        {items.map((s) => (
+          <div class="service-card">
+            <div class="service-icon" aria-hidden="true">
+              <img src={s.iconSvg} alt="" />
+            </div>
+            <h3>{s.title}</h3>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .service-trio {
+    padding: 5rem 0;
+  }
+  .service-trio.bg-accent {
+    background: var(--color-accent);
+    color: var(--color-primary);
+  }
+  .service-trio.bg-surface {
+    background: var(--color-surface);
+    color: var(--color-primary);
+  }
+
+  .service-trio h2 {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    margin: 0 0 3rem;
+    color: var(--color-primary);
+    font-weight: 700;
+  }
+  .service-trio h2.italic {
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: 0.01em;
+  }
+
+  .service-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.5rem 2.5rem;
+    align-items: start;
+  }
+
+  .service-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .service-icon {
+    flex: 0 0 auto;
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: var(--color-primary);
+    display: grid;
+    place-items: center;
+    padding: 0.625rem;
+  }
+  .service-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Dark-Blue-Green-Icon-SVG auf Dark-Blue-Green-Background unsichtbar — invertieren auf Weiß */
+    filter: brightness(0) invert(1);
+  }
+
+  .service-card h3 {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin: 0;
+    line-height: 1.4;
+  }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First */
+  @media (max-width: 640px) {
+    .service-grid { grid-template-columns: 1fr; }
+    .service-trio { padding: 3rem 0; }
+  }
+</style>
