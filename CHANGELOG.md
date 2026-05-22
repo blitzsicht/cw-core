@@ -6,6 +6,44 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.14.2-rc.1] — 2026-05-22 (release/cw-core — PaketeSection ctaSecondaryHref)
+
+> **Plan-Phase 9 (Pakete-Redesign):** Sekundärer CTA in der Paket-Karte.
+> Vorher: "Alle Leistungen ansehen"-Block neben der PaketeSection.
+> Nachher: 2-CTA-Pattern in der Karte selbst (Primary "Anfragen" + Secondary "Alle Leistungen ansehen →").
+
+### Added
+
+- `PaketeItem.ctaSecondaryHref` (optional) — z.B. `/pakete/starter` für Detail-Seite-Verlinkung.
+- `PaketeItem.ctaSecondaryLabel` (optional) — Default: `'Alle Leistungen ansehen →'`.
+- CSS-Style `.paket-cta-secondary` — dezent unter dem primären CTA, text-only mit Pfeil.
+- Plausible-Event-Tracking: `Paket Card Detail-Link Click` mit `tier`-Prop.
+
+### Use-Case
+
+```astro
+<PaketeSection
+  items={[
+    {
+      name: 'Starter',
+      ... ,
+      ctaHref: '/kontakt?paket=starter',
+      ctaLabel: 'Starter anfragen',
+      ctaSecondaryHref: '/pakete/starter',
+      ctaSecondaryLabel: 'Alle Leistungen Starter →',
+    },
+    ...
+  ]}
+/>
+```
+
+### Backward-Compat
+
+Wenn `ctaSecondaryHref` nicht gesetzt: kein sekundärer CTA wird gerendert. Andere
+Customer-Sites brauchen kein Update.
+
+---
+
 ## [0.14.0-rc.1] — 2026-05-22 (release/cw-core — Pricing-Refresh: PaketeSection detailedFeatures + AddOnsSection)
 
 > **Blitzsicht Pricing-Pakete Refresh** (Plan: `kunde-markus-eule-will-spicy-pike.md` v2).

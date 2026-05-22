@@ -64,6 +64,14 @@ export interface PaketeItem {
   ctaHref?: string;
   /** CTA label; defaults to `${name} anfragen`. */
   ctaLabel?: string;
+  /**
+   * Optional sekundärer CTA innerhalb der Karte — z.B. "Alle Leistungen ansehen →".
+   * Rendert unter dem primären CTA als text-only Link mit Pfeil.
+   * v0.14.2+ (Plan-Phase 9).
+   */
+  ctaSecondaryHref?: string;
+  /** Label für sekundären CTA. Default: 'Alle Leistungen ansehen →' wenn ctaSecondaryHref gesetzt. */
+  ctaSecondaryLabel?: string;
 }
 
 interface Props {
@@ -174,6 +182,15 @@ const {
             >
               {pkg.ctaLabel ?? `${pkg.name} anfragen`}
             </a>
+            {pkg.ctaSecondaryHref && (
+              <a
+                href={pkg.ctaSecondaryHref}
+                class="paket-cta-secondary"
+                data-paket-secondary={pkg.name}
+              >
+                {pkg.ctaSecondaryLabel ?? 'Alle Leistungen ansehen →'}
+              </a>
+            )}
           </div>
         );
         return tilt ? <TiltCard>{card}</TiltCard> : card;
@@ -190,6 +207,13 @@ const {
     link.addEventListener('click', () => {
       const name = link.closest('.paket-card')?.querySelector('.paket-name')?.textContent?.trim() ?? '';
       track('Package Click', { package_name: name });
+    });
+  });
+  // v0.14.2 — Sekundärer CTA Tracking (Plan-Phase 9 Plausible-Events)
+  document.querySelectorAll<HTMLAnchorElement>('.paket-cta-secondary').forEach((link) => {
+    link.addEventListener('click', () => {
+      const name = link.dataset.paketSecondary ?? '';
+      track('Paket Card Detail-Link Click', { tier: name.toLowerCase() });
     });
   });
 </script>
@@ -340,6 +364,24 @@ const {
   .cta-primary:hover { background: var(--color-accent-hover); transform: translateY(-1px); }
   .cta-outline { background: transparent; color: var(--color-primary); border: 2px solid #e5e7eb; }
   .cta-outline:hover { border-color: var(--color-primary); background: var(--color-surface); }
+
+  /* v0.14.2 — Sekundärer CTA (Plan-Phase 9): dezent unter Primary-CTA, text-only mit Pfeil */
+  .paket-cta-secondary {
+    display: block;
+    margin-top: 0.625rem;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    color: var(--color-primary, #1D1E3B);
+    text-decoration: none;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-bottom: 1px solid transparent;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .paket-cta-secondary:hover {
+    color: var(--color-accent, #EF7612);
+    border-bottom-color: var(--color-accent, #EF7612);
+  }
   .pakete-note { text-align: center; margin-top: 2rem; font-size: 0.8125rem; color: var(--color-muted); }
 
   .pakete-grid--single {
