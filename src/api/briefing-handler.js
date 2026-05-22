@@ -60,6 +60,9 @@ import { emitLead } from './lead-sink.js';
  * @property {number} [rateLimitWindowMs]
  * @property {{ primary?: string, accent?: string }} [brand]
  * @property {boolean} [allowVercelPreviewOrigins]  – Default true: *.vercel.app durchlassen.
+ * @property {string} [photoUploadDestination]      – Wenn gesetzt: Confirmation-Mail enthält Foto-Upload-Anleitung (WeTransfer-Pattern). Beispiel: 'servus@blitzsicht.com'.
+ * @property {string} [photoUploadServiceLabel]     – Service-Name in der Anleitung. Default: 'WeTransfer'.
+ * @property {string} [photoUploadServiceUrl]       – Upload-Service-URL. Default: 'https://wetransfer.com/'.
  */
 
 const MAX_PAYLOAD_BYTES = 256 * 1024; // 256 KB (MAJ-10)
@@ -326,6 +329,9 @@ export function createBriefingHandler(config) {
       submissionUrl,
       requiredFieldIds: requiredIds,
       brand: config.brand,
+      photoUploadDestination: config.photoUploadDestination,
+      photoUploadServiceLabel: config.photoUploadServiceLabel,
+      photoUploadServiceUrl: config.photoUploadServiceUrl,
     });
 
     // ---- 10. Internal Mail — AWAITED (MAJ-7) ----

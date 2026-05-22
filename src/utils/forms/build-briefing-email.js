@@ -69,6 +69,9 @@ function nl2br(s) {
  * @property {string} submissionUrl             – URL der Customer-Onboarding-Page (z.B. https://mikaelektro.com/onboarding).
  * @property {string[]} requiredFieldIds        – Vorbereitet — fuer den Progress-Header.
  * @property {BriefingBrandColors} [brand]      – Optionale Brand-Color-Overrides.
+ * @property {string} [photoUploadDestination]  – Wenn gesetzt: Confirmation-Mail enthaelt Foto-Upload-Anleitung. Beispiel: 'servus@blitzsicht.com'.
+ * @property {string} [photoUploadServiceLabel] – Service-Name fuer Foto-Upload-Anleitung. Default: 'WeTransfer'.
+ * @property {string} [photoUploadServiceUrl]   – Upload-Service-URL. Default: 'https://wetransfer.com/'.
  */
 
 /**
@@ -91,6 +94,9 @@ export function buildBriefingEmail(input) {
     submissionUrl,
     requiredFieldIds,
     brand = {},
+    photoUploadDestination,
+    photoUploadServiceLabel = 'WeTransfer',
+    photoUploadServiceUrl = 'https://wetransfer.com/',
   } = input;
 
   const brandPrimary = brand.primary || DEFAULT_BRAND_PRIMARY;
@@ -183,6 +189,26 @@ export function buildBriefingEmail(input) {
   const greeting = customerFirstName ? `, ${escapeHtml(customerFirstName)}` : '';
   const greetingText = customerFirstName ? `, ${customerFirstName}` : '';
 
+  // Photo-Upload-Block (konditional — nur wenn photoUploadDestination konfiguriert ist).
+  // Pattern: Customer schickt Briefing-Beschreibungen via Form, Bilder dann via WeTransfer
+  // (oder einem anderen frei wählbaren File-Transfer-Service) an die Empfangs-Adresse.
+  const safeUploadDest = photoUploadDestination ? escapeHtml(photoUploadDestination) : '';
+  const safeUploadService = escapeHtml(photoUploadServiceLabel);
+  const safeUploadUrl = escapeHtml(photoUploadServiceUrl);
+  const photoUploadBlockHtml = photoUploadDestination
+    ? `
+    <h2 style="color:${brandPrimary};font-size:1.0625rem;margin:1.5rem 0 0.75rem;">Bilder &amp; Fotos nachreichen</h2>
+    <p>Im Briefing-Formular haben Sie nur kurz beschrieben, welche Bilder verfügbar sind. Die Bilder selbst schicken Sie uns ganz einfach per File-Transfer-Link:</p>
+    <ol style="padding-left:1.25rem;margin:0 0 1rem;">
+      <li>Öffnen Sie <a href="${safeUploadUrl}" style="color:${brandAccent};">${safeUploadService}</a> im Browser oder auf dem Smartphone</li>
+      <li>Bilder per Drag-and-Drop oder „Datei hinzufügen" auswählen</li>
+      <li>Empfänger-Adresse: <strong>${safeUploadDest}</strong></li>
+      <li>Im Nachrichten-Feld bitte Ihren Firmennamen als Referenz</li>
+      <li>Absenden — kostenlos, kein Account nötig</li>
+    </ol>
+    <p style="color:#6b7280;font-size:0.875rem;">Smartphone-Tipp: Bilder aus der Foto-/WhatsApp-Galerie funktionieren genauso. Wenn ${safeUploadService} nicht passt, gehen auch SwissTransfer, Smash oder Filemail — Empfänger bleibt ${safeUploadDest}.</p>`
+    : '';
+
   const confirmationHtml = `<!DOCTYPE html>
 <html lang="de">
 <head><meta charset="utf-8"></head>
@@ -193,7 +219,7 @@ export function buildBriefingEmail(input) {
     <p>
       Wir schauen uns alles in Ruhe an und melden uns <strong>innerhalb von 24 Stunden</strong> bei Ihnen
       mit dem nächsten Schritt — meistens mit ein paar Rückfragen und einem aktualisierten Designvorschau-Link.
-    </p>
+    </p>${photoUploadBlockHtml}
     <p>
       Bei Fragen erreichen Sie uns jederzeit unter
       <a href="mailto:servus@blitzsicht.com" style="color:${brandAccent};">servus@blitzsicht.com</a>.
@@ -206,10 +232,22 @@ export function buildBriefingEmail(input) {
 </body>
 </html>`;
 
+  const photoUploadBlockText = photoUploadDestination
+    ? `\nBilder & Fotos nachreichen:\n` +
+      `Im Briefing haben Sie nur kurz beschrieben, welche Bilder verfügbar sind. Die Bilder selbst schicken Sie uns per File-Transfer:\n` +
+      `  1. ${photoUploadServiceLabel} öffnen: ${photoUploadServiceUrl}\n` +
+      `  2. Bilder auswählen\n` +
+      `  3. Empfänger: ${photoUploadDestination}\n` +
+      `  4. Im Nachrichten-Feld: Ihr Firmenname\n` +
+      `  5. Absenden — kostenlos, kein Account\n` +
+      `Smartphone-Tipp: Auch SwissTransfer/Smash/Filemail funktionieren — Empfänger bleibt ${photoUploadDestination}.\n\n`
+    : '';
+
   const confirmationText =
     `Vielen Dank${greetingText}!\n\n` +
     `Wir haben Ihr ausgefülltes Onboarding-Briefing für die neue ${customerName}-Website erhalten.\n\n` +
-    `Wir schauen uns alles in Ruhe an und melden uns innerhalb von 24 Stunden bei Ihnen.\n\n` +
+    `Wir schauen uns alles in Ruhe an und melden uns innerhalb von 24 Stunden bei Ihnen.\n` +
+    photoUploadBlockText +
     `Bei Fragen: servus@blitzsicht.com\n\n` +
     `Herzliche Grüße\n` +
     `Ihr Blitzsicht-Team\n`;
