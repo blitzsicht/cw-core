@@ -67,7 +67,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
         {items.map((item) => item.href ? (
           <a href={item.href} class="leistung-card leistung-card-link" data-cta={`leistung-card:${item.title}`}>
             {item.iconSvg
-              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
+              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" loading="lazy" decoding="async" /></div>
               : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
             }
             <h3>{item.title}</h3>
@@ -79,7 +79,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
         ) : (
           <div class="leistung-card">
             {item.iconSvg
-              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" /></div>
+              ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" loading="lazy" decoding="async" /></div>
               : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
             }
             <h3>{item.title}</h3>
