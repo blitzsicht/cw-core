@@ -1,0 +1,23 @@
+{
+  "$_comment": "@cw/core pa11y-ci Template — kopiere ins Customer-Repo-Root als .pa11yci.json. URLs gegen http://localhost:8080 — cw-core's a11y-check.mjs startet einen http-server gegen dist/ auf diesem Port. WCAG-2-AA ist DSGVO-/BITV-Standard für DACH-Customer-Sites.",
+  "defaults": {
+    "standard": "WCAG2AA",
+    "runners": ["axe", "htmlcs"],
+    "timeout": 30000,
+    "wait": 500,
+    "ignore": [
+      "WCAG2AA.Principle3.Guideline3_2.3_2_2.H32.2"
+    ],
+    "chromeLaunchConfig": {
+      "args": ["--no-sandbox", "--disable-dev-shm-usage"]
+    },
+    "concurrency": 2,
+    "threshold": 0
+  },
+  "urls": [
+    "http://localhost:8080/",
+    "http://localhost:8080/impressum/",
+    "http://localhost:8080/kontakt/",
+    "http://localhost:8080/datenschutz/"
+  ]
+}
