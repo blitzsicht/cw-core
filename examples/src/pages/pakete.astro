@@ -1,0 +1,226 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import PaketeSection from '@cw/core/components/blocks/PaketeSection.astro';
+import AddOnsSection from '@cw/core/components/blocks/AddOnsSection.astro';
+---
+<ExampleLayout
+  title="PaketeSection v0.13 + AddOnsSection"
+  description="Pricing-Refresh mit gestaffelten Features (✓/—/✓+Preis) und paket-unabhängiger Add-Ons-Sektion. Blitzsicht-Pricing-Pilot."
+>
+  <div class="example-section">
+    <h2>Detailed-Modus (Tiered Services — Blitzsicht v0.13)</h2>
+    <PaketeSection
+      tilt={false}
+      items={[
+        {
+          name: 'Starter',
+          subtitle: 'Für Solo + kleine Teams',
+          priceSetup: 2490,
+          priceMonthly: 79,
+          pages: '8–12 Seiten',
+          features: [],
+          detailedFeatures: [
+            { label: 'Astro-Site + cw-core', variant: 'included' },
+            { label: 'AI-SEO Starter-Pack', variant: 'included',
+              tooltip: 'llms.txt, FAQ-Schema, Founder, sameAs, Content-Stats, WhatsApp-Sticky' },
+            { label: 'Email-Signatur v1 (HTML+TXT pro Mitarbeiter)', variant: 'included' },
+            { label: 'Plausible Analytics (Pageviews + Outbound)', variant: 'included' },
+            { label: 'Telegram-Error-Monitor (5xx-Alerts)', variant: 'included' },
+            { label: 'Mail-Hardening (SPF/DMARC/DKIM)', variant: 'included' },
+            { label: '30 Min Support/Monat', variant: 'included' },
+            { label: '48h Reaktion', variant: 'included' },
+            { label: 'Plausible-Events (CTA/Scroll/FAQ)', variant: 'excluded' },
+            { label: 'GMB-Setup + GSC-Verifizierung', variant: 'excluded' },
+            { label: 'Email-Signatur v4 (vCard, Review-CTA, Booking-Link)', variant: 'excluded' },
+            { label: 'Premium Mail (DNSSEC/MTA-STS/TLS-RPT)', variant: 'excluded' },
+            { label: 'Cal-Booking inkl.', variant: 'addon', addonPrice: '+29 €/Mo',
+              tooltip: 'Bei Business + Enterprise inkl.' },
+          ],
+        },
+        {
+          name: 'Business',
+          subtitle: 'Meistgewählt',
+          priceSetup: 4990,
+          priceMonthly: 149,
+          pages: '15–30 Seiten · bis 5 Standorte',
+          highlighted: true,
+          features: [],
+          detailedFeatures: [
+            { label: 'Astro-Site + cw-core', variant: 'included' },
+            { label: 'AI-SEO Starter-Pack', variant: 'included' },
+            { label: 'Email-Signatur v4 (vCard, Review-CTA, Booking)', variant: 'included' },
+            { label: 'Plausible-Events (CTA/Scroll/FAQ)', variant: 'included' },
+            { label: 'Telegram-Error-Monitor', variant: 'included' },
+            { label: 'Premium Mail (DNSSEC/MTA-STS/TLS-RPT)', variant: 'included' },
+            { label: 'GMB-Setup + GSC-Verifizierung', variant: 'included' },
+            { label: 'Cal-Booking inkl.', variant: 'included' },
+            { label: '60 Min Support/Monat', variant: 'included' },
+            { label: '24h Reaktion', variant: 'included' },
+            { label: 'Quartals-Audit-Service', variant: 'excluded' },
+            { label: 'Bing/IndexNow Aktiv-Monitoring', variant: 'excluded' },
+            { label: 'Schema-Subtype-Pflege (LocalBusiness → Plumber etc.)', variant: 'excluded' },
+          ],
+        },
+        {
+          name: 'Enterprise',
+          subtitle: 'Für Filialen + Multi-Location',
+          priceSetup: 9990,
+          priceMonthly: 299,
+          pages: '30–60+ Seiten · unlimited Standorte',
+          features: [],
+          detailedFeatures: [
+            { label: 'Astro-Site + cw-core', variant: 'included' },
+            { label: 'AI-SEO Starter-Pack', variant: 'included' },
+            { label: 'Email-Signatur v4', variant: 'included' },
+            { label: 'Plausible-Events + Custom-Funnels', variant: 'included' },
+            { label: 'Telegram-Error-Monitor', variant: 'included' },
+            { label: 'Premium Mail (DNSSEC/MTA-STS/TLS-RPT)', variant: 'included' },
+            { label: 'GMB-Setup + GSC-Verifizierung', variant: 'included' },
+            { label: 'Cal-Booking inkl.', variant: 'included' },
+            { label: '120 Min Support/Monat', variant: 'included' },
+            { label: '4h Prio-Reaktion', variant: 'included' },
+            { label: 'Quartals-Audit-Service (cw-audit Re-Run + Diff)', variant: 'included' },
+            { label: 'Bing/IndexNow Aktiv-Monitoring', variant: 'included' },
+            { label: 'Schema-Subtype-Pflege', variant: 'included' },
+          ],
+        },
+      ]}
+    />
+  </div>
+
+  <AddOnsSection
+    items={[
+      {
+        slug: 'cal-booking-starter',
+        name: 'Cal-Booking-Upgrade (Starter)',
+        description: 'Schaltet Termin-Buchung via Cal.eu im Starter-Paket frei. Ab Business inkl.',
+        price: '29 €/Mo',
+        priceModel: 'monthly',
+        category: 'booking',
+      },
+      {
+        slug: 'gmb-aktivierung',
+        name: 'GMB-Aktivierungs-Service',
+        description: 'Monatliche GBP-Pflege: 2 Posts, 4 Photos, Review-Antworten. Wir kümmern uns drum.',
+        price: '290 €/Mo',
+        priceModel: 'monthly',
+        category: 'seo',
+      },
+      {
+        slug: 'quartals-case-study',
+        name: 'Quartals-Case-Study',
+        description: 'Echte Case Study aus Ihrer Auftragsliste, mit CaseStudyBlock + Schema.org Review.',
+        price: '390 €',
+        priceModel: 'tiered',
+        category: 'content',
+        hint: 'Pro Quartal — verlängert sich automatisch',
+      },
+      {
+        slug: 'ai-citation-audit',
+        name: 'AI-Citation-Boost-Audit',
+        description: 'Vertieftes AI-Visibility-Audit: ChatGPT/Perplexity/Google AI Overview Spotcheck + Refactor-Liste.',
+        price: '490 €',
+        priceModel: 'one-time',
+        category: 'seo',
+      },
+      {
+        slug: 'blog-artikel-single',
+        name: 'Blog-Artikel (einzeln)',
+        description: 'SEO-optimiert, mit Schema.org Article. 800–1500 Wörter, inkl. Bild-Recherche.',
+        price: '80 €',
+        priceModel: 'one-time',
+        category: 'content',
+      },
+      {
+        slug: 'blog-artikel-bundle',
+        name: 'Blog-Bundle (5er)',
+        description: '5 Artikel im Bundle. Sparpreis gegenüber Einzelbuchung.',
+        price: '350 €',
+        priceModel: 'tiered',
+        category: 'content',
+      },
+      {
+        slug: 'extra-service-page',
+        name: 'Zusätzliche Service-Seite',
+        description: 'Pro Seite. Inkl. Schema, On-Page-SEO, internes Linking.',
+        price: '150 €',
+        priceModel: 'one-time',
+        category: 'content',
+      },
+      {
+        slug: 'extra-location',
+        name: 'Zusätzlicher Standort',
+        description: 'Lokale Landing-Page mit Schema.org LocalBusiness, NAP-Konsistenz, Geo-Markup.',
+        price: '200 €',
+        priceModel: 'one-time',
+        category: 'seo',
+      },
+      {
+        slug: 'altseiten-migration',
+        name: 'Altseiten-Migration',
+        description: '301-Mapping aller alten URLs, SEO-Verlust vermeiden. Preis nach Seitenanzahl.',
+        price: 'ab 490 €',
+        priceModel: 'tiered',
+        category: 'support',
+      },
+      {
+        slug: 'photo-shoot',
+        name: 'Foto-Shooting (Partner)',
+        description: 'Halbtag oder Tag. Mitarbeiter, Räume, Produkte. Inkl. Bildrechte.',
+        price: 'ab 800 €',
+        priceModel: 'tiered',
+        category: 'content',
+        hint: 'via lokalen Foto-Partner',
+      },
+      {
+        slug: 'legal-review',
+        name: 'Anwaltliche Impressum/Datenschutz-Prüfung',
+        description: 'Externe Kanzlei prüft Impressum + Datenschutzerklärung gegen DDG/DSGVO/TDDDG.',
+        price: 'ab 290 €',
+        priceModel: 'tiered',
+        category: 'legal',
+        hint: 'via Partner-Kanzlei',
+      },
+      {
+        slug: 'emergency-hour',
+        name: 'Notfall-Korrekturen (außerhalb Kontingent)',
+        description: 'Wenn das Monats-Kontingent aufgebraucht ist und es dringend wird.',
+        price: '95 €/h',
+        priceModel: 'tiered',
+        category: 'support',
+        hint: '30-Min-Minimum',
+      },
+    ]}
+  />
+
+  <div class="example-section">
+    <h2>Simple-Modus (Legacy, backward-compatible)</h2>
+    <PaketeSection
+      tilt={false}
+      items={[
+        {
+          name: 'Starter',
+          subtitle: 'Klein',
+          priceSetup: 2490,
+          priceMonthly: 79,
+          features: ['8–12 Seiten', '30 Min/Mo Support', '48h Reaktion'],
+        },
+        {
+          name: 'Business',
+          subtitle: 'Beliebt',
+          priceSetup: 4990,
+          priceMonthly: 149,
+          features: ['15–30 Seiten', '60 Min/Mo Support', '24h Reaktion', 'bis 5 Standorte'],
+          highlighted: true,
+        },
+        {
+          name: 'Enterprise',
+          subtitle: 'Multi-Location',
+          priceSetup: 9990,
+          priceMonthly: 299,
+          features: ['30–60+ Seiten', '120 Min/Mo Support', '4h Prio'],
+        },
+      ]}
+    />
+  </div>
+</ExampleLayout>

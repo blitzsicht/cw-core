@@ -1,0 +1,256 @@
+---
+/**
+ * @cw/core – AddOnsSection.astro
+ *
+ * Add-Ons-Sektion: Paket-unabhängige Zusatzleistungen mit Preisen.
+ * Wird unter PaketeSection eingeblendet (v0.12 Pricing-Refresh).
+ *
+ * Pattern aus Plan-Phase 2 (Blitzsicht Pricing-Pakete Refresh, 2026-05-22):
+ * - Add-Ons sind paket-unabhängig buchbar (Cal-Booking-Upgrade, GMB-Aktivierung,
+ *   Quartals-Case-Study, AI-Citation-Audit, Blog-Artikel, Stadt-LP, Foto-Shooting etc.)
+ * - Optional Kategorie-Filter via Tabs (booking/content/seo/legal/support)
+ * - Default-CTA: /kontakt?anfrage=<slug>
+ *
+ * @example
+ *   <AddOnsSection items={siteData.addons} />
+ */
+
+export type AddOnCategory = 'booking' | 'content' | 'seo' | 'legal' | 'support';
+export type AddOnPriceModel = 'monthly' | 'one-time' | 'tiered';
+
+export interface AddOnItem {
+  /** Slug für Tracking + Default-CTA-Anchor (z.B. "cal-booking-starter"). */
+  slug: string;
+  /** Sichtbarer Name. */
+  name: string;
+  /** 1-2 Sätze Beschreibung. */
+  description: string;
+  /** Preis-Label (z.B. "29 €/Mo" oder "150 €" oder "ab 490 €"). */
+  price: string;
+  /** Preis-Modell. */
+  priceModel: AddOnPriceModel;
+  /** Kategorie für Filter-Tabs. */
+  category: AddOnCategory;
+  /** Optional: Anfrage-Link. Default: `/kontakt?anfrage=<slug>` */
+  ctaHref?: string;
+  /** Optional: CTA-Label. Default: "Buchen" / "Anfragen". */
+  ctaLabel?: string;
+  /** Optional: Hinweis (z.B. "via Partner-Kanzlei"). */
+  hint?: string;
+}
+
+interface Props {
+  /** Add-On-Items. */
+  items?: readonly AddOnItem[];
+  /** Sektion-Überschrift. */
+  heading?: string;
+  /** Sub-Headline. */
+  subheading?: string;
+  /** Wenn gesetzt: nur diese Kategorie zeigen (kein Tab-Switch). */
+  filterCategory?: AddOnCategory;
+  /** Footnote unter dem Grid. */
+  note?: string;
+}
+
+const {
+  items = [],
+  heading = 'Add-Ons & Zusatzleistungen',
+  subheading = 'Paket-unabhängig buchbar — wenn das Standard-Bundle erweitert werden soll.',
+  filterCategory,
+  note = 'Alle Preise netto zzgl. 19 % MwSt. · Monatliche Add-Ons mit 1 Monat Kündigungsfrist.',
+} = Astro.props;
+
+const visibleItems = filterCategory
+  ? items.filter((i) => i.category === filterCategory)
+  : items;
+
+const categoryLabels: Record<AddOnCategory, string> = {
+  booking: 'Termin-Buchung',
+  content: 'Content',
+  seo: 'SEO & AI',
+  legal: 'Rechtliches',
+  support: 'Support',
+};
+
+const visibleCategories: AddOnCategory[] = filterCategory
+  ? [filterCategory]
+  : (['booking', 'content', 'seo', 'legal', 'support'] as const).filter((c) =>
+      visibleItems.some((i) => i.category === c),
+    );
+
+const priceModelLabels: Record<AddOnPriceModel, string> = {
+  monthly: 'monatlich',
+  'one-time': 'einmalig',
+  tiered: 'gestaffelt',
+};
+---
+<section class="addons-section">
+  <div class="container">
+    <div class="section-header">
+      <h2 class="section-heading">{heading}</h2>
+      <p class="section-subheading">{subheading}</p>
+    </div>
+
+    {visibleCategories.length > 1 && (
+      <div class="category-tabs" role="tablist">
+        {visibleCategories.map((cat) => (
+          <button class="category-tab" data-category={cat} role="tab">
+            {categoryLabels[cat]}
+          </button>
+        ))}
+      </div>
+    )}
+
+    <div class="addons-grid">
+      {visibleItems.map((addon) => (
+        <article class="addon-card" data-category={addon.category}>
+          <header class="addon-header">
+            <h3 class="addon-name">{addon.name}</h3>
+            <div class="addon-pricing">
+              <span class="addon-price">{addon.price}</span>
+              <span class="addon-price-model">{priceModelLabels[addon.priceModel]}</span>
+            </div>
+          </header>
+          <p class="addon-description">{addon.description}</p>
+          {addon.hint && <p class="addon-hint">{addon.hint}</p>}
+          <a
+            href={addon.ctaHref ?? `/kontakt?anfrage=${addon.slug}`}
+            class="addon-cta"
+            data-addon-slug={addon.slug}
+          >
+            {addon.ctaLabel ?? (addon.priceModel === 'monthly' ? 'Buchen' : 'Anfragen')}
+          </a>
+        </article>
+      ))}
+    </div>
+
+    {note && <p class="addons-note">{note}</p>}
+  </div>
+</section>
+
+<script>
+  import { track } from '../../utils/analytics/track';
+
+  // Kategorie-Tab-Filter
+  const tabs = document.querySelectorAll<HTMLButtonElement>('.category-tab');
+  const cards = document.querySelectorAll<HTMLElement>('.addon-card');
+  let activeFilter: string | null = null;
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => {
+      const cat = tab.dataset.category!;
+      if (activeFilter === cat) {
+        // Toggle off
+        activeFilter = null;
+        tabs.forEach((t) => t.classList.remove('active'));
+        cards.forEach((c) => (c.style.display = ''));
+      } else {
+        activeFilter = cat;
+        tabs.forEach((t) => t.classList.toggle('active', t.dataset.category === cat));
+        cards.forEach((c) => {
+          c.style.display = c.dataset.category === cat ? '' : 'none';
+        });
+      }
+    });
+  });
+
+  // Tracking
+  document.querySelectorAll<HTMLAnchorElement>('.addon-cta').forEach((link) => {
+    link.addEventListener('click', () => {
+      const slug = link.dataset.addonSlug ?? '';
+      track('AddOn Click', { addon_slug: slug });
+    });
+  });
+</script>
+
+<style>
+  .addons-section {
+    padding: 4rem 0;
+    background: var(--color-bg, white);
+  }
+  .section-header { text-align: center; margin-bottom: 2.5rem; }
+  .section-heading {
+    font-size: clamp(1.75rem, 3vw, 2.25rem);
+    font-weight: 700;
+    margin: 0 0 0.75rem;
+    color: var(--color-primary);
+  }
+  .section-subheading { color: var(--color-muted); font-size: 1rem; max-width: 42rem; margin-inline: auto; }
+
+  .category-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 2.5rem;
+  }
+  .category-tab {
+    background: var(--color-surface, #f9fafb);
+    border: 1px solid #e5e7eb;
+    color: var(--color-primary);
+    padding: 0.5rem 1.125rem;
+    border-radius: 100px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .category-tab:hover { border-color: var(--color-primary); }
+  .category-tab.active {
+    background: var(--color-primary);
+    color: white;
+    border-color: var(--color-primary);
+  }
+
+  .addons-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.25rem;
+    max-width: 72rem;
+    margin-inline: auto;
+  }
+  .addon-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .addon-card:hover { border-color: var(--color-accent); transform: translateY(-2px); }
+  .addon-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+  .addon-name { font-size: 1.0625rem; font-weight: 700; margin: 0; line-height: 1.3; }
+  .addon-pricing {
+    display: flex;
+    align-items: baseline;
+    gap: 0.375rem;
+  }
+  .addon-price { font-size: 1.25rem; font-weight: 700; color: var(--color-accent); }
+  .addon-price-model { font-size: 0.75rem; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .addon-description { font-size: 0.875rem; color: #374151; margin: 0; flex: 1; line-height: 1.5; }
+  .addon-hint { font-size: 0.75rem; color: var(--color-muted); font-style: italic; margin: 0; }
+  .addon-cta {
+    display: inline-block;
+    align-self: flex-start;
+    padding: 0.5rem 1rem;
+    border-radius: 100px;
+    background: transparent;
+    border: 2px solid var(--color-primary);
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+    min-height: 40px;
+    line-height: 24px;
+  }
+  .addon-cta:hover { background: var(--color-primary); color: white; }
+
+  .addons-note { text-align: center; margin-top: 2rem; font-size: 0.8125rem; color: var(--color-muted); }
+</style>
