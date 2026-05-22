@@ -59,7 +59,7 @@ run_person_for_customer() {
   local PERSON_JSON="$2"
 
   # Person-Felder via jq lesen
-  local SLUG NAME POSITION P_EMAIL P_PHONE LAYOUT SALUTATION
+  local SLUG NAME POSITION P_EMAIL P_PHONE LAYOUT SALUTATION ANIMATION_EFFECT
   SLUG=$(printf '%s' "$PERSON_JSON" | jq -r '.slug // empty')
   NAME=$(printf '%s' "$PERSON_JSON" | jq -r '.name // empty')
   POSITION=$(printf '%s' "$PERSON_JSON" | jq -r '.position // empty')
@@ -67,6 +67,7 @@ run_person_for_customer() {
   P_PHONE=$(printf '%s' "$PERSON_JSON" | jq -r '.phone // empty')
   LAYOUT=$(printf '%s' "$PERSON_JSON" | jq -r '.layout // "auto"')
   SALUTATION=$(printf '%s' "$PERSON_JSON" | jq -r ".salutation // \"Hallo $(printf '%s' "$NAME" | cut -d' ' -f1)\"")
+  ANIMATION_EFFECT=$(printf '%s' "$PERSON_JSON" | jq -r '.animationEffect // empty')
 
   [ -z "$SLUG" ] && { echo "  ⚠ Person ohne slug — skip"; return; }
   [ -z "$NAME" ] && { echo "  ⚠ Person $SLUG ohne name — skip"; return; }
@@ -81,7 +82,9 @@ run_person_for_customer() {
   [ "$LAYOUT" = "auto" ] && LAYOUT=""
 
   echo ""
-  echo "▓▓▓ $SLUG @ $(basename "$CUSTOMER_DIR") (LAYOUT=${LAYOUT:-auto}) ▓▓▓"
+  local HEADER="▓▓▓ $SLUG @ $(basename "$CUSTOMER_DIR") (LAYOUT=${LAYOUT:-auto}"
+  [ -n "$ANIMATION_EFFECT" ] && HEADER="$HEADER, ANIM=$ANIMATION_EFFECT"
+  echo "$HEADER) ▓▓▓"
 
   # Customer-Daten via SSOT-Reader
   eval "$(python3 "$READ" "$CUSTOMER_DIR")"
@@ -131,8 +134,9 @@ run_person_for_customer() {
     GOOGLE_REVIEW_URL="$GOOGLE_REVIEW_URL" \
     BOOKING_URL="$BOOKING_URL" BOOKING_LABEL="$BOOKING_LABEL" \
     VCARD_PUBLIC_URL="$VCARD_PUBLIC_URL" \
+    ANIMATION_EFFECT="$ANIMATION_EFFECT" \
     OUT_DIR="$SIG_OUT" \
-    "$GEN" 2>&1 | grep -E "(✓|⚠|ⓘ|Layout|Fertig)" | head -12
+    "$GEN" 2>&1 | grep -E "(✓|⚠|ⓘ|Layout|APNG|Fertig)" | head -12
 
   rm -f "$SIG_OUT/$SLUG.vcf"
 

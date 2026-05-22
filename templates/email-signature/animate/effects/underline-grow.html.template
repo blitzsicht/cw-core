@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; padding: 0; background: white; }
+  #logo {
+    position: relative;
+    display: inline-block;
+    width: {{WIDTH}}px;
+    height: {{HEIGHT}}px;
+  }
+  #logo img {
+    width: 100%;
+    height: calc(100% - 3px);
+    display: block;
+  }
+  #underline {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: {{COLOR_ACCENT}};
+    opacity: 0;
+  }
+</style></head>
+<body>
+  <div id="logo">
+    <img src="{{LOGO_DATA_URI}}" alt="logo">
+    <div id="underline"></div>
+  </div>
+  <script src="{{MOTION_URL}}"></script>
+  <script>
+    const { animate, spring } = Motion;
+    // First Frame (t=0): width 0%, opacity 0 → keine Linie, nur Logo (Outlook-Fallback).
+    // Linie wächst mit Spring-Bounce auf 100%, hält, schrumpft zurück.
+    animate('#underline',
+      { width: ['0%', '100%', '100%', '0%'], opacity: [0, 1, 1, 0] },
+      { duration: 2, repeat: Infinity, easing: 'ease-in-out', offset: [0, 0.4, 0.7, 1] }
+    );
+  </script>
+</body></html>

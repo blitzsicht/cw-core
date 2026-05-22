@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; padding: 0; background: white; }
+  #logo {
+    position: relative;
+    display: inline-block;
+    width: {{WIDTH}}px;
+    height: {{HEIGHT}}px;
+    overflow: hidden;
+  }
+  #logo img {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  #shine {
+    position: absolute;
+    top: 0;
+    left: -60%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(
+      105deg,
+      transparent 30%,
+      rgba(255,255,255,0.85) 50%,
+      transparent 70%
+    );
+    transform: skewX(-20deg);
+    pointer-events: none;
+    opacity: 0;
+  }
+</style></head>
+<body>
+  <div id="logo">
+    <img src="{{LOGO_DATA_URI}}" alt="logo">
+    <div id="shine"></div>
+  </div>
+  <script src="{{MOTION_URL}}"></script>
+  <script>
+    const { animate } = Motion;
+    // Shine wandert von links (-60%) nach rechts (110%), opacity fadet ein/aus.
+    // First Frame (t=0): opacity 0 → ruhendes Logo (Outlook-Fallback).
+    animate('#shine',
+      { left: ['-60%', '-60%', '110%', '110%'], opacity: [0, 1, 1, 0] },
+      { duration: 2, repeat: Infinity, easing: 'ease-in-out', offset: [0, 0.1, 0.6, 0.7] }
+    );
+  </script>
+</body></html>

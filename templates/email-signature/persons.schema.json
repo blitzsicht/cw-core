@@ -40,6 +40,11 @@
       "salutation": {
         "type": "string",
         "description": "Anrede in der Begleitmail (z.B. 'Servus Markus')."
+      },
+      "animationEffect": {
+        "type": "string",
+        "enum": ["shine-sweep", "fade-reveal", "subtle-pulse", "color-shift", "underline-grow"],
+        "description": "Optional: Aktiviert animiertes Logo (APNG). Wenn gesetzt, wird zusätzlich zu logo-light.png eine logo-light-animated.png generiert und in der HTML-Sig referenziert. Erstes Frame zeigt ruhendes Logo als Outlook-Fallback."
       }
     }
   }

@@ -43,6 +43,26 @@ Bei jeder Änderung an `src/templates/vercel.template.json` Content-Security-Pol
 **Historisch broken Pattern (Bisection 2026-05-12):**
 `'self'` allein in `style-src` oder `style-src-elem` blockt same-origin Stylesheets, obwohl Header byte-clean ASCII gesendet wird. Ursache nicht abschließend identifiziert. Pragma: expliziten Origin neben `'self'` einfügen. Siehe `docs/CSP-rationale.md` für Details.
 
+## Animations-Pipeline (E-Mail-Signaturen)
+
+`templates/email-signature/animate/` rendert animierte Logos als **APNG** (Animated PNG) für E-Mail-Signaturen. Engine: **Motion One** (lokal gepinnt in `vendor/motion.min.js`), Headless-Render via `gstack-browse`, Frame-Assembly via `apngasm`.
+
+**Aktivierung pro Person** (opt-in):
+```ts
+// customer-X/src/data/site-data.ts
+persons: [
+  { slug: 'name', name: '...', email: '...', animationEffect: 'shine-sweep' }
+]
+```
+
+Wert ist `'shine-sweep' | 'fade-reveal' | 'subtle-pulse' | 'color-shift' | 'underline-grow'`. Wer's nicht setzt, bleibt statisch.
+
+**Output:** `customer-X/public/email/logo-light-animated.png` (zusätzlich zu logo-light.png). HTML-Sig referenziert die animated-Variante automatisch.
+
+**Mail-Client-Reality:** Apple Mail / Gmail Web / Thunderbird animieren. Outlook Desktop zeigt das erste Frame als statisches Fallback (per Design — Effekt-Templates starten und enden bei `scale(1)` / `opacity:1` / `width:0`). Realistische Animation-Quote: 40-60% der Empfänger.
+
+**Volldoku:** `templates/email-signature/animate/README.md`.
+
 ## Verwandt
 - `customer-websites` — Cross-Repo Learnings, Spec-Repo
 - `cw-onboarding` — nutzt `cw-core` Templates für neue Kunden

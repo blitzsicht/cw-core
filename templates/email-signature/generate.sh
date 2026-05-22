@@ -61,6 +61,13 @@ LOGO_URL_BASE_DIR="${LOGO_URL%/*}/"  # alles bis zum letzten Slash
 LOGO_URL_LIGHT="${LOGO_URL_LIGHT:-${LOGO_URL_BASE_DIR}logo-light.png}"
 LOGO_URL_DARK="${LOGO_URL_DARK:-${LOGO_URL_BASE_DIR}logo-dark.png}"
 
+# Animation-Override: wenn ANIMATION_EFFECT gesetzt, zeigt die HTML-Sig die APNG
+# statt der statischen logo-light.png. Outlook Desktop rendert das erste Frame als
+# Fallback, andere Clients (Apple Mail, Gmail) zeigen die Animation.
+if [ -n "${ANIMATION_EFFECT:-}" ]; then
+  LOGO_URL_LIGHT="${LOGO_URL_BASE_DIR}logo-light-animated.png"
+fi
+
 SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g' | sed 's/ä/ae/g; s/ö/oe/g; s/ü/ue/g; s/ß/ss/g' | sed 's/[^a-z0-9-]//g')
 SLUG="${EXPLICIT_SLUG:-$SLUG}"
 OUT_DIR="${OUT_DIR:-email-signatures/$SLUG}"
@@ -400,6 +407,68 @@ if [ -n "$CUSTOMER_REPO_ROOT" ] && [ -d "$CUSTOMER_REPO_ROOT/public" ]; then
   cp "$LOGO_PNG_LIGHT_OUT" "$PUBLIC_EMAIL_DIR/logo.png" 2>/dev/null || true
   echo "  ✓ public/email/logo-light.png"
   echo "  ✓ public/email/logo-dark.png"
+
+  # ── Optional: APNG-Animation (logo-light-animated.png) ────────────────────
+  # Wird gerendert wenn ANIMATION_EFFECT gesetzt ist. LOGO_URL_LIGHT wurde
+  # oben bereits auf logo-light-animated.png umgebogen. Falls der Render
+  # fehlschlägt, setzen wir die HTML-Sig zurück auf das statische Logo —
+  # so vermeiden wir eine 404-Referenz im versendeten Mail.
+  if [ -n "${ANIMATION_EFFECT:-}" ]; then
+    ANIMATE_SCRIPT="$SCRIPT_DIR/animate/render-apng.sh"
+    ANIMATED_OK=0
+    if [ -x "$ANIMATE_SCRIPT" ] && command -v apngasm >/dev/null 2>&1; then
+      LOGO_PNG_ANIMATED_OUT="$OUT_DIR/assets/logo-light-animated.png"
+      rm -f "$LOGO_PNG_ANIMATED_OUT"  # stale aus vorherigem Run entfernen
+
+      # Logo-Aspect aus dem statischen logo-light.png lesen, damit die
+      # APNG-Render-Dimensionen das Logo nicht verzerren.
+      ANIM_DIMS=$(magick identify -format "%w %h" "$LOGO_PNG_LIGHT_OUT" 2>/dev/null | head -1)
+      ANIM_W=$(echo "$ANIM_DIMS" | awk '{print $1}')
+      ANIM_H=$(echo "$ANIM_DIMS" | awk '{print $2}')
+      if [ -n "$ANIM_W" ] && [ "$ANIM_W" -gt 0 ]; then
+        TARGET_W=200
+        TARGET_H=$(awk -v w="$ANIM_W" -v h="$ANIM_H" -v tw="$TARGET_W" 'BEGIN{printf "%d", tw*h/w}')
+      else
+        echo "  ⚠ logo-light.png-Dimensions nicht lesbar — Fallback auf 200x47"
+        TARGET_W=200; TARGET_H=47
+      fi
+      echo "  → APNG-Animation: $ANIMATION_EFFECT (${TARGET_W}x${TARGET_H})"
+
+      # Sub-Skript-Aufruf mit explizitem Exit-Code-Capture
+      # (vermeidet set -e Propagation, gibt uns Fallback-Chance)
+      set +e
+      LOGO_SVG="$LOGO_PNG_LIGHT_OUT" \
+      ANIMATION_EFFECT="$ANIMATION_EFFECT" \
+      COLOR_PRIMARY="$COLOR_PRIMARY" \
+      COLOR_ACCENT="$COLOR_ACCENT" \
+      WIDTH="$TARGET_W" HEIGHT="$TARGET_H" \
+      "$ANIMATE_SCRIPT" "$LOGO_PNG_ANIMATED_OUT"
+      RENDER_EXIT=$?
+      set -e
+
+      if [ "$RENDER_EXIT" -eq 0 ] && [ -f "$LOGO_PNG_ANIMATED_OUT" ]; then
+        cp "$LOGO_PNG_ANIMATED_OUT" "$PUBLIC_EMAIL_DIR/logo-light-animated.png"
+        echo "  ✓ public/email/logo-light-animated.png"
+        ANIMATED_OK=1
+      else
+        echo "  ⚠ APNG-Render fehlgeschlagen (exit=$RENDER_EXIT) — Fallback auf statisches Logo"
+      fi
+    else
+      if ! command -v apngasm >/dev/null 2>&1; then
+        echo "  ⚠ ANIMATION_EFFECT=$ANIMATION_EFFECT gesetzt, aber apngasm fehlt (brew install apngasm) — Fallback auf statisches Logo"
+      else
+        echo "  ⚠ ANIMATION_EFFECT gesetzt, aber $ANIMATE_SCRIPT nicht ausführbar — Fallback auf statisches Logo"
+      fi
+    fi
+
+    # Fallback: wenn APNG nicht erfolgreich erzeugt wurde, HTML-Sig zurück
+    # auf logo-light.png patchen, damit kein 404-Link im Mail erscheint.
+    if [ "$ANIMATED_OK" -eq 0 ]; then
+      sed -i.bak 's|logo-light-animated\.png|logo-light.png|g' "$OUT_DIR/$SLUG.html"
+      rm -f "$OUT_DIR/$SLUG.html.bak"
+      echo "  ✓ HTML-Sig auf statisches Logo zurückgesetzt"
+    fi
+  fi
 
   # HTML-Sig public hosten ("https://firma.de/email/<slug>.html" für Browser-Vorschau)
   cp "$OUT_DIR/$SLUG.html" "$PUBLIC_EMAIL_DIR/$SLUG.html" \
