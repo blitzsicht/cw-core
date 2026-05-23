@@ -174,7 +174,10 @@ const {
 
 <style>
   .content-page {
-    padding: 4rem 0 6rem;
+    /* v0.14.4 (Plan-Phase 10 Hotfix): padding-bottom 6rem → 3rem reduziert.
+       Bei Pages mit eigener CTA-Section (z.B. /leistungen/e-mobilitaet) war
+       6rem doppel-padding zwischen CTA und Footer. 3rem reicht für Atemraum. */
+    padding: 4rem 0 3rem;
   }
   .content-page h1 {
     font-size: clamp(1.75rem, 3vw, 2.5rem);

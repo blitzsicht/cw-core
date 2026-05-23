@@ -6,6 +6,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.14.4-rc.1] — 2026-05-23 (release/cw-core — ContentPage padding-bottom)
+
+> **Plan-Phase 10 Hotfix:** ContentPage hatte `padding: 4rem 0 6rem` — bei Pages mit eigener CTA-Section am Ende (z.B. mika-elektrotechnik /leistungen/e-mobilitaet) war 6rem doppelt-padding zwischen CTA und Footer. Auf mobile sichtbar als großer Leerraum.
+
+### Changed
+
+- `.content-page` padding-bottom: `6rem` → `3rem`. 3rem reicht für Atemraum vor Footer auch bei Pages ohne CTA-Section.
+
+### Affected
+
+Alle Customer-Sites die ContentPage-Layout nutzen — visuell etwas kompaktere Bottom-Marge. Kein API-Change.
+
+---
+
 ## [0.14.3-rc.1] — 2026-05-23 (release/cw-core — a11y-Fix AddOnsSection .addon-price)
 
 > **Plan-Phase 10 (a11y-Hotfix):** `.addon-price` hatte Kontrast 2.88:1 (orange `#EF7612` auf weiß) — unter WCAG-AA-Schwelle 3:1 für large bold text. Visual-Regression-CI hat das auf customer-blitzsicht detected.
