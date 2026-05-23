@@ -231,7 +231,9 @@ const priceModelLabels: Record<AddOnPriceModel, string> = {
     align-items: baseline;
     gap: 0.375rem;
   }
-  .addon-price { font-size: 1.25rem; font-weight: 700; color: var(--color-accent); }
+  /* v0.14.3 a11y-Fix: --color-accent (#EF7612) hat nur 2.88:1 Kontrast auf weiß — unter AA-Schwelle.
+     Verwende --color-accent-text (#B85A0D) für 4.95:1 Kontrast — WCAG AA passt. */
+  .addon-price { font-size: 1.25rem; font-weight: 700; color: var(--color-accent-text, #B85A0D); }
   .addon-price-model { font-size: 0.75rem; color: var(--color-muted); text-transform: uppercase; letter-spacing: 0.05em; }
   .addon-description { font-size: 0.875rem; color: #374151; margin: 0; flex: 1; line-height: 1.5; }
   .addon-hint { font-size: 0.75rem; color: var(--color-muted); font-style: italic; margin: 0; }

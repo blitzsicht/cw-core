@@ -6,6 +6,21 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.14.3-rc.1] — 2026-05-23 (release/cw-core — a11y-Fix AddOnsSection .addon-price)
+
+> **Plan-Phase 10 (a11y-Hotfix):** `.addon-price` hatte Kontrast 2.88:1 (orange `#EF7612` auf weiß) — unter WCAG-AA-Schwelle 3:1 für large bold text. Visual-Regression-CI hat das auf customer-blitzsicht detected.
+
+### Fixed
+
+- `.addon-price` Color: `var(--color-accent)` → `var(--color-accent-text, #B85A0D)`. Neuer Kontrast 4.95:1 — WCAG AA ✓ (auch für normalen Text).
+- Kein API-Change, rein visuell. Backward-compatible.
+
+### Affected
+
+Alle Customer-Sites die `AddOnsSection` rendern — aktuell nur customer-blitzsicht. Andere Customer-Sites die später auf v0.14.3+ pinnen bekommen den Fix automatisch.
+
+---
+
 ## [0.14.2-rc.1] — 2026-05-22 (release/cw-core — PaketeSection ctaSecondaryHref)
 
 > **Plan-Phase 9 (Pakete-Redesign):** Sekundärer CTA in der Paket-Karte.
