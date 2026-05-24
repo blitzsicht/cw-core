@@ -494,3 +494,31 @@ trackPlausible(PlausibleEvents.PhoneClick, { location: 'header' });
 trackPlausible('Newsletter Signup', { plan: 'free' }); // beliebige String-Events
 ```
 
+
+---
+
+## Status-Badge im Footer (seit v0.15.0)
+
+Optionales Trust-Asset: rendert subtilen Status-Badge unter dem Credit-Line,
+verlinkt auf [status.blitzsicht.com](https://status.blitzsicht.com/).
+
+In `page-config.ts`:
+```ts
+export const footerConfig = {
+  siteName: siteData.name,
+  // ... andere props ...
+  statusBadge: { slug: 'hausamlago' },  // Slug aus cw-uptime CUSTOMERS-Array
+};
+```
+
+Optional-Felder für eigenen Status-Stack (z.B. self-hosted):
+```ts
+statusBadge: {
+  slug: 'foo',
+  statusUrl: 'https://status.foo.de/',
+  badgeUrlBase: 'https://status.foo.de/badge/',
+  alt: 'Systemstatus',
+}
+```
+
+Backward-compatible: wenn `statusBadge` nicht gesetzt, rendert Footer wie bisher.
