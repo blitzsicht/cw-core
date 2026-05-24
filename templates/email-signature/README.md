@@ -91,6 +91,33 @@ const data = {
 
 Pflicht: `slug`, `name`, `email`. Alle anderen Felder optional.
 
+## TIER-Gating v4-Extras (v6.6, Plan-Phase 10.5)
+
+Email-Sig v4 (Booking-Button, Google-Review-CTA, Trust-Badges) ist **Premium-Service ab Business-Tier**. `regenerate-all.sh` liest `tier` + `addons` aus `customer-websites/customer-registry.json` und blankt v4-Vars wenn die Buchung sie nicht rechtfertigt:
+
+| Registry-Tier | Add-On `cal-booking-starter` | BOOKING_URL | GOOGLE_REVIEW_URL | vCard |
+|---|---|---|---|---|
+| `starter` | ✗ nein | geblankt | geblankt | ✓ aktiv |
+| `starter` | ✓ ja (+29 €/Mo) | **aktiv** | geblankt | ✓ aktiv |
+| `business` | — | aktiv (wenn in site-data.ts) | aktiv | ✓ aktiv |
+| `enterprise` | — | aktiv | aktiv | ✓ aktiv |
+| `unknown` | — | aktiv (fail-open + warning) | aktiv | ✓ aktiv |
+
+vCard ist Basic-Service und in allen Tiers aktiv (auto-generiert aus persons[]).
+
+**Aktivierung pro Customer (Business+):**
+
+1. `customer-X/src/data/site-data.ts` → `booking.url` + `gmb.review_url` setzen
+2. `customer-websites/customer-registry.json` → `signature_version: "v4"` für diesen Customer
+3. `pnpm sig:regenerate` ODER `ONLY_CUSTOMER=customer-X pnpm sig:regenerate`
+4. Verify in `customer-X/email-signatures/<slug>/<slug>.html`:
+   ```bash
+   grep -c "Termin vereinbaren" customer-X/email-signatures/<slug>/<slug>.html  # ≥1
+   grep -c "Auf Google bewerten" customer-X/email-signatures/<slug>/<slug>.html  # ≥1
+   ```
+
+**Override für Spezial-Fälle:** `REGISTRY_PATH=/path/to/custom-registry.json pnpm sig:regenerate` (z.B. für Tests).
+
 ## UTM-Klick-Tracking (v6.3)
 
 Jeder klickbare Link in der Sig hat UTM-Params. Plausible erfasst beim Klick automatisch Source + Campaign.

@@ -16,6 +16,14 @@
 #                    (z.B. ONLY_SLUG=markus-steller)
 #   FROM_EMAIL       Absender der Begleit-Mail (Default: servus@blitzsicht.com)
 #   FROM_NAME        Absender-Name (Default: Johannes-Maximilian Gottl)
+#   REGISTRY_PATH    customer-registry.json für TIER-Gating
+#                    (Default: $CUSTOMER_ROOT/customer-websites/customer-registry.json)
+#
+# TIER-Gating (v6.6, Phase 10.5):
+#   tier=starter ohne 'cal-booking-starter' Add-On → BOOKING_URL/GOOGLE_REVIEW_URL geblankt
+#   tier=starter mit 'cal-booking-starter'        → BOOKING_URL aktiv, REVIEW geblankt
+#   tier=business / enterprise                    → alle v4-Extras aktiv (wenn site-data.ts gesetzt)
+#   tier=unknown (Registry fehlt o.ä.)            → fail-open, alle Vars bleiben, Warning
 #
 # Nutzung:
 #   bash cw-core/templates/email-signature/regenerate-all.sh
@@ -36,6 +44,26 @@ fi
 MAIL_OUT="${MAIL_OUT:-/tmp/cw-sigs}"
 ONLY_CUSTOMER="${ONLY_CUSTOMER:-}"
 ONLY_SLUG="${ONLY_SLUG:-}"
+REGISTRY_PATH="${REGISTRY_PATH:-$CUSTOMER_ROOT/customer-websites/customer-registry.json}"
+
+# TIER-Gating: liest tier + addons aus customer-registry.json
+# Args: $1 = customer-dirname (z.B. customer-blitzsicht) — wird zu Registry-Slug (blitzsicht) gestrippt
+# Output: "tier|signature_version|addons_csv"
+read_tier_info() {
+  local CUST_NAME="$1"
+  local REG_SLUG="${CUST_NAME#customer-}"
+  if [ ! -f "$REGISTRY_PATH" ]; then
+    echo "unknown|unknown|"
+    return
+  fi
+  local RESULT
+  RESULT=$(jq -r --arg s "$REG_SLUG" '
+    .customers[] | select(.slug == $s) |
+    "\(.tier // "unknown")|\(.signature_version // "v1")|\((.addons // []) | join(","))"
+  ' "$REGISTRY_PATH" 2>/dev/null | head -1)
+  [ -z "$RESULT" ] && RESULT="unknown|unknown|"
+  echo "$RESULT"
+}
 
 mkdir -p "$MAIL_OUT"
 
@@ -117,6 +145,35 @@ run_person_for_customer() {
   local WEBSITE_URL_DISPLAY="${CUSTOMER_URL#https://}"
   WEBSITE_URL_DISPLAY="${WEBSITE_URL_DISPLAY#http://}"
   WEBSITE_URL_DISPLAY="${WEBSITE_URL_DISPLAY%/}"
+
+  # ── TIER-Gating (v6.6, Plan-Phase 10.5) ───────────────────────────────────
+  local TIER_INFO TIER SIG_VERSION ADDONS_CSV
+  TIER_INFO=$(read_tier_info "$(basename "$CUSTOMER_DIR")")
+  TIER=$(echo "$TIER_INFO" | cut -d'|' -f1)
+  SIG_VERSION=$(echo "$TIER_INFO" | cut -d'|' -f2)
+  ADDONS_CSV=$(echo "$TIER_INFO" | cut -d'|' -f3)
+
+  case "$TIER" in
+    starter)
+      if echo "$ADDONS_CSV" | grep -q "cal-booking-starter"; then
+        [ -n "$BOOKING_URL" ] && echo "  ⓘ Starter+cal-booking-Add-On — BOOKING_URL aktiv"
+        GOOGLE_REVIEW_URL=""
+      else
+        if [ -n "$BOOKING_URL" ] || [ -n "$GOOGLE_REVIEW_URL" ]; then
+          echo "  ⓘ Starter-Tier ohne cal-booking-Add-On — v4-Extras (Booking/Review) deaktiviert"
+        fi
+        BOOKING_URL=""
+        GOOGLE_REVIEW_URL=""
+      fi
+      ;;
+    business|enterprise)
+      [ -z "$BOOKING_URL" ] && [ -z "$GOOGLE_REVIEW_URL" ] && \
+        echo "  ⓘ $TIER-Tier ohne v4-Daten — booking.url/gmb.review_url in site-data.ts setzen für Premium-Signatur"
+      ;;
+    unknown)
+      echo "  ⚠ Customer $(basename "$CUSTOMER_DIR") nicht in customer-registry.json — v4-Extras fail-open"
+      ;;
+  esac
 
   local SIG_OUT="$CUSTOMER_DIR/email-signatures/$SLUG"
 
