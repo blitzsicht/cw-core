@@ -6,6 +6,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.14.5-rc.1] — 2026-05-24 (release/cw-core — Email-Sig TIER-Gating)
+
+> **Plan-Phase 10.5:** Email-Sig v4-Extras (Booking-CTA, Google-Review-CTA, Trust-Badges) sind nur ab Business-Tier inkludiert. Bisher hätte `regenerate-all.sh` v4-Extras unabhängig vom Tier ausgegeben wenn die Vars in `site-data.ts` gesetzt sind. Diese Version macht das Tier-bewusst.
+
+### Added
+
+- `templates/email-signature/regenerate-all.sh` v6.6: liest `tier` + `addons` aus `customer-websites/customer-registry.json` (Pfad via `REGISTRY_PATH` ENV überschreibbar) und blankt v4-Vars (BOOKING_URL, GOOGLE_REVIEW_URL) entsprechend Tier-Buchung.
+  - `tier=starter` ohne `cal-booking-starter` Add-On → beide Vars geblankt + Info-Hinweis
+  - `tier=starter` mit `cal-booking-starter` → BOOKING_URL aktiv, REVIEW geblankt
+  - `tier=business` / `enterprise` → alle v4-Vars aktiv (wenn site-data.ts gesetzt)
+  - Customer nicht in Registry → fail-open + Warning (rückwärtskompatibel für Test-Setups)
+- vCard bleibt in allen Tiers aktiv (Basic-Service, auto-generiert).
+- README: TIER-Gating-Sektion mit Tabelle + Aktivierungs-Schritten pro Customer.
+
+### Notes
+
+- Source-only-Lib bleibt: kein Astro-Build, kein Bundling. Version-Bump ist nur Marker — keine Consumer-Migration nötig.
+- Customer-Sites die das neue Verhalten testen wollen: `REGISTRY_PATH=/path/to/test-registry.json pnpm sig:regenerate`
+- Backward-compatible: Customer-Sites die `customer-registry.json` nicht haben, bekommen `tier=unknown` + fail-open (= altes Verhalten).
+
+---
+
 ## [0.14.4-rc.1] — 2026-05-23 (release/cw-core — ContentPage padding-bottom)
 
 > **Plan-Phase 10 Hotfix:** ContentPage hatte `padding: 4rem 0 6rem` — bei Pages mit eigener CTA-Section am Ende (z.B. mika-elektrotechnik /leistungen/e-mobilitaet) war 6rem doppelt-padding zwischen CTA und Footer. Auf mobile sichtbar als großer Leerraum.
