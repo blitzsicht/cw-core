@@ -79,6 +79,23 @@ interface Props {
   karriereLabel?: string;
   /** Karriere link href. Defaults to "/karriere". */
   karriereHref?: string;
+  /**
+   * Optional Blitzsicht-Status-Badge (status.blitzsicht.com) im Footer.
+   * Subtil unten neben Credit-Line gerendert — Customer-Vertrauen + Sales-Asset.
+   * @example
+   *   statusBadge: { slug: 'hausamlago' }
+   *   → <img src="https://status.blitzsicht.com/badge/hausamlago.svg">
+   */
+  statusBadge?: {
+    /** Customer-Slug aus cw-uptime CUSTOMERS-Array (z.B. 'hausamlago', 'soleno'). */
+    slug: string;
+    /** Override Status-Page-URL. Default: https://status.blitzsicht.com/ */
+    statusUrl?: string;
+    /** Override Badge-URL-Base. Default: https://status.blitzsicht.com/badge/ */
+    badgeUrlBase?: string;
+    /** Alt-Text für Screenreader. Default: "Systemstatus" */
+    alt?: string;
+  };
 }
 
 const {
@@ -108,10 +125,17 @@ const {
   showKarriereLink = false,
   karriereLabel = 'Karriere',
   karriereHref = '/karriere',
+  statusBadge,
 } = Astro.props;
 
 const year = new Date().getFullYear();
 const copyrightOwner = owner ?? siteName;
+
+const statusUrl = statusBadge?.statusUrl ?? 'https://status.blitzsicht.com/';
+const badgeUrl = statusBadge
+  ? `${statusBadge.badgeUrlBase ?? 'https://status.blitzsicht.com/badge/'}${statusBadge.slug}.svg`
+  : null;
+const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
 ---
 <footer>
   <div class="container">
@@ -182,6 +206,14 @@ const copyrightOwner = owner ?? siteName;
       <p>© {year} {copyrightOwner}{legalForm ? ` · ${legalForm}` : ''}{city ? ` · ${city}` : ''}</p>
       <p class="footer-credit">{tagline && <span class="footer-tagline">{tagline} · </span>}Erstellt von <a href="https://blitzsicht.com?ref=footer" target="_blank" rel="noopener">Blitzsicht</a></p>
     </div>
+
+    {badgeUrl && (
+      <div class="footer-status">
+        <a href={statusUrl} target="_blank" rel="noopener" aria-label={`${badgeAlt} — Live-Verfügbarkeit prüfen`}>
+          <img src={badgeUrl} alt={badgeAlt} width="120" height="20" loading="lazy" />
+        </a>
+      </div>
+    )}
   </div>
 </footer>
 
@@ -277,6 +309,19 @@ const copyrightOwner = owner ?? siteName;
     transition: color 0.15s;
   }
   .footer-credit a:hover { color: white; }
+  .footer-status {
+    display: flex;
+    justify-content: center;
+    margin-top: 1rem;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+  }
+  .footer-status:hover { opacity: 1; }
+  .footer-status img {
+    height: 20px;
+    width: auto;
+    display: block;
+  }
 
   /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
   @media (max-width: 1023px) {

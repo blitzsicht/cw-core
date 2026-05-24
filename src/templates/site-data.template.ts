@@ -264,6 +264,15 @@ export const siteData = {
     ],
     kontaktEmail: 'TODO: jobs@firma.de',  // Bewerbungen: nutzt contact.web3formsKey mit Betreff "Bewerbung bei..."
   },
+
+  // ─── Status-Badge im Footer (Optional, Default: nicht angezeigt) ───────────
+  // Wenn gesetzt: subtiler Status-Badge unter Credit-Line, Link auf status.blitzsicht.com
+  // Slug muss dem Customer-Slug in cw-uptime CUSTOMERS-Array entsprechen.
+  // Beispiel:
+  //   statusBadge: { slug: 'hausamlago' }
+  // Override für eigenen Status-Stack (z.B. self-hosted):
+  //   statusBadge: { slug: 'foo', statusUrl: 'https://status.foo.de/', badgeUrlBase: 'https://status.foo.de/badge/' }
+  // statusBadge: { slug: 'TODO-customer-slug' },
 } as const;
 
 export type SiteData = typeof siteData;

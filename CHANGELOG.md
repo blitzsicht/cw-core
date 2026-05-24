@@ -6,6 +6,42 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.15.0] — 2026-05-24 (release/cw-core — Footer Status-Badge)
+
+> Status-Badge im Customer-Footer (verlinkt auf `status.blitzsicht.com/`) — End-User-Trust
+> + Cross-Promotion ohne Aufdrängen. Opt-In per Customer (kein Default-Verhalten).
+
+### Added
+
+- `Footer.astro` neuer optionaler Prop `statusBadge: { slug, statusUrl?, badgeUrlBase?, alt? }`.
+  Wenn gesetzt: rendert `<img>` mit Status-SVG aus `status.blitzsicht.com/badge/<slug>.svg`,
+  verlinkt zentriert unter Credit-Line, opacity 0.6 → 1.0 bei Hover (subtil).
+- `site-data.template.ts` neue optionale Top-Level-Property `statusBadge` mit Beispiel-Doc.
+
+### Use-Case
+
+```astro
+<Footer
+  siteName={siteData.name}
+  {...}
+  statusBadge={siteData.statusBadge}
+/>
+```
+
+In `src/data/site-data.ts`:
+```ts
+statusBadge: { slug: 'hausamlago' },
+```
+
+### Notes
+
+- Backward-compatible: bestehende Customer ohne `statusBadge` rendern unverändert.
+- Slug muss in `cw-uptime/src/index.ts` CUSTOMERS-Array existieren, sonst fallback-SVG (`status: unknown`).
+- 20px-Höhe, ~120×20 SVG, lazy-loaded. Edge-cached (CF) → kein Performance-Impact.
+- Sales-Argument: Customer-Vertrauen durch transparent gezeigte Uptime ohne Login-Hürde.
+
+---
+
 ## [0.14.5-rc.1] — 2026-05-24 (release/cw-core — Email-Sig TIER-Gating)
 
 > **Plan-Phase 10.5:** Email-Sig v4-Extras (Booking-CTA, Google-Review-CTA, Trust-Badges) sind nur ab Business-Tier inkludiert. Bisher hätte `regenerate-all.sh` v4-Extras unabhängig vom Tier ausgegeben wenn die Vars in `site-data.ts` gesetzt sind. Diese Version macht das Tier-bewusst.
