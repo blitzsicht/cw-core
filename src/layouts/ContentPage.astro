@@ -65,6 +65,12 @@ export interface FooterConfig {
   showKarriereLink?: boolean;
   karriereLabel?: string;
   karriereHref?: string;
+  statusBadge?: {
+    slug: string;
+    statusUrl?: string;
+    badgeUrlBase?: string;
+    alt?: string;
+  };
 }
 
 interface Props {
@@ -169,6 +175,7 @@ const {
     showKarriereLink={footer.showKarriereLink}
     karriereLabel={footer.karriereLabel}
     karriereHref={footer.karriereHref}
+    statusBadge={footer.statusBadge}
   />
 </BaseLayout>
 
