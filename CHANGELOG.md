@@ -6,6 +6,48 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.16.0] — 2026-05-25 (release/cw-core — Status-Badge Auto-Detection)
+
+> Customer-Sites müssen `statusBadge` nicht mehr explizit in `page-config.ts` setzen.
+> cw-core leitet den Slug aus `import.meta.env.CW_CUSTOMER_SLUG` (gefüllt via Vite-Define
+> aus `package.json.name`) ab. Eliminiert einen Drift-Punkt im Onboarding.
+
+### Added
+
+- `Footer.astro` Auto-Detection: Wenn `statusBadge` undefined ist, liest cw-core den
+  Slug aus `import.meta.env.CW_CUSTOMER_SLUG`. Wenn auch der leer ist → kein Badge.
+- Opt-Out via `statusBadge: null` (NEU, vorher gab es keine explizite Opt-Out-Option).
+- `docs/STATUS-BADGE-AUTO.md` — Setup-Anleitung für Customer-Sites (Vite-Define-Snippet).
+
+### Changed
+
+- Footer-Prop-Typing erweitert: `statusBadge?: {...} | null` (vorher nur `{...} | undefined`).
+- Layout-Forward (`LandingPage.astro`, `ContentPage.astro`) auf neuen Typ angeglichen.
+
+### Backward-Compat
+
+- Bestehende Customer mit explizitem `statusBadge: { slug: 'x' }` funktionieren unverändert (explicit wins).
+- Bestehende Customer ohne `statusBadge` UND ohne Vite-Define rendern wie bisher kein Badge.
+- Phase 3 des Onboarding-Automation-Plans (`~/.claude-blitzsicht/plans/breezy-bouncing-seal.md`).
+
+### Migration für Customer-Site (optional)
+
+```ts
+// astro.config.mjs
+import pkg from './package.json' with { type: 'json' };
+const customerSlug = pkg.name.replace(/^customer-/, '');
+
+export default defineConfig({
+  vite: {
+    define: { 'import.meta.env.CW_CUSTOMER_SLUG': JSON.stringify(customerSlug) },
+  },
+});
+```
+
+Dann optional `statusBadge`-Eintrag aus `page-config.ts` entfernen (Cleanup).
+
+---
+
 ## [0.15.0] — 2026-05-24 (release/cw-core — Footer Status-Badge)
 
 > Status-Badge im Customer-Footer (verlinkt auf `status.blitzsicht.com/`) — End-User-Trust

@@ -82,6 +82,15 @@ interface Props {
   /**
    * Optional Blitzsicht-Status-Badge (status.blitzsicht.com) im Footer.
    * Subtil unten neben Credit-Line gerendert — Customer-Vertrauen + Sales-Asset.
+   *
+   * Auto-Detection (seit v0.16.0): Wenn nicht gesetzt, leitet cw-core den Slug aus
+   * `import.meta.env.CW_CUSTOMER_SLUG` ab (gefüllt via Vite-Define aus
+   * `package.json.name` — siehe docs/STATUS-BADGE-AUTO.md).
+   *
+   * - `statusBadge: { slug: 'x' }` → explizit, Override gewinnt immer
+   * - `statusBadge: null`          → Opt-Out, kein Badge auch bei vorhandener Env
+   * - `statusBadge: undefined`     → Auto-Detection (Default)
+   *
    * @example
    *   statusBadge: { slug: 'hausamlago' }
    *   → <img src="https://status.blitzsicht.com/badge/hausamlago.svg">
@@ -95,7 +104,7 @@ interface Props {
     badgeUrlBase?: string;
     /** Alt-Text für Screenreader. Default: "Systemstatus" */
     alt?: string;
-  };
+  } | null;
 }
 
 const {
@@ -131,9 +140,16 @@ const {
 const year = new Date().getFullYear();
 const copyrightOwner = owner ?? siteName;
 
+const explicitOptOut = statusBadge === null;
+const autoSlugRaw = (import.meta.env as Record<string, unknown>).CW_CUSTOMER_SLUG;
+const autoSlug = typeof autoSlugRaw === 'string' && autoSlugRaw.length > 0 ? autoSlugRaw : null;
+const effectiveSlug = explicitOptOut
+  ? null
+  : (statusBadge?.slug ?? autoSlug);
+
 const statusUrl = statusBadge?.statusUrl ?? 'https://status.blitzsicht.com/';
-const badgeUrl = statusBadge
-  ? `${statusBadge.badgeUrlBase ?? 'https://status.blitzsicht.com/badge/'}${statusBadge.slug}.svg`
+const badgeUrl = effectiveSlug
+  ? `${statusBadge?.badgeUrlBase ?? 'https://status.blitzsicht.com/badge/'}${effectiveSlug}.svg`
   : null;
 const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
 ---
