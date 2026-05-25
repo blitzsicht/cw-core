@@ -6,6 +6,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.17.0] — 2026-05-25 (release/cw-core — DatenschutzBlock prop-driven)
+
+> `DatenschutzBlock` unterstützt jetzt vier optionale Props zur Steuerung der Service-Sections.
+> Bisherige Customer ohne Änderungen weiter funktionsfähig (alle Props default `true`).
+> Betrifft: §13 DSGVO + §5 TDDDG Transparenz — nur tatsächlich genutzte Auftragsverarbeiter
+> dürfen in der Datenschutzerklärung genannt werden.
+
+### Added
+
+- `DatenschutzBlock.astro` Props (alle optional, default `true`):
+  - `hasPlausible?: boolean` — §5 Plausible Analytics-Section + §8-Eintrag
+  - `hasResend?: boolean` — Resend-Abschnitt in §6 + §8-Eintrag (nur wirksam wenn `hasContactForm=true`)
+  - `hasTurnstile?: boolean` — §7 Cloudflare Turnstile-Section + §8-Eintrag (nur wirksam wenn `hasContactForm=true`)
+  - `hasContactForm?: boolean` — §6 Kontaktformular-Section. `false` + `email` gesetzt → reduzierter E-Mail-only §6
+- Section 1 (Verantwortlicher): `{country}` wird jetzt gerendert wenn `legal.country !== 'DE'` (analog ImpressumBlock IT-Suffix, behebt Asymmetrie)
+
+### Changed
+
+- `§8 Empfänger`-Liste ist jetzt prop-driven: nur aktive Services erscheinen
+- `§7 Turnstile`-Section wird nur gerendert wenn `hasContactForm && hasTurnstile`
+
+### Backward-Compat
+
+- Alle neuen Props default `true` — bestehende Customer (blitzsicht, gottl-richter-gomeier etc.) ohne Änderungen unverändert
+- Kein Breaking Change in Props-Interface
+
+### Unblockt
+
+- Sub-Issues #234, #235, #237, #238, #239, #240 (customer-hausamlago + hausammincio + weitere) nach cw-core@v0.17.0-Bump
+
+---
+
 ## [0.16.0] — 2026-05-25 (release/cw-core — Status-Badge Auto-Detection)
 
 > Customer-Sites müssen `statusBadge` nicht mehr explizit in `page-config.ts` setzen.

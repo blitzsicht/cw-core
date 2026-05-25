@@ -1,0 +1,86 @@
+---
+/**
+ * Smoke-Test für DatenschutzBlock v0.17.0
+ * Testet:
+ *   1. Default-Render (alle Props = true) — backward-compat
+ *   2. Phone-only (hasPlausible=false, hasContactForm=false, hasResend=false, hasTurnstile=false)
+ *   3. country-Anzeige (IT-Customer, l.country !== 'DE')
+ */
+import DatenschutzBlock from '@cw/core/components/blocks/DatenschutzBlock.astro';
+
+const legalDE = {
+  owner: 'Max Mustermann',
+  form: 'Einzelunternehmen',
+  street: 'Musterstraße 1',
+  zip: '80331',
+  city: 'München',
+  country: 'DE',
+  phone: '+49 89 12345678',
+  rechtsform: 'einzelunternehmer' as const,
+  register: 'none' as const,
+  hasUstId: false,
+  aufsichtspflichtig: false,
+  kammerMitglied: false,
+  vsbgPflichtig: false,
+};
+
+const legalIT = {
+  ...legalDE,
+  city: 'Bozen',
+  zip: '39100',
+  country: 'IT',
+  phone: '+39 0471 000000',
+};
+---
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>DatenschutzBlock Smoke-Test v0.17.0</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; }
+    h1 { color: #1D1E3B; }
+    .test-section { border: 2px solid #EF7612; border-radius: 8px; padding: 1.5rem; margin: 2rem 0; }
+    .test-label { background: #EF7612; color: white; font-weight: bold; padding: 0.25rem 0.75rem; border-radius: 4px; display: inline-block; margin-bottom: 1rem; font-size: 0.875rem; }
+    :root { --color-accent-text: #EF7612; --color-surface: #f8fafc; }
+  </style>
+</head>
+<body>
+  <h1>DatenschutzBlock Smoke-Test</h1>
+  <p>Smoke-Test für cw-core v0.17.0 — prop-driven DatenschutzBlock</p>
+
+  <div class="test-section">
+    <span class="test-label">Test 1: Default (alle Services aktiv) — backward-compat</span>
+    <p><em>Erwartet: §5 Plausible, §6 Kontaktformular+Resend, §7 Turnstile, §8 alle 4 Empfänger</em></p>
+    <DatenschutzBlock
+      legal={legalDE}
+      email="info@beispiel.de"
+      domain="beispiel.de"
+    />
+  </div>
+
+  <div class="test-section">
+    <span class="test-label">Test 2: Phone-only (hasPlausible=false, hasContactForm=false)</span>
+    <p><em>Erwartet: KEIN §5 Plausible, KEIN §6 Kontaktformular, KEIN §7 Turnstile, §8 nur Vercel</em></p>
+    <DatenschutzBlock
+      legal={legalDE}
+      email="info@beispiel.de"
+      hasPlausible={false}
+      hasContactForm={false}
+      hasResend={false}
+      hasTurnstile={false}
+    />
+  </div>
+
+  <div class="test-section">
+    <span class="test-label">Test 3: IT-Customer (country=IT) — country-Anzeige in §1</span>
+    <p><em>Erwartet: "39100 Bozen, IT" in §1 Verantwortlicher</em></p>
+    <DatenschutzBlock
+      legal={legalIT}
+      email="info@beispiel.it"
+      hasPlausible={false}
+      hasContactForm={false}
+    />
+  </div>
+</body>
+</html>
