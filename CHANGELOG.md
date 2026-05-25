@@ -6,6 +6,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.20.0] — 2026-05-25 (release/cw-core — USPSection-Header + PageHero-CTAs)
+
+> Zwei additive, backward-kompatible Prop-Erweiterungen für die faithful SEO-Page-Migration
+> (entdeckt bei gottl-richter-gomeier `fuer-anwaelte`): `vorteile`-Sections haben durchgängig
+> eine `<h2>`-Überschrift und SEO-Heroes durchgängig zwei Conversion-CTAs, die bei der Migration
+> auf @cw/core sonst verloren gingen. Reusability-first — generische, optionale Props für alle
+> Customer; bestehende Aufrufe ohne Änderung unverändert.
+
+### Added
+
+- `components/blocks/USPSection.astro` — optionale `heading` + `subheading` Props. Rendern einen
+  zentrierten Header über dem Grid; ohne beide Props bleibt das Grid headerlos (Backward-Compat).
+- `components/blocks/PageHero.astro` — optionale CTA-Buttons via `primaryLabel`/`primaryHref`
+  (+ optional `secondaryLabel`/`secondaryHref`). Naming spiegelt `CTABlock` für API-Konsistenz.
+  Styling auf dunklem Hero: primary = Accent-Fill, secondary = Outline-on-dark. CTA-Block nur
+  gerendert wenn `primaryLabel` + `primaryHref` gesetzt (Backward-Compat).
+
+### Notes
+
+- Beide additiv & non-breaking: bestehende Customer-Aufrufe (USPSection ohne Header, PageHero
+  ohne CTAs) rendern byte-identisch.
+- Validiert via `examples/`-Build (symlink `@cw/core`): neue Showcase-Pages `usp-section.astro`
+  und `page-hero.astro` decken alle Varianten ab (mit/ohne Header, mit/ohne CTAs).
+- `astro check`: 0 neue Fehler in USPSection/PageHero (die 5 vorbestehenden Fehler liegen
+  ausschließlich in `BaseLayout.astro`, unberührt).
+
+---
+
 ## [0.19.0] — 2026-05-25 (release/cw-core — generische TeamGrid/TrustBadges/LinkGrid-Blocks)
 
 > Drei neue, headless/prop-getriebene Block-Komponenten, die wiederkehrende Customer-Muster

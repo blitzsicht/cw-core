@@ -8,6 +8,10 @@
  *
  * Optional `backgroundImage` prop: renders a background image with dark overlay.
  *
+ * Optional CTA buttons via `primaryLabel`/`primaryHref` (+ optional
+ * `secondaryLabel`/`secondaryHref`) — naming matches CTABlock for consistency.
+ * Styled for the dark hero: primary = accent fill, secondary = outline-on-dark.
+ *
  * Used on: /pakete, /kontakt, /faq, /leistungen, /ueber-uns, /referenzen, etc.
  */
 interface Props {
@@ -19,6 +23,14 @@ interface Props {
   backgroundPosition?: string;
   /** Overlay darkness. Default: 'medium'. */
   overlayStrength?: 'light' | 'medium' | 'strong';
+  /** Primary CTA label. CTA-Block wird nur gerendert wenn label + href gesetzt sind. */
+  primaryLabel?: string;
+  /** Primary CTA href. */
+  primaryHref?: string;
+  /** Secondary CTA label (Outline-Stil auf dunklem Hero). Nur gerendert mit href. */
+  secondaryLabel?: string;
+  /** Secondary CTA href. */
+  secondaryHref?: string;
 }
 
 const {
@@ -27,6 +39,10 @@ const {
   backgroundImage,
   backgroundPosition = 'center',
   overlayStrength = 'medium',
+  primaryLabel,
+  primaryHref,
+  secondaryLabel,
+  secondaryHref,
 } = Astro.props;
 
 const overlayMap = {
@@ -44,6 +60,14 @@ const bgStyle = backgroundImage
   <div class="container">
     <h1>{heading}</h1>
     {subtext && <p>{subtext}</p>}
+    {primaryLabel && primaryHref && (
+      <div class="page-hero-ctas">
+        <a href={primaryHref} class="ph-btn ph-btn-primary">{primaryLabel}</a>
+        {secondaryLabel && secondaryHref && (
+          <a href={secondaryHref} class="ph-btn ph-btn-secondary">{secondaryLabel}</a>
+        )}
+      </div>
+    )}
   </div>
 </section>
 
@@ -69,4 +93,30 @@ const bgStyle = backgroundImage
     max-width: 44rem;
     margin-inline: auto;
   }
+  .page-hero-ctas {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 2rem;
+  }
+  .ph-btn {
+    display: inline-block;
+    padding: 0.875rem 1.75rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    font-weight: 600;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .ph-btn-primary {
+    background: var(--color-accent);
+    color: var(--color-primary-dark, var(--color-primary));
+  }
+  .ph-btn-primary:hover { opacity: 0.9; }
+  .ph-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+  }
+  .ph-btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
 </style>

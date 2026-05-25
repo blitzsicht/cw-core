@@ -1,0 +1,37 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import PageHero from '@cw/core/components/blocks/PageHero.astro';
+---
+<ExampleLayout
+  title="PageHero"
+  description="Gradient/Image-Banner für Sub-Pages. Optionale primary/secondary-CTAs (v0.20.0)."
+>
+  <div class="example-section">
+    <h2>Ohne CTAs (Default — Backward-Compat)</h2>
+    <PageHero heading="Über uns" subtext="Wer wir sind und wofür wir stehen." />
+  </div>
+
+  <div class="example-section">
+    <h2>Mit primary-CTA</h2>
+    <PageHero
+      heading="Verkehrswertgutachten"
+      subtext="Gerichtsfest, IHK-bestellt."
+      primaryLabel="Festpreis-Angebot"
+      primaryHref="/kontakt"
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Mit primary + secondary-CTA (auf Hintergrundbild)</h2>
+    <PageHero
+      heading="Immobiliengutachter Regensburg"
+      subtext="Öffentlich bestellt · IHK Regensburg · RICS · HypZert · DIAZert."
+      backgroundImage="/og-default.png"
+      overlayStrength="strong"
+      primaryLabel="Festpreis-Angebot"
+      primaryHref="/kontakt"
+      secondaryLabel="+49 941 1234567"
+      secondaryHref="tel:+499411234567"
+    />
+  </div>
+</ExampleLayout>

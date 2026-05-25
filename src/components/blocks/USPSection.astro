@@ -25,14 +25,24 @@ interface Props {
   iconStyle?: 'plain' | 'container';
   /** Container-Hintergrund (nur wenn iconStyle='container'). Default: var(--color-accent). */
   iconContainerColor?: string;
+  /** Optionale Section-Überschrift über dem Grid. Ohne diesen Prop rendert das Grid headerlos (Backward-Compat). */
+  heading?: string;
+  /** Optionaler Untertitel unter der Überschrift. */
+  subheading?: string;
 }
 
-const { items = [], iconStyle = 'plain', iconContainerColor } = Astro.props;
+const { items = [], iconStyle = 'plain', iconContainerColor, heading, subheading } = Astro.props;
 const containerStyle = iconContainerColor ? `--icon-container-color:${iconContainerColor}` : undefined;
 ---
 {items.length > 0 && (
 <section class="usp-section">
   <div class="container">
+    {(heading || subheading) && (
+      <header class="usp-header">
+        {heading && <h2>{heading}</h2>}
+        {subheading && <p class="usp-sub">{subheading}</p>}
+      </header>
+    )}
     <div class="usp-grid">
       {items.map((usp) => (
         <div class="usp-card">
@@ -51,6 +61,9 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
 
 <style>
   .usp-section { padding: 5rem 0; background: var(--color-surface); }
+  .usp-header { text-align: center; margin-bottom: 2rem; }
+  .usp-header h2 { color: var(--color-primary); font-size: 1.75rem; margin: 0 0 0.5rem; }
+  .usp-header .usp-sub { color: var(--color-muted); font-size: 1.0625rem; max-width: 44rem; margin: 0 auto; line-height: 1.6; }
   .usp-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
