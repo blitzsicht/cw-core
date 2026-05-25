@@ -6,6 +6,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.18.0] — 2026-05-25 (release/cw-core — ImpressumBlock hasContactForm-Prop)
+
+> `ImpressumBlock` unterstützt jetzt den optionalen Prop `hasContactForm`.
+> Bisherige Customer ohne Änderungen weiter funktionsfähig (default `true`).
+> Betrifft: §5 Abs. 1 Nr. 2 DDG — Kontaktformular-Klausel darf nur gerendert werden
+> wenn tatsächlich ein Formular existiert (analog DatenschutzBlock-Fix v0.17.0).
+
+### Added
+
+- `ImpressumBlock.astro` neuer Prop (optional, default `true`):
+  - `hasContactForm?: boolean` — Kontrolliert §5 Abs.1 Nr.2 DDG-Klausel + Formular-Link
+    - `true` (default): bisheriges Verhalten — Formular-Link + §5-Klausel über Formular
+    - `false` + Email gesetzt: §5-Klausel verweist auf E-Mail als elektronischen Kontaktweg
+    - `false` + kein Email: §5-Klausel verweist auf Telefon als Kontaktweg
+
+### Backward-Compat
+
+- `hasContactForm` default `true` — bestehende Customer (blitzsicht, gottl-richter-gomeier, hausammincio etc.) ohne Änderungen unverändert
+- Kein Breaking Change in Props-Interface
+
+### Unblockt
+
+- siluri/customer-hausamlago#18 nach cw-core@v0.18.0-Bump + `hasContactForm={false}` in hausamlago-Impressum-Page
+
+---
+
 ## [0.17.0] — 2026-05-25 (release/cw-core — DatenschutzBlock prop-driven)
 
 > `DatenschutzBlock` unterstützt jetzt vier optionale Props zur Steuerung der Service-Sections.
