@@ -1,0 +1,122 @@
+---
+/**
+ * TrustBadges — certifications / trust signals.
+ *
+ * Generic, prop-driven. Two layouts cover the patterns seen across customer sites:
+ *   • variant 'cards' (default) — bordered badge cards (label + description),
+ *     optional banner image above (e.g. a certificate collage). [gottl "trust"]
+ *   • variant 'bar' — compact inline credential strip. [the recurring "trust-bar"]
+ *
+ * Every field except a badge `label` is optional.
+ *
+ * @example
+ *   <TrustBadges
+ *     heading="Zertifizierungen und Mitgliedschaften"
+ *     bannerSrc="/images/zertifikate-banner.webp" bannerAlt="…"
+ *     badges={[{ label: 'RICS', description: 'Royal Institution of Chartered Surveyors' }]}
+ *   />
+ *   <TrustBadges variant="bar" badges={[{ label: '30 Jahre Erfahrung' }, { label: 'ö.b.u.v.' }]} />
+ */
+export interface TrustBadge {
+  /** Short label, e.g. "RICS". Required. */
+  label: string;
+  /** Optional explanatory line (shown in 'cards' variant). */
+  description?: string;
+}
+
+interface Props {
+  /** Optional section heading. */
+  heading?: string;
+  /** Optional banner image above the badges (e.g. certificate collage). */
+  bannerSrc?: string;
+  bannerAlt?: string;
+  /** Badges. Section is omitted entirely if empty. */
+  badges?: readonly TrustBadge[];
+  /** Layout. 'cards' = bordered cards (default), 'bar' = compact inline strip. */
+  variant?: 'cards' | 'bar';
+  /** Background variant. Default 'default'. */
+  background?: 'surface' | 'default';
+}
+
+const {
+  heading,
+  bannerSrc,
+  bannerAlt = '',
+  badges = [],
+  variant = 'cards',
+  background = 'default',
+} = Astro.props;
+---
+{badges.length > 0 && (
+<section class:list={['trust-badges-section', `is-${variant}`, background === 'surface' && 'is-surface']}>
+  <div class="container">
+    {heading && <h2 class="trust-badges-heading">{heading}</h2>}
+
+    {bannerSrc && (
+      <div class="trust-banner">
+        <img src={bannerSrc} alt={bannerAlt} width="1200" height="225" loading="lazy" />
+      </div>
+    )}
+
+    <div class:list={['trust-badges', variant === 'bar' ? 'badge-bar' : 'badge-row']}>
+      {badges.map((b) => (
+        <div class="badge">
+          <strong>{b.label}</strong>
+          {variant === 'cards' && b.description && <span>{b.description}</span>}
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
+)}
+
+<style>
+  .trust-badges-section { padding: var(--section-padding, 4rem) 0; background: #fff; }
+  .trust-badges-section.is-surface { background: var(--color-surface, #f8fafc); }
+  .container { max-width: var(--container-max, 72rem); margin: 0 auto; padding: 0 1.5rem; }
+  .trust-badges-heading {
+    text-align: center;
+    font-family: var(--font-heading, inherit);
+    color: var(--color-primary);
+    font-size: 2rem;
+    margin: 0 0 1.5rem;
+  }
+  .trust-banner { max-width: 48rem; margin: 0 auto 2.5rem; text-align: center; }
+  .trust-banner img { width: 100%; max-width: 48rem; border-radius: 0.5rem; }
+
+  /* variant 'cards' */
+  .badge-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 1.5rem;
+  }
+  .badge-row .badge {
+    text-align: center;
+    padding: 1.5rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    background: var(--color-surface, #f8fafc);
+  }
+  .is-surface .badge-row .badge { background: #fff; }
+  .badge-row .badge strong { display: block; color: var(--color-primary); font-size: 1.25rem; margin-bottom: 0.5rem; }
+  .badge-row .badge span { color: var(--color-muted, #4b5563); font-size: 0.875rem; }
+
+  /* variant 'bar' */
+  .badge-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem 1.5rem;
+  }
+  .badge-bar .badge strong {
+    display: inline-block;
+    color: var(--color-primary);
+    font-weight: 600;
+    font-size: 0.9375rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: var(--color-surface, #f8fafc);
+  }
+  .is-surface .badge-bar .badge strong { background: #fff; }
+</style>

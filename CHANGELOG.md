@@ -6,6 +6,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.19.0] — 2026-05-25 (release/cw-core — generische TeamGrid/TrustBadges/LinkGrid-Blocks)
+
+> Drei neue, headless/prop-getriebene Block-Komponenten, die wiederkehrende Customer-Muster
+> abdecken, die bisher pro Site inline hand-codiert waren (Survey: `trust-bar` 7×, `related` 7×,
+> `team-grid` 3×). Reusability-first entworfen — generische API über alle Customer, keine
+> customer-spezifischen Annahmen. Anlass: gottl-richter-gomeier-Migration von Inline-HTML auf
+> @cw/core-Komposition.
+
+### Added
+
+- `components/blocks/TeamGrid.astro` — Team-Member-Grid. Foto- ODER Initialen-Avatar (Fallback
+  aus `name`), optional `role`/`credentials`/`profileUrl`/`email`/`phone`, optionaler CTA,
+  `background: 'surface' | 'default'`. Section wird bei leerem `members` weggelassen.
+- `components/blocks/TrustBadges.astro` — Zertifizierungen/Trust-Signale. `variant: 'cards'`
+  (umrandete Badge-Cards mit Label+Beschreibung, optional Banner-Bild) oder `'bar'` (kompakter
+  Inline-Credential-Strip). Deckt Cert-Card-Layouts und den verbreiteten `trust-bar` ab.
+- `components/blocks/LinkGrid.astro` — interne Link-Cards (Cross-Links/„weiterführend"):
+  `title`/`description?`/`href`/`icon?`, optional `heading`/`intro`, `background`-Variante.
+
+### Notes
+
+- Alle drei nutzen nur Brand-Tokens (`--color-primary`, `--color-accent`, `--color-surface`,
+  `--color-muted`, `--container-max`, `--section-padding`) mit Fallback-Defaults.
+- Source-only (kein Build); Validierung via Customer-`pnpm build`. Direkt-Import:
+  `import TeamGrid from '@cw/core/components/blocks/TeamGrid.astro'`.
+
+---
+
 ## [0.18.0] — 2026-05-25 (release/cw-core — ImpressumBlock hasContactForm-Prop)
 
 > `ImpressumBlock` unterstützt jetzt den optionalen Prop `hasContactForm`.
