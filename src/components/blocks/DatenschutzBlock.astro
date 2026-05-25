@@ -13,10 +13,20 @@
  * Bei Customer-spezifischen Tracking-Erweiterungen (Meta-Pixel, Google Analytics)
  * MUSS der Customer-Repo zusätzliche Sections via slot="cookies" oder slot="extra" ergänzen.
  *
- * @example
+ * @example Standard (alle Services aktiv)
  *   <ContentPage {...landingBaseProps} title="Datenschutzerklärung">
  *     <DatenschutzBlock legal={siteData.legal} email={siteData.contact.email} />
  *   </ContentPage>
+ *
+ * @example Phone-only Customer ohne Analytics/Forms (z.B. hausamlago)
+ *   <DatenschutzBlock
+ *     legal={siteData.legal}
+ *     email={siteData.contact.email}
+ *     hasPlausible={false}
+ *     hasContactForm={false}
+ *     hasResend={false}
+ *     hasTurnstile={false}
+ *   />
  */
 import type { LegalProps } from './ImpressumBlock.astro';
 
@@ -31,6 +41,31 @@ interface Props {
   beschwerdeStelle?: { name: string; address: string; url: string };
   /** Hat die Site Cookies oder Tracking-Tools die Consent verlangen? Default false (cw-core-Plausible-Setup). */
   hasNonEssentialCookies?: boolean;
+  /**
+   * Rendert §5 Plausible Analytics-Section und zugehörigen Auftragsverarbeiter-Eintrag.
+   * Default: true (backward-kompatibel).
+   * Auf false setzen wenn die Site kein Plausible-Tracking nutzt (§13 DSGVO: nur wahre Angaben).
+   */
+  hasPlausible?: boolean;
+  /**
+   * Rendert Resend-Abschnitt in §6 (Mail-Delivery via Resend Inc.) und §8-Eintrag.
+   * Default: true (backward-kompatibel).
+   * Wird ignoriert wenn hasContactForm=false.
+   */
+  hasResend?: boolean;
+  /**
+   * Rendert §7 Cloudflare Turnstile Spam-Schutz-Section + §8-Auftragsverarbeiter-Eintrag.
+   * Default: true (backward-kompatibel).
+   * Wird ignoriert wenn hasContactForm=false.
+   */
+  hasTurnstile?: boolean;
+  /**
+   * Rendert §6 Kontaktformular-Section (inkl. Resend + Turnstile wenn aktiv).
+   * Default: true (backward-kompatibel).
+   * Auf false setzen wenn die Site kein Kontaktformular hat (z.B. phone-only Sites).
+   * Wenn false + email gesetzt: §6 zeigt nur E-Mail-Kontakt ohne Form-Kontext.
+   */
+  hasContactForm?: boolean;
 }
 
 const {
@@ -43,7 +78,15 @@ const {
     url: 'https://www.lda.bayern.de',
   },
   hasNonEssentialCookies = false,
+  hasPlausible = true,
+  hasResend = true,
+  hasTurnstile = true,
+  hasContactForm = true,
 } = Astro.props;
+
+// Resend/Turnstile sind nur relevant wenn auch ein Kontaktformular vorhanden ist.
+const showResend = hasContactForm && hasResend;
+const showTurnstile = hasContactForm && hasTurnstile;
 ---
 
 <div class="datenschutz-block">
@@ -53,7 +96,7 @@ const {
     {l.owner}<br />
     {l.form}<br />
     {l.street}<br />
-    {l.zip} {l.city}<br />
+    {l.zip} {l.city}{l.country && l.country !== 'DE' ? <>, {l.country}</> : null}<br />
     Telefon: <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a><br />
     {email && <>E-Mail: <a href={`mailto:${email}`}>{email}</a></>}
   </p>
@@ -84,14 +127,18 @@ const {
     Sicherheit, Performance-Analyse). Speicherdauer: max. 30 Tage.
   </p>
 
-  <h2>5. Reichweitenmessung mit Plausible (cookie-frei)</h2>
-  <p>
-    Diese Site nutzt Plausible Analytics — eine Privacy-by-Design-Reichweitenmessung ohne Cookies
-    und ohne Erfassung personenbezogener Daten. Plausible aggregiert Seitenaufrufe + Verweisquellen
-    in anonymen Tageszahlen. Es findet kein Cross-Site-Tracking statt; keine IP-Adressen-Speicherung
-    auf Tagesebene. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
-    Reichweitenmessung) sowie § 25 Abs. 2 Nr. 2 TDDDG (technisch erforderlich für die Bereitstellung).
-  </p>
+  {hasPlausible && (
+    <>
+      <h2>5. Reichweitenmessung mit Plausible (cookie-frei)</h2>
+      <p>
+        Diese Site nutzt Plausible Analytics — eine Privacy-by-Design-Reichweitenmessung ohne Cookies
+        und ohne Erfassung personenbezogener Daten. Plausible aggregiert Seitenaufrufe + Verweisquellen
+        in anonymen Tageszahlen. Es findet kein Cross-Site-Tracking statt; keine IP-Adressen-Speicherung
+        auf Tagesebene. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
+        Reichweitenmessung) sowie § 25 Abs. 2 Nr. 2 TDDDG (technisch erforderlich für die Bereitstellung).
+      </p>
+    </>
+  )}
 
   {hasNonEssentialCookies && (
     <>
@@ -105,31 +152,50 @@ const {
     </>
   )}
 
-  <h2>6. Kontaktaufnahme (E-Mail / Kontaktformular)</h2>
-  <p>
-    Bei Kontaktaufnahme über das Kontaktformular oder per E-Mail werden Ihre Angaben (Name,
-    E-Mail-Adresse, Inhalt der Nachricht) zur Bearbeitung der Anfrage und für den Fall von
-    Anschlussfragen gespeichert. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (vorvertraglich)
-    bzw. Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse). Mail-Versand erfolgt über
-    Resend (Resend Inc., USA — DPF-zertifiziert). Speicherdauer: bis zur abschließenden
-    Bearbeitung Ihrer Anfrage, ggf. + gesetzliche Aufbewahrungsfristen (HGB/AO 6–10 Jahre bei
-    Vertragsabschluss).
-  </p>
+  {hasContactForm ? (
+    <>
+      <h2>6. Kontaktaufnahme (E-Mail / Kontaktformular)</h2>
+      <p>
+        Bei Kontaktaufnahme über das Kontaktformular oder per E-Mail werden Ihre Angaben (Name,
+        E-Mail-Adresse, Inhalt der Nachricht) zur Bearbeitung der Anfrage und für den Fall von
+        Anschlussfragen gespeichert. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (vorvertraglich)
+        bzw. Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse).{showResend && <> Mail-Versand erfolgt über
+        Resend (Resend Inc., USA — DPF-zertifiziert).</>} Speicherdauer: bis zur abschließenden
+        Bearbeitung Ihrer Anfrage, ggf. + gesetzliche Aufbewahrungsfristen (HGB/AO 6–10 Jahre bei
+        Vertragsabschluss).
+      </p>
+    </>
+  ) : email ? (
+    <>
+      <h2>6. Kontaktaufnahme per E-Mail</h2>
+      <p>
+        Bei Kontaktaufnahme per E-Mail werden Ihre Angaben (Name, E-Mail-Adresse, Inhalt der Nachricht)
+        zur Bearbeitung der Anfrage und für den Fall von Anschlussfragen gespeichert. Rechtsgrundlage:
+        Art. 6 Abs. 1 lit. b DSGVO (vorvertraglich) bzw. Art. 6 Abs. 1 lit. f DSGVO (berechtigtes
+        Interesse). Speicherdauer: bis zur abschließenden Bearbeitung Ihrer Anfrage, ggf. + gesetzliche
+        Aufbewahrungsfristen (HGB/AO 6–10 Jahre bei Vertragsabschluss).
+      </p>
+    </>
+  ) : null}
 
-  <h2>7. Spam-Schutz (Cloudflare Turnstile)</h2>
-  <p>
-    Zum Schutz vor automatisierten Anfragen setzen wir Cloudflare Turnstile ein (Cloudflare Inc.,
-    101 Townsend St, San Francisco, CA 94107, USA — DPF-zertifiziert). Turnstile analysiert
-    technische Browser-Signale ohne Cookies; eine Identifikation einzelner Personen erfolgt nicht.
-    Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Schutz vor Missbrauch).
-  </p>
+  {showTurnstile && (
+    <>
+      <h2>7. Spam-Schutz (Cloudflare Turnstile)</h2>
+      <p>
+        Zum Schutz vor automatisierten Anfragen setzen wir Cloudflare Turnstile ein (Cloudflare Inc.,
+        101 Townsend St, San Francisco, CA 94107, USA — DPF-zertifiziert). Turnstile analysiert
+        technische Browser-Signale ohne Cookies; eine Identifikation einzelner Personen erfolgt nicht.
+        Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (Schutz vor Missbrauch).
+      </p>
+    </>
+  )}
 
   <h2>8. Empfänger</h2>
   <ul>
     <li>Vercel Inc. — Hosting</li>
-    <li>Resend Inc. — Mail-Delivery für Kontaktformular</li>
-    <li>Cloudflare Inc. — Turnstile Anti-Bot</li>
-    <li>Plausible.io (oder Self-Hosted) — Reichweitenmessung</li>
+    {showResend && <li>Resend Inc. — Mail-Delivery für Kontaktformular</li>}
+    {showTurnstile && <li>Cloudflare Inc. — Turnstile Anti-Bot</li>}
+    {hasPlausible && <li>Plausible.io (oder Self-Hosted) — Reichweitenmessung</li>}
   </ul>
 
   <h2>9. Speicherdauer</h2>
