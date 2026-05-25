@@ -69,6 +69,11 @@ interface Props {
   osPlatformDisclaimer?: boolean;
   /** Urheberrecht-Standard-Block am Ende anzeigen. Default: true. */
   copyrightBlock?: boolean;
+  /** Hat die Site ein Kontaktformular? Default true (backward-compat).
+   *  Bei false wird die §5 Abs.1 Nr.2 DDG-Klausel über das Kontaktformular nicht gerendert
+   *  und der Formular-Link entfällt aus dem Kontakt-Block. Nur Telefon (+ ggf. E-Mail)
+   *  werden als elektronische Kontaktwege ausgewiesen. */
+  hasContactForm?: boolean;
 }
 
 const {
@@ -79,6 +84,7 @@ const {
   contactFormPath = '/kontakt',
   osPlatformDisclaimer = true,
   copyrightBlock = true,
+  hasContactForm = true,
 } = Astro.props;
 
 // Property-Naming-Auflösung: englisch (SSOT) hat Vorrang vor deutsch (Bestand).
@@ -119,14 +125,28 @@ const showRepresentatives =
   <p>
     Telefon: <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a><br />
     {email && <>E-Mail: <a href={`mailto:${email}`}>{email}</a><br /></>}
-    Kontaktformular: <a href={contactFormPath}>{contactFormPath}</a>
+    {hasContactForm && <>Kontaktformular: <a href={contactFormPath}>{contactFormPath}</a></>}
   </p>
-  <p>
-    <small>
-      Schnelle elektronische Kontaktaufnahme nach § 5 Abs. 1 Nr. 2 DDG erfolgt über das Kontaktformular
-      {email && <>oder direkt per E-Mail</>}.
-    </small>
-  </p>
+  {hasContactForm ? (
+    <p>
+      <small>
+        Schnelle elektronische Kontaktaufnahme nach § 5 Abs. 1 Nr. 2 DDG erfolgt über das Kontaktformular
+        {email && <>oder direkt per E-Mail</>}.
+      </small>
+    </p>
+  ) : email ? (
+    <p>
+      <small>
+        Schnelle elektronische Kontaktaufnahme nach § 5 Abs. 1 Nr. 2 DDG erfolgt per E-Mail.
+      </small>
+    </p>
+  ) : (
+    <p>
+      <small>
+        Schnelle elektronische Kontaktaufnahme nach § 5 Abs. 1 Nr. 2 DDG erfolgt telefonisch.
+      </small>
+    </p>
+  )}
 
   {showRegister && (
     <>
