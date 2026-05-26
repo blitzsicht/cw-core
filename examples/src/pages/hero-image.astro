@@ -1,0 +1,37 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import Hero from '@cw/core/components/blocks/Hero.astro';
+---
+<ExampleLayout
+  title="Hero — public-URL Bild (imageSrc)"
+  description="Split-Layout-Hero mit public-Asset statt astro:assets-Import (v0.21.0). Für Customer, deren Foto in public/ liegt + eigene srcset-Varianten hat."
+>
+  <div class="example-section">
+    <h2>imageSrc (public-URL) → Split-Layout</h2>
+    <Hero
+      badge="Sachverständigenbüro"
+      headline="Immobiliengutachter Regensburg"
+      subtext="Verkehrswertgutachten vom öffentlich bestellten und vereidigten Sachverständigen."
+      ctaPrimary={{ label: 'Kontakt', href: '/kontakt' }}
+      ctaSecondary={{ label: 'Leistungen', href: '/leistungen' }}
+      usps={[{ icon: '✓', title: 'Über 30 Jahre Erfahrung' }, { icon: '✓', title: 'Gerichtsfest' }]}
+      imageSrc="/images/team-foto.webp"
+      imageSrcset="/images/team-foto-sm.webp 500w, /images/team-foto.webp 1024w"
+      imageSizes="(max-width: 768px) calc(100vw - 3rem), calc(50vw - 3rem)"
+      imageWidth={1024}
+      imageHeight={664}
+      imageAlt="Team"
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Code</h2>
+    <pre>{`<Hero
+  headline="…"
+  imageSrc="/images/team-foto.webp"
+  imageSrcset="/images/team-foto-sm.webp 500w, /images/team-foto.webp 1024w"
+  imageSizes="(max-width: 768px) 100vw, 45vw"
+  imageWidth={1024} imageHeight={664}
+/>`}</pre>
+  </div>
+</ExampleLayout>

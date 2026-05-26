@@ -6,6 +6,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.21.0] — 2026-05-26 (release/cw-core — Hero public-URL-Bild + Breadcrumbs bar-Variante)
+
+> Zwei additive, backward-kompatible Erweiterungen. Anlass: gottl-Production-Regressionen
+> nach der @cw/core-Migration — Homepage-Hero-Foto fehlte (public-Asset, kein astro:assets-Import
+> möglich) und Breadcrumbs standen über dem Hero (page-lokales `bc-wrap` zwischen Nav und Hero).
+> Reusability-first für alle Customer.
+
+### Added
+
+- `components/blocks/Hero.astro` — optionale public-URL-Bild-Props `imageSrc` / `imageSrcset` /
+  `imageSizes` / `imageWidth` / `imageHeight`. Triggert dasselbe Split-Layout wie `image`
+  (ImageMetadata), rendert aber ein natives `<img>` mit `loading=eager`/`fetchpriority=high`.
+  Für Customer, deren Hero-Foto in `public/` liegt (z.B. zusätzlich als CSS-Background) und
+  eigene responsive Varianten mitbringt. `image` (ImageMetadata) hat Vorrang.
+- `components/blocks/Breadcrumbs.astro` — `variant: 'plain' | 'bar'` (Default `'plain'`) +
+  `maxWidth`. `variant="bar"` rendert eine **self-contained Surface-Leiste** mit eigenem
+  Container (Brand-Tokens `--color-surface`/`--color-border`/`--container-max`) — direkt UNTER
+  den Hero platzieren, kein page-lokaler Wrapper (`bc-wrap`) mehr nötig.
+
+### Notes
+
+- Beide non-breaking: bestehende `Hero image={…}`-Aufrufe und `Breadcrumbs` ohne `variant`
+  rendern byte-identisch (plain-Variante nutzt `display:contents`-Shells ohne Layout-Effekt).
+- Validiert via `examples/` (`hero-image.astro`, `breadcrumbs-bar.astro`). `astro check`:
+  0 neue Fehler in Hero/Breadcrumbs.
+
+---
+
 ## [0.20.0] — 2026-05-25 (release/cw-core — USPSection-Header + PageHero-CTAs)
 
 > Zwei additive, backward-kompatible Prop-Erweiterungen für die faithful SEO-Page-Migration

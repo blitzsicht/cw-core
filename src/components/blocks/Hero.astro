@@ -77,6 +77,28 @@ interface Props {
    */
   image?: ImageMetadata;
   /**
+   * Optionales Hero-Bild als **public-URL-String** (Alternative zu `image`) — für
+   * Customer, deren Foto in `public/` liegt (z.B. zusätzlich als CSS-Background genutzt)
+   * und bereits eigene responsive Varianten hat. Triggert ebenfalls das Split-Layout.
+   *
+   * `image` (ImageMetadata) hat Vorrang, falls beide gesetzt sind.
+   *
+   * @example
+   *   <Hero imageSrc="/images/team.webp"
+   *         imageSrcset="/images/team-sm.webp 500w, /images/team.webp 1024w"
+   *         imageSizes="(max-width: 768px) 100vw, 45vw"
+   *         imageWidth={1024} imageHeight={664} ... />
+   */
+  imageSrc?: string;
+  /** `srcset` für `imageSrc` (responsive). */
+  imageSrcset?: string;
+  /** `sizes` für `imageSrc`. */
+  imageSizes?: string;
+  /** Intrinsische Breite für `imageSrc` (CLS-Schutz). */
+  imageWidth?: number;
+  /** Intrinsische Höhe für `imageSrc` (CLS-Schutz). */
+  imageHeight?: number;
+  /**
    * Optional Hero-Collage (2–3 overlapping images). If set, takes precedence
    * over `image` and triggers a third layout mode: three staggered, rotated
    * photos with subtle TiltCard interactivity on hover (same motion as
@@ -121,6 +143,11 @@ const {
   headline,
   subtext,
   image,
+  imageSrc,
+  imageSrcset,
+  imageSizes,
+  imageWidth,
+  imageHeight,
   images,
   imageAlt,
   transparentImage = false,
@@ -132,7 +159,7 @@ const {
 } = Astro.props;
 
 const hasImages = Array.isArray(images) && images.length >= 2;
-const hasImage = !hasImages && !!image;
+const hasImage = !hasImages && (!!image || !!imageSrc);
 const hasMedia = hasImages || hasImage;
 const motionCfg: HeroMotionConfig =
   motion === true
@@ -213,29 +240,59 @@ const motionCfg: HeroMotionConfig =
     {hasImage && (
       motionCfg.parallax ? (
         <ParallaxImage class="hero-image-wrap" speed={0.2}>
-          <Image
-            src={image!}
-            alt={imageAlt ?? siteName ?? ''}
-            widths={[400, 600, 800]}
-            sizes="(max-width: 767px) 100vw, 45vw"
-            loading="eager"
-            fetchpriority="high"
-            format="webp"
-            class="hero-img"
-          />
+          {image ? (
+            <Image
+              src={image}
+              alt={imageAlt ?? siteName ?? ''}
+              widths={[400, 600, 800]}
+              sizes="(max-width: 767px) 100vw, 45vw"
+              loading="eager"
+              fetchpriority="high"
+              format="webp"
+              class="hero-img"
+            />
+          ) : (
+            <img
+              src={imageSrc}
+              srcset={imageSrcset}
+              sizes={imageSizes}
+              width={imageWidth}
+              height={imageHeight}
+              alt={imageAlt ?? siteName ?? ''}
+              loading="eager"
+              fetchpriority="high"
+              decoding="async"
+              class="hero-img"
+            />
+          )}
         </ParallaxImage>
       ) : (
         <div class="hero-image-wrap">
-          <Image
-            src={image!}
-            alt={imageAlt ?? siteName ?? ''}
-            widths={[400, 600, 800]}
-            sizes="(max-width: 767px) 100vw, 45vw"
-            loading="eager"
-            fetchpriority="high"
-            format="webp"
-            class="hero-img"
-          />
+          {image ? (
+            <Image
+              src={image}
+              alt={imageAlt ?? siteName ?? ''}
+              widths={[400, 600, 800]}
+              sizes="(max-width: 767px) 100vw, 45vw"
+              loading="eager"
+              fetchpriority="high"
+              format="webp"
+              class="hero-img"
+            />
+          ) : (
+            <img
+              src={imageSrc}
+              srcset={imageSrcset}
+              sizes={imageSizes}
+              width={imageWidth}
+              height={imageHeight}
+              alt={imageAlt ?? siteName ?? ''}
+              loading="eager"
+              fetchpriority="high"
+              decoding="async"
+              class="hero-img"
+            />
+          )}
         </div>
       )
     )}

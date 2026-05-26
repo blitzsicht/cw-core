@@ -27,9 +27,18 @@ interface Props {
   items: BreadcrumbItem[];
   /** Canonical site URL (no trailing slash). Used to resolve href→absolute for JSON-LD. */
   siteUrl: string;
+  /**
+   * Layout-Variante. `'plain'` (Default) = nacktes `<nav>`, der Consumer kümmert sich um
+   * Container/Position (backward-compat). `'bar'` = self-contained Surface-Leiste mit eigenem
+   * Container — direkt UNTER den Hero platzieren, kein page-lokaler Wrapper (`bc-wrap`) nötig.
+   */
+  variant?: 'plain' | 'bar';
+  /** Max-Breite des Bar-Containers (nur `variant="bar"`). Default `var(--container-max)`. */
+  maxWidth?: string;
 }
 
-const { items, siteUrl } = Astro.props;
+const { items, siteUrl, variant = 'plain', maxWidth } = Astro.props;
+const innerStyle = variant === 'bar' && maxWidth ? `max-width:${maxWidth}` : undefined;
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -42,23 +51,45 @@ const jsonLd = {
   })),
 };
 ---
-<nav class="breadcrumbs" aria-label="Breadcrumb">
-  <ol>
-    {items.map((item, i) => (
-      <li>
-        {item.href ? (
-          <a href={item.href}>{item.label}</a>
-        ) : (
-          <span aria-current="page">{item.label}</span>
-        )}
-        {i < items.length - 1 && <span class="sep" aria-hidden="true">›</span>}
-      </li>
-    ))}
-  </ol>
-</nav>
+<div class:list={['breadcrumb-shell', variant === 'bar' && 'breadcrumb-bar']}>
+  <div class:list={['breadcrumb-inner', variant === 'bar' && 'breadcrumb-bar-inner']} style={innerStyle}>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        {items.map((item, i) => (
+          <li>
+            {item.href ? (
+              <a href={item.href}>{item.label}</a>
+            ) : (
+              <span aria-current="page">{item.label}</span>
+            )}
+            {i < items.length - 1 && <span class="sep" aria-hidden="true">›</span>}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  </div>
+</div>
 <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
 <style>
+  /* Shell ist im Default transparent (display:contents) → variant="plain" rendert
+     effektiv nur das <nav> wie bisher (backward-compat, kein Layout-Effekt). */
+  .breadcrumb-shell { display: contents; }
+  .breadcrumb-inner { display: contents; }
+  /* variant="bar": dezente Surface-Leiste mit eigenem Container (Variant A). */
+  .breadcrumb-bar {
+    display: block;
+    background: var(--color-surface, #f5f6f8);
+    border-bottom: 1px solid var(--color-border, #e7e8ee);
+  }
+  .breadcrumb-bar-inner {
+    display: block;
+    max-width: var(--container-max, 72rem);
+    margin: 0 auto;
+    padding: 0.7rem 1.5rem;
+  }
+  .breadcrumb-bar .breadcrumbs { padding: 0; }
+
   .breadcrumbs {
     font-size: 0.875rem;
     color: var(--color-muted, #6b7280);

@@ -1,0 +1,45 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import Breadcrumbs from '@cw/core/components/blocks/Breadcrumbs.astro';
+---
+<ExampleLayout
+  title="Breadcrumbs — variant='bar'"
+  description="Self-contained Breadcrumb-Leiste (Variant A) für Platzierung direkt unter dem Hero. Kein page-lokaler Wrapper nötig (v0.21.0)."
+>
+  <div class="example-section">
+    <h2>variant="bar" (self-contained Surface-Leiste)</h2>
+    <Breadcrumbs
+      variant="bar"
+      siteUrl="https://example.com"
+      items={[
+        { label: 'Start', href: '/' },
+        { label: 'Downloads', href: '/downloads' },
+        { label: 'Bodenrichtwerte' },
+      ]}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>variant="bar" mit maxWidth="56rem"</h2>
+    <Breadcrumbs
+      variant="bar"
+      maxWidth="56rem"
+      siteUrl="https://example.com"
+      items={[
+        { label: 'Start', href: '/' },
+        { label: 'Honorare' },
+      ]}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>variant="plain" (Default — backward-compat, nacktes nav)</h2>
+    <Breadcrumbs
+      siteUrl="https://example.com"
+      items={[
+        { label: 'Start', href: '/' },
+        { label: 'Leistungen' },
+      ]}
+    />
+  </div>
+</ExampleLayout>
