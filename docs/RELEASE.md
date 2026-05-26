@@ -20,10 +20,10 @@ Beispiele für ältere/aktuelle Tags:
 
 | Branch | Zweck |
 |--------|-------|
-| `main` | Development (selten direkt gepusht) |
-| `release/cw-core` | Customer-facing — hier landen Tags |
+| `main` | **Deprecated** seit 2026-05-26 — historischer Snapshot bei v0.10.1 (Apr 2026). Archive-Tag: `archive/main-pre-2026-05-26` (SHA `0552d74`). Wird nicht mehr aktiv gepflegt. |
+| `release/cw-core` | Customer-facing, **GitHub-Default seit 2026-05-26**. Hier landen Tags und PRs. |
 | `feat/*`, `fix/*`, `chore/*` | Feature-Branches → PR gegen `release/cw-core` |
-| `phase2-monorepo` | Experimenteller Refactor (nicht produktiv) |
+| `phase2-monorepo` | Experimenteller Refactor (nicht produktiv, alpha-Zeitraum) |
 
 Customer-Repos referenzieren ausschließlich Tags auf `release/cw-core`.
 
@@ -62,6 +62,8 @@ Verwende den `cw-release` Skill für jeden Release:
 Der Skill ist auch auf andere `cw-*` Repos übertragbar (Variables am Top: `CW_CORE_PATH`, `CHANGELOG_PATH`, `TAG_PREFIX`, `CUSTOMER_REPOS`).
 
 ## Historische Notizen
+
+**2026-05-26: GitHub-Default-Branch-Umstellung** — main wurde von GitHub-Default auf `release/cw-core` umgestellt. Hintergrund: main hatte seit Apr 2026 (v0.10.1, commit `0552d74`) keine eigenen Updates, alle Releases liefen auf `release/cw-core`. Customer-Refs sind unbetroffen (pinnen auf Tags). Archive-Tag `archive/main-pre-2026-05-26` zeigt auf den letzten main-Commit `0552d74` für historische Auffindbarkeit. Rollback: `gh api repos/siluri/cw-core --method PATCH -F default_branch=main`.
 
 **2026-05-26: Tag-Cleanup `v1.0.x`** — 10 Tags (`v1.0.0`–`v1.0.9`, gesetzt zwischen 2026-04-12 und 2026-05-26) waren ein parallel-laufendes Schatten-Schema. Niemand referenzierte sie (Scan über alle 14 Customer-Repos: 0 Treffer auf `cw-core#v1.`). Am 2026-05-26 lokal + remote gelöscht.
 
