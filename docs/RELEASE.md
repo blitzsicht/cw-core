@@ -65,7 +65,12 @@ Der Skill ist auch auf andere `cw-*` Repos übertragbar (Variables am Top: `CW_C
 
 **2026-05-26: Tag-Cleanup `v1.0.x`** — 10 Tags (`v1.0.0`–`v1.0.9`, gesetzt zwischen 2026-04-12 und 2026-05-26) waren ein parallel-laufendes Schatten-Schema. Niemand referenzierte sie (Scan über alle 14 Customer-Repos: 0 Treffer auf `cw-core#v1.`). Am 2026-05-26 lokal + remote gelöscht.
 
-SHA-Mapping für Rollback. **Primärer Anker ist diese committete Tabelle** (dauerhaft in git), nicht die ephemere `/tmp`-Datei. Achtung: `git reflog` hält Objekte zwar 90 Tage, aber `git gc.pruneExpire` (default 2 Wochen) kann orphaned commits nach Tag-Löschung früher entfernen — daher gilt: Rollback innerhalb 2 Wochen ohne Sorge, danach nur via diese Tabelle + verbleibende Branch-Referenzen.
+SHA-Mapping für Rollback. **Primärer Anker ist diese committete Tabelle** (dauerhaft in git), nicht die ephemere `/tmp`-Datei.
+
+Rollback-Mechanik:
+- **Sofortig** (90 Tage): `git reflog` referenziert die Objekte (`gc.reflogExpire` default 90 Tage). Wiederherstellung via `git tag v1.0.X <sha>; git push origin v1.0.X`.
+- **Nach `git gc`-Lauf** (oder nach 2 Wochen Auto-GC laut `gc.pruneExpire`): unreferenzierte Loose Objects können entfernt werden, **wenn** kein Branch sie mehr referenziert. v1.0.9 (`d69309d`) ist via `release/cw-core` weiterhin erreichbar — sicher. Andere v1.0.x SHAs sind nur über die Tabelle erreichbar nach GC.
+- **Sicherheitsnetz:** die SHA-Tabelle unten ist in git committed und damit dauerhaft. Notfall-Rollback nach GC: `git tag v1.0.X <sha aus Tabelle>` — der GitHub-Server hält Tags via `gc.reflogExpire` länger, eine schnelle Reactivation ist meistens möglich.
 
 | Tag | SHA |
 |---|---|
