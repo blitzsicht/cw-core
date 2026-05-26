@@ -80,7 +80,9 @@ const jsonLd = {
   .breadcrumb-bar {
     display: block;
     background: var(--color-surface, #f5f6f8);
-    border-bottom: 1px solid var(--color-border, #e7e8ee);
+    /* Theme-abgeleiteter Trennstrich (kein eigenes --color-border-Token nötig) —
+       gedämpfte Muted-Farbe statt Hardcode, passt sich der Customer-Brand an. */
+    border-bottom: 1px solid color-mix(in srgb, var(--color-muted, #6b7280) 22%, transparent);
   }
   .breadcrumb-bar-inner {
     display: block;

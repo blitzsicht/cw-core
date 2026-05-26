@@ -253,9 +253,9 @@ const motionCfg: HeroMotionConfig =
             />
           ) : (
             <img
-              src={imageSrc}
+              src={imageSrc!}
               srcset={imageSrcset}
-              sizes={imageSizes}
+              sizes={imageSizes ?? '(max-width: 767px) 100vw, 45vw'}
               width={imageWidth}
               height={imageHeight}
               alt={imageAlt ?? siteName ?? ''}
@@ -281,9 +281,9 @@ const motionCfg: HeroMotionConfig =
             />
           ) : (
             <img
-              src={imageSrc}
+              src={imageSrc!}
               srcset={imageSrcset}
-              sizes={imageSizes}
+              sizes={imageSizes ?? '(max-width: 767px) 100vw, 45vw'}
               width={imageWidth}
               height={imageHeight}
               alt={imageAlt ?? siteName ?? ''}

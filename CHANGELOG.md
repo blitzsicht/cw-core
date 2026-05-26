@@ -6,6 +6,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.21.2] — 2026-05-26 (release/cw-core — Review-Polish zu v0.21.0)
+
+> Kleine Korrekturen aus dem Code-Review der v0.21.0-Komponenten, vor dem Multi-Customer-Rollout
+> der Breadcrumb-bar. Rein additiv/kosmetisch, keine API-Änderung. (Hinweis: package.json war seit
+> v0.21.0 nicht gebumpt — mit diesem Release auf 0.21.2 synchronisiert.)
+
+### Fixed
+
+- `Breadcrumbs.astro` (`variant="bar"`) — Trennstrich nutzt jetzt
+  `color-mix(in srgb, var(--color-muted) 22%, transparent)` statt des **nicht existierenden**
+  `--color-border`-Tokens → theme-abgeleitet statt Hardcode `#e7e8ee`.
+- `Hero.astro` — `imageSrc`-Pfad: `imageSizes` defaultet auf `"(max-width: 767px) 100vw, 45vw"`
+  (gleicher Wert wie der `<Image>`-Pfad) falls nicht gesetzt → kein `srcset` ohne `sizes`-Hint.
+  Plus `imageSrc!`-Assertion (TS-Sauberkeit; durch `hasImage`-Guard ohnehin truthy).
+
+---
+
 ## [0.21.1] — 2026-05-26 (release/cw-core — verify-form-health Auto-Skip für form-lose Customer)
 
 > Patch: `scripts/verify-form-health.mjs` skippt sich selbst (exit 0) wenn `/kontakt/`
