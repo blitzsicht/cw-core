@@ -58,9 +58,10 @@ jobs:
   #
   # Repository-Variable PRODUCTION_URL setzen (gh variable set PRODUCTION_URL).
   # Falls die Variable nicht gesetzt ist, wird der Job geskippt.
+  # SKIP_FORM_HEALTH='true' setzen für Customer ohne ContactForm (phone-/whatsapp-only).
   smoke-test:
     needs: build
-    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_URL != ''
+    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_URL != '' && vars.SKIP_FORM_HEALTH != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
