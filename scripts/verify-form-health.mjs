@@ -57,6 +57,26 @@ try {
   process.exit(1);
 }
 
+// /kontakt/ muss zumindest 200 liefern — ohne erreichbare Seite kein Form-Check sinnvoll
+if (contact.status !== 200) {
+  console.error(`FATAL: /kontakt/ status=${contact.status} (erwartet 200)`);
+  process.exit(1);
+}
+
+// Auto-Skip für form-lose Customer (phone-/whatsapp-only Setups):
+// Wenn /kontakt/ kein <form>-Element enthält, ist die Site by-design ohne Kontaktformular.
+// Beispiel-Customer: hausamlago (Markus Eule: nur Phone + WhatsApp).
+// Override per SITE_URL trotzdem testen via FORCE_FORM_CHECK=1.
+const hasFormElement = /<form\b/i.test(contact.body);
+if (!hasFormElement && process.env.FORCE_FORM_CHECK !== '1') {
+  console.log(`ℹ️  /kontakt/ enthält kein <form>-Element auf ${url}`);
+  console.log('   → Form-Health-Check übersprungen (Customer hat vermutlich phone-/whatsapp-only Setup).');
+  console.log('   → Override via FORCE_FORM_CHECK=1 wenn das ein Bug ist.');
+  console.log('');
+  console.log('✅ Form-Health: skipped (no form on page)');
+  process.exit(0);
+}
+
 checks.push({
   name: '/kontakt/ liefert 200',
   ok: contact.status === 200,

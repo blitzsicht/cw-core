@@ -6,6 +6,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.21.1] — 2026-05-26 (release/cw-core — verify-form-health Auto-Skip für form-lose Customer)
+
+> Patch: `scripts/verify-form-health.mjs` skippt sich selbst (exit 0) wenn `/kontakt/`
+> kein `<form>`-Element enthält. Behebt False-positive failures bei phone-/whatsapp-only
+> Customer (z.B. hausamlago, Markus Eules Setup). Override via `FORCE_FORM_CHECK=1`.
+
+### Changed
+
+- `scripts/verify-form-health.mjs` — Pre-Check vor den 6 Form-Health-Checks: wenn kein
+  `<form\b`-Element in `/kontakt/` HTML, exit 0 mit Info-Message. Kein per-Customer
+  `SKIP_FORM_HEALTH` Workflow-Gate mehr nötig. `FORCE_FORM_CHECK=1` erzwingt die alten
+  Checks (für Debug oder wenn ein Customer fälschlich form-los rendert).
+- Plus: `/kontakt/`-status≠200 → fail-fast vor allen anderen Checks (vorher implizit, jetzt explizit).
+
+### Notes
+
+- Backward-compatible: alle Customer mit Form sehen unverändertes Verhalten.
+- Customer-Workflow-Override (`vars.SKIP_FORM_HEALTH != 'true'` in build-check.yml) bleibt
+  weiter gültig — wird mit nächster `rollout-build-check.sh`-Welle aufgeräumt.
+
+---
+
 ## [0.21.0] — 2026-05-26 (release/cw-core — Hero public-URL-Bild + Breadcrumbs bar-Variante)
 
 > Zwei additive, backward-kompatible Erweiterungen. Anlass: gottl-Production-Regressionen
