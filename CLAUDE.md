@@ -9,6 +9,15 @@ Geteilte Astro-Komponenten, Layouts, Styles und Manifest-Schema für alle Blitzs
 - Tailwind CSS v4 (`@theme` Tokens)
 - Zod (Manifest-Schema)
 
+## Hard Rules (non-negotiable)
+
+### Customer-Repos sind dumm
+Customer-Repos enthalten keine UI-Logik. Alles UI kommt aus `@cw/core`.
+Detail: `customer-websites/learnings/no-custom-components-in-customer-repos.md` (gesynct in jedes Customer-`MEMORY.md`).
+Audit: `/cw-component-audit` (siehe `.claude/commands/cw-component-audit.md`).
+
+Bei jedem Code-Vorschlag, der in einem Customer-Repo eine eigene Komponente, einen `<style>`-Block > 20 LOC oder Inline-Styles erzeugt: **STOP**. Frage, ob die Abstraktion nach cw-core gehört.
+
 ## Konventionen
 - **API-Stabilität:** Breaking Changes zuerst über Major-Bump, mindestens 1 Customer-Site testen
 - **Tailwind:** Nur Tokens via `@theme` definieren, Customer-Sites überschreiben sie
