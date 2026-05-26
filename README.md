@@ -25,7 +25,7 @@ tailwindcss >= 4.0.0
 // package.json
 {
   "dependencies": {
-    "@cw/core": "github:siluri/cw-core#v1.0.5"
+    "@cw/core": "github:siluri/cw-core#release/cw-core/v0.22.0"
   }
 }
 ```
@@ -403,15 +403,20 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 
 ## Versions-Tagging
 
+Detail: siehe [`docs/RELEASE.md`](docs/RELEASE.md). Kurzfassung:
+
 ```bash
-git tag v1.0.6
-git push origin v1.0.6
+# Kanonisches Tag-Schema: release/cw-core/vX.Y.Z (Path-Style, kein -alpha mehr)
+git tag release/cw-core/v0.22.0
+git push origin release/cw-core/v0.22.0
 ```
 
 Kundensites referenzieren das Paket via GitHub-Tag:
 ```json
-"@cw/core": "github:siluri/cw-core#v1.0.6"
+"@cw/core": "github:siluri/cw-core#release/cw-core/v0.22.0"
 ```
+
+Release-Workflow läuft über den `cw-release` Skill (`~/.claude-siluri/skills/cw-release/SKILL.md`).
 
 ## Plausible-Analytics (v0.9.8)
 
