@@ -2,6 +2,51 @@
 
 Erster Lauf nach Einführung der Hard-Rule "Customer-Repos enthalten keine eigene UI-Logik" (`@cw/core` v0.22.0, Slice `no-custom-components-in-customer-repos`, Slash-Command `/cw-component-audit`).
 
+> ## ⚠️ Errata 2026-05-26 (Post-Review)
+>
+> Drei `/review`-Reviewer haben nach erster Veröffentlichung Fakten-Fehler in den Klassifikationen + Promotion-Vorschlägen aufgedeckt. **Die Inventur-Daten (was IST in den Repos) sind korrekt. Die Klassifikationen + Promotion-Aufwand-Schätzungen sind teilweise revidiert.**
+>
+> **Klassifikations-Korrekturen:**
+>
+> - **`ProcessSteps.astro` (blitzsicht, 218 LOC) — NICHT DUPE.** Customer-Variante hat 4 hartkodierte Blitzsicht-Steps + HowTo-JSON-LD mit Brand-Namen ("Wie entsteht eine Blitzsicht-Website..."). cw-core-Variante ist prop-driven via `items: ProcessStep[]`. Direkter Import-Swap würde den Render brechen. **Korrigierte Klassifikation: GENERIC (mit Data-Extraction nach site-data.ts) oder CUSTOMER-SPECIFIC**. Realistic Effort: 2–3h (nicht 1h).
+>
+> - **`PaketDetailPage.astro` (blitzsicht, 891 LOC) — NICHT GENERIC.** Zeile 43 + 86 hardkodieren `Blitzsicht` im JSON-LD-Schema. Importiert `PaketTier` und `PRICES` aus `@/data/pakete-details` — Blitzsicht-spezifische Datenstrukturen. **Korrigierte Klassifikation: CUSTOMER-SPECIFIC** (geeignet für Generalisierung sobald 2. Customer ein Tier-System braucht). Realistic Effort: 12–18h falls promotet (Tier-System-Design), 6h-Schätzung war 2–3× zu niedrig.
+>
+> - **`PaketDetailPage` gehört in `cw-core/src/layouts/`** nicht `blocks/`. Architekturelle Korrektur: importiert bereits `LandingPage.astro` als Layout — peer dazu sein, nicht Component.
+>
+> **Promotion-Vorschläge die obsolet sind:**
+>
+> - **`PageHero variant="image-overlay"` ist KEINE neue cw-core-Arbeit nötig.** Die existing `cw-core/src/components/blocks/PageHero.astro` hat bereits `backgroundImage`, `backgroundPosition`, `overlayStrength` als first-class Props. Die 28+ Pages mit `.page-hero`-CSS-Pattern müssen lediglich auf die existing API migrieren (Customer-Side-Migration). Geschätzter Aufwand: **0h cw-core + 0.5h/Repo Migration** statt "4h Promotion + 1h/Repo".
+>
+> - **`Testimonials variant="marquee"` ist obsolet.** Die existing `cw-core/src/components/blocks/Testimonials.astro` IST bereits ein Marquee (class `testimonials-marquee`, keyframe `cw-testimonials-slide`, prefers-reduced-motion Fallback). blitzsicht's `TestimonialsMarquee.astro` ist vermutlich DUPE oder cosmetic Variant. Vor 2h-Promotion erst Diff lesen (~30min).
+>
+> **Infrastruktur-Lücken (nicht im ursprünglichen Report):**
+>
+> 1. **`cw-visual-tests` Repo existiert** mit Playwright-Config + 80+ PNG-Baselines für blitzsicht — aber `tests/` hat **0 Spec-Files**. "Visual-Regression-Check" als Migration-Safeguard ist aktuell nicht ausführbar. **Phase 1 muss Spec-Files schreiben (~2h)**.
+>
+> 2. **Branch-State-Risiko:** 6/8 Customer-Repos sind auf Feature-Branches (chore/cw-core-v0.21.2, pr-17-grader, fix/breadcrumb-bar) — lokale Migration-Commits landen dort, nicht auf main. **Branch-Policy fehlt im Report.**
+>
+> 3. **`customer-blitzsicht/.github/workflows/deploy.yml`** deployed `main` → Vercel-Production ohne Staging-Gate. Jede Migration auf main ist sofort live.
+>
+> **Aufwand-Korrekturen:**
+>
+> - Quick-Win-Block "~10h für 5 Repos sauberer": realistisch **12–18h Operator-Zeit** (code-edit 15min/repo + pipeline 45-60min/repo)
+> - cw-core-Promotionen "23h" korrigiert auf **~19h** (PageHero raus, Testimonials evt. raus)
+> - PaketDetailPage als Layout: **realistisch 12–15h** (Tier-System-Design + Generalisierung)
+> - Gesamt-Migration: weiterhin **40–60h+ Operator-Zeit verteilt über 8+ Wochen**, aber Phase-1-Infrastruktur (~3h) muss vorgeschaltet sein
+>
+> **Realistische Phasen-Sequenz** (ersetzt Top-3-Quick-Wins-Empfehlung am Ende):
+>
+> | Phase | Was | Aufwand | Stop-Kriterium |
+> |---|---|---|---|
+> | 1 — Infrastructure | Visual-Tests Spec-Files schreiben, Branch-Policy festlegen, Rollback-Convention | ~3h | `pnpm playwright test` läuft für customer-blitzsicht |
+> | 2 — Zero-Risk Quick-Wins | ServiceAreaSchema-Cleanup (gottl), PlausibleEvents Wrapper raus (nur Repos auf main) | ~5h | Keine Re-Export-Wrapper mehr in main-Repos |
+> | 3 — cw-core Promotionen | LogoMarquee, HeroVideo, FeaturedLeistungen ext, StatsGrid var, TechExcellence href, Hero CLS-fix | ~10h | Alle 6 in cw-core veröffentlicht (v0.23.0 oder verteilt) |
+> | 4 — Customer-Migrations gestaffelt | 1 Repo/Woche, cw-core-Bump + Migrations + Visual-Test | ~30h verteilt über 8 Wochen | 0 GENERIC/DUPE in Customer-Sources |
+> | 5 — Page-Style-Migration | LOC-Threshold "kein `<style>` > 100 LOC" statt "0 Pages", iterativ | ongoing, deprioritized | LOC-Outliers (>200) bereinigt |
+>
+> **Audit-Cadence-Erweiterung:** Slash-Command erweitern um Cross-Check gegen `CUSTOMER-EXCEPTIONS.md` — neue Custom-Components müssen dort dokumentiert sein, sonst Warning.
+
 ## Executive Summary
 
 - **Repos gescannt:** 8 active/live (blitzsicht, digital-direkt, gottl-richter-gomeier, hausamlago, hausammincio, schiller-gartenbau, soleno, steller-sanierungen)
