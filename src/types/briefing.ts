@@ -42,6 +42,19 @@ export interface BriefingField {
   options?: string[];
   required?: boolean;
   placeholder?: string;
+  /**
+   * Vorausgefuellter Wert (Recherche/Vermutung). Wird als initialer Feld-Wert
+   * gerendert und sichtbar als "bitte pruefen" markiert (amber). Beim ersten
+   * User-Edit verschwindet die Markierung. Optional — Felder ohne `prefill`
+   * rendern unveraendert leer.
+   */
+  prefill?: string;
+  /**
+   * Optionaler Marker-Text statt des Defaults ("Vorausgefuellt — bitte pruefen").
+   * Nutze ihn fuer Confidence/Quelle, z.B. "aus Handelsregister — bitte bestaetigen".
+   * Nur wirksam wenn `prefill` gesetzt ist.
+   */
+  prefillNote?: string;
 }
 
 export interface BriefingSection {
