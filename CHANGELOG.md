@@ -6,6 +6,30 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.24.0] — 2026-05-29 (release/cw-core)
+
+> Domain-Guard in der ai-discovery-Integration. Fängt den Drift, der bei zink-baeckerei
+> auftrat: `astro.config.site` zeigte auf die echte Domain, `site-data.url` auf eine
+> Tippfehler-/tote Domain — canonical, Schema, Sitemap und die generierte llms.txt
+> verwiesen dadurch auf die falsche Domain (stiller SEO-Killer).
+
+### Added
+
+- ai-discovery prüft im `astro:config:done`-Hook, ob `astro.config.site` und
+  `siteData.url` auf dieselbe Domain zeigen (www-tolerant). Bei Mismatch → Warnung
+  (mit `strictDomain: true` → Build-Fail).
+- Fehlt `astro.config.site` ganz → Warnung (canonical/Sitemap hätten keine Basis-URL).
+- Bei Vercel-Production-Builds mit echter Custom-Domain: zusätzlicher Abgleich von
+  `siteData.url` gegen `VERCEL_PROJECT_PRODUCTION_URL` (Ground-Truth der deployten Domain).
+- Neue Option `AiDiscoveryOptions.strictDomain` (Default `false` = nur Warnung).
+
+### Why
+
+`site-data.url` wird von Hand gepflegt und war gegen nichts validiert. Der Guard greift
+zero-config bei allen Customern, die ai-discovery bereits einbinden — kein astro.config-Rollout nötig.
+
+---
+
 ## [0.23.0] — 2026-05-29 (release/cw-core)
 
 > Briefing-Form Vorausfüllung. Additive, backward-compatible — bestehende `briefing-fields.ts`
