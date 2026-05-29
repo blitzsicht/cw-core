@@ -77,6 +77,22 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * Optional: extract services from siteData (falls back to siteData.leistungen).
    */
   services?: (data: T) => ReadonlyArray<ServiceItem> | undefined;
+
+  /**
+   * Default false. Bei true → Build-Fail (throw) wenn `astro.config.site` und
+   * `siteData.url` auf verschiedene Domains zeigen. Default nur Warnung.
+   */
+  strictDomain?: boolean;
+}
+
+/** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
+function normHost(u: string | undefined): string {
+  if (!u) return '';
+  try {
+    return new URL(u).hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +282,58 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
   return {
     name: '@cw/core/integrations/ai-discovery',
     hooks: {
+      // Domain-Guard: fängt den Fall, dass astro.config `site` und
+      // site-data `url` auf verschiedene Domains zeigen. Genau dieser Drift
+      // (config.site = echte Domain, site-data.url = Tippfehler-Domain) führt
+      // dazu, dass canonical/Schema/Sitemap UND die hier generierte llms.txt
+      // auf eine falsche/tote Domain verweisen — ein stiller SEO-Killer.
+      'astro:config:done': async ({ config, logger }) => {
+        let data: T;
+        try {
+          data = await options.siteData();
+        } catch {
+          return; // siteData nicht ladbar → andere Hooks/Checks melden das
+        }
+
+        const siteDataHost = normHost(data.url);
+        const configHost = normHost(config.site);
+
+        if (!configHost) {
+          logger.warn(
+            `astro.config \`site\` ist nicht gesetzt — canonical/Sitemap fehlen die Basis-URL. ` +
+            `Setze \`site: '${data.url}'\` im astro.config.`,
+          );
+        } else if (siteDataHost && configHost !== siteDataHost) {
+          const msg =
+            `Domain-Mismatch: astro.config site=${config.site} ≠ site-data url=${data.url}. ` +
+            `Eine davon ist falsch — canonical, Schema, Sitemap und llms.txt würden auf ` +
+            `unterschiedliche Domains zeigen. Bitte beide auf die echte Deploy-Domain angleichen.`;
+          if (options.strictDomain) {
+            throw new Error(`[ai-discovery] ${msg}`);
+          }
+          logger.warn(msg);
+        }
+
+        // Ground-Truth gegen Vercel: nur bei Production-Build UND wenn die
+        // Production-Domain eine echte Custom-Domain ist (keine *.vercel.app),
+        // sonst false-positives.
+        const prodUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+        if (
+          process.env.VERCEL === '1' &&
+          process.env.VERCEL_ENV === 'production' &&
+          prodUrl &&
+          !prodUrl.endsWith('.vercel.app')
+        ) {
+          const prodHost = normHost(`https://${prodUrl}`);
+          if (siteDataHost && prodHost && siteDataHost !== prodHost) {
+            logger.warn(
+              `site-data url=${data.url} ≠ Vercel-Production-Domain=${prodUrl}. ` +
+              `Die canonical-Domain weicht von der tatsächlich deployten Domain ab.`,
+            );
+          }
+        }
+      },
+
       'astro:build:done': async ({ dir, logger }) => {
         logger.info('Generating llms.txt and llms-full.txt …');
 
