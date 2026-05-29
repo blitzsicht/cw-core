@@ -6,6 +6,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.23.0] — 2026-05-29 (release/cw-core)
+
+> Briefing-Form Vorausfüllung. Additive, backward-compatible — bestehende `briefing-fields.ts`
+> ohne `prefill` rendern unverändert.
+
+### Added
+
+- `BriefingField.prefill?: string` — vorausgefüllter Feldwert (Recherche/Vermutung). `BriefingForm.astro`
+  rendert ihn als initialen `value` (text/email/phone), `<textarea>`-Inhalt, `<option selected>` (select)
+  bzw. `checked` (radio/checkbox).
+- `BriefingField.prefillNote?: string` — optionaler Marker-Text statt Default
+  ("Vorausgefüllt — bitte prüfen"); für Quelle/Confidence, z. B. "aus Handelsregister — bitte bestätigen".
+- Visuelle Markierung: amber Badge + amber Feld-Hintergrund/Border (`#fffbeb` / `#fcd34d`) für
+  vorausgefüllte Felder. Beim ersten User-Edit verschwindet die Markierung (persistiert via
+  `<storageKey>__touched` in localStorage → bleibt auch nach Reload entfernt).
+- Vorausgefüllte Felder zählen sofort zum Progress-Bar → "fast fertig"-Effekt senkt die
+  Aktivierungshürde im Onboarding.
+
+---
+
 ## [0.21.2] — 2026-05-26 (release/cw-core — Review-Polish zu v0.21.0)
 
 > Kleine Korrekturen aus dem Code-Review der v0.21.0-Komponenten, vor dem Multi-Customer-Rollout
