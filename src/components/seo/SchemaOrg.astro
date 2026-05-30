@@ -115,6 +115,16 @@ interface Props {
   geo?: { latitude: number; longitude: number };
   /** Founding date (ISO 8601). */
   foundingDate?: string;
+  /**
+   * Slogan / Tagline. Emitted as schema.org `slogan` on the LocalBusiness node.
+   * Example: "Professionelle B2B-Websites in 7 Werktagen."
+   */
+  slogan?: string;
+  /**
+   * Mitarbeiterzahl. Number oder String — wird als schema.org `numberOfEmployees`
+   * mit `QuantitativeValue`-Wrapper emittiert.
+   */
+  numberOfEmployees?: number | string;
 
   // --- New props ---
 
@@ -176,6 +186,8 @@ const {
   openingHours,
   geo,
   foundingDate,
+  slogan,
+  numberOfEmployees,
   additionalTypes = [],
   employees,
   services,
@@ -255,6 +267,10 @@ const localBusinessSchema = {
     ? { openingHours: [...openingHours] }
     : {}),
   ...(foundingDate ? { foundingDate } : {}),
+  ...(slogan ? { slogan } : {}),
+  ...(numberOfEmployees !== undefined
+    ? { numberOfEmployees: { '@type': 'QuantitativeValue', value: numberOfEmployees } }
+    : {}),
   ...(email
     ? {
         contactPoint: {

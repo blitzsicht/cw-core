@@ -6,6 +6,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.26.0] — 2026-05-30 (release/cw-core)
+
+> SchemaOrg.astro um `slogan` + `numberOfEmployees` erweitert. Schließt die Lücke,
+> wegen der customer-blitzsicht einen eigenen `orgSupplementSchema`-Block mit
+> doppelter `@id="#organization"` brauchte (war Auslöser des Schema-Duplikat-Bugs).
+
+### Added
+
+- `SchemaOrgProps.slogan?: string` — emittiert als schema.org `slogan` auf der
+  LocalBusiness-Node.
+- `SchemaOrgProps.numberOfEmployees?: number | string` — emittiert als
+  `numberOfEmployees: { @type: QuantitativeValue, value }`.
+
+Beide optional, additive — bestehende Customer ohne diese Props unverändert.
+
+---
+
 ## [0.25.0] — 2026-05-30 (release/cw-core)
 
 > Schema-Linter in der ai-discovery-Integration. Fängt den Drift, der bei blitzsicht
