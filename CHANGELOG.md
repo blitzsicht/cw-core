@@ -6,6 +6,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.27.0] — 2026-05-30 (release/cw-core)
+
+> Meta-Length-Linter in der ai-discovery-Integration. Fängt zu lange `<title>`-
+> und `<meta name="description">`-Werte, die Google in den SERPs truncated
+> (≈ 60 Zeichen Title, ≈ 160 Zeichen Description) → CTR-Verlust ohne sichtbares
+> Symptom im Code. Cluster-Audit blitzsicht 2026-05-30: 13/42 Titles und
+> 12/42 Descriptions zu lang.
+
+### Added
+
+- ai-discovery prüft im `astro:build:done`-Hook (nach Schema-Linter) für jede
+  `dist/**/index.html` die Längen von `<title>` und `<meta name="description">`.
+- Default-Schwellen: Title 60, Description 160. Beide konfigurierbar via
+  `AiDiscoveryOptions.maxTitleLength` und `maxDescriptionLength`.
+- Sekundär: warnt wenn `<title>` oder Description ganz fehlen.
+- Neue Option `AiDiscoveryOptions.strictMeta` (Default `false` = nur Warnung,
+  `true` = Build-Fail).
+- Whitespace-Normalisierung + HTML-Entity-Dekodierung für korrekte Längen-Messung.
+
+---
+
 ## [0.26.1] — 2026-05-30 (release/cw-core)
 
 > Bugfix zu v0.26.0: BaseLayout.astro reichte die neuen `slogan` + `numberOfEmployees`

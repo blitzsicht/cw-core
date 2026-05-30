@@ -90,6 +90,18 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * als doppelte Entität → unterdrückte/fragile Rich Results). Default nur Warnung.
    */
   strictSchema?: boolean;
+
+  /**
+   * Default false. Bei true → Build-Fail wenn Title oder Description die
+   * konfigurierten Maximal-Längen überschreiten oder fehlen. Default nur Warnung.
+   */
+  strictMeta?: boolean;
+
+  /** Maximal-Länge `<title>` in Zeichen. Default 60 (Google-SERP-Truncation). */
+  maxTitleLength?: number;
+
+  /** Maximal-Länge `<meta name="description">` in Zeichen. Default 160. */
+  maxDescriptionLength?: number;
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -144,6 +156,71 @@ function collectIds(obj: unknown, out: string[] = []): string[] {
     for (const item of graph) collectIds(item, out);
   }
   return out;
+}
+
+interface MetaIssue {
+  page: string;
+  type: 'title_missing' | 'title_too_long' | 'description_missing' | 'description_too_long';
+  detail: string;
+}
+
+/** Extrahiert den `<title>`-Text (whitespace-normalized). Leerer String wenn fehlend. */
+function extractTitle(html: string): string {
+  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  if (!m) return '';
+  return m[1].replace(/\s+/g, ' ').trim();
+}
+
+/** Extrahiert den Inhalt von `<meta name="description" content="...">`. Leer wenn fehlend. */
+function extractDescription(html: string): string {
+  const m = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["'][^>]*>/i);
+  if (!m) return '';
+  // Astro escapt manche Chars (&amp;, &#34; etc.) — für Längen-Check decodieren wir minimal.
+  return m[1]
+    .replace(/&amp;/g, '&')
+    .replace(/&#34;|&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Prüft Title/Description-Längen einer Page. */
+function lintPageMeta(
+  htmlPath: string,
+  distDir: string,
+  maxTitle: number,
+  maxDesc: number,
+): MetaIssue[] {
+  const issues: MetaIssue[] = [];
+  const pagePath = htmlPath.slice(distDir.length).replace(/\/index\.html$/, '/');
+  const page = pagePath.startsWith('/') ? pagePath : `/${pagePath}`;
+  const html = readFileSync(htmlPath, 'utf-8');
+
+  const title = extractTitle(html);
+  if (!title) {
+    issues.push({ page, type: 'title_missing', detail: '<title> fehlt oder leer.' });
+  } else if (title.length > maxTitle) {
+    issues.push({
+      page,
+      type: 'title_too_long',
+      detail: `<title> ${title.length} Zeichen > ${maxTitle} (Google truncated SERP-Title).`,
+    });
+  }
+
+  const desc = extractDescription(html);
+  if (!desc) {
+    issues.push({ page, type: 'description_missing', detail: '<meta name="description"> fehlt oder leer.' });
+  } else if (desc.length > maxDesc) {
+    issues.push({
+      page,
+      type: 'description_too_long',
+      detail: `<meta description> ${desc.length} Zeichen > ${maxDesc} (truncated in Google-SERPs).`,
+    });
+  }
+
+  return issues;
 }
 
 /** Prüft eine einzelne dist-HTML auf Schema-Probleme. */
@@ -489,6 +566,44 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           if (options.strictSchema) {
             throw new Error(
               `[ai-discovery] strictSchema=true: Build abgebrochen wegen ${allIssues.length} Schema-Issues.`,
+            );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Meta-Length-Linter: Title + Description Längen
+        // -------------------------------------------------------------------
+        // Hintergrund: Google truncated SERP-Title bei ~580px (≈ 50-60 Zeichen)
+        // und SERP-Description bei ~160 Zeichen. Längere Werte verlieren das
+        // Suffix in der Anzeige — CTR-Verlust ohne sichtbares Symptom im Code.
+        // Cluster-Audit blitzsicht 2026-05-30: 13/42 Titles > 60, 12/42 Desc > 160.
+        const maxTitle = options.maxTitleLength ?? 60;
+        const maxDesc = options.maxDescriptionLength ?? 160;
+        const metaIssues: MetaIssue[] = [];
+        for (const file of htmlFiles) {
+          metaIssues.push(...lintPageMeta(file, distDir, maxTitle, maxDesc));
+        }
+
+        if (metaIssues.length === 0) {
+          logger.info(`Meta-Linter: ✓ ${htmlFiles.length} Pages Title/Description in Length-Limit.`);
+        } else {
+          const titleLong = metaIssues.filter((i) => i.type === 'title_too_long').length;
+          const titleMiss = metaIssues.filter((i) => i.type === 'title_missing').length;
+          const descLong = metaIssues.filter((i) => i.type === 'description_too_long').length;
+          const descMiss = metaIssues.filter((i) => i.type === 'description_missing').length;
+          logger.warn(
+            `Meta-Linter: ${titleLong}× Title > ${maxTitle}, ${descLong}× Description > ${maxDesc}, ` +
+              `${titleMiss}× Title fehlt, ${descMiss}× Description fehlt:`,
+          );
+          for (const issue of metaIssues.slice(0, 30)) {
+            logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+          }
+          if (metaIssues.length > 30) {
+            logger.warn(`  … und ${metaIssues.length - 30} weitere.`);
+          }
+          if (options.strictMeta) {
+            throw new Error(
+              `[ai-discovery] strictMeta=true: Build abgebrochen wegen ${metaIssues.length} Meta-Length-Issues.`,
             );
           }
         }
