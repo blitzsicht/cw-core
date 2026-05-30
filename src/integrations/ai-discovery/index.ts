@@ -19,7 +19,7 @@
  *   });
  */
 
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { AstroIntegration } from 'astro';
@@ -83,6 +83,13 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * `siteData.url` auf verschiedene Domains zeigen. Default nur Warnung.
    */
   strictDomain?: boolean;
+
+  /**
+   * Default false. Bei true → Build-Fail (throw) wenn der Schema-Linter im
+   * dist/-Output doppelte JSON-LD-`@id`s findet (Google Rich Results meldet das
+   * als doppelte Entität → unterdrückte/fragile Rich Results). Default nur Warnung.
+   */
+  strictSchema?: boolean;
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -93,6 +100,94 @@ function normHost(u: string | undefined): string {
   } catch {
     return '';
   }
+}
+
+/** Rekursiv alle index.html unter dir sammeln. */
+function walkHtml(dir: string, results: string[] = []): string[] {
+  if (!existsSync(dir)) return results;
+  for (const entry of readdirSync(dir)) {
+    const full = join(dir, entry);
+    const stat = statSync(full);
+    if (stat.isDirectory()) {
+      walkHtml(full, results);
+    } else if (entry === 'index.html') {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+/** Extrahiert alle JSON-LD-Block-Inhalte aus einem HTML-String. */
+function extractJsonLd(html: string): string[] {
+  const blocks: string[] = [];
+  const re = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html)) !== null) {
+    blocks.push(m[1].trim());
+  }
+  return blocks;
+}
+
+interface SchemaIssue {
+  page: string;
+  type: 'duplicate_id' | 'missing_context' | 'missing_type' | 'invalid_json';
+  detail: string;
+}
+
+/** Sammelt alle @id-Strings aus einem parsed JSON-LD-Objekt (Top-Level + @graph). */
+function collectIds(obj: unknown, out: string[] = []): string[] {
+  if (!obj || typeof obj !== 'object') return out;
+  const o = obj as Record<string, unknown>;
+  if (typeof o['@id'] === 'string') out.push(o['@id']);
+  const graph = o['@graph'];
+  if (Array.isArray(graph)) {
+    for (const item of graph) collectIds(item, out);
+  }
+  return out;
+}
+
+/** Prüft eine einzelne dist-HTML auf Schema-Probleme. */
+function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
+  const issues: SchemaIssue[] = [];
+  const pagePath = htmlPath.slice(distDir.length).replace(/\/index\.html$/, '/');
+  const page = pagePath.startsWith('/') ? pagePath : `/${pagePath}`;
+  const html = readFileSync(htmlPath, 'utf-8');
+  const blocks = extractJsonLd(html);
+  if (blocks.length === 0) return issues;
+
+  const allIds: string[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(blocks[i]);
+    } catch {
+      issues.push({ page, type: 'invalid_json', detail: `JSON-LD-Block #${i + 1} ist kein gültiges JSON.` });
+      continue;
+    }
+    // Sekundär-Smoke-Checks: @context + @type
+    const root = parsed as Record<string, unknown>;
+    if (!root['@context'] && !Array.isArray(root['@graph'])) {
+      issues.push({ page, type: 'missing_context', detail: `JSON-LD-Block #${i + 1} hat kein @context.` });
+    }
+    if (!root['@type'] && !Array.isArray(root['@graph'])) {
+      issues.push({ page, type: 'missing_type', detail: `JSON-LD-Block #${i + 1} hat kein @type.` });
+    }
+    collectIds(parsed, allIds);
+  }
+
+  // Duplikat-Detektion (Kern-Check)
+  const counts = new Map<string, number>();
+  for (const id of allIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+  for (const [id, count] of counts) {
+    if (count > 1) {
+      issues.push({
+        page,
+        type: 'duplicate_id',
+        detail: `@id "${id}" kommt ${count}× vor — Google Rich Results meldet doppelte Entität.`,
+      });
+    }
+  }
+  return issues;
 }
 
 // ---------------------------------------------------------------------------
@@ -357,6 +452,46 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         const llmsFullTxt = generateLlmsFullTxt(data, services, faqs);
         writeFileSync(join(outDir, 'llms-full.txt'), llmsFullTxt, 'utf-8');
         logger.info(`  → ${join(outDir, 'llms-full.txt')}`);
+
+        // -------------------------------------------------------------------
+        // Schema-Linter: doppelte JSON-LD @id pro Page erkennen
+        // -------------------------------------------------------------------
+        // Hintergrund: cw-core SchemaOrg.astro emittiert ein Organization-Schema
+        // mit @id="${url}/#organization". Customer-Pages emittieren manchmal
+        // parallele Schema-Blöcke (Article isPartOf:Organization, eigene
+        // BranchesSchema-Komponenten, Inline-JSON-LD) — bei gleicher @id meldet
+        // Google Rich Results doppelte Entität → Rich Results werden unterdrückt.
+        //
+        // Cluster-Scan 2026-05-30: 2/9 Live-Sites (blitzsicht, baeckereizink)
+        // hatten 2× #organization. Linter fängt das beim Build.
+        const distDir = outDir.replace(/\/$/, '');
+        const htmlFiles = walkHtml(distDir);
+        const allIssues: SchemaIssue[] = [];
+        for (const file of htmlFiles) {
+          allIssues.push(...lintPageSchema(file, distDir));
+        }
+
+        const dupCount = allIssues.filter((i) => i.type === 'duplicate_id').length;
+        const otherCount = allIssues.length - dupCount;
+
+        if (allIssues.length === 0) {
+          logger.info(`Schema-Linter: ✓ ${htmlFiles.length} Pages clean.`);
+        } else {
+          logger.warn(
+            `Schema-Linter: ${dupCount}× doppelte @id, ${otherCount}× sonstige Issues über ${htmlFiles.length} Pages:`,
+          );
+          for (const issue of allIssues.slice(0, 20)) {
+            logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+          }
+          if (allIssues.length > 20) {
+            logger.warn(`  … und ${allIssues.length - 20} weitere.`);
+          }
+          if (options.strictSchema) {
+            throw new Error(
+              `[ai-discovery] strictSchema=true: Build abgebrochen wegen ${allIssues.length} Schema-Issues.`,
+            );
+          }
+        }
       },
     },
   };

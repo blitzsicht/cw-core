@@ -6,6 +6,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.25.0] — 2026-05-30 (release/cw-core)
+
+> Schema-Linter in der ai-discovery-Integration. Fängt den Drift, der bei blitzsicht
+> und zink-baeckerei auftrat: Customer-Pages emittieren parallel zu cw-core SchemaOrg
+> eigene JSON-LD-Blöcke mit identischer `@id` (z.B. `#organization`). Google Rich
+> Results meldet das als doppelte Entität → unterdrückte/fragile Rich Results.
+
+### Added
+
+- ai-discovery prüft im `astro:build:done`-Hook jede `dist/**/index.html` auf doppelte
+  JSON-LD-`@id`s (Top-Level + `@graph`). Bei Duplikat → Warnung (mit `strictSchema: true`
+  → Build-Fail).
+- Sekundär-Checks im selben Lauf: warnt bei JSON-LD-Blöcken ohne `@context` oder ohne
+  `@type` und bei kaputtem JSON (Validität-Smoke-Test).
+- Neue Option `AiDiscoveryOptions.strictSchema` (Default `false` = nur Warnung).
+
+### Why
+
+cw-core SchemaOrg.astro emittiert standardmäßig ein `Organization`-Schema mit
+`@id="${url}/#organization"`. Customer-Pages (Inline-JSON-LD im index.astro,
+eigene BranchesSchema-Komponenten etc.) emittieren manchmal parallel Schemas mit
+derselben `@id` — niemand prüfte das. Cluster-Scan 2026-05-30 ergab 2/9 Live-Sites
+betroffen (blitzsicht, baeckereizink). Linter greift zero-config bei allen Customern.
+
+---
+
 ## [0.24.0] — 2026-05-29 (release/cw-core)
 
 > Domain-Guard in der ai-discovery-Integration. Fängt den Drift, der bei zink-baeckerei
