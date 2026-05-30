@@ -6,6 +6,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.26.1] — 2026-05-30 (release/cw-core)
+
+> Bugfix zu v0.26.0: BaseLayout.astro reichte die neuen `slogan` + `numberOfEmployees`
+> Props nicht an SchemaOrg durch (in v0.26.0 nur am SchemaOrg-Type, nicht im Pass-through).
+
+### Fixed
+
+- `SchemaProps.slogan` + `SchemaProps.numberOfEmployees` jetzt korrekt von BaseLayout an
+  SchemaOrg.astro weitergereicht (vorher: in Type da, aber im JSX-Block fehlten die Lines).
+
+---
+
 ## [0.26.0] — 2026-05-30 (release/cw-core)
 
 > SchemaOrg.astro um `slogan` + `numberOfEmployees` erweitert. Schließt die Lücke,
