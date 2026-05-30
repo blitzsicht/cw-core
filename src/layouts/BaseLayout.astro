@@ -59,6 +59,8 @@ export interface SchemaProps {
   openingHours?: string[] | readonly string[];
   geo?: { latitude: number; longitude: number };
   foundingDate?: string;
+  slogan?: string;
+  numberOfEmployees?: number | string;
   additionalTypes?: string[] | readonly string[];
   employees?: Array<{ name: string; role?: string; title?: string; phone?: string; email?: string; credentials?: string[] | readonly string[] }> | readonly Array<{ name: string; role?: string; title?: string; phone?: string; email?: string; credentials?: string[] | readonly string[] }>;
   services?: Array<{ label: string; shortDesc?: string; href: string }> | readonly Array<{ label: string; shortDesc?: string; href: string }>;
@@ -270,6 +272,8 @@ const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
         openingHours={schema.openingHours}
         geo={schema.geo}
         foundingDate={schema.foundingDate}
+        slogan={schema.slogan}
+        numberOfEmployees={schema.numberOfEmployees}
         additionalTypes={schema.additionalTypes}
         employees={schema.employees}
         services={schema.services}
