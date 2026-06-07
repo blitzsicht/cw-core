@@ -35,8 +35,9 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # Version stammt aus package.json `packageManager`-Feld (pnpm@10.0.0).
+        # Doppelte `with: version:`-Definition löst seit action-setup@v4
+        # ERR_PNPM_BAD_PM_VERSION aus (siehe siluri/blitzsicht-ops#246).
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -70,8 +71,9 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 10
+        # Version stammt aus package.json `packageManager`-Feld (pnpm@10.0.0).
+        # Doppelte `with: version:`-Definition löst seit action-setup@v4
+        # ERR_PNPM_BAD_PM_VERSION aus (siehe siluri/blitzsicht-ops#246).
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
