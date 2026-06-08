@@ -31,6 +31,34 @@ Bei jedem Code-Vorschlag, der in einem Customer-Repo eine eigene Komponente, ein
 - `templates/` — Starter-Templates für `@cw/cli`
 - `scripts/` — Build-/Sync-Helfer
 
+## Brand-Name-Konvention (SSOT — NIEMALS als Literal)
+
+**`siteData.name` ist die einzige Wahrheitsquelle für den Markennamen.**
+
+Alle anderen Felder (description, tagline, FAQs, Leistungen, robots.txt, llms.txt)
+müssen **generisch** formuliert sein — kein Literal-Duplikat des Markennamens.
+
+**Falsch:**
+```ts
+description: 'Mika Elektrotechnik ist Ihr Elektrofachbetrieb in München.'
+```
+
+**Richtig:**
+```ts
+name: 'Mika Elektrotechnik',
+description: 'Ihr Elektrofachbetrieb in München für Privat- und Gewerbekunden.'
+```
+
+**Warum:** Bei einer Umbenennung muss nur `siteData.name` geändert werden.
+Literal-Duplikate führen zu teuren Multi-File-Aktionen (Vorfall 2026-06-08:
+~30 Literale in 13 Dateien bei customer-mika-elektrotechnik).
+
+**Build-time-Guard:** Die ai-discovery-Integration prüft automatisch beim Build
+alle Prosa-Felder + `dist/robots.txt` auf Literal-Duplikate und loggt Warnungen.
+Option `strictBrandName: true` macht daraus einen Build-Fail.
+
+Vollständige Konvention: `docs/brand-name-convention.md`.
+
 ## Häufige Gotchas
 - Bei Update: alle 11 Customer-Sites kurz `pnpm build` testen, sonst Drift
 - Tailwind v4 ist breaking gegenüber v3 — keine v3-Klassen verwenden

@@ -6,6 +6,34 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.28.0] — 2026-06-08 (release/cw-core)
+
+> Brand-Name-Literal-Guard in der ai-discovery-Integration. Verhindert, dass
+> triviale Umbenennungen zur teuren Multi-File-Aktion werden. Auslöser:
+> customer-mika-elektrotechnik hatte ~30 Literal-Duplikate in 13 Dateien
+> (blitzsicht-ops#316).
+
+### Added
+
+- ai-discovery prüft in `astro:config:done` alle Prosa-Felder in `siteData`
+  (description, tagline, FAQs, Leistungen) auf Literal-Duplikate des Brand-Namens
+  (`siteData.name`). Loggt Warnungen mit Feld-Pfad + Vorkommen-Count.
+- ai-discovery prüft in `astro:build:done` die generierte `dist/robots.txt`
+  auf Brand-Name-Literale (robots.txt braucht den Namen nie).
+- Neue Option `AiDiscoveryOptions.strictBrandName` (Default `false` = Warnung,
+  `true` = Build-Fail).
+- Neue exportierte Funktionen `lintBrandNameInSiteData()` und
+  `lintBrandNameInRobotsTxt()` für Unit-Tests und CI-Skripte.
+- `docs/brand-name-convention.md` — vollständige Konvention mit Beispielen,
+  Cluster-Scan-Befehl und Rollout-Plan.
+- 11 Logik-Tests in `tests/ai-discovery/brand-name-linter.test.js`.
+
+### Added (CLAUDE.md)
+
+- Brand-Name-Konvention als eigenen Abschnitt in CLAUDE.md dokumentiert.
+
+---
+
 ## [0.27.0] — 2026-05-30 (release/cw-core)
 
 > Meta-Length-Linter in der ai-discovery-Integration. Fängt zu lange `<title>`-
