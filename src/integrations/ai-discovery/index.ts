@@ -102,6 +102,21 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
 
   /** Maximal-Länge `<meta name="description">` in Zeichen. Default 160. */
   maxDescriptionLength?: number;
+
+  /**
+   * Default false. Bei true → Build-Fail wenn der Brand-Name-Linter hartkodierte
+   * Marken-Literale in siteData-Prosa-Feldern (description, tagline, FAQs,
+   * Leistungen) oder in statischen Assets (robots.txt) findet.
+   *
+   * Hintergrund: Der Markenname gehört ausschließlich in `siteData.name`. Alle
+   * anderen Textfelder sollen generisch formuliert sein (kein "Mika Elektrotechnik
+   * ist Ihr …" — stattdessen "Ihr Elektrofachbetrieb in …"). Das verhindert, dass
+   * eine triviale Umbenennung zur teuren Multi-File-Aktion wird.
+   *
+   * Default false = Warnung im Build-Log, kein Fail. Aktiviere auf `true` sobald
+   * alle Customer-Sites bereinigt sind.
+   */
+  strictBrandName?: boolean;
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -162,6 +177,135 @@ interface MetaIssue {
   page: string;
   type: 'title_missing' | 'title_too_long' | 'description_missing' | 'description_too_long';
   detail: string;
+}
+
+// ---------------------------------------------------------------------------
+// Brand-Name-Literal-Guard types + logic
+// ---------------------------------------------------------------------------
+// Hintergrund: Der Markenname soll ausschließlich in siteData.name stehen.
+// Alle Prosa-Felder (description, tagline, FAQs, Leistungen, robots.txt)
+// sollen generisch formuliert sein — keine Literal-Duplikate. Sonst wird
+// eine triviale Umbenennung zur teuren Multi-File-Aktion (Vorfall 2026-06-08:
+// customer-mika-elektrotechnik, ~30 Literale in 13 Dateien).
+// Cluster-Risiko: potenziell alle 11 Customer-Sites betroffen.
+
+export interface BrandNameIssue {
+  /** Identifikator: siteData-Feldname oder Datei-Pfad (z. B. "dist/robots.txt"). */
+  location: string;
+  type: 'prose_literal' | 'static_asset_literal';
+  /** Anzahl der gefundenen Vorkommen. */
+  count: number;
+  detail: string;
+}
+
+/**
+ * Prüft alle Prosa-Felder in siteData auf hartkodierte Marken-Literale.
+ *
+ * Betrifft: description, tagline, FAQs (q + a), Leistungen (title + description).
+ * Nicht betrifft: siteData.name selbst (das IST die SSOT), URL, Kontaktdaten.
+ *
+ * @param data  - Das vollständige siteData-Objekt.
+ * @param brandName - Der Markenname aus siteData.name.
+ * @returns Array von BrandNameIssues (leer = alles OK).
+ */
+export function lintBrandNameInSiteData(
+  data: AiDiscoverySiteData,
+  brandName: string,
+): BrandNameIssue[] {
+  if (!brandName || brandName.trim().length < 2) return [];
+
+  const issues: BrandNameIssue[] = [];
+  // Groß-/Kleinschreibung ignorieren für Robustheit (z. B. "mika elektrotechnik" == "Mika Elektrotechnik").
+  const needle = brandName.trim().toLowerCase();
+
+  function countOccurrences(text: string): number {
+    if (!text) return 0;
+    let n = 0;
+    let pos = 0;
+    const lower = text.toLowerCase();
+    while ((pos = lower.indexOf(needle, pos)) !== -1) {
+      n++;
+      pos += needle.length;
+    }
+    return n;
+  }
+
+  function check(fieldPath: string, text: string | undefined): void {
+    if (!text) return;
+    const n = countOccurrences(text);
+    if (n > 0) {
+      issues.push({
+        location: fieldPath,
+        type: 'prose_literal',
+        count: n,
+        detail:
+          `"${brandName}" kommt ${n}× als Literal in ${fieldPath} vor. ` +
+          `Prosa-Felder sollen generisch formuliert sein — der Markenname ` +
+          `gehört nur in siteData.name (SSOT). ` +
+          `Umbenennung: nur siteData.name ändern, fertig.`,
+      });
+    }
+  }
+
+  check('siteData.description', data.description);
+  check('siteData.tagline', data.tagline);
+
+  if (data.faqs) {
+    data.faqs.forEach((faq, i) => {
+      check(`siteData.faqs[${i}].q`, faq.q);
+      check(`siteData.faqs[${i}].a`, faq.a);
+    });
+  }
+
+  if (data.leistungen) {
+    data.leistungen.forEach((svc, i) => {
+      check(`siteData.leistungen[${i}].title`, svc.title);
+      check(`siteData.leistungen[${i}].description`, svc.description);
+    });
+  }
+
+  return issues;
+}
+
+/**
+ * Prüft `dist/robots.txt` auf hartkodierte Marken-Literale.
+ * robots.txt braucht den Markennamen nie — Crawl-Direktiven sind domänenbasiert.
+ * Wenn er trotzdem drin ist, wurde die Datei manuell angelegt statt generiert.
+ *
+ * @param distDir  - Absoluter Pfad zum dist-Verzeichnis (ohne trailing slash).
+ * @param brandName - Der Markenname aus siteData.name.
+ * @returns Array von BrandNameIssues (leer = alles OK).
+ */
+export function lintBrandNameInRobotsTxt(distDir: string, brandName: string): BrandNameIssue[] {
+  if (!brandName || brandName.trim().length < 2) return [];
+
+  const robotsPath = join(distDir, 'robots.txt');
+  if (!existsSync(robotsPath)) return [];
+
+  const content = readFileSync(robotsPath, 'utf-8');
+  const needle = brandName.trim().toLowerCase();
+  const lowerContent = content.toLowerCase();
+
+  let count = 0;
+  let pos = 0;
+  while ((pos = lowerContent.indexOf(needle, pos)) !== -1) {
+    count++;
+    pos += needle.length;
+  }
+
+  if (count === 0) return [];
+
+  return [
+    {
+      location: 'dist/robots.txt',
+      type: 'static_asset_literal',
+      count,
+      detail:
+        `"${brandName}" kommt ${count}× in robots.txt vor. ` +
+        `robots.txt braucht den Markennamen nicht — Crawl-Direktiven sind domänenbasiert. ` +
+        `Entferne das Literal. Wenn ein Sitemap-Verweis gewünscht ist, nutze nur die URL (kein Brand-Name).`,
+    },
+  ];
 }
 
 /** Extrahiert den `<title>`-Text (whitespace-normalized). Leerer String wenn fehlend. */
@@ -504,6 +648,37 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             );
           }
         }
+
+        // -------------------------------------------------------------------
+        // Brand-Name-Literal-Guard: Prosa-Felder in siteData
+        // -------------------------------------------------------------------
+        // Auslöser: customer-mika-elektrotechnik hatte ~30 Literal-Duplikate
+        // in 13 Dateien. Triviale Umbenennung wurde zur teuren Multi-File-Aktion.
+        // Cluster-Risiko: potenziell alle 11 Customer-Sites betroffen (Issue #316).
+        //
+        // Konvention: siteData.name ist SSOT für den Markennamen. Alle anderen
+        // Felder (description, tagline, FAQs, Leistungen) müssen generisch
+        // formuliert sein — kein Literal-Duplikat des Markennamens.
+        const brandIssuesSiteData = lintBrandNameInSiteData(data, data.name);
+        if (brandIssuesSiteData.length > 0) {
+          const literalCount = brandIssuesSiteData.reduce((s, i) => s + i.count, 0);
+          logger.warn(
+            `Brand-Name-Linter: "${data.name}" kommt ${literalCount}× als Literal in ` +
+            `${brandIssuesSiteData.length} siteData-Prosa-Feld(ern) vor. ` +
+            `Convention: nur siteData.name, generische Formulierung in allen anderen Feldern. ` +
+            `Siehe docs/brand-name-convention.md`,
+          );
+          for (const issue of brandIssuesSiteData) {
+            logger.warn(`  [brand-name] ${issue.location}: ${issue.count}× — ${issue.detail.split('.')[0]}.`);
+          }
+          if (options.strictBrandName) {
+            throw new Error(
+              `[ai-discovery] strictBrandName=true: Build abgebrochen wegen ${literalCount} Brand-Name-Literalen in siteData.`,
+            );
+          }
+        } else {
+          logger.info(`Brand-Name-Linter (siteData): ✓ Keine Literal-Duplikate in Prosa-Feldern.`);
+        }
       },
 
       'astro:build:done': async ({ dir, logger }) => {
@@ -606,6 +781,26 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               `[ai-discovery] strictMeta=true: Build abgebrochen wegen ${metaIssues.length} Meta-Length-Issues.`,
             );
           }
+        }
+
+        // -------------------------------------------------------------------
+        // Brand-Name-Literal-Guard: Statische Assets (robots.txt)
+        // -------------------------------------------------------------------
+        // robots.txt braucht den Markennamen nie. Wenn er trotzdem drin ist,
+        // wurde die Datei manuell angelegt statt generiert/bereinigt.
+        const brandIssuesAssets = lintBrandNameInRobotsTxt(distDir, data.name);
+        if (brandIssuesAssets.length > 0) {
+          for (const issue of brandIssuesAssets) {
+            logger.warn(`Brand-Name-Linter: ${issue.location}: ${issue.count}× Literal — ${issue.detail.split('.')[0]}.`);
+          }
+          if (options.strictBrandName) {
+            const total = brandIssuesAssets.reduce((s, i) => s + i.count, 0);
+            throw new Error(
+              `[ai-discovery] strictBrandName=true: Build abgebrochen wegen ${total} Brand-Name-Literalen in statischen Assets.`,
+            );
+          }
+        } else {
+          logger.info(`Brand-Name-Linter (assets): ✓ robots.txt ohne Marken-Literal.`);
         }
       },
     },
