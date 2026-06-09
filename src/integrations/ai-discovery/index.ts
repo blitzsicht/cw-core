@@ -23,6 +23,7 @@ import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync, existsSy
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { AstroIntegration } from 'astro';
+import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.ts';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -117,6 +118,18 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * alle Customer-Sites bereinigt sind.
    */
   strictBrandName?: boolean;
+
+  /**
+   * Default true. Prüft die `vercel.json` auf CSP-Drift: fehlende `*-elem`-
+   * Direktiven, fehlendes `media-src`, Analytics-Host nicht in
+   * `script-src-elem`/`connect-src`, Smart-Quotes. Verhindert die Wiederholung
+   * des DD-CSP-Mystery (Symptom: `style-src-elem 'self'` blockt eigene Assets).
+   */
+  checkCsp?: boolean;
+  /** Bei true → Build-Fail (throw) bei CSP-Drift. Default false (Soft-Warn). */
+  strictCsp?: boolean;
+  /** Analytics-Host für die CSP-Konsistenz-Prüfung. Default 'plausible.io'; null = aus. */
+  analyticsHost?: string | null;
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -801,6 +814,45 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           }
         } else {
           logger.info(`Brand-Name-Linter (assets): ✓ robots.txt ohne Marken-Literal.`);
+        }
+
+        // -------------------------------------------------------------------
+        // CSP-Drift-Linter: vercel.json (nicht dist/HTML)
+        // -------------------------------------------------------------------
+        // Hintergrund: DD-CSP-Mystery (11.–12.05.2026). Das damalige Symptom
+        // ("style-src-elem 'self'" blockt eigene /_astro/*.css) war ein
+        // gecachter alter CSP-Stand im Browser — der echte WIEDERHOLBARE Bug
+        // ist CSP-Drift: 8/11 Customer-Repos hatten zeitweise unvollständige
+        // CSPs (fehlende -elem-Direktiven, media-src, plausible.io in
+        // script-src-elem/connect-src) oder Smart-Quotes. Wurde nie als Guard
+        // codifiziert → jetzt hier (siehe csp-check.ts). Soft-Warn per Default.
+        if (options.checkCsp !== false) {
+          const analyticsHost =
+            options.analyticsHost === undefined ? 'plausible.io' : options.analyticsHost;
+          const vercelPath = [join(process.cwd(), 'vercel.json'), join(distDir, '..', 'vercel.json')].find(
+            (p) => existsSync(p),
+          );
+          if (!vercelPath) {
+            logger.info('CSP-Linter: keine vercel.json gefunden — Skip.');
+          } else {
+            const cspValues = extractCspValuesFromVercelJson(readFileSync(vercelPath, 'utf-8'));
+            const cspIssues = cspValues.flatMap((csp) => checkCspCompleteness(csp, { analyticsHost }));
+            if (cspIssues.length === 0) {
+              logger.info(`CSP-Linter: ✓ vercel.json CSP vollständig (${cspValues.length} Header geprüft).`);
+            } else {
+              logger.warn(
+                `CSP-Linter: ${cspIssues.length} CSP-Drift-Issue(s) in ${vercelPath} (verhindert DD-CSP-Mystery-Wiederholung):`,
+              );
+              for (const ci of cspIssues) {
+                logger.warn(`  [${ci.type}] ${ci.details}`);
+              }
+              if (options.strictCsp) {
+                throw new Error(
+                  `[ai-discovery] strictCsp=true: Build abgebrochen wegen ${cspIssues.length} CSP-Drift-Issue(s).`,
+                );
+              }
+            }
+          }
         }
       },
     },
