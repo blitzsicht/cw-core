@@ -836,7 +836,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             logger.info('CSP-Linter: keine vercel.json gefunden — Skip.');
           } else {
             const cspValues = extractCspValuesFromVercelJson(readFileSync(vercelPath, 'utf-8'));
-            const cspIssues = cspValues.flatMap((csp) => checkCspCompleteness(csp, { analyticsHost }));
+            const cspIssues = cspValues.flatMap((csp) =>
+              checkCspCompleteness(csp, { analyticsHost, siteOrigin: data.url }),
+            );
             if (cspIssues.length === 0) {
               logger.info(`CSP-Linter: ✓ vercel.json CSP vollständig (${cspValues.length} Header geprüft).`);
             } else {

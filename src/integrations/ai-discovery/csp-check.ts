@@ -27,7 +27,8 @@ export type CspIssueType =
   | 'missing_media_src'
   | 'elem_narrower_than_base'
   | 'plausible_missing_script_elem'
-  | 'plausible_missing_connect';
+  | 'plausible_missing_connect'
+  | 'self_without_origin';
 
 export interface CspIssue {
   type: CspIssueType;
@@ -95,6 +96,16 @@ export interface CspCheckOptions {
    * CSP referenziert ist. Default: 'plausible.io'. `null` → Analytics-Check aus.
    */
   analyticsHost?: string | null;
+  /**
+   * Eigene Site-Domain (z. B. 'https://donau-profi.de' oder 'donau-profi.de').
+   * Wenn gesetzt: prüft, dass jede `'self'`-Source-Direktive ZUSÄTZLICH den
+   * expliziten Origin enthält. Hintergrund: `'self'` ALLEIN matcht same-origin
+   * Assets in Chrome/Edge/Safari auf cw-core/Astro/Vercel-Static-Sites NICHT
+   * zuverlässig (per Bisection bewiesen 12.05. + 09.06.2026) → CSS/JS/Analytics
+   * geblockt, Seite ungestyled. Fix: expliziter Origin neben `'self'`.
+   * `null`/`undefined` → Check aus.
+   */
+  siteOrigin?: string | null;
 }
 
 /**
@@ -103,7 +114,7 @@ export interface CspCheckOptions {
  * (Skip-Verantwortung liegt beim Aufrufer).
  */
 export function checkCspCompleteness(csp: string, opts: CspCheckOptions = {}): CspIssue[] {
-  const { analyticsHost = 'plausible.io' } = opts;
+  const { analyticsHost = 'plausible.io', siteOrigin = null } = opts;
   const issues: CspIssue[] = [];
   if (!csp || !csp.trim()) return issues;
 
@@ -175,6 +186,34 @@ export function checkCspCompleteness(csp: string, opts: CspCheckOptions = {}): C
         type: 'plausible_missing_connect',
         details: `${analyticsHost} referenziert, fehlt aber in connect-src — Analytics-Events (fetch/beacon) werden geblockt.`,
       });
+    }
+  }
+
+  // 7. 'self'-Pragma — der teuerste cw-core-CSP-Bug (2× je mehrere Stunden
+  //    Phantom-Debugging). `'self'` ALLEIN matcht same-origin Assets in
+  //    Chrome/Edge/Safari auf Astro/Vercel-Static-Sites NICHT zuverlässig →
+  //    CSS/JS/Analytics geblockt, Seite ungestyled. Browser- und curl-Header
+  //    divergieren (curl sieht 'self' korrekt). Fix: expliziter Origin neben
+  //    'self'. Per Bisection bewiesen (Template hat ihn, gedriftete Customer
+  //    nicht). Siehe docs/CSP-rationale.md.
+  if (siteOrigin) {
+    const host = siteOrigin.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+    if (host) {
+      const SELF_DIRECTIVES = [
+        'default-src', 'script-src', 'script-src-elem',
+        'style-src', 'style-src-elem', 'font-src', 'connect-src',
+      ];
+      const offenders = SELF_DIRECTIVES.filter((d) => {
+        const sources = map.get(d);
+        if (!sources || !sources.includes("'self'")) return false;
+        return !sources.some((s) => s.includes(host));
+      });
+      if (offenders.length > 0) {
+        issues.push({
+          type: 'self_without_origin',
+          details: `'self' ohne expliziten Origin in: ${offenders.join(', ')}. 'self' allein bricht same-origin Assets in Chrome/Edge/Safari auf Astro/Vercel — füge https://${host} neben 'self' ein.`,
+        });
+      }
     }
   }
 

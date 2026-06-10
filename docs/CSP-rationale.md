@@ -131,3 +131,9 @@ Beide Hypothesen werden durch das Pragma umgangen. Sicherheitstechnisch ist `'se
 - **Neue Customer-Sites:** `templates/vercel.template.json` enthält `{{DOMAIN}}`-Placeholder, der via `@cw/cli` oder manuell durch echten Origin ersetzt wird.
 - **Bestehende Customer-Sites:** vercel.json einzeln patchen (siehe `/Users/johannesgottl/.claude-blitzsicht/plans/image-1-erneut-csp-atomic-sutton.md` Track 4-Liste, 7 Sites betroffen).
 - **CSP-Test-Protokoll:** siehe `CLAUDE.md` für Pflicht-Smoke-Test vor Release.
+
+### Aktiver Guard (seit cw-core v0.30.0)
+
+Diese Doku allein hat die Wiederholung **nicht** verhindert: Am **2026-06-09** ging donau-profi.de mit nur-`'self'`-CSP live (mit altem Template generiert, Doku übersehen) → erneut stundenlanges Phantom-Debugging (Cache-/Toolbar-/Extension-Hypothesen), bis die alte Memory + Bisection den Fix lieferten.
+
+Konsequenz: Der Pragma-Fix ist jetzt ein **Build-time-Guard** statt nur Doku. `ai-discovery/csp-check.ts` prüft via `siteOrigin` (aus `siteData.url`) jede `'self'`-Source-Direktive auf den expliziten Origin und warnt im `astro:build:done`-Hook (Issue-Typ `self_without_origin`). Passive Konvention → aktiver Test, der sich beim Build meldet. **Lehre:** Recurring Bugs gehören als Guard codifiziert, nicht nur dokumentiert (#1-Regel des customer-websites-Repos).

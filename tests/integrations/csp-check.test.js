@@ -135,3 +135,38 @@ test('11. extractCspValuesFromVercelJson: unparsebar/keine Header → []', () =>
   assert.deepEqual(extractCspValuesFromVercelJson('{}'), []);
   assert.deepEqual(extractCspValuesFromVercelJson(JSON.stringify({ headers: [] })), []);
 });
+
+// Pragma-Variante: 'self' MIT explizitem Origin (der erprobte Fix).
+const PRAGMA_CSP =
+  "default-src 'self' https://donau-profi.de; " +
+  "script-src 'self' https://donau-profi.de 'unsafe-inline' https://plausible.io; " +
+  "style-src 'self' https://donau-profi.de 'unsafe-inline'; img-src 'self' https://donau-profi.de data: https:; " +
+  "font-src 'self' https://donau-profi.de; connect-src 'self' https://donau-profi.de https://plausible.io; " +
+  "frame-ancestors 'none'; " +
+  "script-src-elem 'self' https://donau-profi.de 'unsafe-inline' https://plausible.io; " +
+  "style-src-elem 'self' https://donau-profi.de 'unsafe-inline'; media-src 'self' https://donau-profi.de";
+
+test("12. siteOrigin gesetzt + nur 'self' (kein expliziter Origin) → self_without_origin", () => {
+  // GOOD_CSP hat überall nur 'self' ohne Domain — der teure cw-core-Bug.
+  const issues = checkCspCompleteness(GOOD_CSP, { siteOrigin: 'https://donau-profi.de' });
+  const issue = issues.find((i) => i.type === 'self_without_origin');
+  assert.ok(issue, 'self_without_origin nicht erkannt');
+  // Nennt die betroffenen Direktiven.
+  assert.ok(issue.details.includes('script-src-elem'), `Detail nennt keine Direktive: ${issue.details}`);
+  assert.ok(issue.details.includes('https://donau-profi.de'), 'Detail nennt nicht den nötigen Origin');
+});
+
+test("13. siteOrigin gesetzt + Pragma-CSP ('self' https://domain) → kein self_without_origin", () => {
+  const issues = checkCspCompleteness(PRAGMA_CSP, { siteOrigin: 'https://donau-profi.de' });
+  assert.ok(!types(issues).includes('self_without_origin'), `unerwartet: ${JSON.stringify(types(issues))}`);
+});
+
+test('14. siteOrigin ohne Schema (nur Host) wird normalisiert', () => {
+  const issues = checkCspCompleteness(PRAGMA_CSP, { siteOrigin: 'donau-profi.de' });
+  assert.ok(!types(issues).includes('self_without_origin'));
+});
+
+test('15. siteOrigin nicht gesetzt → self_without_origin-Check ist aus (Default)', () => {
+  const issues = checkCspCompleteness(GOOD_CSP); // kein siteOrigin
+  assert.ok(!types(issues).includes('self_without_origin'));
+});
