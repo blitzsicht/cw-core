@@ -22,13 +22,14 @@ import {
   extractCspValuesFromVercelJson,
 } from '../../src/integrations/ai-discovery/csp-check.ts';
 
-// Die echte, live-verifizierte donau-profi.de CSP (vollständig, byte-rein).
+// Vollständige, gehärtete CSP (mit object-src/base-uri — sonst feuern die neuen Checks).
 const GOOD_CSP =
   "default-src 'self'; script-src 'self' 'unsafe-inline' https://plausible.io; " +
   "style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; " +
   "connect-src 'self' https://plausible.io; frame-ancestors 'none'; " +
   "script-src-elem 'self' 'unsafe-inline' https://plausible.io; " +
-  "style-src-elem 'self' 'unsafe-inline'; media-src 'self'";
+  "style-src-elem 'self' 'unsafe-inline'; media-src 'self'; " +
+  "object-src 'none'; base-uri 'self'";
 
 const types = (issues) => issues.map((i) => i.type);
 
@@ -144,7 +145,8 @@ const PRAGMA_CSP =
   "font-src 'self' https://donau-profi.de; connect-src 'self' https://donau-profi.de https://plausible.io; " +
   "frame-ancestors 'none'; " +
   "script-src-elem 'self' https://donau-profi.de 'unsafe-inline' https://plausible.io; " +
-  "style-src-elem 'self' https://donau-profi.de 'unsafe-inline'; media-src 'self' https://donau-profi.de";
+  "style-src-elem 'self' https://donau-profi.de 'unsafe-inline'; media-src 'self' https://donau-profi.de; " +
+  "object-src 'none'; base-uri 'self'";
 
 test("12. siteOrigin gesetzt + nur 'self' (kein expliziter Origin) → self_without_origin", () => {
   // GOOD_CSP hat überall nur 'self' ohne Domain — der teure cw-core-Bug.
@@ -169,4 +171,37 @@ test('14. siteOrigin ohne Schema (nur Host) wird normalisiert', () => {
 test('15. siteOrigin nicht gesetzt → self_without_origin-Check ist aus (Default)', () => {
   const issues = checkCspCompleteness(GOOD_CSP); // kein siteOrigin
   assert.ok(!types(issues).includes('self_without_origin'));
+});
+
+test("16. 'unsafe-eval' in script-src → unsafe_eval", () => {
+  const csp = GOOD_CSP.replace("script-src 'self'", "script-src 'self' 'unsafe-eval'");
+  assert.ok(types(checkCspCompleteness(csp)).includes('unsafe_eval'));
+});
+
+test('17. Wildcard (*) in script-src-elem → script_src_wildcard', () => {
+  const csp = GOOD_CSP.replace("script-src-elem 'self' 'unsafe-inline' https://plausible.io", 'script-src-elem *');
+  assert.ok(types(checkCspCompleteness(csp)).includes('script_src_wildcard'));
+});
+
+test('18. fehlendes object-src + base-uri → missing_object_src + missing_base_uri', () => {
+  const csp = "default-src 'self'; script-src 'self'; script-src-elem 'self'; style-src 'self'; style-src-elem 'self'; media-src 'self'";
+  const t = types(checkCspCompleteness(csp));
+  assert.ok(t.includes('missing_object_src'), 'object-src-Lücke nicht erkannt');
+  assert.ok(t.includes('missing_base_uri'), 'base-uri-Lücke nicht erkannt');
+});
+
+test("19. Substring-Falle: siteOrigin 'profi.de' matcht NICHT 'donau-profi.de' (C-1-Fix)", () => {
+  // PRAGMA_CSP hat https://donau-profi.de. siteOrigin 'profi.de' darf NICHT als erfüllt gelten.
+  const issues = checkCspCompleteness(PRAGMA_CSP, { siteOrigin: 'profi.de' });
+  assert.ok(types(issues).includes('self_without_origin'), 'Substring profi.de wurde fälschlich als Match gewertet');
+});
+
+test('20. www-Origin wird normalisiert (www.donau-profi.de ≡ donau-profi.de)', () => {
+  const issues = checkCspCompleteness(PRAGMA_CSP, { siteOrigin: 'https://www.donau-profi.de' });
+  assert.ok(!types(issues).includes('self_without_origin'), `www nicht normalisiert: ${JSON.stringify(types(issues))}`);
+});
+
+test('21. parseCsp: bei doppelter Direktive gilt die erste (Spec)', () => {
+  const map = parseCsp("script-src 'self' https://a.de; script-src 'unsafe-inline'");
+  assert.deepEqual(map.get('script-src'), ["'self'", 'https://a.de']);
 });

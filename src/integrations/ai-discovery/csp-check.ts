@@ -28,7 +28,11 @@ export type CspIssueType =
   | 'elem_narrower_than_base'
   | 'plausible_missing_script_elem'
   | 'plausible_missing_connect'
-  | 'self_without_origin';
+  | 'self_without_origin'
+  | 'unsafe_eval'
+  | 'script_src_wildcard'
+  | 'missing_object_src'
+  | 'missing_base_uri';
 
 export interface CspIssue {
   type: CspIssueType;
@@ -47,7 +51,8 @@ export function parseCsp(csp: string): Map<string, string[]> {
     const tokens = trimmed.split(/\s+/);
     const directive = tokens[0].toLowerCase();
     if (!directive) continue;
-    map.set(directive, tokens.slice(1));
+    // CSP-Spec: bei doppelter Direktive gilt die ERSTE (Browser-Verhalten).
+    if (!map.has(directive)) map.set(directive, tokens.slice(1));
   }
   return map;
 }
@@ -85,9 +90,23 @@ function missingSources(base: string[], elem: string[]): string[] {
   return base.filter((s) => !have.has(s));
 }
 
-/** Enthält irgendeine Quelle den Host `needle` (z. B. "plausible.io")? */
+/**
+ * Normalisiert einen CSP-Source-Token ODER einen Origin auf den reinen Host:
+ * ohne `https?://`-Schema, ohne Pfad, ohne führendes `www.`, lowercase.
+ * `'self'`/`'unsafe-inline'`/`data:` → unverändert (matchen keinen Host).
+ */
+export function tokenHost(token: string): string {
+  return token
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/^www\./, '')
+    .toLowerCase();
+}
+
+/** Enthält eine der Quellen EXAKT den Host `needle` (host-genau, kein Substring → kein `profi.de`⊂`donau-profi.de`-Bug)? */
 function sourcesIncludeHost(sources: string[] | undefined, needle: string): boolean {
-  return !!sources && sources.some((s) => s.includes(needle));
+  const want = tokenHost(needle);
+  return !!sources && sources.some((s) => tokenHost(s) === want);
 }
 
 export interface CspCheckOptions {
@@ -173,7 +192,8 @@ export function checkCspCompleteness(csp: string, opts: CspCheckOptions = {}): C
 
   // 6. Analytics-Konsistenz: wenn der Host irgendwo in der CSP steht, muss er
   //    in der effektiven script-Element-Direktive UND in connect-src stehen.
-  if (analyticsHost && csp.includes(analyticsHost)) {
+  const allSources = [...map.values()].flat();
+  if (analyticsHost && sourcesIncludeHost(allSources, analyticsHost)) {
     const effectiveScriptElem = map.get('script-src-elem') ?? map.get('script-src');
     if (!sourcesIncludeHost(effectiveScriptElem, analyticsHost)) {
       issues.push({
@@ -197,7 +217,7 @@ export function checkCspCompleteness(csp: string, opts: CspCheckOptions = {}): C
   //    'self'. Per Bisection bewiesen (Template hat ihn, gedriftete Customer
   //    nicht). Siehe docs/CSP-rationale.md.
   if (siteOrigin) {
-    const host = siteOrigin.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+    const host = tokenHost(siteOrigin);
     if (host) {
       const SELF_DIRECTIVES = [
         'default-src', 'script-src', 'script-src-elem',
@@ -206,7 +226,7 @@ export function checkCspCompleteness(csp: string, opts: CspCheckOptions = {}): C
       const offenders = SELF_DIRECTIVES.filter((d) => {
         const sources = map.get(d);
         if (!sources || !sources.includes("'self'")) return false;
-        return !sources.some((s) => s.includes(host));
+        return !sources.some((s) => tokenHost(s) === host);
       });
       if (offenders.length > 0) {
         issues.push({
@@ -215,6 +235,28 @@ export function checkCspCompleteness(csp: string, opts: CspCheckOptions = {}): C
         });
       }
     }
+  }
+
+  // 8. Härtung: 'unsafe-eval' / Wildcard in Script-Direktiven = echte XSS-Lücke
+  //    (nicht nur Kosmetik). Der Guard soll Security prüfen, nicht nur Rendering-Drift.
+  for (const d of ['script-src', 'script-src-elem'] as const) {
+    const sources = map.get(d);
+    if (!sources) continue;
+    if (sources.includes("'unsafe-eval'")) {
+      issues.push({ type: 'unsafe_eval', details: `${d} enthält 'unsafe-eval' — hebelt den XSS-Schutz weitgehend aus. Entfernen.` });
+    }
+    if (sources.includes('*') || sources.includes('https:') || sources.includes('http:')) {
+      issues.push({ type: 'script_src_wildcard', details: `${d} enthält eine Wildcard-Quelle (*, https: oder http:) — erlaubt beliebige Scripts. Auf konkrete Hosts einschränken.` });
+    }
+  }
+
+  // 9. Härtung: object-src 'none' + base-uri 'self'. base-uri hat KEINEN
+  //    default-src-Fallback → ohne base-uri ist <base href>-Injection uneingeschränkt.
+  if (!map.has('object-src')) {
+    issues.push({ type: 'missing_object_src', details: "object-src fehlt — \"object-src 'none'\" setzen (Plugin/<object>/<embed>-XSS)." });
+  }
+  if (!map.has('base-uri')) {
+    issues.push({ type: 'missing_base_uri', details: "base-uri fehlt — \"base-uri 'self'\" setzen (kein default-src-Fallback → sonst <base href>-Hijacking möglich)." });
   }
 
   return issues;

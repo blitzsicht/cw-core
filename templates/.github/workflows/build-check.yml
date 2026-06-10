@@ -48,6 +48,12 @@ jobs:
       - name: Install (frozen-lockfile — must match Vercel behavior exactly)
         run: pnpm install --frozen-lockfile
 
+      - name: Validate CSP (harter Gate — blockt 'self'-ohne-Origin / fehlende Härtung)
+        # Verhindert das DD-/donau-profi-CSP-Mystery: 'self' allein bricht
+        # same-origin Assets in Chrome/Edge/Safari. exit 1 → CI rot VOR Vercel-Deploy.
+        # Fix bei rot: node node_modules/@cw/core/scripts/gen-vercel-csp.mjs + commit.
+        run: node node_modules/@cw/core/scripts/validate-csp.mjs
+
       - name: Build
         run: pnpm build
 
