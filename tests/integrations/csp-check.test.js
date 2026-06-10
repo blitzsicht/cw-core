@@ -20,7 +20,7 @@ import {
   parseCsp,
   checkCspCompleteness,
   extractCspValuesFromVercelJson,
-} from '../../src/integrations/ai-discovery/csp-check.ts';
+} from '../../src/integrations/ai-discovery/csp-check.js';
 
 // Vollständige, gehärtete CSP (mit object-src/base-uri — sonst feuern die neuen Checks).
 const GOOD_CSP =

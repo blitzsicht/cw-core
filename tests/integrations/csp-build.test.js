@@ -2,8 +2,8 @@
 // Tests für csp-build (SSOT-Generator + fixCsp-Transform). `node --test`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCsp, fixCsp, normOrigin } from '../../src/integrations/ai-discovery/csp-build.ts';
-import { checkCspCompleteness } from '../../src/integrations/ai-discovery/csp-check.ts';
+import { buildCsp, fixCsp, normOrigin } from '../../src/integrations/ai-discovery/csp-build.js';
+import { checkCspCompleteness } from '../../src/integrations/ai-discovery/csp-check.js';
 
 const ORIGIN = 'https://donau-profi.de';
 const clean = (csp) => checkCspCompleteness(csp, { siteOrigin: ORIGIN });

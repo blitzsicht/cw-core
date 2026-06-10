@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import {
   checkCspCompleteness,
   extractCspValuesFromVercelJson,
-} from '../src/integrations/ai-discovery/csp-check.ts';
+} from '../src/integrations/ai-discovery/csp-check.js';
 
 const root = process.argv[2] || process.cwd();
 const vj = join(root, 'vercel.json');

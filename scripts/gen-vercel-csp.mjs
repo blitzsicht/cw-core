@@ -10,11 +10,11 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { fixCsp } from '../src/integrations/ai-discovery/csp-build.ts';
+import { fixCsp } from '../src/integrations/ai-discovery/csp-build.js';
 import {
   checkCspCompleteness,
   extractCspValuesFromVercelJson,
-} from '../src/integrations/ai-discovery/csp-check.ts';
+} from '../src/integrations/ai-discovery/csp-check.js';
 
 const root = process.argv[2] || process.cwd();
 const vj = join(root, 'vercel.json');
@@ -57,7 +57,7 @@ let changed = false;
 for (const csp of cspValues) {
   const fixed = fixCsp(csp, origin);
   if (fixed !== csp) {
-    out = out.replace(csp, fixed); // CSP enthält keine JSON-Sonderzeichen → 1:1-Ersetzung sicher
+    out = out.split(csp).join(fixed); // alle Vorkommen (z. B. zusätzlicher Report-Only-Header)
     changed = true;
   }
 }

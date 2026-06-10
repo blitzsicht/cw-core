@@ -23,7 +23,7 @@ import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync, existsSy
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { AstroIntegration } from 'astro';
-import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.ts';
+import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -825,7 +825,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // ist CSP-Drift: 8/11 Customer-Repos hatten zeitweise unvollständige
         // CSPs (fehlende -elem-Direktiven, media-src, plausible.io in
         // script-src-elem/connect-src) oder Smart-Quotes. Wurde nie als Guard
-        // codifiziert → jetzt hier (siehe csp-check.ts). Soft-Warn per Default.
+        // codifiziert → jetzt hier (siehe csp-check.js). Soft-Warn per Default.
         if (options.checkCsp !== false) {
           const analyticsHost =
             options.analyticsHost === undefined ? 'plausible.io' : options.analyticsHost;
