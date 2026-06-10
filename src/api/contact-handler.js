@@ -16,7 +16,8 @@ import { emitLead } from './lead-sink.js';
  *   3. Rate-Limit      — pro IP (Upstash Redis wenn konfiguriert, sonst in-memory)
  *   4. Body-Parsing
  *   5. Honeypot        — botcheck + url_honey -> silent drop (200 ok)
- *   6. Turnstile       — pflicht (kein konditionaler Bypass)
+ *   6. Turnstile       — optional: erzwungen NUR wenn TURNSTILE_SECRET_KEY gesetzt ist,
+ *                        sonst übersprungen (Schichten 1-5 + 7-9 bleiben aktiv)
  *   7. Email-Validation
  *   8. Content-Filter  — Spam-Keywords / mehrere URLs / BTC/ETH / Cyrillic-Anteil
  *   9. Resend-Versand
@@ -24,7 +25,11 @@ import { emitLead } from './lead-sink.js';
  * Erforderliche Vercel Env-Vars (Production):
  *   - CONTACT_EMAIL            — Empfaenger-Adresse (z.B. info@kunde.de)
  *   - RESEND_API_KEY           — Resend API Key
- *   - TURNSTILE_SECRET_KEY     — Cloudflare Turnstile Secret
+ *
+ * Optional (Bot-Schutz-Verstärkung — Handler funktioniert auch ohne):
+ *   - TURNSTILE_SECRET_KEY     — Cloudflare Turnstile Secret (+ PUBLIC_TURNSTILE_SITE_KEY
+ *                                im Build + challenges.cloudflare.com in der CSP).
+ *                                Fehlt der Key, wird Turnstile übersprungen.
  *
  * Optional (fuer persistenten Rate-Limit ueber alle Vercel-Function-Instances):
  *   - UPSTASH_REDIS_REST_URL
@@ -201,34 +206,37 @@ export function createContactHandler(config) {
       return;
     }
 
-    // Turnstile-Pflicht
+    // Turnstile — OPTIONAL: nur erzwingen, wenn TURNSTILE_SECRET_KEY gesetzt ist.
+    // Ohne Secret degradiert der Schutz bewusst auf Honeypot + Rate-Limit + Origin-Check
+    // + Content-Filter (vier aktive Schichten) — ein funktionierendes Formular ist besser
+    // als ein totes. Turnstile ist jederzeit per Env (+ Widget + CSP-Host) nachrüstbar,
+    // ohne Code-Änderung. Mit gesetztem Secret ist die Prüfung weiterhin Pflicht.
     const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
-    if (!turnstileSecret) {
-      console.error('[contact-handler] TURNSTILE_SECRET_KEY missing');
-      res.status(500).json({ ok: false, error: 'Bot-Schutz nicht konfiguriert.' });
-      return;
-    }
-    const token = typeof body['cf-turnstile-response'] === 'string'
-      ? body['cf-turnstile-response'] : '';
-    if (!token) {
-      res.status(400).json({ ok: false, error: 'Bot-Schutz-Prüfung fehlt.' });
-      return;
-    }
-    try {
-      const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret: turnstileSecret, response: token, remoteip: ip }),
-      });
-      const cfData = /** @type {{ success: boolean }} */ (await cfRes.json());
-      if (!cfData.success) {
-        res.status(400).json({ ok: false, error: 'Bot-Schutz-Prüfung fehlgeschlagen.' });
+    if (turnstileSecret) {
+      const token = typeof body['cf-turnstile-response'] === 'string'
+        ? body['cf-turnstile-response'] : '';
+      if (!token) {
+        res.status(400).json({ ok: false, error: 'Bot-Schutz-Prüfung fehlt.' });
         return;
       }
-    } catch (err) {
-      console.error('[contact-handler] Turnstile fetch error:', err);
-      res.status(500).json({ ok: false, error: 'Bot-Schutz-Prüfung fehlgeschlagen.' });
-      return;
+      try {
+        const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: turnstileSecret, response: token, remoteip: ip }),
+        });
+        const cfData = /** @type {{ success: boolean }} */ (await cfRes.json());
+        if (!cfData.success) {
+          res.status(400).json({ ok: false, error: 'Bot-Schutz-Prüfung fehlgeschlagen.' });
+          return;
+        }
+      } catch (err) {
+        console.error('[contact-handler] Turnstile fetch error:', err);
+        res.status(500).json({ ok: false, error: 'Bot-Schutz-Prüfung fehlgeschlagen.' });
+        return;
+      }
+    } else {
+      console.warn('[contact-handler] TURNSTILE_SECRET_KEY nicht gesetzt — Turnstile übersprungen (Honeypot + Rate-Limit + Origin-Check + Content-Filter bleiben aktiv).');
     }
 
     // Email-Validation

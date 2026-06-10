@@ -89,17 +89,18 @@ checks.push({
   detail: 'data-action-Attribut sichtbar?',
 });
 
-checks.push({
-  name: 'Turnstile-Widget (data-sitekey) gerendert',
-  ok: /data-sitekey="0x4AAAA[A-Za-z0-9_-]+"/.test(contact.body),
-  detail: 'PUBLIC_TURNSTILE_SITE_KEY zur Build-Zeit verfügbar?',
-});
-
-checks.push({
-  name: 'Turnstile-Script geladen',
-  ok: /challenges\.cloudflare\.com\/turnstile/.test(contact.body),
-  detail: 'CSP erlaubt cf-Turnstile?',
-});
+// Turnstile ist OPTIONAL (Handler erzwingt es nur mit gesetztem Secret). Wenn das Widget
+// gerendert ist, prüfen wir Konsistenz (Script/CSP); fehlt es, ist das ein valider Zustand.
+const hasTurnstile = /data-sitekey="0x4AAAA[A-Za-z0-9_-]+"/.test(contact.body);
+if (hasTurnstile) {
+  checks.push({
+    name: 'Turnstile-Script geladen (Widget ist gerendert)',
+    ok: /challenges\.cloudflare\.com\/turnstile/.test(contact.body),
+    detail: 'CSP erlaubt cf-Turnstile?',
+  });
+} else {
+  console.log('ℹ️  Kein Turnstile-Widget — optionaler Bot-Schutz (Honeypot + Rate-Limit + Origin + Content-Filter bleiben aktiv).');
+}
 
 checks.push({
   name: 'Submit-Button vorhanden',
@@ -107,8 +108,9 @@ checks.push({
   detail: 'Form rendert komplett?',
 });
 
-// API-Endpoint nicht crashen lassen — leerer Body sollte sauberen 4xx liefern,
-// nicht 5xx (= ENV-Var-Issue oder Code-Crash).
+// API-Endpoint POST {} prüfen. Ein leerer Body sollte sauber abgelehnt werden (4xx
+// Validierung). KRITISCH: 404 = Route fehlt = totes Formular (der 2026-06-10-Vorfall);
+// 5xx = ENV-Var-Issue/Code-Crash. Beides muss FAIL sein.
 let apiResp;
 try {
   apiResp = await probe('/api/contact', {
@@ -121,8 +123,14 @@ try {
 }
 
 checks.push({
-  name: '/api/contact POST {} → 4xx (nicht 5xx)',
-  ok: apiResp.status >= 400 && apiResp.status < 500,
+  name: '/api/contact existiert (kein 404 — tote Route = totes Formular)',
+  ok: apiResp.status !== 404 && apiResp.status !== 0,
+  detail: `status=${apiResp.status} — 404/unerreichbar bedeutet: Route src/pages/api/contact.ts fehlt`,
+});
+
+checks.push({
+  name: '/api/contact POST {} → kein 5xx (Env/Code ok)',
+  ok: apiResp.status > 0 && apiResp.status < 500,
   detail: `status=${apiResp.status} body=${apiResp.body?.slice?.(0, 80) ?? ''}`,
 });
 

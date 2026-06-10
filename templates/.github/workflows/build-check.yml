@@ -54,6 +54,11 @@ jobs:
         # Fix bei rot: node node_modules/@cw/core/scripts/gen-vercel-csp.mjs + commit.
         run: node node_modules/@cw/core/scripts/validate-csp.mjs
 
+      - name: Validate Form-Backend (harter Gate — kein totes Kontaktformular)
+        # Vorfall 2026-06-10: Formular postet an /api/contact, aber Route fehlte → 404,
+        # still tot. exit 1 wenn ein Formular an /api/contact postet ohne /api/contact.ts.
+        run: node node_modules/@cw/core/scripts/validate-form-backend.mjs
+
       - name: Build
         run: pnpm build
 
