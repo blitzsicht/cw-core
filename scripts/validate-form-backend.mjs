@@ -64,4 +64,41 @@ if (!routeExists) {
   process.exit(1);
 }
 
-console.log(`✓ validate-form-backend: /api/contact-Route vorhanden (${postsToApiContact.length} Formular-Seite[n]).`);
+// Origin-Drift-Guard (#1-Rule, Vorfall zink 2026-06-10): die allowedOrigins der Route
+// MÜSSEN die Serving-Domain enthalten — sonst lehnt der Origin-Check echte Nutzer mit
+// 403 'Forbidden origin' ab (totes Formular). zink zeigte nach Domain-Migration noch auf
+// die alte Domain. www-tolerant.
+function resolveSiteHost(dir) {
+  for (const f of ['astro.config.ts', 'astro.config.mjs', 'astro.config.js']) {
+    const p = join(dir, f);
+    if (existsSync(p)) {
+      const m = readFileSync(p, 'utf-8').match(/site:\s*['"]https?:\/\/([^'"/]+)/);
+      if (m) return m[1].replace(/^www\./, '');
+    }
+  }
+  const sd = join(dir, 'src/data/site-data.ts');
+  if (existsSync(sd)) {
+    const m = readFileSync(sd, 'utf-8').match(/url:\s*['"]https?:\/\/([^'"/]+)/);
+    if (m) return m[1].replace(/^www\./, '');
+  }
+  return null;
+}
+
+const routeFile = ['api/contact.ts', 'api/contact.js', 'api/contact.mjs', 'src/pages/api/contact.ts']
+  .map((f) => join(root, f)).find((p) => existsSync(p));
+const siteHost = resolveSiteHost(root);
+if (routeFile && siteHost) {
+  const routeSrc = readFileSync(routeFile, 'utf-8');
+  if (/allowedOrigins\s*:/.test(routeSrc)) {
+    const hosts = [...routeSrc.matchAll(/https?:\/\/([^'"\s,\]]+)/g)].map((m) => m[1].replace(/^www\./, ''));
+    if (!hosts.includes(siteHost)) {
+      console.error(`❌ allowedOrigins in ${routeFile.replace(root + '/', '')} enthält die Serving-Domain '${siteHost}' NICHT.`);
+      console.error("   → Origin-Check lehnt echte Nutzer mit 403 'Forbidden origin' ab (totes Formular).");
+      console.error(`   gefundene Origins: ${hosts.join(', ') || '(keine)'}`);
+      console.error(`   Fix: allowedOrigins auf ['https://${siteHost}', 'https://www.${siteHost}'] setzen.`);
+      process.exit(1);
+    }
+  }
+}
+
+console.log(`✓ validate-form-backend: /api/contact-Route + allowedOrigins ok (${postsToApiContact.length} Formular-Seite[n]).`);

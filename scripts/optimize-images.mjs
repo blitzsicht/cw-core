@@ -43,7 +43,16 @@ const SUPPORTED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.JPEG'
 
 async function findImages(dir) {
   const files = [];
-  const entries = await readdir(dir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = await readdir(dir, { withFileTypes: true });
+  } catch (err) {
+    // Verzeichnis fehlt (z. B. Customer ohne public/images im Git) → nichts zu optimieren,
+    // KEIN Build-Abbruch. Vorfall 2026-06-10: zink crashte auf Vercel (ENOENT public/images),
+    // Deploy schlug fehl → alte Version blieb live (mit toter allowedOrigins-Domain).
+    if (err.code === 'ENOENT') return files;
+    throw err;
+  }
   for (const entry of entries) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
