@@ -38,6 +38,10 @@ export interface HeroCollageImage {
 export interface HeroCTA {
   label: string;
   href: string;
+  /** Optional link target (e.g. "_blank" for external booking links). */
+  target?: string;
+  /** Optional rel attribute. Set "noopener noreferrer" when target="_blank". */
+  rel?: string;
 }
 
 export interface HeroUSP {
@@ -190,7 +194,7 @@ const motionCfg: HeroMotionConfig =
       <div class="hero-cta">
         {motionCfg.magnetic ? (
           <MagneticButton>
-            <a href={ctaPrimary.href} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
+            <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
@@ -199,7 +203,7 @@ const motionCfg: HeroMotionConfig =
             </a>
           </MagneticButton>
         ) : (
-          <a href={ctaPrimary.href} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
+          <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
               <polyline points="22,6 12,13 2,6"/>
@@ -208,7 +212,7 @@ const motionCfg: HeroMotionConfig =
           </a>
         )}
         {ctaSecondary && (
-          <a href={ctaSecondary.href} class="btn-outline" data-cta={`hero-secondary:${ctaSecondary.label}`}>
+          <a href={ctaSecondary.href} target={ctaSecondary.target} rel={ctaSecondary.rel} class="btn-outline" data-cta={`hero-secondary:${ctaSecondary.label}`}>
             {ctaSecondary.label}
           </a>
         )}

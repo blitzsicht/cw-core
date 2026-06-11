@@ -19,6 +19,10 @@ export interface NavItem {
   href: string;
   /** When true, renders as accent button (CTA). */
   highlight?: boolean;
+  /** Optional link target (e.g. "_blank" for external booking links). */
+  target?: string;
+  /** Optional rel attribute. Set "noopener noreferrer" when target="_blank". */
+  rel?: string;
 }
 
 interface Props {
@@ -74,8 +78,8 @@ const {
     <nav id="main-nav" aria-label="Hauptnavigation">
       {navItems.map((item: NavItem) =>
         item.highlight
-          ? <a href={item.href} class="btn-accent" data-cta={`nav-highlight:${item.label}`}>{item.label}</a>
-          : <a href={item.href} data-cta={`nav:${item.label}`}>{item.label}</a>
+          ? <a href={item.href} target={item.target} rel={item.rel} class="btn-accent" data-cta={`nav-highlight:${item.label}`}>{item.label}</a>
+          : <a href={item.href} target={item.target} rel={item.rel} data-cta={`nav:${item.label}`}>{item.label}</a>
       )}
       {showKarriereLink && <a href={karriereHref} data-cta={`nav:${karriereLabel}`}>{karriereLabel}</a>}
     </nav>
