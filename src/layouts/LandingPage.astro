@@ -33,6 +33,23 @@ import SmoothScroll from '../components/motion/SmoothScroll.astro';
 import ScrollProgress from '../components/motion/ScrollProgress.astro';
 import CustomCursor from '../components/motion/CustomCursor.astro';
 import TurnstilePreClearance from '../components/forms/TurnstilePreClearance.astro';
+import StickyContact from '../components/blocks/StickyContact.astro';
+
+/** Schwebender Schnellkontakt-Cluster (cal.eu-Termin / WhatsApp / Telefon), bottom-right. */
+export interface StickyContactConfig {
+  /** Cal.com/Cal.eu Buchungs-URL (Direkt-Link, neuer Tab). */
+  calUrl?: string;
+  /** aria-label für den Termin-Button. */
+  calLabel?: string;
+  /** WhatsApp-Nummer inkl. Ländervorwahl. */
+  whatsapp?: string;
+  /** Telefonnummer inkl. Ländervorwahl. */
+  phone?: string;
+  /** Vorbefüllte WhatsApp-Nachricht. */
+  prefilledMessage?: string;
+  /** Auf < 768px ausblenden (z.B. wenn StickyMobileCTA bereits vorhanden). */
+  hideOnMobile?: boolean;
+}
 
 export interface MotionLayerConfig {
   /** Enable Lenis smooth-scroll globally. Requires `lenis` peer dep. */
@@ -66,6 +83,10 @@ export interface FooterConfig {
   description?: string;
   email?: string;
   phone?: string;
+  /** Optionale WhatsApp-Nummer (rendert als wa.me-Link in der Brand-Spalte). */
+  whatsapp?: string;
+  /** Optionale Buchungs-URL (cal.eu/cal.com), rendert als „Termin buchen"-Link in der Brand-Spalte. */
+  bookingUrl?: string;
   logoSrc?: string;
   /** Inverted logo for the dark Footer background. See CI branding guide. */
   logoSrcDark?: string;
@@ -147,6 +168,8 @@ interface Props {
   header?: HeaderConfig;
   /** Footer config. Required because Footer requires `siteName`. */
   footer: FooterConfig;
+  /** Opt-in schwebender Schnellkontakt-Cluster (cal/WhatsApp/Telefon), site-weit über alle LandingPage-Seiten. */
+  stickyContact?: StickyContactConfig;
   /** Opt-in site-wide motion layer (smooth scroll, progress bar, custom cursor). */
   motion?: MotionLayerConfig;
   /**
@@ -181,6 +204,7 @@ const {
   ogProfile,
   header = {},
   footer,
+  stickyContact,
   motion,
   turnstileSiteKey,
 } = Astro.props;
@@ -251,5 +275,17 @@ const {
     karriereLabel={footer.karriereLabel}
     karriereHref={footer.karriereHref}
     statusBadge={footer.statusBadge}
+    whatsapp={footer.whatsapp}
+    bookingUrl={footer.bookingUrl}
   />
+  {stickyContact && (
+    <StickyContact
+      calUrl={stickyContact.calUrl}
+      calLabel={stickyContact.calLabel}
+      whatsapp={stickyContact.whatsapp}
+      phone={stickyContact.phone}
+      prefilledMessage={stickyContact.prefilledMessage}
+      hideOnMobile={stickyContact.hideOnMobile}
+    />
+  )}
 </BaseLayout>
