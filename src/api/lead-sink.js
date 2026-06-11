@@ -38,6 +38,8 @@
  * @property {string} [ip]
  * @property {string} [ua]
  * @property {string} [origin]
+ * @property {string} [deliveryError] – Wenn gesetzt: Mail-Zustellung schlug fehl (z.B.
+ *   fehlende Env-Var). Lead wird trotzdem mit Warn-Header gesendet (Alarm + kein Lead-Verlust).
  */
 
 /**
@@ -120,12 +122,22 @@ function formatTelegramMessage(lead, ctx) {
   }
 
   // Default: Contact-Form / audit / bewerbung — bisheriger Renderer.
-  const lines = [
-    `🆕 *Lead* · ${project}`,
-    '',
-    `*Name:*  ${esc(lead.name || '—')}`,
-    `*Email:* ${esc(lead.email)}`,
-  ];
+  // Bei deliveryError (z.B. RESEND_API_KEY/CONTACT_EMAIL fehlt) wird der Lead trotzdem
+  // gesendet, mit Warn-Header — Ops wird alarmiert UND der Lead geht nicht verloren.
+  const lines = ctx.deliveryError
+    ? [
+        `⚠️ *ZUSTELLUNG FEHLGESCHLAGEN* · ${project}`,
+        `_${esc(ctx.deliveryError)} — Lead per Mail nicht zugestellt, bitte manuell bearbeiten:_`,
+        '',
+        `*Name:*  ${esc(lead.name || '—')}`,
+        `*Email:* ${esc(lead.email)}`,
+      ]
+    : [
+        `🆕 *Lead* · ${project}`,
+        '',
+        `*Name:*  ${esc(lead.name || '—')}`,
+        `*Email:* ${esc(lead.email)}`,
+      ];
   if (lead.company) lines.push(`*Co\\.:*   ${esc(lead.company)}`);
   if (lead.phone)   lines.push(`*Tel:*   ${esc(lead.phone)}`);
   if (lead.message) {

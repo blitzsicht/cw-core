@@ -260,16 +260,31 @@ export function createContactHandler(config) {
       return;
     }
 
-    // Resend-Versand
+    // Lead-Objekt (für Versand + für den Fehlmeldungs-Alarm bei fehlender Env).
+    const leadData = {
+      project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
+      fromName, name, email, company, phone, website, message,
+      kind: /** @type {const} */ ('contact-form'),
+    };
+    const leadCtx = {
+      ip,
+      ua: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : undefined,
+      origin: sourceUrl,
+    };
+
+    // Resend-Versand. Fehlt eine Env-Var, wird der Lead trotzdem via Telegram gemeldet
+    // (deliveryError) → Ops wird aktiv alarmiert UND der Lead geht nicht verloren.
     const recipient = process.env.CONTACT_EMAIL;
     if (!recipient) {
       console.error('[contact-handler] CONTACT_EMAIL missing');
+      await emitLead(leadData, { ...leadCtx, deliveryError: 'CONTACT_EMAIL nicht in Vercel-Env gesetzt' });
       res.status(500).json({ ok: false, error: 'Empfänger nicht konfiguriert.' });
       return;
     }
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       console.error('[contact-handler] RESEND_API_KEY missing');
+      await emitLead(leadData, { ...leadCtx, deliveryError: 'RESEND_API_KEY nicht in Vercel-Env gesetzt' });
       res.status(500).json({ ok: false, error: 'Email-Versand nicht konfiguriert.' });
       return;
     }
@@ -310,24 +325,7 @@ export function createContactHandler(config) {
       }
       // emitLead BEFORE res.json — sonst killt Vercel die Function bevor der Telegram-fetch
       // fertig ist. AbortSignal in lead-sink begrenzt das auf max 5s, normal ~200ms.
-      await emitLead(
-        {
-          project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
-          fromName,
-          name,
-          email,
-          company,
-          phone,
-          website,
-          message,
-          kind: 'contact-form',
-        },
-        {
-          ip,
-          ua: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : undefined,
-          origin: sourceUrl,
-        },
-      );
+      await emitLead(leadData, leadCtx);
       res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[contact-handler] Resend fetch error:', err);

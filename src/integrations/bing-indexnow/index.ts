@@ -108,6 +108,13 @@ export default function bingIndexNow(opts: BingIndexNowOptions): AstroIntegratio
           logger.info('[bing-indexnow] disabled — skipping.');
           return;
         }
+        // siteUrl ist required, aber Config-Drift (vergessen zu übergeben) führte sonst zu
+        // einem kryptischen `undefined.replace`-Crash im build:done-Hook → Vercel-Deploy-Fail.
+        // Vorfall zink 2026-06-10. Lieber sauber deaktivieren als den Build killen.
+        if (!siteUrl) {
+          logger.warn('[bing-indexnow] siteUrl fehlt — Integration deaktiviert (kein Build-Abbruch).');
+          return;
+        }
         if (!apiKey || apiKey.length < 8) {
           logger.warn('[bing-indexnow] apiKey fehlt oder zu kurz — Integration deaktiviert.');
           return;
