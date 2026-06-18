@@ -47,8 +47,16 @@ export const siteData = {
     calendlyUrl: '',                  // Optional: Calendly-Booking-URL
     // Optionale Adress-Überschreibung — wenn leer, wird legal.street/zip/city im Footer verwendet.
     // Nur nötig wenn die öffentliche Adresse von der Impressum-Adresse abweicht.
-    address: undefined as { street: string; zip: string; city: string } | undefined,
+    address: undefined as { street: string; zip: string } | undefined,
   },
+
+  // ─── Form-Konfiguration ────────────────────────────────────────────────────
+  // contactForm: false → Customer hat kein /api/contact-Kontaktformular
+  //   (z.B. phone-only, whatsapp-only, cal.eu-only).
+  //   Effekt: verify-form-health.mjs überspringt den Form-Smoke-Test (Exit 0).
+  //   SSOT — kein gh-Repository-Variable-Setup mehr nötig.
+  //   Weglassen oder auf true setzen → Form-Check läuft normal.
+  // contactForm: true,   // Standard — Form-Health-Check aktiv
 
   // ─── Analytics ─────────────────────────────────────────────────────────────
   analytics: {

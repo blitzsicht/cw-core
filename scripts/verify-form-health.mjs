@@ -16,30 +16,66 @@
  *   SITE_URL=https://soleno-energie.com \
  *     node node_modules/@cw/core/scripts/verify-form-health.mjs
  *
- * Opt-out für form-lose Customer (hausamlago, mika, Ehrensache-One-Pager):
- *   SKIP_FORM_HEALTH=true node scripts/verify-form-health.mjs
- *   In CI: gh variable set SKIP_FORM_HEALTH true  (Repository-Variable)
+ * Opt-out (bevorzugt — SSOT): contactForm: false in src/data/site-data.ts
+ *   Das Skript liest dieses Feld automatisch aus dem Customer-Repo (CWD).
+ *   Kein CI-Setup nötig — die Entscheidung lebt im Code, versioniert.
+ *
+ * Opt-out (Legacy/Override): SKIP_FORM_HEALTH=true (CI Repository-Variable)
+ *   Bleibt für Repos die es bereits gesetzt haben (hausamlago, mika).
  *   In build-check.yml: smoke-test Job hat `if: vars.SKIP_FORM_HEALTH != 'true'`
  *
  * Exit-Codes:
- *   0 — alles ok (oder Opt-out via SKIP_FORM_HEALTH=true)
+ *   0 — alles ok (oder Opt-out via contactForm:false / SKIP_FORM_HEALTH=true)
  *   1 — mindestens ein Check failed
  *   2 — Konfig-Fehler (SITE_URL fehlt etc.)
  */
 
-// Cluster-Guard: explizites Opt-out für form-lose Customer.
-// Setzt man SKIP_FORM_HEALTH=true, verlässt das Skript sauber mit Exit 0.
-// Gedacht für: hausamlago (phone/whatsapp-only), mika (phone-only),
-// Ehrensache One-Pager und jeden weiteren Customer ohne /api/contact-Route.
-// Niemals automatisch skipppen — explizites Flag verhindert silent-pass bei echten Bugs.
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+// ─── Opt-out 1: SKIP_FORM_HEALTH=true (Legacy CI-Override) ─────────────────
+// Bleibt für Repos die die gh-Variable bereits gesetzt haben.
+// Feuert VOR dem SITE_URL-Check → kein Exit 2 bei fehlendem SITE_URL.
 if (process.env.SKIP_FORM_HEALTH === 'true') {
   console.log('ℹ  SKIP_FORM_HEALTH=true gesetzt — Form-Health-Check übersprungen.');
   console.log('   Dieser Customer hat kein Kontaktformular (phone/whatsapp/cal-only).');
-  console.log('   Opt-out entfernen sobald ein Formular ergänzt wird.');
+  console.log('   Bevorzugter Weg: contactForm: false in src/data/site-data.ts setzen,');
+  console.log('   dann gh variable delete SKIP_FORM_HEALTH (kein CI-Setup mehr nötig).');
   console.log('');
   console.log('✅ Form-Health: skipped (SKIP_FORM_HEALTH=true)');
   process.exit(0);
 }
+
+// ─── Opt-out 2: contactForm: false in src/data/site-data.ts (SSOT) ──────────
+// Liest aus dem Customer-Repo (CWD = Repo-Root wenn via CI oder lokal aufgerufen).
+// Regex-Parse ist bewusst simpel: kein TypeScript-Compiler nötig, kein Netz-Zugriff.
+// Fallback: wenn Datei fehlt oder Parse fehlschlägt → weiter mit HTTP-Check (fail-open).
+(function checkContactFormFlag() {
+  const candidates = [
+    join(process.cwd(), 'src', 'data', 'site-data.ts'),
+    join(process.cwd(), 'src', 'data', 'site-data.js'),
+  ];
+  for (const candidate of candidates) {
+    let src;
+    try {
+      src = readFileSync(candidate, 'utf8');
+    } catch {
+      continue; // Datei nicht gefunden → nächste probieren
+    }
+    // Matcht: contactForm: false (mit optionalem Kommentar, Leerzeichen etc.)
+    // Erkennt auch `contactForm : false` und `contactForm:false`.
+    // Erkennt NICHT `contactForm: true` (bleibt aktiv) oder fehlendes Feld (bleibt aktiv).
+    if (/\bcontactForm\s*:\s*false\b/.test(src)) {
+      console.log(`ℹ  contactForm: false in ${candidate} — Form-Health-Check übersprungen.`);
+      console.log('   Customer hat kein Kontaktformular (phone/whatsapp/cal-only).');
+      console.log('   Feld auf true setzen oder entfernen sobald ein Formular ergänzt wird.');
+      console.log('');
+      console.log('✅ Form-Health: skipped (contactForm: false)');
+      process.exit(0);
+    }
+    break; // Datei gefunden und gelesen — kein weiterer Fallback nötig
+  }
+})()
 
 const url = process.env.SITE_URL;
 if (!url) {
