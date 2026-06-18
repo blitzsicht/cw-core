@@ -1,0 +1,196 @@
+---
+/**
+ * DesignPreviewBanner — Sticky-Top-Banner für Design-Vorschauen
+ *
+ * Zeigt einen dismissiblen Hinweis-Banner für Kunden, die eine
+ * Design-Vorschau (noch kein produktiver Stand) reviewen.
+ *
+ * Usage in Customer-Layout:
+ * ---
+ * import DesignPreviewBanner from '@cw/core/components/layout/DesignPreviewBanner.astro';
+ * ---
+ * <DesignPreviewBanner customerName="Mustermann GmbH" />
+ *
+ * Props:
+ *   customerName     — Kundenname für die Anrede im Banner-Text (Pflicht)
+ *   dismissVersion   — Optionale Version. Ändert sich dieser Wert, wird der
+ *                      Banner für alle Besucher erneut angezeigt (auch wenn
+ *                      sie ihn zuvor dismissed hatten). Default: "v1"
+ *
+ * Import-Pfad:
+ *   @cw/core/components/layout/DesignPreviewBanner.astro
+ *
+ * Styling-Prinzipien:
+ *   - Neutral Anthrazit (#1f2937) — kein Markenblau (Kunden-agnostisch)
+ *   - BEM-Klassen mit cw-Prefix (cw-preview-banner__*)
+ *   - Sticky top, z-index 9900 (unter Headern mit z-index 9999)
+ *   - Dismissible via localStorage (persistiert per dismissVersion)
+ *   - html.has-preview-banner body padding-top via is:global
+ */
+
+export interface Props {
+  customerName: string;
+  dismissVersion?: string;
+}
+
+const { customerName, dismissVersion = 'v1' } = Astro.props;
+const storageKey = `cw-preview-banner-dismissed-${dismissVersion}`;
+---
+
+<div
+  id="cw-preview-banner"
+  class="cw-preview-banner"
+  role="status"
+  aria-label="Design-Vorschau-Hinweis"
+  data-storage-key={storageKey}
+>
+  <div class="cw-preview-banner__inner">
+    <div class="cw-preview-banner__content">
+      <span class="cw-preview-banner__icon" aria-hidden="true">&#9998;</span>
+      <p class="cw-preview-banner__text">
+        <strong>Design-Vorschau für {customerName}</strong> —
+        Diese Seite ist noch nicht live. Feedback gerne per E-Mail oder Telefon.
+      </p>
+    </div>
+    <button
+      type="button"
+      class="cw-preview-banner__dismiss"
+      aria-label="Hinweis schließen"
+      id="cw-preview-banner-dismiss"
+    >
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+</div>
+
+<style is:global>
+  /* Body-Padding kompensiert die sticky-Banner-Höhe */
+  html.has-preview-banner body {
+    padding-top: 3rem;
+  }
+</style>
+
+<style>
+  .cw-preview-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9900;
+    background: #1f2937;
+    color: #f9fafb;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .cw-preview-banner--hidden {
+    display: none;
+  }
+
+  .cw-preview-banner__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 72rem;
+    margin-inline: auto;
+    padding: 0.625rem 1.5rem;
+  }
+
+  .cw-preview-banner__content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .cw-preview-banner__icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    opacity: 0.8;
+  }
+
+  .cw-preview-banner__text {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .cw-preview-banner__text strong {
+    font-weight: 700;
+  }
+
+  .cw-preview-banner__dismiss {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    color: #f9fafb;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 1.125rem;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background 0.15s;
+  }
+
+  .cw-preview-banner__dismiss:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .cw-preview-banner__dismiss:focus-visible {
+    outline: 2px solid #f9fafb;
+    outline-offset: 2px;
+  }
+
+  /* Mobile-First: Text-Wrapping für schmale Viewports (base) → einzeilig ab sm */
+  .cw-preview-banner__text {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  @media (min-width: 641px) {
+    .cw-preview-banner__text {
+      white-space: nowrap;
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+</style>
+
+<script>
+  (function () {
+    const banner = document.getElementById('cw-preview-banner');
+    const dismissBtn = document.getElementById('cw-preview-banner-dismiss');
+    if (!banner || !dismissBtn) return;
+
+    const storageKey = banner.dataset.storageKey ?? 'cw-preview-banner-dismissed-v1';
+
+    // Falls bereits dismissed: sofort ausblenden
+    if (localStorage.getItem(storageKey) === '1') {
+      banner.classList.add('cw-preview-banner--hidden');
+      document.documentElement.classList.remove('has-preview-banner');
+      return;
+    }
+
+    // Banner sichtbar → html-Klasse setzen für body padding-top
+    document.documentElement.classList.add('has-preview-banner');
+
+    dismissBtn.addEventListener('click', function () {
+      try {
+        localStorage.setItem(storageKey, '1');
+      } catch {
+        // localStorage nicht verfügbar (privater Modus o.Ä.) → trotzdem ausblenden
+      }
+      banner.classList.add('cw-preview-banner--hidden');
+      document.documentElement.classList.remove('has-preview-banner');
+    });
+  })();
+</script>
