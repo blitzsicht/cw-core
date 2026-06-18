@@ -40,4 +40,20 @@
 :root {
   --section-padding: 5rem;
   --container-max: 72rem;
+
+  /*
+   * Hero/CTA Gradient-End (optional).
+   * Steuert den End-Stop des Verlaufs in Hero, CTABlock, KarriereHero, PageHero.
+   *
+   * ⚠️  MUSS hier im :root-Block stehen (NICHT in @theme oben)!
+   * Tailwind v4 tree-shaked @theme-Variablen die nur in node_modules (cw-core)
+   * via var() referenziert werden — dann greift der Fallback, statt des Kunden-Werts.
+   *
+   * Fallback wenn auskommentiert: color-mix(in srgb, var(--color-primary), #000 35%)
+   * = 35 % Schwarz in der Primärfarbe — neutral, zu jeder CI passend.
+   *
+   * Beispiel für warmes Dunkelbraun (Orange-Kunden):
+   *   --color-hero-gradient-end: #1a0f00;
+   */
+  /* --color-hero-gradient-end: #TODO; */
 }

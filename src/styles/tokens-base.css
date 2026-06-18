@@ -117,6 +117,29 @@ h1, h2, h3, h4, h5, h6 {
  * Consumed by @cw/core/components/motion/* — keep values here so customer
  * themes can override them through --motion-* custom properties.
  * -------------------------------------------------------------------------*/
+/*
+ * Optional Hero/CTA Gradient-End override.
+ *
+ * --color-hero-gradient-end controls the end stop of the gradient in:
+ *   Hero, CTABlock, KarriereHero, PageHero, CalEmbed (hover).
+ *
+ * ⚠️  WICHTIG — MUSS im :root-Block gesetzt werden, NICHT in @theme!
+ *
+ * Hintergrund: Tailwind v4 scannt node_modules-Dateien (cw-core) NICHT für
+ * Content-Detection. Eine Variable, die NUR in cw-core-Komponenten via var()
+ * referenziert wird, wird von Tailwinds tree-shaking entfernt wenn sie
+ * ausschließlich in @theme deklariert ist. Die Folge: der Browser sieht sie
+ * als undefiniert und fällt auf den color-mix()-Fallback zurück — was korrekt
+ * ist. Um den Wert aber Customer-seitig zu überschreiben, MUSS er im :root-
+ * Block der tokens.css stehen (non-Tailwind → kein tree-shaking):
+ *
+ *   :root {
+ *     --color-hero-gradient-end: #2a1a00;  ← z.B. für warmes Braun statt Schwarz
+ *   }
+ *
+ * Wenn kein Wert gesetzt ist: automatischer Fallback = 35 % Schwarz in primary.
+ */
+
 :root {
   --motion-duration-fast: 0.25s;
   --motion-duration-base: 0.6s;

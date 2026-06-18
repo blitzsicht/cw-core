@@ -6,6 +6,41 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.13.0] — 2026-06-18
+
+### Added
+
+- **`DesignPreviewBanner.astro`** (`src/components/layout/`): Einheitliche, generische Designvorschau-Komponente für alle Customer-Sites (siluri/blitzsicht-ops#372).
+  - Prop `customerName` (string) — wird im Bannertext angezeigt.
+  - Prop `dismissVersion` (string, default `"v1"`) — localStorage-Key-Suffix; erhöhen um Banner nach Redesign neu zu zeigen.
+  - Sticky top (z-index 9999), dismissible via localStorage.
+  - `html.has-preview-banner body { padding-top }` via `is:global` — verhindert Überlappung mit Header.
+  - Neutral anthrazit (`#1f2937`) — bewusst KEIN `--color-primary`/`--color-accent`, damit der Banner als System-Hinweis erkennbar bleibt.
+  - BEM-konforme `cw-preview-banner`-Klassen — kein Naming-Konflikt mit Customer-Styles.
+  - Import: `@cw/core/components/layout/DesignPreviewBanner.astro`
+
+- **Gradient-Blau-Fix (Cluster)**: Hardcoded Blau-Fallbacks in 5 Komponenten durch CI-neutrale `color-mix()`-Formel ersetzt (siluri/blitzsicht-ops#372).
+  - `Hero.astro`: `var(--color-primary-dark, #0f3460)` → `var(--color-hero-gradient-end, color-mix(in srgb, var(--color-primary), #000 35%))`
+  - `CTABlock.astro`: analog
+  - `KarriereHero.astro`: analog
+  - `PageHero.astro`: analog
+  - `CalEmbed.astro` (Hover-State): analog
+
+- **`--color-hero-gradient-end` Dokumentation** in `tokens-base.css` + `templates/tokens.template.css`:
+  - Ausführlicher Kommentar-Block erklärt warum die Variable im `:root`-Block (NICHT `@theme`) gesetzt werden muss — Tailwind-v4-tree-shaking.
+  - Template enthält auskommentierte Beispiel-Zeile mit `#TODO`-Platzhalter.
+
+### Fix
+
+- Blau-Gradient auf nicht-blauen Customer-Sites (z.B. ITK orange, Pferdesport silber) fiel auf hartkodiertes `#0f3460` zurück wenn `--color-primary-dark` nicht gesetzt war. Root-Cause: Tailwind v4 tree-shaked `@theme`-Variablen die nur in `node_modules`-Dateien (cw-core) via `var()` referenziert werden. Fix: alle Gradient-Endpunkte nutzen jetzt `--color-hero-gradient-end` mit `color-mix()`-Fallback.
+
+### Notes
+
+- `StickyMobileCTA` und `CTAPrimary` nutzen kein Blau — nicht betroffen.
+- Kein Breaking Change: bestehende Customer-Sites ohne `--color-hero-gradient-end` sehen denselben Gradient wie vorher (35 % Schwarz in primary = visuell näherungsweise gleich).
+
+---
+
 ## [0.12.0] — 2026-06-18
 
 ### Added

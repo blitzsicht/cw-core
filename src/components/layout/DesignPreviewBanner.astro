@@ -1,0 +1,191 @@
+---
+/**
+ * @cw/core – DesignPreviewBanner.astro
+ *
+ * Sticky top banner for the design-preview phase.
+ * Informs visitors that content, images and colors are still a draft and
+ * not yet approved. Dismissible via localStorage.
+ *
+ * Remove this component entirely on Go-Live (after contract signed +
+ * customer approval — see customer-websites lifecycle docs).
+ *
+ * Import path: @cw/core/components/layout/DesignPreviewBanner.astro
+ *
+ * @example
+ *   <DesignPreviewBanner customerName="Muster GmbH" />
+ *
+ * Styling: neutral anthracite (#1f2937) — works with every customer CI.
+ * NEVER use customer primary or accent colors here — the banner must be
+ * visually distinct from the page so visitors recognise it as a system notice.
+ */
+interface Props {
+  /** Legal name or trade name of the customer. Shown in the banner text. */
+  customerName: string;
+  /** Optional: override the dismiss key suffix. Increment to re-show banner after a redesign. Default: "v1". */
+  dismissVersion?: string;
+}
+
+const {
+  customerName,
+  dismissVersion = 'v1',
+} = Astro.props;
+
+const bannerId = 'cw-preview-banner';
+const storageKey = `cw-preview-banner-dismissed-${dismissVersion}`;
+---
+
+<aside
+  class="cw-preview-banner"
+  id={bannerId}
+  role="status"
+  aria-label="Hinweis zur Designvorschau"
+>
+  <div class="cw-preview-banner__inner">
+    <span class="cw-preview-banner__badge" aria-hidden="true">Designvorschau</span>
+    <p class="cw-preview-banner__text">
+      Dies ist eine <strong>unverbindliche Designvorschau</strong> für {customerName}.
+      Inhalte, Bilder und Farben sind ein Entwurf und noch
+      <strong>nicht final freigegeben</strong>.
+    </p>
+    <button
+      type="button"
+      class="cw-preview-banner__close"
+      aria-label="Hinweis schließen"
+      data-cw-preview-close
+    >×</button>
+  </div>
+</aside>
+
+<script is:inline data-banner-id="cw-preview-banner" data-storage-key={storageKey}>
+  (function () {
+    var s = document.currentScript;
+    var bannerId = s.getAttribute('data-banner-id');
+    var KEY = s.getAttribute('data-storage-key');
+    var bar = document.getElementById(bannerId);
+    if (!bar) return;
+    try {
+      if (localStorage.getItem(KEY) === '1') {
+        bar.style.display = 'none';
+        document.documentElement.classList.remove('has-preview-banner');
+        return;
+      }
+    } catch (_e) { /* private mode / storage blocked — show banner */ }
+    document.documentElement.classList.add('has-preview-banner');
+    var btn = bar.querySelector('[data-cw-preview-close]');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        bar.style.display = 'none';
+        document.documentElement.classList.remove('has-preview-banner');
+        try { localStorage.setItem(KEY, '1'); } catch (_e) { /* ignore */ }
+      });
+    }
+  })();
+</script>
+
+<style is:global>
+  /*
+   * Reserve top-space whenever banner is shown — prevents the fixed banner
+   * from overlapping the page header / first content.
+   * Mobile: more padding needed because banner wraps to two lines.
+   */
+  html.has-preview-banner body {
+    padding-top: 4.5rem;
+  }
+  @media (min-width: 48rem) {
+    html.has-preview-banner body {
+      padding-top: 2.75rem;
+    }
+  }
+</style>
+
+<style>
+  /*
+   * Anthracite / neutral — intentionally NOT using --color-primary / --color-accent.
+   * The banner must look like a system notice, not part of the customer brand.
+   */
+  .cw-preview-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: #1f2937;
+    color: #f9fafb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .cw-preview-banner__inner {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  .cw-preview-banner__badge {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.12);
+    color: #f9fafb;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+  }
+
+  .cw-preview-banner__text {
+    flex: 1;
+    margin: 0;
+    color: #f9fafb;
+  }
+
+  .cw-preview-banner__text strong {
+    color: #ffffff;
+    font-weight: 700;
+  }
+
+  .cw-preview-banner__close {
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #f9fafb;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    font-size: 1.125rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+  }
+
+  .cw-preview-banner__close:hover {
+    background: rgba(255, 255, 255, 0.22);
+  }
+
+  .cw-preview-banner__close:focus-visible {
+    outline: 2px solid #f9fafb;
+    outline-offset: 2px;
+  }
+
+  /* stylelint-disable-next-line plugin/no-max-width-media -- legacy mobile-first override */
+  @media (max-width: 30rem) {
+    .cw-preview-banner__inner {
+      gap: 0.5rem;
+      padding: 0.5rem 0.625rem;
+    }
+    .cw-preview-banner__text {
+      font-size: 0.75rem;
+    }
+    .cw-preview-banner__badge {
+      display: none;
+    }
+  }
+</style>
