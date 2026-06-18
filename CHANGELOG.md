@@ -6,6 +6,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.11.0] — 2026-06-18
+
+### Added
+
+- `scripts/verify-form-health.mjs`: **Sauberes Opt-out für form-lose Customer** via `SKIP_FORM_HEALTH=true` (Umgebungsvariable / CI Repository-Variable). Betrifft: hausamlago, mika, Ehrensache-One-Pager und jeden Customer ohne `/api/contact`-Route.
+  - Feuert vor dem SITE_URL-Check → kein Exit 2 bei fehlendem SITE_URL wenn Opt-out aktiv.
+  - Nur exakt lowercase `"true"` triggert Opt-out (`"TRUE"`, `"1"` etc. gelten nicht).
+  - Exit 0 mit klarer Log-Meldung (Grund + Hinweis zum Rückgängig-Machen).
+- `templates/.github/workflows/build-check.yml`: `smoke-test` Job erhält Condition `vars.SKIP_FORM_HEALTH != 'true'` — form-lose Customer können den Job per `gh variable set SKIP_FORM_HEALTH true` überspringen, ohne den Workflow selbst zu patchen.
+- `scripts/verify-form-health.test.mjs`: 7 Logik-Tests via `node:test` (kein externes Framework) — deckt Opt-out-Pfade, Konfig-Fehler und den Negativ-Fall (Customer MIT Formular) ab.
+- `package.json`: `"test"` Script → `node scripts/verify-form-health.test.mjs`.
+
+### Hinweis für Customer-Betreiber
+
+Form-lose Sites (phone/whatsapp/cal-only, kein cw-core-Kontaktformular):
+```bash
+# Opt-out aktivieren (CI färbt nicht mehr rot)
+gh variable set SKIP_FORM_HEALTH true
+
+# Rückgängig machen sobald ein Formular ergänzt wird
+gh variable set SKIP_FORM_HEALTH false
+```
+
+Betroffene Live-Customer: hausamlago, mika — bitte beim nächsten cw-core-Bump via separatem Rollout setzen.
+
+### Compatibility
+
+- Additive Änderung. Customer MIT Kontaktformular: keine Auswirkung (Opt-out inaktiv by default).
+- Cluster-Guard-Ansatz nach CLAUDE.md #1-Rule: Einzel-Workaround (gh-variable ohne Skript-Support) wird durch explizites Opt-out im Skript selbst ersetzt.
+
+---
+
 ## [0.10.1] — 2026-05-19 (main — release/cw-core merge)
 
 ### Changed
