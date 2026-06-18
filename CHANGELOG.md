@@ -6,6 +6,47 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.35.0] — 2026-06-18 (release/cw-core)
+
+> Design-Polish-Paket: Form-Health Opt-out, Gradient-Entblauen + steuerbares
+> Token, neue DesignPreviewBanner-Komponente. Drei Fixes die auf verwaister
+> main-Linie (v0.13) landeten, jetzt sauber gegen v0.34 portiert.
+> Refs: blitzsicht-ops#367, #371, #372.
+
+### Added
+
+- `scripts/verify-form-health.mjs`: **Opt-out (a)** — `SKIP_FORM_HEALTH=true`
+  Env-Var (Exit 0, ganz am Anfang vor SITE_URL-Check). Ersetzt die bisherige
+  Nur-Variable-Condition im CI-Workflow (`vars.SKIP_FORM_HEALTH != 'true'`).
+- `scripts/verify-form-health.mjs`: **Opt-out (b)** — `contactForm: false` in
+  `src/data/site-data.ts` (CWD-relativ, readFileSync, regex `\bcontactForm\s*:\s*false\b`).
+  Fail-open wenn Datei fehlt (kein Crash). Ermöglicht Code-seitigen Opt-out
+  ohne Repository-Variable setzen zu müssen.
+- `scripts/verify-form-health.test.mjs`: 5 Logik-Tests via `node:test`
+  (beide Opt-out-Pfade, Fail-open, Negativ-Test).
+- `src/components/layout/DesignPreviewBanner.astro`: Neue Komponente für
+  Design-Vorschau-Banners. Props: `customerName` (Pflicht), `dismissVersion`
+  (optional, Default `"v1"`). Sticky-top, dismissible via localStorage,
+  neutral Anthrazit (#1f2937), BEM `cw-preview-banner__*`-Klassen.
+  Import: `@cw/core/components/layout/DesignPreviewBanner.astro`.
+
+### Changed
+
+- `Hero.astro`, `CTABlock.astro`, `KarriereHero.astro`, `PageHero.astro`,
+  `CalEmbed.astro`: Gradient-Endfarbe von hardcoded Blau-Fallbacks (`#0f3460`,
+  `#141528`, `color-mix(..., black 25%)`) auf neues Token
+  `--color-hero-gradient-end` umgestellt. Default-Berechnung:
+  `color-mix(in srgb, var(--color-primary), #000 35%)` — folgt damit der
+  Customer-Primärfarbe statt immer blau zu werden.
+- `src/styles/tokens-base.css`: Kommentar-Doku für `--color-hero-gradient-end`
+  (optional, muss in `:root` gesetzt werden, nicht `@theme`).
+- `src/templates/tokens.template.css`: `:root`-Block mit auskommentiertem
+  `--color-hero-gradient-end` und Erklärung warum `:root` statt `@theme`.
+- `package.json`: Test-Script erweitert auf `scripts/**/*.test.mjs`.
+- Version: 0.34.0 → **0.35.0** (Minor: neue Komponente + neues Token).
+
+---
+
 ## [0.28.0] — 2026-06-08 (release/cw-core)
 
 > Brand-Name-Literal-Guard in der ai-discovery-Integration. Verhindert, dass

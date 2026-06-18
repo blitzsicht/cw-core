@@ -22,6 +22,32 @@
  *   2 — Konfig-Fehler (SITE_URL fehlt etc.)
  */
 
+// --- Opt-out (a): SKIP_FORM_HEALTH=true env-var ---
+// Wird als Repository-Variable in GitHub Actions gesetzt (gh variable set SKIP_FORM_HEALTH --body true).
+// Customer ohne Kontaktformular (phone-/whatsapp-only) können den ganzen Script überspringen.
+if (process.env.SKIP_FORM_HEALTH === 'true') {
+  console.log('ℹ️  SKIP_FORM_HEALTH=true gesetzt → Form-Health-Check übersprungen.');
+  console.log('✅ Form-Health: skipped (via SKIP_FORM_HEALTH env)');
+  process.exit(0);
+}
+
+// --- Opt-out (b): contactForm: false in src/data/site-data.ts ---
+// Ermöglicht form-lose Customer via Code-Konfiguration statt Repository-Variable.
+// Fail-open: wenn die Datei nicht existiert oder nicht lesbar ist, wird weitergemacht.
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+try {
+  const siteDataPath = resolve(process.cwd(), 'src/data/site-data.ts');
+  const siteDataContent = readFileSync(siteDataPath, 'utf-8');
+  if (/\bcontactForm\s*:\s*false\b/.test(siteDataContent)) {
+    console.log('ℹ️  contactForm: false in src/data/site-data.ts → Form-Health-Check übersprungen.');
+    console.log('✅ Form-Health: skipped (via contactForm: false in site-data.ts)');
+    process.exit(0);
+  }
+} catch {
+  // Datei nicht gefunden oder nicht lesbar → fail-open, weiterprüfen
+}
+
 const url = process.env.SITE_URL;
 if (!url) {
   console.error('FATAL: SITE_URL Environment-Variable fehlt');

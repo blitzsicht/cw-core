@@ -12,7 +12,11 @@
  *   @theme {
  *     --color-primary: #...;        ← Hauptfarbe (dunkel)
  *     --color-primary-light: #...;  ← etwas heller als primary
- *     --color-primary-dark: #...;   ← dunkler als primary (PageHero-Gradient, optional)
+ *     --color-primary-dark: #...;   ← dunkler als primary (veraltet, nutze --color-hero-gradient-end)
+ *     --color-hero-gradient-end: #...; ← Endfarbe für Hero/CTA/PageHero-Gradients (optional)
+ *                                          Wenn nicht gesetzt: color-mix(in srgb, --color-primary, #000 35%)
+ *                                          Muss in :root (NICHT @theme!) gesetzt werden, da es kein
+ *                                          Tailwind-v4-Token ist und sonst durch tree-shaking entfernt wird.
  *     --color-accent: #...;         ← Akzentfarbe (Buttons, Highlights)
  *     --color-accent-hover: #...;   ← Hover-State der Akzentfarbe
  *     --color-accent-text: #...;    ← Textfarbe für Links (WCAG AA 4.5:1 auf Weiß)

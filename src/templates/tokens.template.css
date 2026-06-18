@@ -63,4 +63,19 @@
 :root {
   --section-padding: 5rem;
   --container-max: 72rem;
+
+  /*
+   * --color-hero-gradient-end: Endfarbe für Hero/CTABlock/PageHero/CalEmbed-Gradients.
+   *
+   * OPTIONAL — wenn nicht gesetzt, wird automatisch berechnet:
+   *   color-mix(in srgb, var(--color-primary), #000 35%)
+   *
+   * Hier in :root setzen, NICHT in @theme: Tailwind v4 tree-shakt ungenutzte
+   * @theme-Tokens weg, aber dieses Token wird dynamisch per CSS-var referenziert,
+   * nicht als Tailwind-Klasse. In :root bleibt es garantiert erhalten.
+   *
+   * Beispiel: für Blitzsicht Nachtblau-Primary (#1D1E3B) wäre ein passender
+   * Wert: --color-hero-gradient-end: #0e0f1e;
+   */
+  /* --color-hero-gradient-end: #TODO; */
 }
