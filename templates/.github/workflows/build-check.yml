@@ -58,9 +58,14 @@ jobs:
   #
   # Repository-Variable PRODUCTION_URL setzen (gh variable set PRODUCTION_URL).
   # Falls die Variable nicht gesetzt ist, wird der Job geskippt.
+  #
+  # Opt-out für form-lose Customer (phone/whatsapp/cal-only, kein /api/contact):
+  #   gh variable set SKIP_FORM_HEALTH true
+  # Rückgängig machen sobald das Formular ergänzt wird:
+  #   gh variable set SKIP_FORM_HEALTH false
   smoke-test:
     needs: build
-    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_URL != ''
+    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_URL != '' && vars.SKIP_FORM_HEALTH != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:

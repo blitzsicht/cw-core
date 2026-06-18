@@ -16,11 +16,30 @@
  *   SITE_URL=https://soleno-energie.com \
  *     node node_modules/@cw/core/scripts/verify-form-health.mjs
  *
+ * Opt-out für form-lose Customer (hausamlago, mika, Ehrensache-One-Pager):
+ *   SKIP_FORM_HEALTH=true node scripts/verify-form-health.mjs
+ *   In CI: gh variable set SKIP_FORM_HEALTH true  (Repository-Variable)
+ *   In build-check.yml: smoke-test Job hat `if: vars.SKIP_FORM_HEALTH != 'true'`
+ *
  * Exit-Codes:
- *   0 — alles ok
+ *   0 — alles ok (oder Opt-out via SKIP_FORM_HEALTH=true)
  *   1 — mindestens ein Check failed
  *   2 — Konfig-Fehler (SITE_URL fehlt etc.)
  */
+
+// Cluster-Guard: explizites Opt-out für form-lose Customer.
+// Setzt man SKIP_FORM_HEALTH=true, verlässt das Skript sauber mit Exit 0.
+// Gedacht für: hausamlago (phone/whatsapp-only), mika (phone-only),
+// Ehrensache One-Pager und jeden weiteren Customer ohne /api/contact-Route.
+// Niemals automatisch skipppen — explizites Flag verhindert silent-pass bei echten Bugs.
+if (process.env.SKIP_FORM_HEALTH === 'true') {
+  console.log('ℹ  SKIP_FORM_HEALTH=true gesetzt — Form-Health-Check übersprungen.');
+  console.log('   Dieser Customer hat kein Kontaktformular (phone/whatsapp/cal-only).');
+  console.log('   Opt-out entfernen sobald ein Formular ergänzt wird.');
+  console.log('');
+  console.log('✅ Form-Health: skipped (SKIP_FORM_HEALTH=true)');
+  process.exit(0);
+}
 
 const url = process.env.SITE_URL;
 if (!url) {
