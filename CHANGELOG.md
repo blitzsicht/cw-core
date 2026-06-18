@@ -6,6 +6,45 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.12.0] — 2026-06-18
+
+### Added
+
+- `scripts/verify-form-health.mjs`: **`contactForm: false` als SSOT-Opt-out** (siluri/blitzsicht-ops#371). Das Skript liest jetzt `src/data/site-data.ts` (CWD-relativ) und überspringt den Form-Health-Check automatisch wenn `contactForm: false` gesetzt ist — kein manuelles `gh variable set SKIP_FORM_HEALTH true` mehr nötig.
+  - Regex-Parse (kein TypeScript-Compiler), fail-open wenn Datei fehlt.
+  - Erkennt `contactForm: false` und `contactForm : false` (Leerzeichen-tolerant).
+  - Erkennt NICHT `contactForm: true` (Check bleibt aktiv) oder fehlendes Feld (Check bleibt aktiv).
+  - `SKIP_FORM_HEALTH=true` bleibt als Legacy CI-Override erhalten (hausamlago, mika).
+- `templates/site-data.template.ts`: Kommentar-Block für `contactForm: false` — erklärt den Mechanismus und warum er fehlendes `web3formsKey` als SSOT ablöst.
+- `scripts/verify-form-health.test.mjs`: 6 neue Tests (Gruppe B) für `contactForm`-Opt-out — insgesamt 13 Tests:
+  - contactForm: false → skip (exit 0)
+  - contactForm: true → kein Skip (exit 2 wegen SITE_URL)
+  - contactForm fehlt → kein Skip (exit 2)
+  - Leerzeichen-Variante erkannt
+  - site-data.ts fehlt → fail-open (exit 2)
+  - SKIP_FORM_HEALTH=true + contactForm:false → SKIP_FORM_HEALTH gewinnt
+
+### Migration
+
+Customer ohne Kontaktformular (phone-only, whatsapp-only, cal.eu-only):
+
+```ts
+// src/data/site-data.ts — statt gh-Variable
+export const siteData = {
+  // ...
+  contactForm: false,  // verify-form-health überspringt automatisch
+};
+```
+
+Bestehende `SKIP_FORM_HEALTH=true`-Variables können danach via `gh variable delete SKIP_FORM_HEALTH` entfernt werden (optional — beide Mechanismen sind kompatibel).
+
+### Compatibility
+
+- Additive Änderung. Customer MIT Kontaktformular: keine Auswirkung (Feld fehlt → Check aktiv).
+- `SKIP_FORM_HEALTH=true` weiterhin voll unterstützt (Backwards-Kompatibilität).
+
+---
+
 ## [0.11.0] — 2026-06-18
 
 ### Added
