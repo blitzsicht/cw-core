@@ -4,7 +4,7 @@
  *
  * Renders a dark gradient section with heading + optional subtext.
  * Uses `--color-primary` as gradient start and auto-darkens via `color-mix`.
- * Override `--color-primary-dark` in tokens.css for fine control.
+ * Override `--color-hero-gradient-end` in `:root` of tokens.css for fine control.
  *
  * Optional `backgroundImage` prop: renders a background image with dark overlay.
  *
@@ -52,7 +52,7 @@ const bgStyle = backgroundImage
     background: linear-gradient(
       135deg,
       var(--color-primary) 0%,
-      var(--color-primary-dark, color-mix(in srgb, var(--color-primary), black 25%)) 100%
+      var(--color-hero-gradient-end, color-mix(in srgb, var(--color-primary), #000 35%)) 100%
     );
     color: white;
     padding: 6rem 1.5rem 5rem;
