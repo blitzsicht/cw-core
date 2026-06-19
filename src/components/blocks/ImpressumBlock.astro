@@ -32,6 +32,8 @@ export interface LegalProps {
   country: string;
   phone: string;
   ustIdNr?: string | undefined;
+  /** Steuernummer des Finanzamts (optional). Nicht §5-DDG-Pflicht — nur anzeigen, wenn vom Kunden gewünscht. */
+  steuernummer?: string | undefined;
   handelsregister?: string | undefined;
   rechtsform: 'einzelunternehmer' | 'ek' | 'gbr' | 'egbr' | 'ug' | 'gmbh' | 'gmbh-co-kg' | 'ag';
   register: 'none' | 'hrb' | 'hra' | 'gnr' | 'vr';
@@ -170,6 +172,13 @@ const showRepresentatives =
     <>
       <h2>Umsatzsteuer-Identifikationsnummer</h2>
       <p>USt-IdNr. gemäß § 27 a UStG: {l.ustIdNr}</p>
+    </>
+  )}
+
+  {l.steuernummer && (
+    <>
+      <h2>Steuernummer</h2>
+      <p>Steuernummer: {l.steuernummer}</p>
     </>
   )}
 
