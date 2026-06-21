@@ -26,6 +26,11 @@
 export interface LegalProps {
   owner: string;
   form: string;
+  /** Firmenname inkl. Rechtsform (z. B. "Muster GmbH", "X Y Z eGbR"). Bei Gesellschaften
+   *  (GmbH/UG/AG/GbR/eGbR/…) gehört die Firma + Rechtsform ins Impressum (§ 5 DDG). Wenn gesetzt,
+   *  wird `company` als erste Zeile gerendert und `owner` als reine Vertreter-Person behandelt
+   *  (über `representatives`). Einzelunternehmer lassen `company` leer → `owner` ist die erste Zeile. */
+  company?: string | undefined;
   street: string;
   zip: string;
   city: string;
@@ -102,16 +107,19 @@ const registerLabel: Record<LegalProps['register'], string> = {
   vr: 'Vereinsregister',
 };
 
+// Vertretungsberechtigte: Pflicht bei juristischen Personen (§ 35 GmbHG) UND bei (e)GbR —
+// dort sind die Gesellschafter gemeinsam vertretungsberechtigt und müssen genannt werden.
 const showRepresentatives =
   l.representatives &&
   l.representatives.length > 0 &&
-  (['gmbh', 'ug', 'ag', 'gmbh-co-kg'] as const).includes(l.rechtsform as 'gmbh' | 'ug' | 'ag' | 'gmbh-co-kg');
+  (['gbr', 'egbr', 'gmbh', 'ug', 'ag', 'gmbh-co-kg'] as const).includes(
+    l.rechtsform as 'gbr' | 'egbr' | 'gmbh' | 'ug' | 'ag' | 'gmbh-co-kg');
 ---
 
 <div class="impressum-block">
   <h2>Angaben gemäß § 5 DDG</h2>
   <p>
-    {l.owner}<br />
+    {l.company ? <>{l.company}<br /></> : <>{l.owner}<br /></>}
     {l.street}<br />
     {l.zip} {l.city}{l.country !== 'DE' ? <>, {l.country}</> : null}
   </p>

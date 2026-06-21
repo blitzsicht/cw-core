@@ -53,6 +53,14 @@ export interface AiDiscoverySiteData {
     street?: string;
     zip?: string;
     city?: string;
+    // Rechtsform-Felder (optional) — vom Impressum-Linter geprüft. Customer ohne
+    // gepflegtes Rechtsform-Schema lassen sie weg → Linter überspringt sie.
+    owner?: string;
+    company?: string;
+    rechtsform?: string;
+    register?: string;
+    registerNumber?: string;
+    registerNummer?: string;
   };
   seo?: {
     foundingDate?: string;
@@ -118,6 +126,18 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * alle Customer-Sites bereinigt sind.
    */
   strictBrandName?: boolean;
+
+  /**
+   * Default false. Bei true → Build-Fail wenn der Impressum-Linter eine §5-DDG-Lücke
+   * in den Rechtsform-Angaben findet (Gesellschaft ohne Firma/Rechtsform, oder
+   * eingetragene Rechtsform ohne Registernummer).
+   *
+   * Hintergrund: customer-gottl-richter-gomeier (eGbR) hatte owner=Privatperson und
+   * die Firma nur im (nie gerenderten) `company`-Feld → das Impressum nannte keine
+   * Firma/Rechtsform. Default false = Warnung; auf true setzen, sobald alle Customer
+   * vollständige Rechtsform-Angaben haben.
+   */
+  strictImpressum?: boolean;
 
   /**
    * Default true. Prüft die `vercel.json` auf CSP-Drift: fehlende `*-elem`-
@@ -605,6 +625,66 @@ function generateLlmsFullTxt(
 // Integration factory
 // ---------------------------------------------------------------------------
 
+/** Eine §5-DDG-Lücke in den Impressum-Rechtsform-Angaben. */
+export interface ImpressumIssue {
+  /** Betroffenes site-data-Feld (z. B. "legal.company"). */
+  field: string;
+  /** Erklärung + Fix-Hinweis. */
+  detail: string;
+}
+
+// Rechtsformen, bei denen Firma + Rechtsform ins Impressum gehören (keine Einzelunternehmer).
+const GESELLSCHAFT_FORMEN = new Set(['gbr', 'egbr', 'ek', 'ug', 'gmbh', 'gmbh-co-kg', 'ag']);
+// Eingetragene Register → Registernummer ist §5-DDG-Pflicht.
+const EINGETRAGENE_REGISTER = new Set(['hrb', 'hra', 'gnr', 'vr']);
+// Marker, an denen man erkennt, dass `owner` bereits die Firma inkl. Rechtsform trägt.
+const RECHTSFORM_MARKER = ['GmbH', 'mbH', 'eGbR', 'GbR', ' UG', ' AG', ' KG', 'OHG', 'e.K.', 'eG', 'e.V.'];
+
+/**
+ * Prüft die §5-DDG-Pflichtangaben zur Rechtsform im Impressum.
+ *
+ * Auslöser (2026-06-21): customer-gottl-richter-gomeier (eGbR) hatte owner=Privatperson
+ * ('Gottl Reiner') und die Firma nur im `company`-Feld, das ImpressumBlock damals nie
+ * renderte → das Impressum nannte keine Firma/Rechtsform. Cluster-Risiko: jeder Customer,
+ * der `company` statt eines firmierten `owner` nutzt.
+ *
+ * Zwei Checks: (1) Gesellschaften müssen Firma+Rechtsform tragen (company ODER owner mit
+ * Rechtsform-Marker); (2) eingetragene Rechtsformen brauchen eine Registernummer.
+ */
+export function lintImpressumLegalForm(legal: AiDiscoverySiteData['legal']): ImpressumIssue[] {
+  const issues: ImpressumIssue[] = [];
+  const rf = (legal.rechtsform ?? '').toLowerCase();
+  if (!rf) return issues; // kein Rechtsform-Schema gepflegt → nichts zu prüfen
+
+  if (GESELLSCHAFT_FORMEN.has(rf)) {
+    const owner = legal.owner ?? '';
+    const hasCompany = !!(legal.company && legal.company.trim());
+    const ownerHatRechtsform = RECHTSFORM_MARKER.some((m) => owner.includes(m));
+    if (!hasCompany && !ownerHatRechtsform) {
+      issues.push({
+        field: 'legal.company',
+        detail:
+          `rechtsform='${rf}' ist eine Gesellschaft, aber weder legal.company ist gesetzt noch ` +
+          `enthält legal.owner ('${owner}') die Rechtsform → das Impressum nennt nur eine Privatperson ` +
+          `statt der Firma (§5 DDG-Mangel). Setze legal.company auf den Firmennamen inkl. Rechtsform.`,
+      });
+    }
+  }
+
+  const reg = (legal.register ?? '').toLowerCase();
+  const regNr = legal.registerNumber ?? legal.registerNummer;
+  if (EINGETRAGENE_REGISTER.has(reg) && !(regNr && String(regNr).trim())) {
+    issues.push({
+      field: 'legal.registerNumber',
+      detail:
+        `register='${reg}' (eingetragen) aber keine registerNumber/registerNummer gesetzt → der ` +
+        `Pflicht-Registereintrag fehlt im Impressum (§5 DDG). Registernummer + Registergericht ergänzen.`,
+    });
+  }
+
+  return issues;
+}
+
 export default function aiDiscovery<T extends AiDiscoverySiteData>(
   options: AiDiscoveryOptions<T>,
 ): AstroIntegration {
@@ -691,6 +771,30 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           }
         } else {
           logger.info(`Brand-Name-Linter (siteData): ✓ Keine Literal-Duplikate in Prosa-Feldern.`);
+        }
+
+        // -------------------------------------------------------------------
+        // Impressum-Rechtsform-Guard: Firma/Rechtsform + Registereintrag (§5 DDG)
+        // -------------------------------------------------------------------
+        // Auslöser: customer-gottl-richter-gomeier (eGbR) — owner war eine
+        // Privatperson, die Firma stand nur im (damals nie gerenderten) company-Feld
+        // → das Impressum nannte keine Firma/Rechtsform. Dieser Guard fängt den Fall
+        // clusterweit, bevor ein unvollständiges Firmen-Impressum live geht.
+        const impressumIssues = lintImpressumLegalForm(data.legal);
+        if (impressumIssues.length > 0) {
+          logger.warn(
+            `Impressum-Linter: ${impressumIssues.length} §5-DDG-Lücke(n) in den Rechtsform-Angaben.`,
+          );
+          for (const issue of impressumIssues) {
+            logger.warn(`  [impressum] ${issue.field}: ${issue.detail}`);
+          }
+          if (options.strictImpressum) {
+            throw new Error(
+              `[ai-discovery] strictImpressum=true: Build abgebrochen wegen ${impressumIssues.length} Impressum-Rechtsform-Lücke(n).`,
+            );
+          }
+        } else {
+          logger.info(`Impressum-Linter: ✓ Rechtsform-Angaben vollständig.`);
         }
       },
 
