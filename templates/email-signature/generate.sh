@@ -29,6 +29,7 @@ COLOR_ACCENT="${COLOR_ACCENT:-#3d7a12}"
 COMPANY_NAME="${COMPANY_NAME:?'COMPANY_NAME fehlt'}"
 LEGAL_FORM="${LEGAL_FORM:-GmbH}"
 GF_NAME="${GF_NAME:-}"
+REPRESENTATIVES="${REPRESENTATIVES:-}"  # GbR: alle vertretungsberechtigten Gesellschafter (Komma-getrennt)
 STREET="${STREET:?'STREET fehlt'}"
 ZIP_CITY="${ZIP_CITY:?'ZIP_CITY fehlt'}"
 HRB="${HRB:-}"
@@ -97,14 +98,19 @@ build_compliance_block() {
     einzelunternehmen|einzelunternehmer|freiberufler)
       # Keine GF/HRB-Zeile — bei Einzelunternehmen nicht relevant
       ;;
-    egbr|"egbr (eingetragene gbr)")
-      if [ -n "$GF_NAME" ]; then
-        lines+=("eGbR &middot; vertretungsberechtigt: ${GF_NAME}")
+    *gbr*)
+      # GbR UND eGbR: die Gesellschafter sind vertretungsberechtigt — KEIN "GF"
+      # (eine GbR hat keinen Geschäftsführer). Zeigt LEGAL_FORM wie gepflegt ('GbR' / 'eGbR').
+      # Bevorzugt ALLE Gesellschafter (REPRESENTATIVES); Fallback einzelner GF_NAME.
+      local gbr_vertreter="${REPRESENTATIVES:-$GF_NAME}"
+      if [ -n "$gbr_vertreter" ]; then
+        lines+=("${LEGAL_FORM} &middot; vertretungsberechtigt: ${gbr_vertreter}")
       else
-        lines+=("eGbR")
+        lines+=("${LEGAL_FORM}")
       fi
+      # Registereintrag NUR bei eingetragener GbR (eGbR) — also wenn eine Registernummer
+      # vorliegt. Nicht-eingetragene GbR: kein Registergericht (das gibt es dort nicht).
       [ -n "$REGISTERGERICHT" ] && [ -n "$HRB" ] && lines+=("${REGISTERGERICHT} &middot; ${HRB}")
-      [ -n "$REGISTERGERICHT" ] && [ -z "$HRB" ] && lines+=("${REGISTERGERICHT}")
       ;;
     *)
       # GmbH, AG, UG, GmbH & Co. KG, …

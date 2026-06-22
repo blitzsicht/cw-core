@@ -70,6 +70,13 @@ if not hrb:
         hrb = f"{reg.upper()} {nr}"
 registergericht = kv(legal, "registergericht") or kv(legal, "registry")
 
+# representatives[] (GbR/OHG/KG): alle vertretungsberechtigten Gesellschafter
+representatives = ""
+rm_match = re.search(r"representatives:\s*\[([^\]]*)\]", legal)
+if rm_match:
+    names = re.findall(r"['\"]([^'\"]+)['\"]", rm_match.group(1))
+    representatives = ", ".join(names)
+
 # contact block (fallback for phone if not in legal)
 contact = extract_block("contact")
 phone = phone or kv(contact, "phone") or kv(contact, "telefon")
@@ -141,6 +148,7 @@ out = {
     "COMPANY_NAME": name,
     "LEGAL_FORM": form,
     "GF_NAME": owner,
+    "REPRESENTATIVES": representatives,
     "STREET": street,
     "ZIP_CITY": f"{zip_} {city}".strip(),
     "PHONE": phone,
