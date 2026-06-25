@@ -6,6 +6,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.39.0] — 2026-06-25 (release/cw-core)
+
+> Neuer Block `MapEmbed` — privacy-by-default OpenStreetMap-Embed (click-to-load).
+> Erster Karten-Embed im Cluster. Erstkunde: customer-braustall.
+
+### Added
+
+- `src/components/blocks/MapEmbed.astro`: OpenStreetMap-Embed, das **erst nach Nutzer-Klick**
+  lädt — kein Drittanbieter-Request beim Seitenaufruf (DSGVO-konform ohne Consent-Banner).
+  Prop-driven (`lat`, `lng`, `zoom`, `markerLabel`, `address`, `height`). CSP-Bedarf beim
+  Customer: `frame-src https://www.openstreetmap.org`.
+
+---
+
 ## [0.35.0] — 2026-06-18 (release/cw-core)
 
 > Design-Polish-Paket: Form-Health Opt-out, Gradient-Entblauen + steuerbares
