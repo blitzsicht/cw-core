@@ -38,26 +38,44 @@
     }
   };
 
+  // Sektions-Auflösung: explizites data-location, sonst nächste [data-section]
+  // (z. B. der Footer trägt data-section="footer"), sonst 'unknown'.
+  const sectionLoc = (el: HTMLElement): string =>
+    el.dataset.location ??
+    el.closest('[data-section]')?.getAttribute('data-section') ??
+    'unknown';
+
   document.querySelectorAll<HTMLAnchorElement>('a[href^="tel:"]').forEach((el) => {
     el.addEventListener('click', () => {
-      const location =
-        el.dataset.location ??
-        el.closest('[data-section]')?.getAttribute('data-section') ??
-        'unknown';
-      track('Phone Click', { location });
+      track('Phone Click', { location: sectionLoc(el) });
     });
   });
 
   document.querySelectorAll<HTMLAnchorElement>('a[href*="wa.me"], a[href*="api.whatsapp.com"]').forEach((el) => {
     el.addEventListener('click', () => {
-      track('WhatsApp Click', { location: el.dataset.location ?? 'unknown' });
+      track('WhatsApp Click', { location: sectionLoc(el) });
     });
   });
 
   document.querySelectorAll<HTMLAnchorElement>('a[href^="mailto:"]').forEach((el) => {
     el.addEventListener('click', () => {
-      track('Email Click', { location: el.dataset.location ?? 'unknown' });
+      track('Email Click', { location: sectionLoc(el) });
     });
+  });
+
+  // Eigen-Marken-Backlink (Footer „Erstellt von Blitzsicht"): die servende
+  // Kunden-Domain als utm_source ergänzen, damit blitzsicht.com sieht, von
+  // welcher Kundenseite der Klick kam (statt nur „footer").
+  document.querySelectorAll<HTMLAnchorElement>('a[data-brand-backlink]').forEach((el) => {
+    try {
+      const u = new URL(el.href);
+      if (!u.searchParams.has('utm_source')) {
+        u.searchParams.set('utm_source', window.location.hostname);
+        el.href = u.toString();
+      }
+    } catch {
+      /* ungültige URL — ignorieren */
+    }
   });
 
   document.querySelectorAll<HTMLElement>('[data-cta]').forEach((el) => {

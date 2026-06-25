@@ -162,7 +162,7 @@ const badgeUrl = effectiveSlug
   : null;
 const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
 ---
-<footer>
+<footer data-section="footer">
   <div class="container">
     <div class="footer-grid" style={(extraLinks2?.length ?? 0) > 0 ? 'grid-template-columns: 2fr 1fr 1fr 1fr 1fr' : (extraLinks?.length ?? 0) > 0 ? 'grid-template-columns: 2fr 1fr 1fr 1fr' : undefined}>
       <div class="footer-brand">
@@ -189,7 +189,7 @@ const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
           </a>
         )}
         {bookingUrl && (
-          <a href={bookingUrl} class="contact-link" target="_blank" rel="noopener noreferrer">
+          <a href={bookingUrl} class="contact-link" target="_blank" rel="noopener noreferrer" data-cta="footer:booking">
             Termin buchen
           </a>
         )}
@@ -239,7 +239,7 @@ const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
 
     <div class="footer-bottom">
       <p>© {year} {copyrightOwner}{legalForm ? ` · ${legalForm}` : ''}{city ? ` · ${city}` : ''}</p>
-      <p class="footer-credit">{tagline && <span class="footer-tagline">{tagline} · </span>}Erstellt von <a href="https://blitzsicht.com?ref=footer" target="_blank" rel="noopener">Blitzsicht</a></p>
+      <p class="footer-credit">{tagline && <span class="footer-tagline">{tagline} · </span>}Erstellt von <a href="https://blitzsicht.com/?utm_medium=footer" target="_blank" rel="noopener" data-brand-backlink>Blitzsicht</a></p>
     </div>
 
     {badgeUrl && (
