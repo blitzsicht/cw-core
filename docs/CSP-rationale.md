@@ -137,3 +137,16 @@ Beide Hypothesen werden durch das Pragma umgangen. Sicherheitstechnisch ist `'se
 Diese Doku allein hat die Wiederholung **nicht** verhindert: Am **2026-06-09** ging donau-profi.de mit nur-`'self'`-CSP live (mit altem Template generiert, Doku übersehen) → erneut stundenlanges Phantom-Debugging (Cache-/Toolbar-/Extension-Hypothesen), bis die alte Memory + Bisection den Fix lieferten.
 
 Konsequenz: Der Pragma-Fix ist jetzt ein **Build-time-Guard** statt nur Doku. `ai-discovery/csp-check.ts` prüft via `siteOrigin` (aus `siteData.url`) jede `'self'`-Source-Direktive auf den expliziten Origin und warnt im `astro:build:done`-Hook (Issue-Typ `self_without_origin`). Passive Konvention → aktiver Test, der sich beim Build meldet. **Lehre:** Recurring Bugs gehören als Guard codifiziert, nicht nur dokumentiert (#1-Regel des customer-websites-Repos).
+
+---
+
+## Warum `'unsafe-inline'` in `script-src`/`style-src` bleibt (Stand 2026-06-30)
+
+Ein Security-Review (mazterplan.com) flaggte `'unsafe-inline'` als Defense-in-Depth-Lücke. **Bewusste Entscheidung: bleibt — eine Entfernung ist im aktuellen Cluster nicht machbar.** Begründung:
+
+- **`script-src`:** Echter Treiber sind dynamische `is:inline define:vars`-Scripts in cw-core-Komponenten (`BaseLayout.astro` Plausible-`init`, `Footer.astro` cwCoreVersion-Log, `analytics/Plausible.astro`, mehrere `motion/*`- und `forms/*`-Komponenten). `define:vars` injiziert pro Customer/Page andere Werte → der Script-Body ist **nicht build-stabil und damit nicht hash-bar**. Hash-basierte CSP (`'sha256-…'`) bräche bei jedem cw-core-Bump und pro Customer. Nonce-basiert geht nicht: die Sites sind **statisch auf Vercel** (kein SSR → kein Per-Request-Nonce). Der statische Plausible-Shim und die `application/ld+json`-Blöcke (nicht-ausführbare Daten, von `script-src` spec-konform nicht geblockt) allein würden `'unsafe-inline'` NICHT erzwingen.
+- **`style-src`:** Getrieben von dynamischen Inline-`style={…}`-Attributen in vielen Block-/Form-/Motion-Komponenten (BentoGrid-Spans, PageHero-Gradients, AnimatedBlob …). Inline-`style`-Attribute sind in CSP2 **nicht** über Hashes abdeckbar.
+
+**Risikobewertung:** Auf den cw-core-Sites (statisch, kein Backend, keine Formular-/Reflected-/DOM-Input-Sinks, mailto encoded) ist `'unsafe-inline'` praktisch nicht ausnutzbar — es gibt keinen Injection-Punkt für Inline-Script. Defense-in-Depth-Schwäche, kein exploitable Bug.
+
+**Voraussetzung für spätere Entfernung:** Umbau aller `define:vars`-Inline-Scripts auf gebündelte externe Module (`'self'`) + Eliminierung dynamischer Inline-`style`-Attribute zugunsten von CSS-Custom-Properties. Großer Cluster-Refactor — erst sinnvoll, wenn eine Site echte User-Input-Sinks bekommt (Formulare/SSR).

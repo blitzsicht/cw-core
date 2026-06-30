@@ -1,0 +1,39 @@
+{
+  "name": "customer-{{SLUG}}",
+  "packageManager": "pnpm@10.0.0",
+  "type": "module",
+  "version": "0.0.1",
+  "private": true,
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "optimize:images": "node node_modules/@cw/core/scripts/optimize-images.mjs --delete-originals",
+    "build": "pnpm run optimize:images && astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "check": "astro check"
+  },
+  "_comment_build": "NICHT 'prebuild' als Script-Namen verwenden: pnpm feuert den prebuild-Lifecycle automatisch VOR 'build' — ein zusätzliches 'pnpm prebuild' im build-Script ließe optimize-images doppelt laufen. Daher non-lifecycle-Name 'optimize:images', explizit aufgerufen.",
+  "dependencies": {
+    "@astrojs/sitemap": "^3.2.1",
+    "@cw/core": "github:siluri/cw-core#release/cw-core/{{CW_CORE_VERSION}}",
+    "@tailwindcss/vite": "^4.1.3",
+    "astro": "^5.6.0",
+    "tailwindcss": "^4.1.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.0",
+    "@types/node": "^22.0.0",
+    "sharp": "^0.34.5",
+    "typescript": "^5.4.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "@cw/core"
+    ]
+  }
+}

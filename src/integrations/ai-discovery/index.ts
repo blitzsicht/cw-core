@@ -177,6 +177,63 @@ function walkHtml(dir: string, results: string[] = []): string[] {
   return results;
 }
 
+/** Slug → menschenlesbares Label für die llms.txt "Wichtige Seiten"-Liste. */
+const IMPORTANT_PAGE_LABELS: Record<string, string> = {
+  leistungen: 'Alle Leistungen',
+  faq: 'FAQ',
+  'ueber-uns': 'Über uns',
+  kontakt: 'Kontakt',
+  impressum: 'Impressum',
+  datenschutz: 'Datenschutz',
+  blog: 'Blog',
+  referenzen: 'Referenzen',
+  pakete: 'Pakete & Preise',
+  team: 'Team',
+  karriere: 'Karriere',
+};
+
+/**
+ * Leitet die "Wichtige Seiten"-Liste für llms.txt aus den REAL gebauten
+ * dist/-Routen ab (statt hardcodeter Pfade, die bei Single-Page-/Produkt-Sites
+ * tote Links erzeugten). Regeln: nur Top-Level-Routen (Tiefe 1), ohne Homepage,
+ * ohne noindex-Seiten. Label via Slug-Map mit Title-Case-Fallback. Alphabetisch
+ * sortiert (deterministisch). Exportiert für Unit-Tests.
+ */
+export function resolveImportantPages(
+  htmlFiles: readonly string[],
+  distDir: string,
+  baseUrl: string,
+): Array<{ label: string; href: string }> {
+  const base = distDir.replace(/\\/g, '/').replace(/\/$/, '');
+  const pages: Array<{ label: string; href: string }> = [];
+  for (const file of htmlFiles) {
+    const rel = file.replace(/\\/g, '/').slice(base.length);
+    const route = rel.replace(/index\.html$/, '').replace(/\/+$/, '');
+    if (route === '') continue; // Homepage — steckt bereits in H1
+    const segments = route.replace(/^\//, '').split('/').filter(Boolean);
+    if (segments.length !== 1) continue; // nur Top-Level (Detailseiten stehen in "Was wir anbieten")
+    const slug = segments[0];
+    let content = '';
+    try {
+      content = readFileSync(file, 'utf-8');
+    } catch {
+      /* unlesbar → überspringen */
+    }
+    if (/<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(content)) {
+      continue; // noindex-Seiten (z.B. /review) nicht bewerben
+    }
+    const label =
+      IMPORTANT_PAGE_LABELS[slug] ??
+      slug
+        .split('-')
+        .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+        .join(' ');
+    pages.push({ label, href: `${baseUrl}/${slug}/` });
+  }
+  pages.sort((a, b) => a.href.localeCompare(b.href));
+  return pages;
+}
+
 /** Extrahiert alle JSON-LD-Block-Inhalte aus einem HTML-String. */
 function extractJsonLd(html: string): string[] {
   const blocks: string[] = [];
@@ -451,6 +508,7 @@ function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
 function generateLlmsTxt(
   data: AiDiscoverySiteData,
   services: ReadonlyArray<ServiceItem> | undefined,
+  importantPages: ReadonlyArray<{ label: string; href: string }> = [],
 ): string {
   const lines: string[] = [];
 
@@ -496,14 +554,15 @@ function generateLlmsTxt(
     lines.push('');
   }
 
-  // Important pages
-  lines.push('## Wichtige Seiten');
-  lines.push('');
-  lines.push(`- [Alle Leistungen](${data.url}/leistungen/)`);
-  lines.push(`- [FAQ](${data.url}/faq/)`);
-  lines.push(`- [Über uns](${data.url}/ueber-uns/)`);
-  lines.push(`- [Kontakt](${data.url}/kontakt/)`);
-  lines.push('');
+  // Important pages — aus den REAL gebauten Seiten abgeleitet (keine toten Links)
+  if (importantPages.length > 0) {
+    lines.push('## Wichtige Seiten');
+    lines.push('');
+    for (const page of importantPages) {
+      lines.push(`- [${page.label}](${page.href})`);
+    }
+    lines.push('');
+  }
 
   // Machine-readable full text pointer
   lines.push('## Maschinenlesbarer Volltext');
@@ -814,7 +873,13 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         const outDir = fileURLToPath(dir);
         mkdirSync(outDir, { recursive: true });
 
-        const llmsTxt = generateLlmsTxt(data, services);
+        // Real gebaute Seiten einmal scannen — Quelle für llms.txt "Wichtige
+        // Seiten" UND den Schema-Linter weiter unten.
+        const distDir = outDir.replace(/\/$/, '');
+        const htmlFiles = walkHtml(distDir);
+        const importantPages = resolveImportantPages(htmlFiles, distDir, data.url);
+
+        const llmsTxt = generateLlmsTxt(data, services, importantPages);
         writeFileSync(join(outDir, 'llms.txt'), llmsTxt, 'utf-8');
         logger.info(`  → ${join(outDir, 'llms.txt')}`);
 
@@ -833,8 +898,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         //
         // Cluster-Scan 2026-05-30: 2/9 Live-Sites (blitzsicht, baeckereizink)
         // hatten 2× #organization. Linter fängt das beim Build.
-        const distDir = outDir.replace(/\/$/, '');
-        const htmlFiles = walkHtml(distDir);
+        // distDir + htmlFiles bereits oben gescannt (für llms.txt wiederverwendet).
         const allIssues: SchemaIssue[] = [];
         for (const file of htmlFiles) {
           allIssues.push(...lintPageSchema(file, distDir));
