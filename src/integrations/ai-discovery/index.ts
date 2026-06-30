@@ -373,8 +373,14 @@ export function lintBrandNameInRobotsTxt(distDir: string, brandName: string): Br
   if (!existsSync(robotsPath)) return [];
 
   const content = readFileSync(robotsPath, 'utf-8');
+  // URLs (z.B. die Sitemap-Direktive) enthalten zwangsläufig die Domain. Wenn der
+  // Markenname == Domain-Root ist (z.B. "mazterplan" → mazterplan.com), wäre das
+  // ein False-Positive — die URL ist strukturell unvermeidbar (kein vermeidbares
+  // Prosa-Literal). Daher http(s)-URL-Tokens vor der Zählung entfernen; echte
+  // Literale in Kommentaren/Direktiven bleiben erfasst.
+  const scannable = content.replace(/https?:\/\/\S+/gi, '');
   const needle = brandName.trim().toLowerCase();
-  const lowerContent = content.toLowerCase();
+  const lowerContent = scannable.toLowerCase();
 
   let count = 0;
   let pos = 0;

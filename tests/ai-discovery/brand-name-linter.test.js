@@ -198,3 +198,31 @@ test('9. robots.txt nicht vorhanden → keine Issues, kein Crash', () => {
     rmSync(distDir, { recursive: true, force: true });
   }
 });
+
+test('10. Brand==Domain in Sitemap-URL → KEIN Issue (False-Positive-Guard)', () => {
+  // Marke "mazterplan" == Domain-Root mazterplan.com. Die Sitemap-URL enthält den
+  // Namen zwangsläufig — das darf NICHT als vermeidbares Prosa-Literal flaggen.
+  const distDir = makeTempDist(
+    'User-agent: *\nAllow: /\nDisallow: /review\n\nSitemap: https://mazterplan.com/sitemap-index.xml\n',
+  );
+  try {
+    const issues = lintBrandNameInRobotsTxt(distDir, 'mazterplan');
+    assert.deepEqual(issues, [], 'Domain in Sitemap-URL ist kein vermeidbares Literal');
+  } finally {
+    rmSync(distDir, { recursive: true, force: true });
+  }
+});
+
+test('11. Brand im Kommentar wird trotz URL-Strip erkannt', () => {
+  // Echtes Literal im Kommentar bleibt erfasst — nur http(s)-URLs werden ausgeklammert.
+  const distDir = makeTempDist(
+    '# mazterplan robots\nUser-agent: *\n\nSitemap: https://mazterplan.com/sitemap-index.xml\n',
+  );
+  try {
+    const issues = lintBrandNameInRobotsTxt(distDir, 'mazterplan');
+    assert.equal(issues.length, 1);
+    assert.equal(issues[0].count, 1, 'nur das Kommentar-Literal, nicht die URL-Domain');
+  } finally {
+    rmSync(distDir, { recursive: true, force: true });
+  }
+});
