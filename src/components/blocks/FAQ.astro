@@ -12,6 +12,8 @@
  * @example
  *   <FAQ items={siteData.faqs} />
  */
+import { linkifyPhones } from '../../utils/text/linkify-phones';
+
 export interface FAQItem {
   /** Question text. */
   q: string;
@@ -69,7 +71,7 @@ const faqSchema = items.length > 0
               <polyline points="6 9 12 15 18 9"/>
             </svg>
           </summary>
-          <div class="faq-answer">{item.a}</div>
+          <div class="faq-answer" set:html={linkifyPhones(item.a)} />
         </details>
       ))}
     </div>

@@ -93,6 +93,13 @@ interface Props {
   footer: FooterConfig;
   /** See LandingPage.turnstileSiteKey — site-wide Pre-Clearance widget. */
   turnstileSiteKey?: string;
+  /**
+   * Wenn true: kein `padding-bottom` am Content-Wrapper — der letzte
+   * (full-width) Block (z. B. CTA) schließt bündig an den Footer an.
+   * Für Seiten, die mit einem farbigen CTA-Block enden (Leistungsdetail,
+   * Über-uns), damit kein weißer Zwischenraum zum Footer entsteht.
+   */
+  flushBottom?: boolean;
 }
 
 const {
@@ -113,6 +120,7 @@ const {
   header = {},
   footer,
   turnstileSiteKey,
+  flushBottom,
 } = Astro.props;
 ---
 <BaseLayout
@@ -144,7 +152,7 @@ const {
     karriereHref={header.karriereHref}
     hideBrandName={header.hideBrandName}
   />
-  <main class="content-page">
+  <main class:list={["content-page", { "flush-bottom": flushBottom }]}>
     <div class="container">
       <h1>{title}</h1>
       <slot />
@@ -186,6 +194,7 @@ const {
        6rem doppel-padding zwischen CTA und Footer. 3rem reicht für Atemraum. */
     padding: 4rem 0 3rem;
   }
+  .content-page.flush-bottom { padding-bottom: 0; }
   .content-page h1 {
     font-size: clamp(1.75rem, 3vw, 2.5rem);
     margin-bottom: 2rem;

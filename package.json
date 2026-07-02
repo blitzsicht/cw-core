@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.42.0",
+  "version": "0.43.0",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -33,6 +33,9 @@
     "sig:person": "bash templates/email-signature/onboard-person.sh",
     "examples:dev": "cd examples && pnpm dev",
     "examples:build": "cd examples && pnpm build"
+  },
+  "dependencies": {
+    "exiftool-vendored": "^36.0.0"
   },
   "peerDependencies": {
     "astro": ">=5.0.0",

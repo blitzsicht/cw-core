@@ -205,6 +205,7 @@ const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content="Blitzsicht · https://blitzsicht.com" />
     <title>{pageTitle}</title>
     <meta name="description" content={resolvedDescription} />
     <link rel="canonical" href={canonical} />
@@ -236,10 +237,11 @@ const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
     <meta name="twitter:description" content={resolvedDescription} />
     <meta name="twitter:image" content={ogImageUrl} />
 
-    <!-- Plausible Analytics (cookie-frei, DSGVO-konform) -->
-    <!-- Queue-Shim immer vorhanden: window.plausible() wirft keinen Fehler wenn kein Script geladen.
-         plausible.init() MUSS für Custom-Scripts (pa-XXX.js) explizit aufgerufen werden, sonst lädt
-         das Script aber initialisiert sich nicht (Install Verify schlägt fehl). -->
+    {/* Plausible Analytics (cookie-frei, DSGVO-konform).
+        Interne Doku (wird NICHT ins HTML ausgeliefert — JS-Kommentar):
+        Queue-Shim immer vorhanden, damit window.plausible() nie wirft, wenn kein Script geladen ist.
+        plausible.init() MUSS für Custom-Scripts (pa-XXX.js) explizit aufgerufen werden, sonst lädt
+        das Script, initialisiert sich aber nicht (Install Verify schlägt fehl). */}
     <script is:inline>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};window.plausible.init=window.plausible.init||function(i){window.plausible.o=i||{}};</script>
     {plausibleScript && (
       <>
@@ -293,6 +295,13 @@ const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
     <slot name="head" />
   </head>
   <body>
+    <!--
+      ================================================================
+        ⚡  B L I T Z S I C H T
+            Websites, die gefunden werden — in Suche, KI und Karte.
+            https://blitzsicht.com
+      ================================================================
+    -->
     <slot />
   </body>
   <script>

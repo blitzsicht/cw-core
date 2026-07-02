@@ -14,6 +14,7 @@
  *     items={siteData.leistungen}
  *   />
  */
+import { linkifyPhones } from '../../utils/text/linkify-phones';
 
 export interface LeistungItem {
   /** Emoji or short string used as a decorative icon. */
@@ -71,7 +72,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
               : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
             }
             <h3>{item.title}</h3>
-            {item.description && <p>{item.description}</p>}
+            {item.description && <p set:html={linkifyPhones(item.description)} />}
             <span class="leistung-link" aria-hidden="true">
               {readMoreLabel}<span> →</span>
             </span>
@@ -83,7 +84,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
               : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
             }
             <h3>{item.title}</h3>
-            {item.description && <p>{item.description}</p>}
+            {item.description && <p set:html={linkifyPhones(item.description)} />}
           </div>
         ))}
       </div>

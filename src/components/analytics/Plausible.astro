@@ -52,8 +52,8 @@ const {
   domain,
 } = Astro.props;
 ---
-<!-- Plausible Analytics (cookieless, DSGVO-konform via § 25 TDDDG: keine zustimmungspflichtige Endgerätespeicherung) -->
-<!-- Queue-Shim immer vorhanden: window.plausible() wirft keinen Fehler wenn Script fehlt -->
+{/* Plausible Analytics (cookieless, DSGVO-konform via § 25 TDDDG: keine zustimmungspflichtige Endgerätespeicherung).
+    Queue-Shim immer vorhanden, damit window.plausible() nie wirft, wenn das Script fehlt. (JS-Kommentar → nicht im HTML) */}
 <script is:inline>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)};</script>
 
 {!endpoint && <link rel="preconnect" href={host} />}
