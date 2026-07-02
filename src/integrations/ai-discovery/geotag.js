@@ -17,8 +17,10 @@
  * site-data-Felder (seo.geo, leistungen[].image/imageAlt) ohne Typ-Reibung geht.
  */
 
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, realpathSync } from 'node:fs';
 import { join, basename } from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 function walkWebp(dir, acc = []) {
   for (const name of readdirSync(dir)) {
@@ -52,11 +54,18 @@ export async function geotagDist(distDir, data, logger) {
     if (l?.image && l?.imageAlt) descByStem.set(String(l.image).replace(/\.webp$/i, ''), l.imageAlt);
   }
 
+  // exiftool-vendored ist cw-core-Dependency. Astro lädt die Integration über den
+  // pnpm-Symlink (node_modules/@cw/core/…) → import.meta.url zeigt auf den Symlink-
+  // Pfad, von dem aus die Dep NICHT auflösbar ist. Wir lösen daher über den
+  // REAL-Pfad des Moduls auf (folgt dem pnpm-Symlink in den .pnpm-Store), sonst
+  // schlägt das Tagging in Customer-Builds still fehl.
   let ExifTool;
   try {
-    ({ ExifTool } = await import('exiftool-vendored'));
-  } catch {
-    logger.warn('Geotag: exiftool-vendored nicht installiert — kein Geo/Meta-Tagging (kein Build-Bruch).');
+    const realUrl = pathToFileURL(realpathSync(fileURLToPath(import.meta.url))).href;
+    const req = createRequire(realUrl);
+    ({ ExifTool } = req('exiftool-vendored'));
+  } catch (e) {
+    logger.warn(`Geotag: exiftool-vendored nicht ladbar (${e?.code ?? e?.message ?? e}) — kein Geo/Meta-Tagging (kein Build-Bruch).`);
     return;
   }
 
