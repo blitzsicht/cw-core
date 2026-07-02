@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { AstroIntegration } from 'astro';
 import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.js';
+import { geotagDist } from './geotag.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -1029,6 +1030,19 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               }
             }
           }
+        }
+
+        // -------------------------------------------------------------------
+        // Geo/Meta-Tagging der dist-Bilder (Post-Build Re-Tagging, zero-config)
+        // -------------------------------------------------------------------
+        // astro:assets (sharp) strippt EXIF beim Build → Tags auf src/assets-
+        // Quellen überleben nicht. Daher hier, NACH dem Build, die fertigen
+        // dist-WebP taggen (Copyright/Artist/GPS/Description aus site-data).
+        // Non-fatal: bricht nie den Build.
+        try {
+          await geotagDist(distDir, data, logger);
+        } catch (e) {
+          logger.warn(`Geotag: unerwarteter Fehler (${e?.message ?? e}) — übersprungen.`);
         }
       },
     },

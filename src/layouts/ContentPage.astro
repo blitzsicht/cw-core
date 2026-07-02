@@ -94,10 +94,12 @@ interface Props {
   /** See LandingPage.turnstileSiteKey — site-wide Pre-Clearance widget. */
   turnstileSiteKey?: string;
   /**
-   * Wenn true: kein `padding-bottom` am Content-Wrapper — der letzte
-   * (full-width) Block (z. B. CTA) schließt bündig an den Footer an.
-   * Für Seiten, die mit einem farbigen CTA-Block enden (Leistungsdetail,
-   * Über-uns), damit kein weißer Zwischenraum zum Footer entsteht.
+   * Steuert das `padding-bottom` am Content-Wrapper (Abstand zum Footer).
+   * - `undefined` (Default): AUTO — bündig, sobald die Seite einen
+   *   `full-width`-Slot nutzt (dort landen CTA-Blöcke). Leistungsdetail-Seiten
+   *   schließen so automatisch bündig an den Footer an, ohne weiße Lücke.
+   * - `true`: erzwingt bündig (z. B. Über-uns mit CTA im Default-Slot).
+   * - `false`: erzwingt den normalen 3rem-Atemraum.
    */
   flushBottom?: boolean;
 }
@@ -122,6 +124,12 @@ const {
   turnstileSiteKey,
   flushBottom,
 } = Astro.props;
+
+// Zero-config: flushBottom explizit gesetzt → gilt. Sonst automatisch bündig,
+// wenn die Seite einen full-width-Slot nutzt — dort landen CTA-Blöcke, die
+// direkt an den Footer anschließen sollen (Leistungsdetail-Seiten). Damit
+// entfällt die weiße CTA→Footer-Lücke ganz ohne Customer-Änderung.
+const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
 ---
 <BaseLayout
   title={title}
@@ -152,7 +160,7 @@ const {
     karriereHref={header.karriereHref}
     hideBrandName={header.hideBrandName}
   />
-  <main class:list={["content-page", { "flush-bottom": flushBottom }]}>
+  <main class:list={["content-page", { "flush-bottom": shouldFlush }]}>
     <div class="container">
       <h1>{title}</h1>
       <slot />
