@@ -199,6 +199,17 @@ const resolvedTitleTemplate = titleTemplate ?? (siteName ? `%s | ${siteName}` : 
 const pageTitle = title ? resolvedTitleTemplate.replace('%s', title) : defaultTitle;
 const canonical = canonicalUrl ?? new URL(Astro.url.pathname, siteUrl).toString();
 const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
+
+// Build-Guard (Review 2026-07-02): first-party plausibleScript OHNE plausibleEndpoint
+// → das Tracker-Script postet an seinen absoluten Endpoint (cross-origin) statt first-party,
+//   und es wird ein stale preconnect zu plausibleHost gerendert. Genau der blitzsicht-
+//   danke/fix/report-Bug. Warnt pro betroffener Seite im Build-Log (dev-only, non-breaking).
+if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
+  console.warn(
+    `[cw-core] ⚠️  ${Astro.url.pathname}: plausibleScript='${plausibleScript}' (first-party) ohne plausibleEndpoint ` +
+      `→ Events gehen NICHT first-party + preconnect zeigt auf ${plausibleHost}. Fix: plausibleEndpoint='/api/event' setzen.`,
+  );
+}
 ---
 <!doctype html>
 <html lang={lang}>
