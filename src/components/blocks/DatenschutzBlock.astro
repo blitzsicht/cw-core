@@ -136,6 +136,8 @@ const showTurnstile = hasContactForm && hasTurnstile;
         in anonymen Tageszahlen. Es findet kein Cross-Site-Tracking statt; keine IP-Adressen-Speicherung
         auf Tagesebene. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
         Reichweitenmessung) sowie § 25 Abs. 2 Nr. 2 TDDDG (technisch erforderlich für die Bereitstellung).
+        Plausible läuft dabei self-hosted auf einer eigenen Serverinstanz in der EU (Hetzner); es werden
+        keine Daten an einen externen Analytics-Dienstleister übermittelt.
       </p>
     </>
   )}
@@ -195,7 +197,7 @@ const showTurnstile = hasContactForm && hasTurnstile;
     <li>Vercel Inc. — Hosting</li>
     {showResend && <li>Resend Inc. — Mail-Delivery für Kontaktformular</li>}
     {showTurnstile && <li>Cloudflare Inc. — Turnstile Anti-Bot</li>}
-    {hasPlausible && <li>Plausible.io (oder Self-Hosted) — Reichweitenmessung</li>}
+    {hasPlausible && <li>Self-Hosted Plausible auf eigener EU-Serverinstanz (Hetzner) — Reichweitenmessung; kein externer Analytics-Dienstleister</li>}
   </ul>
 
   <h2>9. Speicherdauer</h2>
