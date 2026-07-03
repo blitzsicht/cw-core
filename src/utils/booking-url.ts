@@ -5,7 +5,7 @@
  * an die Basis-Buchungs-URL. So weiß man bei jeder Buchung, **wo** geklickt wurde,
  * und der Termin ist vorqualifiziert.
  *
- * UTM-Konvention (SSOT — siehe README „Tracked Booking CTAs"):
+ * UTM-Konvention (SSOT — siehe docs/utm-event-conventions.md):
  *   utm_source   = Ursprung   (website | report | gbp | outreach)
  *   utm_medium   = Fläche     (web | email)
  *   utm_campaign = Kontext    (booking | monthly-report | …)
