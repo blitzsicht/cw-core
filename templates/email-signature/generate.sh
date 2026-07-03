@@ -200,6 +200,17 @@ except Exception:
 
 EXTRAS_BLOCK=$(build_extras_block)
 
+# ── Porträt-Block (rundes Personen-Foto, optional) ────────────────────────────
+# PHOTO_URL = absolute URL zu einem quadratischen Foto (PNG/JPG — KEIN WebP wegen
+# Outlook). Rundung via border-radius (Outlook Desktop zeigt Quadrat als Fallback).
+PHOTO_URL="${PHOTO_URL:-}"
+PHOTO_ALT="${PHOTO_ALT:-$NAME}"
+if [ -n "$PHOTO_URL" ]; then
+  PHOTO_BLOCK="<img src=\"${PHOTO_URL}\" alt=\"$(printf '%s' "$PHOTO_ALT" | sed 's/"/\&quot;/g')\" width=\"110\" height=\"110\" style=\"display:block;width:110px;height:110px;border-radius:50%;object-fit:cover;margin:0 0 12px 0;border:3px solid ${COLOR_PRIMARY};\">"
+else
+  PHOTO_BLOCK=""
+fi
+
 # ── Layout-Auswahl (auto/a/b) ─────────────────────────────────────────────────
 detect_layout() {
   if [ "$LAYOUT" = "a" ] || [ "$LAYOUT" = "b" ]; then
@@ -251,6 +262,7 @@ replace_html() {
     -e "s|{{LOGO_ALT}}|$(sed_escape "$LOGO_ALT")|g" \
     -e "s|{{COMPLIANCE_BLOCK}}|$(sed_escape "$COMPLIANCE_BLOCK")|g" \
     -e "s|{{EXTRAS_BLOCK}}|$(sed_escape "$EXTRAS_BLOCK")|g" \
+    -e "s|{{PHOTO_BLOCK}}|$(sed_escape "$PHOTO_BLOCK")|g" \
     "$file"
 }
 

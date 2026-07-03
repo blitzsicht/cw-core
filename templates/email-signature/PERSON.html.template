@@ -28,6 +28,7 @@
   <tbody>
     <tr>
       <td valign="top" style="padding-right:20px;border-right:3px solid {{COLOR_PRIMARY}};width:140px;">
+        {{PHOTO_BLOCK}}
         <picture>
           <source media="(prefers-color-scheme: dark)" srcset="{{LOGO_URL_DARK}}">
           <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" width="120" style="display:block;border:0;width:120px;height:auto;">
