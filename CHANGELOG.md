@@ -6,6 +6,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [0.14.0] — 2026-07-06
+
+### Added
+
+- **`@cw/core/integrations/favicon-ico`** — Astro-Integration, die `favicon.ico` bei jedem Build automatisch aus `public/favicon.svg` generiert (siluri/blitzsicht-ops#491).
+  - Root Cause: `BaseLayout.astro` verlinkte nur `favicon.svg` + `favicon-192.png`, keine Pipeline erzeugte `favicon.ico`. Plausibles Sites-Dashboard bezieht Site-Icons über den externen DuckDuckGo-Dienst (`icons.duckduckgo.com/ip3/<domain>.ico`), der `/favicon.ico` erwartet — 3/6 stichprobenartig geprüfte Sites zeigten deshalb nur den generischen Platzhalter.
+  - `astro:build:done`-Hook (analog zu `integrations/ai-discovery`) — immer frisch, keine Staleness-Heuristik nötig.
+  - Multi-Resolution (16/32/48px, konfigurierbar über `sizes`-Option), PNG-in-ICO-Container (kein BMP/DIB-Reencoding).
+  - Resolviert `sharp` aus dem Consumer-Repo (Konvention wie `scripts/optimize-images.mjs`); fail-open (Warnung statt Build-Abbruch) wenn `favicon.svg` fehlt oder `sharp` nicht auflösbar ist.
+  - Neu: `src/integrations/favicon-ico/ico.ts` (dependency-freier ICO-Container-Writer) + `src/integrations/favicon-ico/index.ts`.
+- **`BaseLayout.astro`**: zusätzlicher Fallback-Link `<link rel="icon" href="/favicon.ico" sizes="any" />` neben dem bestehenden SVG-Icon.
+- **`scripts/sweep-favicon.mjs`**: Curl-Sweep über eine Domain-Liste, meldet welche Sites kein HTTP 200 auf `/favicon.ico` liefern.
+- **`docs/favicon-pipeline.md`**: Mechanismus, Einbindung, Rollout-Status dokumentiert.
+- **`docs/onboarding-checklist.md`**: Abschnitt 4 + Bausteine-Tabelle um `faviconIco()`-Integration ergänzt — kein manueller Favicon-Schritt mehr im Onboarding.
+- **Tests**: `scripts/favicon-ico.test.mjs` (6 Tests) — ICO-Container-Format (Header, Multi-Size-Offsets, 256px-Edge-Case) + echter End-to-End-Test (`sharp` rendert eine Test-SVG, Ergebnis wird als valides Multi-Size-ICO verifiziert, inkl. PNG-Magic-Byte-Check pro Embedded-Image).
+
+### Notes
+
+- Rollout auf die einzelnen `customer-*`-Sites (Einbindung von `faviconIco()` in deren `astro.config.ts` + Redeploy) ist nicht Teil dieses `cw-core`-only-PRs — siehe PR-Notes für den Live-Sweep-Stand.
+
+---
+
 ## [0.13.0] — 2026-06-18
 
 ### Added
