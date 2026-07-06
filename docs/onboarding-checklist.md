@@ -41,6 +41,7 @@ Audit-Drift-Vermeidung: Beim ersten Deploy direkt einen cw-audit-Run gegen die L
 - [ ] **Datenschutz** unter `/datenschutz` mit DSGVO-Referenz, Plausible-Hinweis, Cal.com-Hinweis (falls genutzt)
 - [ ] **KEIN OS-Plattform-Link** — Plattform am 20.07.2025 eingestellt (VO (EU) 2024/3228), Verweis = irreführend nach UWG. Stattdessen Hinweistext „Plattform wurde eingestellt".
 - [ ] **`tokens.css`** mit site-spezifischen Brand-Farben — WCAG-AA-Kontrast (≥4.5:1) für Akzent-Texte zwingend prüfen, sonst a11y serious
+- [ ] **`faviconIco()`-Integration** in `astro.config.ts` einbinden (siehe `docs/favicon-pipeline.md`) — generiert `favicon.ico` automatisch aus `public/favicon.svg` bei jedem Build, kein manueller Favicon-Schritt mehr nötig (siluri/blitzsicht-ops#491)
 
 ## 5. Mail / DNS
 
@@ -84,3 +85,4 @@ Wenn Tag-1-Audit nicht grün ist: STOP, fix vor Customer-Hand-Over.
 | CSP-Begründung | `cw-core/docs/CSP-rationale.md` |
 | Sweep-Skript | `customer-websites/scripts/rollout-security-headers.sh` (Drift-Sync für vercel.json) |
 | Build-Check | `customer-websites/scripts/rollout-build-check.sh` |
+| Favicon-Pipeline | `cw-core/src/integrations/favicon-ico` + `cw-core/docs/favicon-pipeline.md` |
