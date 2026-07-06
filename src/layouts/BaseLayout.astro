@@ -299,6 +299,10 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Fallback for user agents that only fetch /favicon.ico (e.g. Plausible's
+         icons.duckduckgo.com lookup) — generated at build time from favicon.svg,
+         see @cw/core/integrations/favicon-ico (siluri/blitzsicht-ops#491). -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="192x192" href="/favicon-192.png" />
     <link rel="apple-touch-icon" href="/favicon-192.png" />
 
