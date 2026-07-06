@@ -12,6 +12,9 @@ export interface Lead {
   message?: string;
   kind?: 'contact-form' | 'audit' | 'bewerbung' | 'briefing-form';
 
+  /** Ad-Herkunft (gclid + utm_*), cookielos aus Hidden-Feldern durchgereicht. */
+  attribution?: Record<string, string>;
+
   /** Briefing-only: Anzeigename des Kunden ("Mika Elektrotechnik"). */
   customerName?: string;
   /** Briefing-only: ausgefuellte Pflichtfelder. */

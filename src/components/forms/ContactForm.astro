@@ -69,6 +69,12 @@ if (!turnstileSiteKey && import.meta.env.PROD) {
 const useWeb3Forms = !actionUrl;
 const hasKey = useWeb3Forms ? (!!formKey && !formKey.startsWith('TODO')) : true;
 const submitUrl = actionUrl ?? 'https://api.web3forms.com/submit';
+
+// Ad-Attribution-Felder (gclid + utm_*) als Hidden-Inputs. Werden client-seitig
+// aus sessionStorage/URL befüllt (s. Script unten) und beim Submit mitgesendet →
+// cookielose Offline-Conversion-Zuordnung. Liste = ATTRIBUTION_KEYS (contact-handler.js).
+const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
 ---
 
 {hasKey ? (
@@ -93,6 +99,11 @@ const submitUrl = actionUrl ?? 'https://api.web3forms.com/submit';
       <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" />
       <!-- URL-Honeypot — Bots füllen oft "url" oder "website" automatisch aus -->
       <input type="text" name="url_honey" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" aria-hidden="true" />
+
+      <!-- Ad-Attribution (gclid + utm_*) — client-seitig befüllt, cookielos -->
+      {ATTRIBUTION_FIELDS.map((f) => (
+        <input type="hidden" name={f} data-attribution={f} value="" />
+      ))}
 
       {formType === 'contact' && (
         <>
@@ -199,10 +210,31 @@ const submitUrl = actionUrl ?? 'https://api.web3forms.com/submit';
 <script>
   import { track } from '../../utils/analytics/track';
 
+  // Ad-Attribution: aktuelle URL-Parameter cookielos persistieren (Standalone-Fall:
+  // Formular direkt auf einer ?gclid-Landing, ohne dass PlausibleEvents zuvor lief).
+  // Idempotent — PlausibleEvents nutzt denselben `cw_attr_`-Namensraum.
+  const AD_KEYS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
+    'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+  try {
+    const params = new URLSearchParams(window.location.search);
+    for (const k of AD_KEYS) {
+      const v = params.get(k);
+      if (v) sessionStorage.setItem('cw_attr_' + k, v.slice(0, 512));
+    }
+  } catch { /* sessionStorage/URL nicht verfügbar */ }
+
   document.querySelectorAll('form[data-web3form]').forEach((formEl) => {
     const form = formEl as HTMLFormElement;
     const wrap = form.closest('.contact-form-wrap') as HTMLElement | null;
     if (!wrap) return;
+
+    // Hidden-Attribution-Felder aus sessionStorage befüllen (leer, wenn kein Ad-Klick).
+    form.querySelectorAll<HTMLInputElement>('input[data-attribution]').forEach((input) => {
+      try {
+        const stored = sessionStorage.getItem('cw_attr_' + input.name);
+        if (stored) input.value = stored;
+      } catch { /* ignore */ }
+    });
 
     const success = wrap.querySelector('.form-success') as HTMLElement | null;
     const error = wrap.querySelector('.form-error') as HTMLElement | null;

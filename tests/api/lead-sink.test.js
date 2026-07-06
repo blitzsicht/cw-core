@@ -56,3 +56,20 @@ test('3. ohne TELEGRAM-Env → kein fetch, kein Throw', async () => {
   }
   assert.equal(called, false);
 });
+
+test('4. Ad-Attribution → 📣-Zeile mit Quelle/Kampagne + gclid', async () => {
+  const lead = {
+    ...baseLead,
+    attribution: { utm_source: 'google', utm_medium: 'cpc', utm_campaign: 'kopierer-leasen', gclid: 'Cj0abc123' },
+  };
+  const text = await captureTelegram(lead, { origin: 'https://test.de' });
+  assert.ok(text.includes('📣'), 'Herkunfts-Zeile vorhanden');
+  assert.ok(text.includes('google'), 'utm_source enthalten');
+  assert.ok(text.includes('kopierer'), 'utm_campaign enthalten');
+  assert.ok(text.includes('gclid'), 'Klick-ID-Marker enthalten');
+});
+
+test('5. ohne Attribution → keine 📣-Zeile (abwärtskompatibel)', async () => {
+  const text = await captureTelegram(baseLead, { origin: 'https://test.de' });
+  assert.ok(!text.includes('📣'), 'keine Herkunfts-Zeile ohne Attribution');
+});

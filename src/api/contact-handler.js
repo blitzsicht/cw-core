@@ -67,6 +67,18 @@ import { emitLead } from './lead-sink.js';
  * @property {string|boolean} [botcheck]
  * @property {string} [url_honey]
  * @property {string} [cf-turnstile-response]
+ * @property {string} [gclid]   – Ad-Attribution (Google-Klick-ID), s. ATTRIBUTION_KEYS
+ * @property {string} [utm_source]
+ * @property {string} [utm_medium]
+ * @property {string} [utm_campaign]
+ */
+
+/**
+ * @typedef {Record<string, string>} Attribution
+ * Gesammelte Ad-/Kampagnen-Attribution (gclid + utm_*). Wird cookielos über
+ * Hidden-Form-Felder eingesammelt (URL-Parameter, kein Cookie/kein Consent-Banner)
+ * und in Lead-Mail + Telegram-Payload durchgereicht → ermöglicht Offline-Conversion-
+ * Zuordnung in Google Ads ohne Browser-Tag.
  */
 
 const DEFAULT_SPAM_KEYWORDS = [
@@ -81,6 +93,33 @@ const DEFAULT_SPAM_KEYWORDS = [
 const URL_PATTERN = /https?:\/\/[^\s<>"]+/gi;
 const BTC_PATTERN = /\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}\b/g;
 const ETH_PATTERN = /\b0x[a-fA-F0-9]{40}\b/g;
+
+// Ad-Klick-IDs + UTM-Parameter, die aus dem Formular-Body als Attribution
+// durchgereicht werden. Whitelist (nie beliebige Keys übernehmen). Google:
+// gclid/gbraid/wbraid · Microsoft/Bing: msclkid · Meta: fbclid.
+const ATTRIBUTION_KEYS = [
+  'gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+];
+const ATTRIBUTION_MAX_LEN = 512; // harte Kappung gegen Payload-Missbrauch
+
+/**
+ * Sammelt nur die Whitelist-Attribution-Keys aus dem Body, getrimmt + gekappt.
+ * Gibt undefined zurück, wenn keine Attribution vorhanden ist (abwärtskompatibel).
+ * @param {Record<string, unknown>} body
+ * @returns {Attribution | undefined}
+ */
+function collectAttribution(body) {
+  /** @type {Attribution} */
+  const out = {};
+  for (const key of ATTRIBUTION_KEYS) {
+    const raw = body[key];
+    if (typeof raw !== 'string') continue;
+    const val = raw.trim().slice(0, ATTRIBUTION_MAX_LEN);
+    if (val) out[key] = val;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 /** @type {Map<string, number[]>} */
 const inMemoryRateLimit = new Map();
@@ -251,6 +290,8 @@ export function createContactHandler(config) {
     const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const website = typeof body.website === 'string' ? body.website.trim() : '';
+    // Ad-Attribution (gclid + utm_*) cookielos aus Hidden-Feldern durchreichen.
+    const attribution = collectAttribution(/** @type {Record<string, unknown>} */ (body));
 
     // Content-Filter — silent drop
     const haystack = [name, company, message, website].filter(Boolean).join(' ');
@@ -265,6 +306,7 @@ export function createContactHandler(config) {
       project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
       fromName, name, email, company, phone, website, message,
       kind: /** @type {const} */ ('contact-form'),
+      ...(attribution ? { attribution } : {}),
     };
     const leadCtx = {
       ip,
@@ -298,6 +340,7 @@ export function createContactHandler(config) {
       leadPhone: phone,
       leadWebsite: website,
       leadMessage: message,
+      leadAttribution: attribution,
       subject,
     });
 

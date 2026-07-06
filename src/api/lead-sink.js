@@ -27,6 +27,7 @@
  * @property {string} [website]
  * @property {string} [message]
  * @property {'contact-form'|'audit'|'bewerbung'|'briefing-form'} [kind]
+ * @property {Record<string,string>} [attribution] – gclid + utm_* (Ad-Herkunft), cookielos durchgereicht.
  * @property {string} [customerName]              – Briefing-only: Anzeigename des Kunden.
  * @property {number} [requiredFilled]            – Briefing-only: ausgefuellte Pflichtfelder.
  * @property {number} [requiredTotal]             – Briefing-only: Gesamt-Pflichtfelder.
@@ -145,6 +146,18 @@ function formatTelegramMessage(lead, ctx) {
       ? lead.message.slice(0, 400) + '…'
       : lead.message;
     lines.push('', esc(trimmed));
+  }
+  // Ad-Herkunft kompakt: macht bezahlte Leads im Telegram sofort erkennbar.
+  if (lead.attribution) {
+    const a = lead.attribution;
+    /** @type {string[]} */
+    const bits = [];
+    if (a.utm_source) bits.push(esc(a.utm_source + (a.utm_medium ? '/' + a.utm_medium : '')));
+    if (a.utm_campaign) bits.push(esc(a.utm_campaign));
+    if (a.gclid || a.gbraid || a.wbraid) bits.push('gclid');
+    else if (a.msclkid) bits.push('msclkid');
+    else if (a.fbclid) bits.push('fbclid');
+    if (bits.length) lines.push('', `📣 ${bits.join(' · ')}`);
   }
   lines.push('', `_${esc(stamp + ' UTC')} · ${esc(ctx.origin || '')}_`);
   return lines.join('\n').slice(0, 1024);

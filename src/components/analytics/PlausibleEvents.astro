@@ -45,6 +45,35 @@
     el.closest('[data-section]')?.getAttribute('data-section') ??
     'unknown';
 
+  // Ad-Attribution: gclid/utm cookielos aus der URL in sessionStorage persistieren,
+  // damit sie den Weg von der Ad-Landing bis zur Kontaktseite überlebt (die
+  // ContactForm liest sie beim Submit in Hidden-Felder). Kein Cookie → kein Consent.
+  // Namensraum-Prefix `cw_attr_`. Muss mit ATTRIBUTION_KEYS in api/contact-handler.js
+  // übereinstimmen.
+  const AD_KEYS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
+    'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+  const CLICK_IDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid'];
+  try {
+    const params = new URLSearchParams(window.location.search);
+    let newClickId = false;
+    for (const k of AD_KEYS) {
+      const v = params.get(k);
+      if (!v) continue;
+      if (CLICK_IDS.includes(k) && !sessionStorage.getItem('cw_attr_' + k)) newClickId = true;
+      sessionStorage.setItem('cw_attr_' + k, v.slice(0, 512));
+    }
+    // Paid-Besuch einmalig als Event → in Plausible als Goal „Paid Visit" messbar,
+    // trennt bezahlten von organischem Traffic. Nur beim erstmaligen Klick-ID-Eintritt.
+    if (newClickId) {
+      track('Paid Visit', {
+        source: params.get('utm_source') ?? 'ads',
+        campaign: params.get('utm_campaign') ?? 'unknown',
+      });
+    }
+  } catch {
+    /* sessionStorage/URL nicht verfügbar — Attribution still überspringen */
+  }
+
   document.querySelectorAll<HTMLAnchorElement>('a[href^="tel:"]').forEach((el) => {
     el.addEventListener('click', () => {
       track('Phone Click', { location: sectionLoc(el) });

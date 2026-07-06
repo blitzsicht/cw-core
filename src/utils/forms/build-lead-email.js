@@ -28,8 +28,26 @@ const FOOTER_LINK = 'https://blitzsicht.com';
  * @property {string} [leadPhone]
  * @property {string} [leadWebsite]
  * @property {string} [leadMessage]
+ * @property {Record<string, string>} [leadAttribution] – gclid + utm_* (Ad-Herkunft)
  * @property {string}  subject       – Betreff der Lead-Mail (intern)
  */
+
+/**
+ * Menschenlesbare Labels für Attribution-Keys (Reihenfolge = Anzeige-Reihenfolge).
+ * @type {Array<[string, string]>}
+ */
+const ATTRIBUTION_LABELS = [
+  ['utm_source', 'Quelle'],
+  ['utm_medium', 'Medium'],
+  ['utm_campaign', 'Kampagne'],
+  ['utm_term', 'Keyword'],
+  ['utm_content', 'Anzeige'],
+  ['gclid', 'Google-Klick-ID'],
+  ['gbraid', 'Google-Klick-ID'],
+  ['wbraid', 'Google-Klick-ID'],
+  ['msclkid', 'Microsoft-Klick-ID'],
+  ['fbclid', 'Meta-Klick-ID'],
+];
 
 /**
  * @typedef {Object} BuildLeadEmailOutput
@@ -75,8 +93,14 @@ export function buildLeadEmail(input) {
     leadPhone = '',
     leadWebsite = '',
     leadMessage = '',
+    leadAttribution = undefined,
     subject,
   } = input;
+
+  // Attribution in Anzeige-Reihenfolge auf gesetzte Keys reduzieren.
+  const attributionRows = ATTRIBUTION_LABELS
+    .filter(([key]) => leadAttribution && typeof leadAttribution[key] === 'string' && leadAttribution[key])
+    .map(([key, label]) => ({ label, value: String(leadAttribution[key]) }));
 
   // FROM-Display-Name: "{Lead-Name} via {Customer-Site}" — wenn kein Lead-Name,
   // dann "Anonyme Anfrage via {Customer-Site}".
@@ -112,6 +136,13 @@ export function buildLeadEmail(input) {
     textLines.push('Nachricht:');
     textLines.push(leadMessage);
   }
+  if (attributionRows.length) {
+    textLines.push('');
+    textLines.push('Herkunft (Kampagne):');
+    for (const { label, value } of attributionRows) {
+      textLines.push(`${label}: ${value}`);
+    }
+  }
   textLines.push('');
   textLines.push('---');
   textLines.push(`Direkt antworten: ${mailtoHref}`);
@@ -146,6 +177,20 @@ export function buildLeadEmail(input) {
         <div style="background:#f9fafb;border-left:3px solid ${BRAND_ACCENT};padding:14px 18px;border-radius:6px;font-size:14px;line-height:1.65;color:#1f2937;white-space:pre-wrap;">${safeLeadMessage}</div>`
     : '';
 
+  // Herkunft/Kampagne — dezenter Block; macht Ads-Leads erkennbar und zeigt die
+  // gclid für den späteren Offline-Conversion-Upload in Google Ads.
+  const attributionBlock = attributionRows.length
+    ? `
+        <h2 style="font-size:12px;color:#6b7280;margin:28px 0 10px;text-transform:uppercase;letter-spacing:0.6px;font-weight:600;">Herkunft (Kampagne)</h2>
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="font-size:13px;background:#f9fafb;border-radius:6px;padding:6px 14px;">
+          ${attributionRows.map(({ label, value }) => `
+            <tr>
+              <td style="padding:5px 12px 5px 4px;color:#6b7280;font-size:11px;text-transform:uppercase;letter-spacing:0.4px;font-weight:600;vertical-align:top;white-space:nowrap;">${escapeHtml(label)}</td>
+              <td style="padding:5px 4px;color:#1f2937;font-size:13px;vertical-align:top;word-break:break-all;">${escapeHtml(value)}</td>
+            </tr>`).join('')}
+        </table>`
+    : '';
+
   const html = `<!DOCTYPE html>
 <html lang="de">
 <head>
@@ -174,6 +219,7 @@ export function buildLeadEmail(input) {
             ${rows.join('')}
           </table>
 ${messageBlock}
+${attributionBlock}
 
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 4px;">
             <tr><td bgcolor="${BRAND_ACCENT}" style="border-radius:8px;">
