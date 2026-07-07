@@ -2,6 +2,7 @@
 import { buildLeadEmail } from '../utils/forms/build-lead-email.js';
 import { getClientIp } from '../utils/net/get-client-ip.js';
 import { emitLead } from './lead-sink.js';
+import { recordConversion } from './conversion-store.js';
 
 /**
  * @cw/core – createContactHandler
@@ -71,6 +72,8 @@ import { emitLead } from './lead-sink.js';
  * @property {string} [utm_source]
  * @property {string} [utm_medium]
  * @property {string} [utm_campaign]
+ * @property {string|boolean} [marketing_consent]  – Einwilligung für Ads-Conversion-Messung (gclid-Upload). Default-Deny.
+ * @property {string} [marketing_consent_version]  – Version des angezeigten Consent-Textes (DSGVO-Rechenschaft).
  */
 
 /**
@@ -292,6 +295,15 @@ export function createContactHandler(config) {
     const website = typeof body.website === 'string' ? body.website.trim() : '';
     // Ad-Attribution (gclid + utm_*) cookielos aus Hidden-Feldern durchreichen.
     const attribution = collectAttribution(/** @type {Record<string, unknown>} */ (body));
+    // Marketing-Consent-Signal (WS-E liefert die Checkbox/Consent-Mode-Flag). Gatet NUR
+    // den conversion_queue-Write (gclid-Upload = einwilligungspflichtig). Default-Deny.
+    const marketingConsent = body.marketing_consent === true
+      || body.marketing_consent === 'true' || body.marketing_consent === '1';
+    // Version des angezeigten Consent-Textes (WS-E liefert sie) — für DSGVO-Rechenschaft
+    // (Art. 5(2)/7(1)) zusammen mit dem Zeitstempel in der conversion_queue protokolliert.
+    const consentVersion = typeof body.marketing_consent_version === 'string'
+      ? body.marketing_consent_version
+      : undefined;
 
     // Content-Filter — silent drop
     const haystack = [name, company, message, website].filter(Boolean).join(' ');
@@ -368,7 +380,14 @@ export function createContactHandler(config) {
       }
       // emitLead BEFORE res.json — sonst killt Vercel die Function bevor der Telegram-fetch
       // fertig ist. AbortSignal in lead-sink begrenzt das auf max 5s, normal ~200ms.
-      await emitLead(leadData, leadCtx);
+      // Beide Side-Channels parallel + gekapselt: Promise.allSettled rejected nie, also
+      // kann weder ein Telegram- noch ein Store-Fehler die bereits gesendete Mail in ein
+      // falsches 500 verwandeln; Worst-Case-Latenz bleibt ~5s statt 2×5s sequenziell.
+      // recordConversion ist No-op ohne CW_CONVERSION_STORE_URL oder ohne Consent.
+      await Promise.allSettled([
+        emitLead(leadData, leadCtx),
+        recordConversion(leadData, { ...leadCtx, marketingConsent, consentVersion }),
+      ]);
       res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[contact-handler] Resend fetch error:', err);

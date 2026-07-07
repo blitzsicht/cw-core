@@ -40,12 +40,16 @@
     "exiftool-vendored": "^36.0.0"
   },
   "peerDependencies": {
+    "@neondatabase/serverless": ">=0.9.0",
     "astro": ">=5.0.0",
     "lenis": ">=1.1.0",
     "sharp": ">=0.32.0",
     "tailwindcss": ">=4.0.0"
   },
   "peerDependenciesMeta": {
+    "@neondatabase/serverless": {
+      "optional": true
+    },
     "lenis": {
       "optional": true
     },
