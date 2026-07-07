@@ -501,7 +501,10 @@ const motionCfg: HeroMotionConfig =
     .hero--split .container {
       grid-template-columns: 1fr;
     }
-    .hero-image-wrap { order: -1; max-height: 280px; }
+    /* Kein order:-1 mehr: Mobile-Fold-Regel (Blueprint docs/landingpage-blueprint.md)
+       verlangt H1 + Trust-Zeile + CTA vor dem Bild im ersten Viewport. Natürliche
+       Dokumentreihenfolge (.hero-content vor .hero-image-wrap) erfüllt das bereits. */
+    .hero-image-wrap { max-height: 280px; }
     .hero-img { height: 280px; }
 
     /* Transparent motives: don't crop on mobile — let the silhouette breathe.
