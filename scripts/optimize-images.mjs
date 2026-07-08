@@ -21,11 +21,19 @@
 
 import { createRequire } from 'node:module';
 import { readdir, stat, rename, unlink } from 'node:fs/promises';
+import { realpathSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 // Resolve sharp from the consumer's node_modules (CWD), not from this script's location.
+// Lazy (erst beim Lauf, nicht beim Import): der Logik-Test importiert dieses Modul
+// in cw-core selbst, wo sharp nicht installiert ist.
 const require = createRequire(join(process.cwd(), 'node_modules', '.placeholder'));
-const sharp = require('sharp');
+let _sharp;
+function getSharp() {
+  if (!_sharp) _sharp = require('sharp');
+  return _sharp;
+}
 
 const args = process.argv.slice(2);
 const getArg = (name, fallback) => {
@@ -40,6 +48,24 @@ const DELETE_ORIGINALS = hasFlag('delete-originals');
 const IMAGE_DIR = getArg('dir', 'public/images');
 
 const SUPPORTED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.JPEG', '.PNG']);
+
+/**
+ * Idempotenz-Guard: Entscheidet, ob eine Datei neu geschrieben werden darf.
+ *
+ * Re-Encode eines bereits optimierten WebP (q80 → q80) spart pro Lauf nur
+ * Promille, verschlechtert die Qualität aber generationsweise und dirtied den
+ * Working Tree bei jedem Build (Drift-Vorfall blitzsicht 2026-07-08:
+ * dachdecker.webp schrumpfte ~100 B pro `pnpm build`, handwerker-sanitaer.webp
+ * flippte ±2 B — konvergierte nie). Ein WebP wird nur neu geschrieben, wenn ein
+ * Resize ansteht ODER die Ersparnis substanziell ist (>2 % UND >2 KB).
+ * Nicht-WebP (jpg/png) wird immer konvertiert.
+ */
+export function shouldRewriteWebp({ isWebP, needsResize, sizeBefore, sizeAfter }) {
+  if (!isWebP) return true;
+  if (needsResize) return true;
+  const saved = sizeBefore - sizeAfter;
+  return saved > 2048 && saved / sizeBefore > 0.02;
+}
 
 async function findImages(dir) {
   const files = [];
@@ -74,7 +100,7 @@ async function optimizeImage(filePath) {
   const outPath = isWebP ? filePath : filePath.replace(/\.[^.]+$/, '.webp');
 
   try {
-    const image = sharp(filePath);
+    const image = getSharp()(filePath);
     const meta = await image.metadata();
 
     // Skip tiny images (icons, etc.)
@@ -85,7 +111,8 @@ async function optimizeImage(filePath) {
     let pipeline = image;
 
     // Resize if wider than MAX_WIDTH
-    if (meta.width && meta.width > MAX_WIDTH) {
+    const needsResize = Boolean(meta.width && meta.width > MAX_WIDTH);
+    if (needsResize) {
       pipeline = pipeline.resize(MAX_WIDTH, null, { withoutEnlargement: true });
     }
 
@@ -96,10 +123,9 @@ async function optimizeImage(filePath) {
 
     const sizeAfter = buffer.length;
 
-    // Only save if we actually reduced size (or it's not already webp)
-    if (sizeAfter < sizeBefore || !isWebP) {
+    if (shouldRewriteWebp({ isWebP, needsResize, sizeBefore, sizeAfter })) {
       // Write optimized file
-      await sharp(buffer).toFile(outPath);
+      await getSharp()(buffer).toFile(outPath);
 
       // Handle original
       if (!isWebP) {
@@ -116,7 +142,7 @@ async function optimizeImage(filePath) {
         after: sizeAfter,
         saved: sizeBefore - sizeAfter,
         pct: Math.round((1 - sizeAfter / sizeBefore) * 100),
-        resized: meta.width > MAX_WIDTH ? `${meta.width}→${MAX_WIDTH}` : null,
+        resized: needsResize ? `${meta.width}→${MAX_WIDTH}` : null,
       };
     }
 
@@ -172,4 +198,9 @@ async function main() {
   }
 }
 
-main().catch(console.error);
+// Nur ausführen, wenn direkt als Script gestartet (nicht beim Test-Import).
+// realpathSync, weil pnpm-node_modules symlinked sind — argv[1] (Symlink) und
+// import.meta.url (Realpath) würden sonst nie matchen und der Prebuild wäre tot.
+const isMain = process.argv[1]
+  && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
+if (isMain) main().catch(console.error);
