@@ -150,6 +150,17 @@ interface Props {
   plausibleHost?: string;
   /** Plausible API endpoint override. Set to "/api/event" when proxying via Vercel rewrites. */
   plausibleEndpoint?: string;
+  /**
+   * Steuert die eingebauten Auto-Tracking-Listener (Phone/Email/WhatsApp/PDF/
+   * Outbound/Scroll/Time). Vorher feuerten sie UNBEDINGT — Repos, die zusätzlich
+   * `<PlausibleEvents />` mounten, trackten Phone/Email/Scroll doppelt mit
+   * inkompatiblen Props (Doppelfeuer-Bug, Ticket v0.54.0).
+   * - 'inline' (Default): eingebaute Listener aktiv — heutiges Verhalten.
+   * - 'full':   eingebaute Listener AUS — `<PlausibleEvents />` ist alleinige
+   *             Event-Quelle (Repo muss die Komponente mounten!).
+   * - 'none':   keine Auto-Events (Pageviews via Plausible-Script laufen weiter).
+   */
+  trackingMode?: 'inline' | 'full' | 'none';
   /** Schema.org props forwarded to `<SchemaOrg/>`. If omitted, `<SchemaOrg/>` is not rendered. */
   schema?: SchemaProps;
 }
@@ -176,6 +187,7 @@ const {
   plausibleScript,
   plausibleHost = 'https://plausible.io',
   plausibleEndpoint,
+  trackingMode = 'inline',
   schema,
 } = Astro.props;
 
@@ -212,7 +224,7 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
 }
 ---
 <!doctype html>
-<html lang={lang}>
+<html lang={lang} data-cw-tracking={trackingMode}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -321,43 +333,58 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
   </body>
   <script>
     import { track } from '../utils/analytics/track';
-    document.addEventListener('click', (e) => {
-      const a = (e.target as Element).closest('a');
-      if (!a) return;
-      const href = a.getAttribute('href') ?? '';
-      if (href.startsWith('tel:')) {
-        track('Phone Click', { number: href.replace('tel:', '') });
-      } else if (href.startsWith('mailto:')) {
-        track('Email Click', { address: href.replace('mailto:', '').split('?')[0] });
-      } else if (href.endsWith('.pdf') || href.includes('.pdf?')) {
-        const filename = href.split('/').pop()?.split('?')[0] ?? href;
-        track('File Download', { filename });
-      } else if (href.startsWith('http') && !href.includes(window.location.hostname)) {
-        try {
-          track('Outbound Click', { url: new URL(href).origin });
-        } catch {}
-      }
-    });
+    // trackingMode-Gate (v0.54.0): bei 'full' ist <PlausibleEvents /> die alleinige
+    // Event-Quelle, bei 'none' gibt es keine Auto-Events — der Block darf dann
+    // nichts registrieren, sonst feuern Phone/Email/Scroll doppelt (Doppelfeuer-Bug).
+    // Runtime-Gate über das html-Attribut, weil gebundelte Module-Scripts nicht
+    // zuverlässig konditional gerendert werden können.
+    const cwTrackingMode = document.documentElement.dataset.cwTracking ?? 'inline';
+    if (cwTrackingMode === 'inline') {
+      document.addEventListener('click', (e) => {
+        const a = (e.target as Element).closest('a');
+        if (!a) return;
+        const href = a.getAttribute('href') ?? '';
+        if (href.startsWith('tel:')) {
+          track('Phone Click', { number: href.replace('tel:', '') });
+        } else if (href.startsWith('mailto:')) {
+          track('Email Click', { address: href.replace('mailto:', '').split('?')[0] });
+        } else if (/(^|\/\/)(wa\.me|api\.whatsapp\.com)\//.test(href)) {
+          // VOR dem Outbound-Check, sonst zählt WhatsApp nur als generischer
+          // Outbound Click (Tracking-Lücke blitzsicht/mika, Erkundung 2026-07-08).
+          const number = href.match(/wa\.me\/(\d+)/)?.[1] ?? '';
+          track('WhatsApp Click', number ? { number } : {});
+        } else if (href.endsWith('.pdf') || href.includes('.pdf?')) {
+          const filename = href.split('/').pop()?.split('?')[0] ?? href;
+          track('File Download', { filename });
+        } else if (href.startsWith('http') && !href.includes(window.location.hostname)) {
+          try {
+            track('Outbound Click', { url: new URL(href).origin });
+          } catch {}
+        }
+      });
 
-    const depths = new Set<string>();
-    const milestones = [25, 50, 75, 100];
-    function onScroll() {
-      const el = document.documentElement;
-      const scrolled = el.scrollTop + el.clientHeight;
-      const total = el.scrollHeight;
-      const pct = Math.round((scrolled / total) * 100);
-      for (const m of milestones) {
-        if (pct >= m && !depths.has(String(m))) {
-          depths.add(String(m));
-          track('Scroll Depth', { depth: `${m}%` });
+      const depths = new Set<number>();
+      const milestones = [25, 50, 75, 100];
+      function onScroll() {
+        const el = document.documentElement;
+        const scrolled = el.scrollTop + el.clientHeight;
+        const total = el.scrollHeight;
+        const pct = Math.round((scrolled / total) * 100);
+        for (const m of milestones) {
+          if (pct >= m && !depths.has(m)) {
+            depths.add(m);
+            // depth als Zahl (vorher "25%"-String) — angeglichen an PlausibleEvents,
+            // damit Dashboards modeübergreifend dieselbe Prop-Semantik sehen.
+            track('Scroll Depth', { depth: m });
+          }
         }
       }
-    }
-    document.addEventListener('scroll', onScroll, { passive: true });
+      document.addEventListener('scroll', onScroll, { passive: true });
 
-    const timeMilestones: Array<[number, string]> = [[30000, '30s'], [120000, '2min'], [300000, '5min']];
-    timeMilestones.forEach(([ms, label]) => {
-      setTimeout(() => track('Time on Page', { duration: label }), ms);
-    });
+      const timeMilestones: Array<[number, string]> = [[30000, '30s'], [120000, '2min'], [300000, '5min']];
+      timeMilestones.forEach(([ms, label]) => {
+        setTimeout(() => track('Time on Page', { duration: label }), ms);
+      });
+    }
   </script>
 </html>

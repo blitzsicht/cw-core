@@ -155,6 +155,8 @@ interface Props {
   plausibleScript?: string;
   /** Plausible API endpoint override (for same-origin proxy setups). */
   plausibleEndpoint?: string;
+  /** Auto-Tracking-Steuerung — siehe BaseLayout (v0.54.0, Doppelfeuer-Fix). */
+  trackingMode?: 'inline' | 'full' | 'none';
   /** Schema.org props. */
   schema?: SchemaProps;
   /** Open Graph object type. Defaults to "website". Set to "profile" for Author-Pages. */
@@ -201,6 +203,7 @@ const {
   defaultOgImage,
   plausibleScript,
   plausibleEndpoint,
+  trackingMode,
   schema,
   ogType,
   ogProfile,
@@ -228,6 +231,7 @@ const {
   defaultOgImage={defaultOgImage}
   plausibleScript={plausibleScript}
   plausibleEndpoint={plausibleEndpoint}
+  trackingMode={trackingMode}
   schema={schema}
   ogType={ogType}
   ogProfile={ogProfile}

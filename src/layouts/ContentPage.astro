@@ -90,6 +90,8 @@ interface Props {
   defaultOgImage: string;
   plausibleScript?: string;
   plausibleEndpoint?: string;
+  /** Auto-Tracking-Steuerung — siehe BaseLayout (v0.54.0, Doppelfeuer-Fix). */
+  trackingMode?: 'inline' | 'full' | 'none';
   schema?: SchemaProps;
   header?: HeaderConfig;
   footer: FooterConfig;
@@ -120,6 +122,7 @@ const {
   defaultOgImage,
   plausibleScript,
   plausibleEndpoint,
+  trackingMode,
   schema,
   header = {},
   footer,
@@ -147,6 +150,7 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
   defaultOgImage={defaultOgImage}
   plausibleScript={plausibleScript}
   plausibleEndpoint={plausibleEndpoint}
+  trackingMode={trackingMode}
   schema={schema}
 >
   <TurnstilePreClearance sitekey={turnstileSiteKey} />
