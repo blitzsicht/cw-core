@@ -38,17 +38,25 @@ const id = `tr-${Math.random().toString(36).slice(2, 9)}`;
 </Tag>
 
 <style>
-  .motion-text-reveal :global([data-motion-text-unit]) {
-    display: inline-block;
-    opacity: 0;
-    transform: translate3d(0, 0.6em, 0);
-    transition: opacity var(--motion-duration-base, 0.6s) var(--motion-ease-out, cubic-bezier(0.22,1,0.36,1)),
-                transform var(--motion-duration-base, 0.6s) var(--motion-ease-out, cubic-bezier(0.22,1,0.36,1));
-    will-change: opacity, transform;
-  }
-  .motion-text-reveal.is-visible :global([data-motion-text-unit]) {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
+  /* Mobil (Basis) BEWUSST ohne Reveal-Styles: inline-block-Units sind atomar
+     und hebeln hyphens/overflow-wrap aus — lange deutsche Headlines brechen
+     nach dem Split auf mehr Zeilen um (CLS-Quelle, blitzsicht 2026-07-08:
+     CLS 0,29 mobil, als ein Font nach First Paint eintraf). Die Spans bleiben
+     mobil normaler Inline-Fluss, sofort sichtbar; animiert wird erst ab dem
+     Desktop-Breakpoint (Hero-Mobile-Grenze 900px). */
+  @media (min-width: 901px) {
+    .motion-text-reveal :global([data-motion-text-unit]) {
+      display: inline-block;
+      opacity: 0;
+      transform: translate3d(0, 0.6em, 0);
+      transition: opacity var(--motion-duration-base, 0.6s) var(--motion-ease-out, cubic-bezier(0.22,1,0.36,1)),
+                  transform var(--motion-duration-base, 0.6s) var(--motion-ease-out, cubic-bezier(0.22,1,0.36,1));
+      will-change: opacity, transform;
+    }
+    .motion-text-reveal.is-visible :global([data-motion-text-unit]) {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     .motion-text-reveal :global([data-motion-text-unit]) {
