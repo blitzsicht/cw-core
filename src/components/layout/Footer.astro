@@ -109,6 +109,16 @@ interface Props {
     /** Alt-Text für Screenreader. Default: "Systemstatus" */
     alt?: string;
   } | null;
+  /**
+   * Optionales Google-PSI-Score-Badge („Gemessen von Google") neben dem
+   * Status-Badge. Opt-in (Default false) — erscheint nur bei `psiBadge: true`
+   * UND vorhandenem Slug (gleiche Auto-Detection wie statusBadge). Der Worker
+   * liefert das Badge ausschließlich für Slugs mit dokumentiertem
+   * Messwert-Consent (PSI_PUBLIC_ALLOWLIST in cw-uptime) — pro Customer erst
+   * aktivieren, wenn der Consent in customer-registry.json reference.metrics
+   * steht. Verlinkt auf die öffentliche Beweis-Detailseite des Customers.
+   */
+  psiBadge?: boolean;
 }
 
 const {
@@ -141,6 +151,7 @@ const {
   karriereLabel = 'Karriere',
   karriereHref = '/karriere',
   statusBadge,
+  psiBadge = false,
 } = Astro.props;
 
 const year = new Date().getFullYear();
@@ -161,6 +172,13 @@ const badgeUrl = effectiveSlug
   ? `${statusBadge?.badgeUrlBase ?? 'https://status.blitzsicht.com/badge/'}${effectiveSlug}.svg`
   : null;
 const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
+
+const psiBadgeUrl = psiBadge && effectiveSlug
+  ? `https://status.blitzsicht.com/badge/${effectiveSlug}/psi.svg`
+  : null;
+const psiDetailUrl = effectiveSlug
+  ? `https://status.blitzsicht.com/customer/${effectiveSlug}/`
+  : 'https://status.blitzsicht.com/';
 ---
 <footer data-section="footer">
   <div class="container">
@@ -242,11 +260,18 @@ const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
       <p class="footer-credit">{tagline && <span class="footer-tagline">{tagline} · </span>}Erstellt von <a href="https://blitzsicht.com/?utm_medium=footer" target="_blank" rel="noopener" data-brand-backlink>Blitzsicht</a></p>
     </div>
 
-    {badgeUrl && (
+    {(badgeUrl || psiBadgeUrl) && (
       <div class="footer-status">
-        <a href={statusUrl} target="_blank" rel="noopener" aria-label={`${badgeAlt} — Live-Verfügbarkeit prüfen`}>
-          <img src={badgeUrl} alt={badgeAlt} width="120" height="20" loading="lazy" />
-        </a>
+        {badgeUrl && (
+          <a href={statusUrl} target="_blank" rel="noopener" aria-label={`${badgeAlt} — Live-Verfügbarkeit prüfen`}>
+            <img src={badgeUrl} alt={badgeAlt} width="120" height="20" loading="lazy" />
+          </a>
+        )}
+        {psiBadgeUrl && (
+          <a href={psiDetailUrl} target="_blank" rel="noopener" aria-label="Google PageSpeed Score — täglich gemessen, Details ansehen">
+            <img src={psiBadgeUrl} alt="Google PageSpeed Score — täglich gemessen" width="120" height="20" loading="lazy" />
+          </a>
+        )}
       </div>
     )}
   </div>
@@ -347,6 +372,8 @@ const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
   .footer-status {
     display: flex;
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
     margin-top: 1rem;
     opacity: 0.6;
     transition: opacity 0.2s;

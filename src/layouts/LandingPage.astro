@@ -112,6 +112,8 @@ export interface FooterConfig {
     badgeUrlBase?: string;
     alt?: string;
   } | null;
+  /** Google-PSI-Score-Badge (Opt-in, Consent-Gate im Worker — siehe Footer.astro). */
+  psiBadge?: boolean;
 }
 
 interface Props {
@@ -275,6 +277,7 @@ const {
     karriereLabel={footer.karriereLabel}
     karriereHref={footer.karriereHref}
     statusBadge={footer.statusBadge}
+    psiBadge={footer.psiBadge}
     whatsapp={footer.whatsapp}
     bookingUrl={footer.bookingUrl}
   />
