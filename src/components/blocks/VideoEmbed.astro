@@ -1,0 +1,169 @@
+---
+/**
+ * @cw/core – VideoEmbed.astro
+ *
+ * DSGVO-konformer YouTube-Lite-Embed (Facade-Pattern):
+ * Vor dem Klick wird NUR ein selbst-gehostetes Posterbild + Play-Button
+ * gerendert — KEIN Request an Google/YouTube, KEIN Cookie. Erst beim Klick
+ * wird das `<iframe>` von `youtube-nocookie.com` nachgeladen (autoplay).
+ *
+ * Voraussetzung CSP: `frame-src https://www.youtube-nocookie.com` muss im
+ * Vercel-CSP-Header stehen (siehe templates/vercel.template.json).
+ *
+ * Kein Autoplay, kein Hero-Einsatz (LCP/Fold-Kollision) — Blueprint v2.2:
+ * Video gehört in „Lösung/Prozess" oder „Proof", click-to-play, Posterbild.
+ *
+ * @example
+ *   <VideoEmbed
+ *     youtubeId="airgjR6JN0Y"
+ *     title="Donau-Profi — Erklärvideo"
+ *     poster="/video/erklaervideo-poster.webp"
+ *     heading="Lernen Sie uns kennen"
+ *   />
+ */
+interface Props {
+  /** YouTube-Video-ID (der Teil nach `watch?v=` bzw. `/embed/`). */
+  youtubeId: string;
+  /** Zugänglicher Titel des Videos (aria-label / iframe title). */
+  title: string;
+  /** Pfad zum selbst-gehosteten Posterbild (z.B. `/video/poster.webp`). */
+  poster: string;
+  /** Optionale Sektions-Überschrift. */
+  heading?: string;
+  /** Optionaler Untertitel unter der Überschrift. */
+  sub?: string;
+}
+
+const { youtubeId, title, poster, heading, sub } = Astro.props;
+---
+<section class="video-embed">
+  <div class="container">
+    {(heading || sub) && (
+      <div class="section-header">
+        {heading && <h2 class="section-heading">{heading}</h2>}
+        {sub && <p class="section-subheading">{sub}</p>}
+      </div>
+    )}
+
+    <div class="video-frame">
+      <button
+        type="button"
+        class="video-facade"
+        data-youtube-id={youtubeId}
+        data-title={title}
+        aria-label={`Video abspielen: ${title}`}
+      >
+        <img class="video-poster" src={poster} alt={title} loading="lazy" decoding="async" width="1280" height="720" />
+        <span class="video-play" aria-hidden="true">
+          <svg viewBox="0 0 68 48" width="68" height="48">
+            <path class="video-play-bg" d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55c-2.93.78-4.63 3.26-5.42 6.19C.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z"/>
+            <path d="M45 24 27 14v20" fill="#fff"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<script>
+  document.querySelectorAll<HTMLButtonElement>('.video-facade').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-youtube-id');
+      const title = btn.getAttribute('data-title') || 'YouTube-Video';
+      if (!id) return;
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&rel=0`;
+      iframe.title = title;
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      iframe.allowFullscreen = true;
+      iframe.loading = 'lazy';
+      iframe.className = 'video-iframe';
+      btn.replaceWith(iframe);
+      if (typeof (window as any).plausible === 'function') {
+        (window as any).plausible('Video Play', { props: { id } });
+      }
+    });
+  });
+</script>
+
+<style>
+  .video-embed {
+    padding: 5rem 0;
+    background: var(--color-surface, #f8f9fb);
+  }
+  .container {
+    max-width: var(--container-max, 72rem);
+    margin-inline: auto;
+    padding-inline: 1.5rem;
+  }
+  .section-header { text-align: center; margin-bottom: 2.5rem; }
+  .section-heading {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0 0 0.75rem;
+  }
+  .section-subheading {
+    font-size: 1.0625rem;
+    color: var(--color-muted, #6b7280);
+    margin: 0;
+  }
+
+  .video-frame {
+    max-width: 56rem;
+    margin-inline: auto;
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: 0.875rem;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    background: #000;
+  }
+  .video-facade {
+    all: unset;
+    display: block;
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+  .video-facade:focus-visible {
+    outline: 3px solid var(--color-accent, #ef7612);
+    outline-offset: -3px;
+  }
+  .video-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .video-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .video-play-bg {
+    fill: #212121;
+    fill-opacity: 0.8;
+    transition: fill-opacity 0.15s ease;
+  }
+  .video-facade:hover .video-play-bg,
+  .video-facade:focus-visible .video-play-bg {
+    fill: #ff0000;
+    fill-opacity: 1;
+  }
+  .video-iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .video-play-bg { transition: none; }
+  }
+</style>
