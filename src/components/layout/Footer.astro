@@ -167,7 +167,12 @@ const effectiveSlug = explicitOptOut
   ? null
   : (statusBadge?.slug ?? autoSlug);
 
-const statusUrl = statusBadge?.statusUrl ?? 'https://status.blitzsicht.com/';
+// Deep-Link auf die EIGENE Status-Detailseite statt der Kunden-Übersicht:
+// die Übersicht listet alle Blitzsicht-Kunden — auf einer Kundensite wäre das
+// die sichtbare Kundenliste für jeden Besucher (Operator-Fund 2026-07-09).
+// Explizites statusUrl-Override gewinnt weiterhin; ohne Slug bleibt die Übersicht.
+const statusUrl = statusBadge?.statusUrl
+  ?? (effectiveSlug ? `https://status.blitzsicht.com/customer/${effectiveSlug}/` : 'https://status.blitzsicht.com/');
 const badgeUrl = effectiveSlug
   ? `${statusBadge?.badgeUrlBase ?? 'https://status.blitzsicht.com/badge/'}${effectiveSlug}.svg`
   : null;
