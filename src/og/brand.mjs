@@ -54,6 +54,20 @@ export function logoImg(buffer, mime = 'image/svg+xml', height = 48) {
   });
 }
 
+/** Wie logoImg, aber passt das Logo in eine Box (maxW×maxH) ein — für das Logo-Panel. */
+export function logoImgFit(buffer, mime = 'image/svg+xml', maxW = 300, maxH = 180) {
+  let ratio = 1;
+  if (mime.includes('svg')) {
+    const vb = buffer.toString('utf-8').match(/viewBox\s*=\s*["']\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)/i);
+    if (vb) { const w = parseFloat(vb[1]), hh = parseFloat(vb[2]); if (w > 0 && hh > 0) ratio = w / hh; }
+  } else if (buffer.length > 24 && buffer[0] === 0x89 && buffer[1] === 0x50) {
+    const w = buffer.readUInt32BE(16), hh = buffer.readUInt32BE(20); if (w > 0 && hh > 0) ratio = w / hh;
+  }
+  let hgt = maxH, wid = hgt * ratio;
+  if (wid > maxW) { wid = maxW; hgt = wid / ratio; }
+  return h('img', { src: dataUri(buffer, mime), width: Math.round(wid), height: Math.round(hgt), style: { objectFit: 'contain' } });
+}
+
 /**
  * Trust-Signal statt Pseudo-Button: ★-Google-Bewertung und/oder Ortsband.
  * @param {object} o

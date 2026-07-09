@@ -7,7 +7,7 @@
 // Vertrauen), mit weichem Verlauf-Übergang. Foto idealerweise vom Aufrufer schon
 // auf ~480×630 (cover) zugeschnitten.
 import { h } from '../h.mjs';
-import { BRAND, dataUri, logoImg } from '../brand.mjs';
+import { BRAND, dataUri, logoImg, logoImgFit } from '../brand.mjs';
 
 /**
  * @param {object} o
@@ -32,23 +32,26 @@ export function offer(o = {}) {
   const bullets = (o.bullets ?? []).slice(0, 3);
   const hasPhoto = !!o.photo;
   const photoW = o.photoWidth ?? 600;
+  const logoPanel = !hasPhoto && !!o.logoPanel && !!o.logo; // Marken-Fallback: Logo rechts statt Foto
+  const panelW = o.panelWidth ?? 440;
+  const hasRightPanel = hasPhoto || logoPanel;
 
   // --- Inhalt (Kopf / Mitte / Fuß) ---
   const content = h('div', {
     style: {
       position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-      width: hasPhoto ? 1200 - photoW + 200 : '100%', height: '100%', padding: '60px 68px',
+      width: hasPhoto ? 1200 - photoW + 200 : logoPanel ? 1200 - panelW + 130 : '100%', height: '100%', padding: '60px 68px',
     },
   },
-    // Kopf: Logo + Eyebrow
+    // Kopf: Logo (klein, nur ohne Logo-Panel) + Eyebrow
     h('div', { style: { display: 'flex', alignItems: 'center', gap: '18px' } },
-      o.logo && logoImg(o.logo, o.logoMime ?? 'image/svg+xml', 46),
+      o.logo && !logoPanel && logoImg(o.logo, o.logoMime ?? 'image/svg+xml', 46),
       o.eyebrow && h('div', { style: { display: 'flex', fontSize: 20, fontWeight: 600, letterSpacing: 3, color: brand.accent } }, o.eyebrow),
     ),
     // Mitte: Headline + Benefit-Bullets
     h('div', { style: { display: 'flex', flexDirection: 'column' } },
       h('div', {
-        style: { display: 'flex', flexDirection: 'column', fontFamily: 'Jakarta', fontWeight: 800, fontSize: hasPhoto ? 54 : 60, color: 'white', lineHeight: 1.06 },
+        style: { display: 'flex', flexDirection: 'column', fontFamily: 'Jakarta', fontWeight: 800, fontSize: hasRightPanel ? 54 : 60, color: 'white', lineHeight: 1.06 },
       }, ...lines.map((l) => h('div', { style: { display: 'flex' } }, l))),
       bullets.length > 0 && h('div', { style: { display: 'flex', flexDirection: 'column', marginTop: 28, gap: '14px' } },
         ...bullets.map((b) => h('div', { style: { display: 'flex', alignItems: 'center', gap: '16px' } },
@@ -74,6 +77,20 @@ export function offer(o = {}) {
   );
 
   const bg = `linear-gradient(135deg, ${brand.primary} 0%, ${brand.primaryLight} 100%)`;
+
+  // Logo-Fallback: kein Foto → Marken-Logo groß im rechten Panel (nie leere Fläche).
+  if (logoPanel) {
+    return h('div', { style: { position: 'relative', width: '100%', height: '100%', display: 'flex', backgroundImage: bg, fontFamily: 'Inter' } },
+      h('div', {
+        style: {
+          position: 'absolute', top: 0, right: 0, width: panelW, height: 630, display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          backgroundColor: 'rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.10)',
+        },
+      }, logoImgFit(o.logo, o.logoMime ?? 'image/svg+xml', panelW - 96, 210)),
+      content,
+    );
+  }
 
   if (!hasPhoto) {
     return h('div', { style: { width: '100%', height: '100%', display: 'flex', backgroundImage: bg, fontFamily: 'Inter' } }, content);
