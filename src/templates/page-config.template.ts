@@ -70,6 +70,10 @@ export const landingBaseProps = {
   titleTemplate: siteData.seo.titleTemplate,
   plausibleScript: siteData.analytics?.plausibleScript,
   plausibleEndpoint: siteData.analytics?.plausibleEndpoint,
+  // undefined → BaseLayout-Default 'inline'. Nur setzen, wenn die Site zusätzlich
+  // <PlausibleEvents> mountet (dann 'full', sonst Doppelfeuer). Ohne dieses
+  // Passthrough erbten frisch gescaffoldete Sites hart 'inline'.
+  trackingMode: siteData.analytics?.trackingMode,
   header: headerConfig,
   footer: footerConfig,
   schema: schemaConfig,

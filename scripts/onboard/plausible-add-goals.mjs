@@ -26,16 +26,15 @@
  * Prod-Schreibvorgang ohne Rückweg). Er entfernt exakt dieselben Goals, die derselbe
  * Aufruf ohne --remove angelegt hätte — nicht mehr.
  */
-import { execFileSync } from 'node:child_process';
-import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { CORE_GOALS, OPTIONAL_GOALS } from './plausible-goals.mjs';
+import {
+  DEFAULT_HOST, DEFAULT_KEY, PG_CONTAINER, sqlEscape, remoteQuery, remoteWrite,
+} from './plausible-box.mjs';
 
-// ─── Box-Konstanten (identisch zu plausible-add-site.mjs) ────────────────────
-const DEFAULT_HOST = 'root@100.96.26.82';
-const DEFAULT_KEY = `${homedir()}/.ssh/id_ed25519`;
-const PG_CONTAINER = 'plausible_db-x12kp2izcjwfau5vq90clcnn';
-const PG_DB = 'plausible_db';
+// sqlEscape kommt aus plausible-box.mjs (SSOT) — hier re-exportiert, damit
+// bestehende Importe (Test) unverändert weiterlaufen.
+export { sqlEscape };
 
 export function parseArgs(argv) {
   const args = { apply: false, optional: false, remove: false };
@@ -56,15 +55,6 @@ export function parseArgs(argv) {
 function die(msg) {
   console.error(`❌ ${msg}`);
   process.exit(1);
-}
-
-function sshOpts(key) {
-  return ['-i', key, '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=15'];
-}
-
-/** Postgres-String-Literal escapen (einfache Quotes verdoppeln). */
-export function sqlEscape(s) {
-  return String(s).replace(/'/g, "''");
 }
 
 /** --goals-CSV in Goal-Objekte parsen ('/'-Präfix = Pageview-Goal). */
@@ -129,13 +119,6 @@ export function buildRemoveSql(domain, goals) {
   return ['BEGIN;', ...goals.map((g) => goalDeleteSql(domain, g)), 'COMMIT;'].join('\n');
 }
 
-function remoteExec(host, key, remoteCmd, input) {
-  const opts = input !== undefined
-    ? { input, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }
-    : { encoding: 'utf8' };
-  return execFileSync('ssh', [...sshOpts(key), host, remoteCmd], opts);
-}
-
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
@@ -154,9 +137,6 @@ function main() {
     ? parseGoalList(args.goals)
     : (args.optional ? [...CORE_GOALS, ...OPTIONAL_GOALS] : CORE_GOALS);
   if (!goals.length) die(`Keine Goals zu ${args.remove ? 'entfernen' : 'provisionieren'}.`);
-
-  const psqlWrite = `docker exec -i ${PG_CONTAINER} psql -U postgres -d ${PG_DB} -v ON_ERROR_STOP=1`;
-  const psqlQuery = (sql) => `docker exec ${PG_CONTAINER} psql -U postgres -d ${PG_DB} -tAc "${sql}"`;
 
   console.log(`ℹ️  Plausible-Goals ${args.remove ? 'ENTFERNEN aus' : 'für'} ${domain}  (Box ${host}, Container ${PG_CONTAINER})`);
   console.log(`    ${goals.length} Goal(s): ${goals.map((g) => (g.type === 'page' ? `page:${g.value}` : g.value)).join(', ')}`);
@@ -178,7 +158,7 @@ function main() {
   // 1. Site muss existieren (sonst leerer Schreibvorgang, aber wir wollen laut scheitern).
   let siteId = '';
   try {
-    siteId = remoteExec(host, key, psqlQuery(`SELECT id FROM sites WHERE domain='${sqlEscape(domain)}'`)).trim();
+    siteId = remoteQuery(`SELECT id FROM sites WHERE domain='${sqlEscape(domain)}'`, { host, key }).trim();
   } catch (e) {
     die(`Site-Abfrage fehlgeschlagen (SSH/psql): ${e.message}`);
   }
@@ -191,7 +171,7 @@ function main() {
     sql = buildRemoveSql(domain, goals);
   } else {
     try {
-      const cols = remoteExec(host, key, psqlQuery(`SELECT column_name FROM information_schema.columns WHERE table_name='goals'`));
+      const cols = remoteQuery(`SELECT column_name FROM information_schema.columns WHERE table_name='goals'`, { host, key });
       hasDisplayName = cols.split('\n').map((s) => s.trim()).includes('display_name');
     } catch (e) {
       die(`Schema-Introspektion fehlgeschlagen: ${e.message}`);
@@ -201,7 +181,7 @@ function main() {
 
   // 3. Idempotentes INSERT/DELETE ausführen.
   try {
-    remoteExec(host, key, psqlWrite, sql);
+    remoteWrite(sql, { host, key });
   } catch (e) {
     die(`Goal-${args.remove ? 'DELETE' : 'INSERT'} fehlgeschlagen: ${e.message}`);
   }
@@ -209,7 +189,7 @@ function main() {
   // 4. Verifikation.
   let count = '?';
   try {
-    count = remoteExec(host, key, psqlQuery(`SELECT count(*) FROM goals g JOIN sites s ON g.site_id=s.id WHERE s.domain='${sqlEscape(domain)}'`)).trim();
+    count = remoteQuery(`SELECT count(*) FROM goals g JOIN sites s ON g.site_id=s.id WHERE s.domain='${sqlEscape(domain)}'`, { host, key }).trim();
   } catch { /* Verifikation optional */ }
   if (args.remove) {
     console.log(`✓ Goals entfernt aus ${domain}. Verbleibende Goals gesamt: ${count}`);

@@ -1,40 +1,295 @@
 # Changelog — @cw/core
 
-All notable changes to this project will be documented in this file.
+Alle Versionen von `@cw/core` mit Breaking Changes, neuen Features und Fixes.
+Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.json`.
 
-Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in reverse chronological order.
+> **SSOT-Hinweis (2026-07-09):** Diese Datei ist der **kanonische** Changelog von cw-core.
+> Bis v0.56.0 lebte der kanonische Changelog cross-repo in
+> `customer-websites/CHANGELOG-CW-CORE.md`; beide Historien wurden am 2026-07-09
+> versions-sortiert in diese Datei gemerged (122 Einträge). Ab v0.57.0 wird nur noch
+> hier gepflegt — Changelog + Code + Tag = ein Commit-Flow in cw-core.
 
----
+> **`[kunde]`-Marker:** Kundenrelevante Änderungen tragen direkt unter dem
+> Versions-Header eine Zeile `- [kunde] <laienverständlicher Satz, ohne direkte Anrede>` bzw.
+> `- [kunde:sichtbar] …` wenn sich das Erscheinungsbild der Website ändert.
+> Diese Zeilen werden maschinell in die Monatsreport-Sektion
+> „Was ist neu auf Ihrer Website" übernommen — Pflichtfeld bei jedem Release
+> mit kundenwirksamem Verhalten (siehe cw-release-Skill).
 
-## [0.50.0] — 2026-07-06
-
-> Favicon-Build-Pipeline von der deprecated `main`-Linie auf `release/cw-core` portiert
-> (cherry-pick von main-Commit `b506e75`, siluri/blitzsicht-ops#509). Feature war zuvor
-> versehentlich gegen `main` gemergt (blitzsicht-ops#491 / PR #51) und erreichte dadurch
-> keine Customer-Site.
-
-### Added
-
-- **`@cw/core/integrations/favicon-ico`** — Astro-Integration, die `favicon.ico` bei jedem Build automatisch aus `public/favicon.svg` generiert (siluri/blitzsicht-ops#491).
-  - Root Cause: `BaseLayout.astro` verlinkte nur `favicon.svg` + `favicon-192.png`, keine Pipeline erzeugte `favicon.ico`. Plausibles Sites-Dashboard bezieht Site-Icons über den externen DuckDuckGo-Dienst (`icons.duckduckgo.com/ip3/<domain>.ico`), der `/favicon.ico` erwartet — 3/6 stichprobenartig geprüfte Sites zeigten deshalb nur den generischen Platzhalter.
-  - `astro:build:done`-Hook (analog zu `integrations/ai-discovery`) — immer frisch, keine Staleness-Heuristik nötig.
-  - Multi-Resolution (16/32/48px, konfigurierbar über `sizes`-Option), PNG-in-ICO-Container (kein BMP/DIB-Reencoding).
-  - Resolviert `sharp` aus dem Consumer-Repo (Konvention wie `scripts/optimize-images.mjs`); fail-open (Warnung statt Build-Abbruch) wenn `favicon.svg` fehlt oder `sharp` nicht auflösbar ist.
-  - Neu: `src/integrations/favicon-ico/ico.ts` (dependency-freier ICO-Container-Writer) + `src/integrations/favicon-ico/index.ts`.
-- **`BaseLayout.astro`**: zusätzlicher Fallback-Link `<link rel="icon" href="/favicon.ico" sizes="any" />` neben dem bestehenden SVG-Icon.
-- **`scripts/sweep-favicon.mjs`**: Curl-Sweep über eine Domain-Liste, meldet welche Sites kein HTTP 200 auf `/favicon.ico` liefern.
-- **`docs/favicon-pipeline.md`**: Mechanismus, Einbindung, Rollout-Status dokumentiert.
-- **`docs/onboarding-checklist.md`**: Abschnitt 4 + Bausteine-Tabelle um `faviconIco()`-Integration ergänzt — kein manueller Favicon-Schritt mehr im Onboarding.
-- **Tests**: `scripts/favicon-ico.test.mjs` (6 Tests) — ICO-Container-Format (Header, Multi-Size-Offsets, 256px-Edge-Case) + echter End-to-End-Test (`sharp` rendert eine Test-SVG, Ergebnis wird als valides Multi-Size-ICO verifiziert, inkl. PNG-Magic-Byte-Check pro Embedded-Image).
-
-### Notes
-
-- Rollout auf die einzelnen `customer-*`-Sites (Einbindung von `faviconIco()` in deren `astro.config.ts` + Redeploy) ist nicht Teil dieses `cw-core`-only-PRs — siehe PR-Notes für den Live-Sweep-Stand (siluri/blitzsicht-ops#507).
-- Tag-Schnitt `release/cw-core/v0.50.0` erfolgt POST-Merge via `cw-release`-Skill/Operator, nicht Teil dieses PRs.
+> **Hinweis 2026-05-26:** Releases v0.10.0 bis v0.21.2 (Apr–Mai 2026) wurden zur Zeit
+> ihrer Veröffentlichung teils nicht dokumentiert; die vorhandenen Einträge stammen aus
+> der Rekonstruktion. Detail via `git log release/cw-core/v0.9.10..release/cw-core/v0.21.2 --oneline`.
 
 ---
 
-## [0.39.0] — 2026-06-25 (release/cw-core)
+## v0.63.0 (2026-07-09)
+
+- [kunde] Klicks auf die Handlungs-Buttons (z. B. „Anfragen", „Kontakt aufnehmen") werden jetzt in der Besucherstatistik gezählt. Damit ist erkennbar, wie viele Besucher aktiv einen Kontakt starten wollten — nicht nur, wie viele die Seite geöffnet haben.
+
+**Fix (Tracking):** Vollständiger Event-Satz im Default-`inline`-Modus + Aufräumen der Goal-Provisionierung. Auslöser: Tracking-Audit 2026-07-09.
+
+Kontext: Im `inline`-Tracking-Modus (Default aller Live-Kunden ohne `<PlausibleEvents>`-Mount) feuerte der `BaseLayout`-Auto-Listener **kein** `CTA Click`-Event — das clusterweit provisionierte CORE-Goal „CTA Click" war bei jedem inline-Kunden eine tote DB-Zeile. Zusätzlich war `Paid Visit` als CORE-Goal provisioniert, obwohl es strukturell nur über die gclid/utm-Attribution in `<PlausibleEvents>` (`full`-Modus) feuern kann → tote Goal-Zeile bei jedem inline-Kunden ohne Paid-Traffic.
+
+Änderungen:
+- `BaseLayout`: `[data-cta]`-Klick-Listener feuert jetzt auch im `inline`-Modus `CTA Click` (gegated auf `inline` — im `full`-Modus bleibt `<PlausibleEvents>` alleinige Quelle, kein Doppelfeuer).
+- `plausible-goals.mjs`: `Paid Visit` aus `CORE_GOALS` entfernt und in neues `PAID_GOALS`-Set verschoben (nur für Kunden mit bezahltem Traffic provisionieren).
+- `page-config`/`site-data`-Templates: `trackingMode`-Passthrough + First-Party-Proxy-Defaults (`/js/script.js` + `/api/event`) — frisch gescaffoldete Sites erben nicht mehr hart `inline`, und die Onboarding-Kommentare erklären den `full`-Mount-Fall.
+
+**Feature (Onboarding):** `plausible-add-site.mjs --pa <pa-ID>` — verwendet eine vorgegebene pa-ID statt einer frisch gewürfelten. Zwingend, wenn eine Site angelegt wird, deren Repo bereits eine pa-ID in `vercel.json` verdrahtet hat (sonst zeigt der `/js/script.js`-Rewrite auf eine andere pa-ID als die DB und Events verpuffen). Format-validiert; der Reconcile-Guard nutzt das.
+
+**Refactor (Onboarding):** Box-Zugriff (SSH → `docker exec psql`) in neues `plausible-box.mjs` als SSOT extrahiert; `plausible-add-site.mjs` + `plausible-add-goals.mjs` importieren daraus (`remoteQuery`/`remoteWrite`/`sqlEscape`). `add-site` läuft `main()` nur noch bei direktem Aufruf (`import.meta.url`-Guard), nicht beim Import durch Reconcile/Test. Test 10/10 grün.
+
+**Migrations-Hinweis:** Keiner für den Pin-Bump (Runtime-Verhalten additiv — inline-Kunden gewinnen `CTA Click`, kein Feld entfernt). Onboarding-Betrieb: bei Bestandskunden ohne bezahlten Traffic kann das alte `Paid Visit`-CORE-Goal aus Plausible entfernt werden (`plausible-add-goals.mjs --remove`), ist aber nur Kosmetik.
+
+---
+
+## v0.62.0 (2026-07-09)
+
+**Fix (OG-Studio):** Non-Foto-Layouts im `offer`-Template komplett einfarbig (Marken-Primary) — der diagonale Verlauf ließ die Logo-Seite wie eine zweite Hintergrundfarbe wirken, zusätzlich hatte v0.61.0 versehentlich noch den Panel-Tint. Logo-Fläche = Textfläche; Foto-Split behält den Verlauf (Foto deckt die helle Seite). Logo im Fallback größer.
+
+**Migrations-Hinweis:** Keiner. Agentur-Tooling (`@cw/core/og`), kein Runtime-Effekt beim Pin-Bump.
+
+---
+
+## v0.61.0 (2026-07-09)
+
+**Feature (OG-Studio):** `offer`-Template — Logo-Fallback + Foto-Feinschliff.
+
+- Kein Foto → Marken-Logo groß rechts direkt auf der Markenfarbe (nie leere Fläche; Standard-Fallback der OG-Pipeline).
+- `logoImgFit()`: Logo in Box einpassen (maxW×maxH), jedes Seitenverhältnis.
+- `featherLeft`: `fill`/`valign`/`padRight` → Porträts mit Kopffreiheit (Mika-Fix).
+
+**Migrations-Hinweis:** Keiner. Agentur-Tooling, kein Runtime-Effekt beim Pin-Bump.
+
+---
+
+## v0.60.0 (2026-07-09)
+
+**Feature (OG-Studio):** `offer` Foto-Split + PNG-Logo-Support.
+
+- `featherLeft()` (photo.mjs): Person rechtsbündig, linker Rand per Alpha-Verlauf ins Transparente — weicher Blend, kein Farb-Wash übers Gesicht.
+- `offer`: optionales Split-Layout mit Foto rechts (`photo`/`photoWidth`), Text links.
+- `logoImg`: PNG-IHDR-Ratio (nicht nur SVG-viewBox) → PNG-Logos nicht mehr gequetscht.
+
+**Migrations-Hinweis:** Keiner. Agentur-Tooling, kein Runtime-Effekt beim Pin-Bump.
+
+---
+
+## v0.59.0 (2026-07-09)
+
+**Feature (OG-Studio):** `offer`-Template (Werbe-Stil) + Logo-Aspect-Fix.
+
+Betrachter-zentrierte OG-Ads: Angebot (Headline) + 3 Benefit-Bullets + Grund-zu-klicken (CTA + Domain) + optionaler Trust-Chip. Wird Cluster-Default für Homepages; `proof` (Live-Scores) ist nicht mehr das Share-Bild.
+
+- `logoImg()`-Helper liest SVG-viewBox-Ratio → Logos nicht mehr auf 48×48 gequetscht (galt für offer/cta/hero).
+- `generate-og.mjs`: `--template offer` (`--headline "a|b" --bullets "a|b|c" …`). 9/9 Tests grün.
+
+**Migrations-Hinweis:** Keiner. Agentur-Tooling, kein Runtime-Effekt beim Pin-Bump.
+
+---
+
+## v0.58.0 (2026-07-09)
+
+- [kunde] Bessere Lesbarkeit: Quellenangaben unter Zitaten haben jetzt mehr Kontrast (Barrierefreiheit nach WCAG-Standard).
+
+**Fix (a11y):** `PainPoints` Quellenzeile Kontrast — `opacity` 0.6 → 0.8. `.painpoints__proof-source` erfüllte auf `--color-primary` (#284898) WCAG-AA nicht (≈4,2:1); mit 0.8 ≥4,5:1 → Lighthouse color-contrast PASS. Rein visuell, additiv. Löst den TEMP-Override in customer-donau-profi ab (dort entfernen).
+
+**Migrations-Hinweis:** Keiner. Betrifft nur Sites mit `PainPoints`-Block.
+
+---
+
+## v0.57.0 (2026-07-09)
+
+**Feature (OG-Studio v3):** Neues Modul `@cw/core/og` — scharfe, brand-treue, CTA-fähige OG-Images (Link-Vorschaubilder). Satori (Layout + eingebettete Brand-Fonts → vektorisiertes SVG) → sharp mit 2×-Supersampling; kein resvg nötig.
+
+- Templates: `cta` (Cluster-Default), `hero` (Foto-Composite), `proof` (nur Blitzsicht, Live-PageSpeed-Scores).
+- `renderOg()` mit <300 KB-Zielgröße-Guard (JPG-Fallback) + Brand-Override.
+- `generate-og.mjs`: `--template cta|hero|proof` (Legacy-Modus bleibt).
+- quality-checks: og:image-Guard (existiert, 1200×630, <300 KB, png/jpg).
+- `satori` als optionale peerDependency (Muster wie sharp); Brand-Fonts (Plus Jakarta Sans, Inter, JetBrains Mono) vendored, OFL.
+
+**Migrations-Hinweis:** Keiner. OG-Bilder werden per Script generiert (kein Auto-Effekt beim Pin-Bump); neue Vorschaubilder pro Site sind ein eigener bewusster Schritt.
+
+---
+
+## v0.56.0 (2026-07-09)
+
+- [kunde] Videos laufen jetzt datenschutzfreundlich direkt auf der Website — ohne YouTube-/Facebook-Cookies.
+
+**Feature:** `VideoEmbed` bekommt einen zweiten Modus. Neben der bisherigen YouTube-Facade (`youtubeId`) nun **self-hosted** via `src`-Prop → rendert ein natives `<video controls preload="none" poster>` mit lokaler MP4-Quelle.
+
+Kontext: Für Videos, die self-hosted mit Ton laufen sollen (z. B. ein aus Facebook exportiertes Erklärvideo, donau-profi), ist ein Facebook/YouTube-Embed datenschutzrechtlich unnötig heikel. Der self-hosted-Modus ist DSGVO-clean (kein iframe, kein Dritt-Request, nur `media-src 'self'`).
+
+- Genau EINES von `youtubeId` / `src` angeben; `youtubeId` ist jetzt optional.
+
+**Migrations-Hinweis:** Keiner. Additiv/backwards-compatible.
+
+---
+
+## v0.55.0 (2026-07-09)
+
+- [kunde:sichtbar] Kundenstimmen wirken hochwertiger: kursive Zitate, optional mit Google-Bewertungs-Logo. Außerdem stehen neue Landingpage-Bausteine bereit.
+
+**Feature:** Drei neue Landingpage-Blocks + Testimonials-Politur — operationalisiert den Blitzsicht-Landingpage-Blueprint als wiederverwendbare, prop-driven cw-core-Bausteine.
+
+Kontext: Der Blueprint (Hero → Problem → Lösung/Story/Prozess → Proof → Leistungen → Einwände → Risk-Reversal → CTA) war bisher nur als Doku + **lokale** Komponenten bei customer-blitzsicht umgesetzt (`PainPointsSection`, `GarantieBlock`). Andere Sites (soleno, mika) fehlten Problem-/Risk-Reversal-Sektion. Diese generalisierten Blocks machen die Blueprint-Konformanz fleet-weit nutzbar (erste Anwendung: donau-profi).
+
+Neue Komponenten:
+
+- `HeroVideo.astro` — cinematischer Vollbild-Hero mit stummem, loopendem, self-hosted MP4-Hintergrund + Overlay (Badge/Headline/Subtext/CTAs/USP-Row). Prop-Signatur kompatibel zu `Hero.astro`, plus `videoSrc`/`videoSrcWebm?`/`poster`. DSGVO/LCP-safe: Poster als LCP/Fallback, `preload="metadata"`, `prefers-reduced-motion` → nur Poster; braucht nur `media-src 'self'`.
+- `PainPoints.astro` — Blueprint-Sektion 2 „Problem": Schmerzpunkt-Karten (`items: {icon,text}[]`), optionales eingebettetes Proof-Zitat + Abschluss-Lede, KEIN CTA. `bg: 'dark' | 'surface'`.
+- `RiskReversal.astro` — Blueprint-Sektion 7: Zusage-/Garantie-Karten (`items: {icon,title,text}[]`), optionale Promise-Box, Footnote, Häkchen-Siegel, optionaler CTA. `bg: 'surface' | 'white'`.
+
+Testimonials:
+
+- Neuer Prop `reviewSource?: 'google'` → rendert pro Karte ein Google-„G"-Logo (Markenfarben) + Label.
+- Zitat-`blockquote` jetzt `font-style: italic` (Zitat-Konvention, gilt für alle Sites).
+
+CSP-Template: `frame-src` um `https://www.youtube-nocookie.com` ergänzt (für `VideoEmbed` aus v0.54.3; `HeroVideo` benötigt es nicht).
+
+**Migrations-Hinweis:** Keiner. Alle Änderungen additiv/backwards-compatible. `reviewSource` ist opt-in; das Testimonials-`italic` ist rein visuell.
+
+---
+
+## v0.54.3 (2026-07-09)
+
+- [kunde] YouTube-Videos laden erst nach Klick — schneller und ohne Cookies vor dem Abspielen.
+
+**Feature (Nachzügler):** `VideoEmbed` — DSGVO-konformer YouTube-Lite-Embed (Facade-Pattern, youtube-nocookie, Video-Play-Event). Die Komponente stammte aus der donau-profi-Session (PR donau#5 nutzte sie bereits), war aber nie committet — donaus Vercel-Build hing dadurch. Lesson: Cross-Repo-Features erst mergen, wenn die cw-core-Seite released ist. CSP-Voraussetzung: `frame-src https://www.youtube-nocookie.com`.
+
+---
+
+## v0.54.2 (2026-07-09)
+
+- [kunde] Präzisere Besucherstatistik: doppelt gezählte Klicks und Formular-Ereignisse wurden bereinigt.
+
+**Fix:** Tracking-Dedup — EIN kanonischer Event-Satz clusterweit.
+
+Kontext (Tracking-Audit 2026-07-09, Live-Payload-Mitschnitt): Der Plausible-Tracker sendete EINGEBAUT `Outbound Link: Click`, `File Download` (Name-Kollision mit unserem Event → Doppelzählung) und `Form: Submission` — parallel zu unseren kontrollierten Events. Fix: BaseLayout-Init schaltet die drei Builtins ab (Pageviews unberührt); Inline-Block sendet kanonisches `Form Submit {form}`; PlausibleEvents (full-Mode-SSOT) um `Outbound Click {url}` + `File Download {filename}` ergänzt. Flankierend wurden die CORE_GOALS auf alle Live-Domains der Analytics-Box provisioniert (Drift: zink/mika hatten nur Alt-Goals — mikas WhatsApp-Conversions waren unsichtbar). **Rollout: alle 11 Live-Customer (donau via v0.54.3).** Verifiziert: Outbound-Klick = exakt 1 Event in beiden Modi.
+
+---
+
+## v0.54.1 (2026-07-09)
+
+- [kunde] Das Status-Siegel im Footer führt jetzt direkt zur Status-Seite der eigenen Website.
+
+**Fix:** Footer-Status-Badge verlinkt auf die eigene Status-Detailseite (`/customer/<slug>/`) statt der öffentlichen Kunden-Übersicht.
+
+Kontext: Die Übersicht status.blitzsicht.com listet alle Blitzsicht-Kunden — auf einer Kundensite war damit die komplette Kundenliste für jeden Besucher einen Klick entfernt (Operator-Fund 2026-07-09, geschäftlich indiskret). Explizites `statusBadge.statusUrl`-Override gewinnt weiterhin; ohne Slug bleibt die Übersicht der Fallback. Konsistent mit dem psiBadge-Link (v0.53.0). **Rollout 2026-07-09: alle 11 Live-Customer.**
+
+---
+
+## v0.54.0 (2026-07-08)
+
+- [kunde] Die Besucherstatistik zählt jetzt auch WhatsApp-Klicks — und nichts mehr doppelt.
+
+**Feature/Fix:** `trackingMode`-Prop — Tracking-Doppelfeuer eliminiert + WhatsApp-Click im Inline-Block.
+
+Kontext: Die BaseLayout-Inline-Listener (Phone/Email/PDF/Outbound/Scroll/Time) feuerten UNBEDINGT; 5 Repos (digital-direkt, gottl-richter-gomeier, schiller-gartenbau, soleno, steller-sanierungen) mounten zusätzlich `<PlausibleEvents />` → `Phone/Email/Scroll` doppelt mit inkompatiblen Props (`{number}` vs `{location}`, depth `"50%"` vs `50`). Neu: `trackingMode?: 'inline' | 'full' | 'none'` (Default inline = bisheriges Verhalten; full = Inline-Listener aus, PlausibleEvents ist SSOT; Runtime-Gate über `html[data-cw-tracking]`), durchgereicht via LandingPage/ContentPage. Außerdem: `WhatsApp Click`-Event im Inline-Block (wa.me/api.whatsapp.com, vor dem Outbound-Check — schloss die Lücke bei blitzsicht/mika) und Scroll-Depth inline als Zahl statt `"25%"`-String.
+
+**Rollout 2026-07-08:** die 5 PlausibleEvents-Repos auf v0.54.0 + `trackingMode: 'full'` (page-config); mika auf v0.54.0 inline. Live-verifiziert per Playwright-Plausible-Stub: steller Phone Click exakt 1× `{location}`, mika `WhatsApp Click {number}`. blitzsicht folgt beim nächsten Bump (Checkout war durch parallele Instagram-Session belegt).
+
+---
+
+## v0.53.0 (2026-07-08)
+
+**Feature:** Footer-Opt-in `psiBadge` — Google-PSI-Score-Badge („Gemessen von Google") neben dem Status-Badge.
+
+Kontext: Phase-2 des Live-Beweis-Systems (Sales-Asset auf Referenz-Kundensites). Neue cw-uptime-Route `/badge/<slug>/psi.svg` (Lighthouse-Ampelfarbe, stale >14 d → „wird gemessen", Consent-Gate = `PSI_PUBLIC_ALLOWLIST`, kein Score-Filter). `Footer.astro` rendert bei `psiBadge: true` (Default false, clusterweit no-op) ein zweites Badge mit Slug-Auto-Detection, verlinkt auf die öffentliche Beweis-Detailseite `/customer/<slug>/`. Durchgereicht via ContentPage/LandingPage (`footer.psiBadge`). **Pro Customer erst aktivieren, wenn Messwert-Consent in customer-registry.json `reference.metrics` dokumentiert ist** (Badge ändert den Footer der Kunden-Site → eigenes OK nötig, Nachfass-Mails siehe `docs/live-proof/consent-nachfassung-mails-2026-07-08.md`). Rollout: zunächst nur blitzsicht (Dogfood).
+
+---
+
+## v0.52.2 (2026-07-08)
+
+**Fix:** `optimize-images.mjs` Idempotenz-Guard — bereits optimierte WebPs werden nicht mehr bei jedem Build re-encodet.
+
+Kontext: Der prebuild re-encodete WebPs (q80→q80), sobald 1 Byte gespart wurde — generationsweiser Qualitätsverlust + dauerhaft dirty Working Tree (Drift-Vorfall blitzsicht 2026-07-08: `dachdecker.webp` schrumpfte ~100 B pro Build, konvergierte nie). Neu: WebP wird nur neu geschrieben bei anstehendem Resize ODER Ersparnis >2 % UND >2 KB (`shouldRewriteWebp()`, 8 Logik-Tests inkl. der echten Bug-Fälle). jpg/png-Konvertierung unverändert. `sharp` lazy geladen, `main()` realpath-gated (pnpm-Symlinks).
+
+---
+
+## v0.52.1 (2026-07-08)
+
+- [kunde] Stabilerer Seitenaufbau auf dem Handy: Überschriften „springen" beim Laden nicht mehr.
+
+**Fix:** TextReveal mobil layout-neutral — CLS-Quelle bei langen Headlines eliminiert.
+
+Kontext: TextReveal zerlegt Headlines in `display:inline-block`-Wort-Spans; inline-Blocks sind atomar und hebeln `hyphens:auto`/`overflow-wrap` aus. Traf der Webfont nach First Paint ein (langsames Netz — Bilder sättigen die Leitung), brach die H1 auf mehr Zeilen um: blitzsicht.com maß mobil CLS 0,29 / PSI-Performance 100→85 (H1 +81 px bei ~1,1 s). Fix: Reveal-Styles gelten erst ab `min-width: 901px` (Hero-Desktop-Breakpoint); mobil bleiben die Spans normaler Inline-Fluss, sofort sichtbar. Desktop-Animation unverändert. Nach Fix + Font-Preload (customer-seitig): PSI 99, CLS 0.
+
+Flankierend für Webfont-Customer (blitzsicht-Muster, customer-seitig): Fontsource-CSS nie per `@import` einbinden (bringt `font-display:swap`-Faces mit, die optional-Overrides aushebeln) — nur explizite optional-`@font-face` + `<link rel="preload" as="font">`.
+
+**Rollout 2026-07-08:** Alle 11 Live-Customer auf v0.52.2 gebumpt (Build-Gate grün, Prod-Deploys via Vercel-API/Marker verifiziert).
+
+---
+
+## v0.52.0 (2026-07-07)
+
+- [kunde:sichtbar] Auf dem Handy stehen Überschrift und Kontakt-Button jetzt vor dem Foto im ersten Bildschirm — Besucher sehen sofort, worum es geht.
+
+**Fix + Feature:** Hero Mobile-Fold-Korrektur, optionales Confirmation-Foto, plus Abschluss der WS-A/WS-E-Ads-Bausteine (Offline-Conversion-Store, Consent-Checkbox).
+
+Kontext: Auf Split-Hero-Layouts renderte das Bild auf Mobile per `order:-1` VOR H1/Trust/CTA — Verstoß gegen die Mobile-Fold-Regel des Landingpage-Blueprints (`customer-websites/docs/landingpage-blueprint.md`). Die Bestätigungsseite (`DankePage`) hatte kein Foto-Slot für den in der Blueprint-Checkliste (#16) geforderten persönlichen Rückruf-Anker. Parallel wurden die in v0.51.0 begonnenen Ad-Attribution-Bausteine (WS-A/WS-E) fertiggestellt.
+
+Änderungen:
+
+- **`Hero.astro` (Fix):** `order:-1` auf `.hero-image-wrap` in der Mobile-Media-Query (`max-width: 900px`) entfernt. H1 + Trust-Zeile + CTA stehen jetzt im ersten Viewport vor dem Foto (natürliche Dokumentreihenfolge). Betrifft alle Customer mit Split-Hero (`image`-Prop). Rein visuell/additiv, kein API-Change.
+- **`DankePage.astro` (Feature):** neue optionale Props `photo?: ImageMetadata` + `photoAlt?: string` — rendert bei Angabe ein rundes Portraitbild (via `astro:assets` `Image`, Retina-srcset) statt des Checkmark-Icons. `photoAlt`-Default = `heading`. Ohne die Props unverändert.
+- **`ContactForm.astro` (WS-E):** opt-in `adsConsent`-Prop (Default `false`) — DSGVO-konforme, ungecheckte Marketing-Consent-Checkbox, postet `marketing_consent`. Kein Customer aktiviert es standardmäßig.
+- **`conversion-store.js` + `contact-handler.js` (WS-A):** dormanter Offline-Conversion-Store (Neon, optionale peerDependency). Doppelt gegatet (Env `CW_CONVERSION_STORE_URL` + `marketingConsent===true`), `Promise.allSettled`-gekapselt, dynamischer Import — No-op ohne Env/Consent.
+- **`plausible-add-goals.mjs` (Tooling):** `--remove`-Rollback-Pfad + Logik-Tests.
+
+**Migrations-Hinweis:** Keiner — vollständig additiv/abwärtskompatibel. Der Hero-Fix greift automatisch beim Pin-Bump (Mobile-Layout ändert die Bild-Reihenfolge; empfohlen: Post-Bump Visual-QA bei 375×667). `photo`-Prop und `adsConsent` sind opt-in.
+
+---
+
+## v0.51.0 (2026-07-06)
+
+- [kunde] Vorbereitung für Werbekampagnen: Anfragen lassen sich cookielos (ohne Cookie-Banner-Zwang) einer Anzeige zuordnen.
+
+**Feature:** Cookielose Ad-Attribution (gclid/utm) + Plausible-Goals-Provisioner — zwei Bausteine für Google-Ads-Lead-Gen ohne Cookie/Consent.
+
+Kontext: Für bezahlte Kampagnen (Pilot Digital-Direkt) fehlte (a) die Zuordnung Ad-Klick → Lead und (b) waren beim Umzug plausible.io → self-hosted CE alle Conversion-Goals verloren gegangen (nur Statistik-CSVs migriert, Goal-Definitionen nicht). Beides wird hier geschlossen — DSGVO-schlank, ohne Browser-Tag.
+
+Neue Features:
+
+- **Ad-Attribution:** `<PlausibleEvents>` sammelt `gclid`/`gbraid`/`wbraid`/`msclkid`/`fbclid` + `utm_*` cookielos aus der URL in `sessionStorage` (überlebt Landing → Kontakt) und feuert einmalig ein `Paid Visit`-Event. `ContactForm` trägt die Werte als Hidden-Felder; `contact-handler` reicht sie (Whitelist, 512-Zeichen-Kappung) in die Lead-Mail (neuer „Herkunft (Kampagne)"-Block) und den Telegram-Push (`📣`-Zeile) durch. Ermöglicht Offline-Conversion-Upload zu Google Ads ohne Enhanced Conversions.
+- **Plausible-Goals-Provisioner:** `scripts/onboard/plausible-goals.mjs` (deklarative Goals-SSOT) + `scripts/onboard/plausible-add-goals.mjs` (idempotenter DB-INSERT via ssh→docker psql, Schema-Introspektion, `--dry-run` default). Schließt die CE-Migrationslücke; Goals in Plausible sind rückwirkend.
+
+**Migrations-Hinweis:** Keiner — vollständig additiv/abwärtskompatibel. Ad-Attribution greift automatisch beim Pin-Bump (Hidden-Felder bleiben leer ohne Ad-Klick). Der Goals-Provisioner ist ein Onboarding-Tool (kein Runtime-Impact); Bestandssites via `plausible-add-goals.mjs --domain <domain> --apply` nachziehen.
+
+---
+
+## v0.50.0 (2026-07-06)
+
+**Feature:** Automatische `favicon.ico`-Build-Pipeline — neue Astro-Integration `faviconIco()` erzeugt beim Build aus `public/favicon.svg` eine multi-resolution `favicon.ico` (16/32/48px), plus `<link rel="icon" href="/favicon.ico" sizes="any">`-Fallback in `BaseLayout.astro`.
+
+Kontext: Plausibles DuckDuckGo-basierter Icon-Lookup fragt `/favicon.ico` ab; ohne generierte `.ico` lieferten 7/12 Sites dort 404. Das Feature wurde zunächst versehentlich gegen den deprecateten `main`-Branch gemergt (blitzsicht-ops#491 / cw-core#51) und anschließend auf `release/cw-core` portiert (blitzsicht-ops#509 / cw-core#52).
+
+Neue Nutzung:
+
+- `faviconIco()` aus `@cw/core/integrations/favicon-ico` in das `integrations`-Array der `astro.config.ts` aufnehmen.
+- Optionaler Fleet-Sweep via `scripts/sweep-favicon.mjs` (curl über die Kunden-Domains).
+
+**Migrations-Hinweis:** Neue Sites binden `faviconIco()` in `astro.config.ts` ein (siehe `cw-core/docs/onboarding-checklist.md`). Bestandssites erhalten es beim nächsten Pin-Bump (Rollout blitzsicht-ops#507) — bis dahin unverändert lauffähig.
+
+---
+
+## v0.40.0 (2026-06-25)
+
+**Feature:** Footer-Klicks tragen jetzt ihre Source — Plausible unterscheidet Footer von Hero/Sticky, und der Blitzsicht-Backlink zeigt die Kunden-Domain.
+
+Kontext: Footer-Kontaktklicks (Telefon/WhatsApp/Mail) wurden zwar via `PlausibleEvents.astro` getrackt, aber mit `location: "unknown"` — den Footer-Links fehlte ein `data-section`. Und der „Erstellt von Blitzsicht"-Backlink trug nur `?ref=footer`, sodass blitzsicht.com nicht sah, von welcher Kundenseite der Klick kam.
+
+Änderungen:
+
+- `<footer data-section="footer">` + die `wa.me`/`mailto`-Handler in `PlausibleEvents.astro` auf dieselbe `sectionLoc`-Fallback-Kette wie `tel:` harmonisiert (behebt eine bestehende Inkonsistenz). Footer-Kontaktklicks melden nun `location: "footer"` statt `"unknown"`.
+- Footer-„Termin buchen"-Link erhält `data-cta="footer:booking"` (vorher gar nicht erfasst).
+- Blitzsicht-Backlink: `?ref=footer` → `?utm_medium=footer`; `PlausibleEvents.astro` hängt client-seitig `utm_source=<hostname>` an. Auf blitzsicht.com erscheint damit Source = Kundendomain, Medium = `footer`.
+
+**Migrations-Hinweis:** Keiner — keine neuen Props, keine CSP-Änderung, reiner Pin-Bump. (Falls auf blitzsicht.com ein Plausible-Segment auf `ref=footer` gespeichert war, greift es jetzt über `utm_medium=footer`.)
+
+---
+
+## v0.39.0 (2026-06-25)
 
 > Neuer Block `MapEmbed` — privacy-by-default OpenStreetMap-Embed (click-to-load).
 > Erster Karten-Embed im Cluster. Erstkunde: customer-braustall.
@@ -48,7 +303,105 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
-## [0.35.0] — 2026-06-18 (release/cw-core)
+## v0.38.1 (2026-06-22)
+
+**Fix:** E-Mail-Signatur-Generator behandelt GbR rechtsform-korrekt (§5-DDG-Compliance-Block).
+
+Kontext: Der Signatur-Generator (`templates/email-signature/`) kannte keinen GbR-Fall —
+eine GbR fiel in den GmbH-Default und produzierte einen falschen Compliance-Block:
+„GF: …" (eine GbR hat keinen Geschäftsführer) plus eine Registergericht-Zeile (eine
+nicht-eingetragene GbR hat keinen Registereintrag). Aufgetreten bei
+`customer-gottl-richter-gomeier` (normale GbR, 3 Gesellschafter).
+
+Änderungen (lokales Tooling, kein Customer-Bump nötig):
+
+- `generate.sh`: neuer `*gbr*`-Case im Compliance-Builder. Nennt „vertretungsberechtigt:
+  <Gesellschafter>" statt „GF:". Registerzeile nur wenn eine echte Registernummer (`HRB`)
+  vorliegt — fängt damit auch tote `registry`-Felder ab, die fälschlich ein Amtsgericht führten.
+- `read-customer-data.py`: mappt `legal.representatives[]` → `REPRESENTATIVES` (alle
+  vertretungsberechtigten Gesellschafter). `UST_ID` liest weiterhin `ustIdNr` vor `taxId`,
+  sodass die echte USt-IdNr statt einer Steuernummer in die Signatur kommt.
+
+**Migrations-Hinweis:** Keiner. Reines Generator-Tooling — Customer-Repos importieren das
+nicht via `@cw/core`-Pin. GbR-Customer profitieren bei der nächsten Signatur-Regenerierung.
+
+---
+
+## v0.38.0 (2026-06-21)
+
+**Feature:** `ImpressumBlock` rendert Firmenname + Rechtsform; Impressum-Linter gegen §5-DDG-Lücken.
+
+Kontext: Bei `customer-gottl-richter-gomeier` (eingetragene GbR / eGbR) stand im Impressum
+nur die Privatperson („Gottl Reiner"), nicht die Firma. Ursache: `ImpressumBlock` rendert
+seit jeher nur `legal.owner` + Adresse — das vorhandene `legal.company`-Feld (Firmenname
+inkl. Rechtsform) und `legal.form` wurden nie ausgegeben. Zusätzlich zeigte der Block
+Vertretungsberechtigte nur für GmbH/UG/AG/GmbH-Co-KG, nicht für (e)GbR. Eine Falle für
+jeden Customer, der die Firma sauber in `company` statt in einen firmierten `owner` legt.
+
+Änderungen:
+
+- `ImpressumBlock`: wenn `legal.company` gesetzt ist, wird der Firmenname als erste
+  § 5 DDG-Zeile gerendert (statt `owner`); `owner` gilt dann als Vertreter-Person.
+  Customer ohne `company` (firmierter `owner`) bleiben unverändert.
+- `showRepresentatives` deckt jetzt auch `gbr`/`egbr` ab — bei einer GbR sind die
+  Gesellschafter vertretungsberechtigt und müssen genannt werden.
+- `LegalProps` um optionales `company?: string` erweitert.
+- Neuer Impressum-Linter in `ai-discovery` (`lintImpressumLegalForm` + `ImpressumIssue`,
+  Build-Warnung in `astro:config:done`): meldet (1) eine Gesellschaft ohne Firma/Rechtsform
+  im Impressum und (2) eine eingetragene Rechtsform ohne Registernummer. Neue Option
+  `strictImpressum` (Default false → Warnung; true → Build-Fail). 9 neue Unit-Tests.
+
+**Migrations-Hinweis:** Keiner. Additiv + rückwärtskompatibel — Customer mit firmiertem
+`owner` (z. B. „Soleno GmbH") rendern identisch wie bisher. Wer `legal.company` setzt,
+bekommt automatisch den Firmennamen als erste Impressum-Zeile.
+
+---
+
+## v0.37.0 (2026-06-21)
+
+**Feature:** `buildBookingUrl` — getrackte Cal.com/cal.eu-Buchungs-URLs.
+
+Kontext: Buchungs-CTAs (Header, Sticky, Footer, Hero, Branchen-/Blog-/Audit-Seiten,
+Monats-Report) liefen bisher ohne Attribution — man wusste nicht, welche Stelle eine
+Buchung ausgelöst hat. Neuer Util `@cw/core/utils/booking-url` hängt eine konsistente
+UTM-Konvention (+ optional `notes`-Prefill) an die Buchungs-URL.
+
+Neue API:
+
+- `buildBookingUrl(base, { content, source?, medium?, campaign?, term?, notes? })` —
+  hängt `utm_source` / `utm_medium` / `utm_campaign` / `utm_content` (+ optional
+  `utm_term`, `notes`) an. Defaults: `source=website`, `medium=web`, `campaign=booking`.
+- UTM-Konvention (SSOT): `utm_source` = Ursprung · `utm_medium` = Fläche ·
+  `utm_campaign` = Kontext · `utm_content` = Placement (header/sticky/footer/hero/
+  branche-…/blog/audit) · `utm_term` = optional.
+
+**Migrations-Hinweis:** Keiner — rein additiver Util, kein Default-Verhalten geändert.
+Consumer nutzen ihn opt-in: `import { buildBookingUrl } from '@cw/core/utils/booking-url'`.
+
+---
+
+## v0.36.0 (2026-06-19)
+
+**Feature:** `ImpressumBlock` — optionales Feld `steuernummer`.
+
+Kontext: Manche Kunden möchten neben der USt-IdNr. auch die Steuernummer des Finanzamts im Impressum ausweisen (nicht §5-DDG-Pflicht, aber zulässig auf Kundenwunsch). Bisher konnte der `ImpressumBlock` nur die USt-IdNr. rendern.
+
+Neue Props (optional, backwards-kompatibel):
+
+- **`ImpressumBlock`** (`components/blocks/ImpressumBlock.astro`): `LegalProps.steuernummer?: string` → rendert eine eigene Section „Steuernummer" direkt nach der USt-IdNr.-Section. Wird nur ausgegeben, wenn gesetzt.
+
+Beispiel:
+
+```ts
+// site-data.ts → legal
+steuernummer: '244/277/32351'
+```
+
+**Migrations-Hinweis:** Keiner. Rein additiv — Repos ohne `legal.steuernummer` rendern unverändert.
+
+---
+
+## v0.35.0 (2026-06-18)
 
 > Design-Polish-Paket: Form-Health Opt-out, Gradient-Entblauen + steuerbares
 > Token, neue DesignPreviewBanner-Komponente. Drei Fixes die auf verwaister
@@ -89,7 +442,161 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
-## [0.28.0] — 2026-06-08 (release/cw-core)
+## v0.34.0 (2026-06-11)
+
+**Feature:** Sticky-Schnellkontakt mit cal-Booking-Button + site-weites Layout-Wiring + Footer-WhatsApp/Booking-Links.
+
+Kontext: Wenn Booking-CTAs extern auf cal.eu verlinken, braucht es einen persistenten Conversion-Pfad (Terminbuchung + WhatsApp) ohne pro Seite manuell platzierte Buttons. Aufbauend auf dem bestehenden `StickyContact` (WhatsApp + Telefon, Floating-Cluster bottom-right).
+
+Neue Props (alle optional, backwards-kompatibel):
+
+- **`StickyContact`** (`components/blocks/StickyContact.astro`): `calUrl` (+ `calLabel`) → rendert einen 📅-Termin-Button im Cluster (Reihenfolge Termin · WhatsApp · Telefon), `target="_blank"`, DSGVO-clean Direkt-Link, Plausible-Track `channel='sticky-cal'`.
+- **`LandingPage`** (`layouts/LandingPage.astro`): `stickyContact?: { calUrl?, calLabel?, whatsapp?, phone?, prefilledMessage?, hideOnMobile? }` → rendert `<StickyContact>` nach dem Footer. Eine Config aktiviert den Cluster site-weit über alle LandingPage-Seiten; ContentPage (Legal/Blog) bleibt ausgenommen.
+- **`Footer`** (`components/layout/Footer.astro` + `FooterConfig`): `whatsapp` + `bookingUrl` → rendern als „WhatsApp"- und „Termin buchen"-Links in der Brand-Spalte (neben email/phone, `target="_blank"`).
+
+Beispiel:
+
+```ts
+// LandingPage-Props
+stickyContact: { calUrl: 'https://app.cal.eu/firma/30min', whatsapp: '+49…', phone: '+49…', hideOnMobile: true }
+// FooterConfig
+footer: { …, whatsapp: '+49…', bookingUrl: 'https://app.cal.eu/firma/30min' }
+```
+
+**Migrations-Hinweis:** Keiner — alle Props optional, ohne Angabe rendert nichts Neues. Bei vorhandener `StickyMobileCTA` auf Mobile `stickyContact.hideOnMobile: true` setzen, um Überlappung am unteren Rand zu vermeiden.
+
+---
+
+## v0.33.0 (2026-06-11)
+
+**Feature:** Optionales `target`/`rel` auf Hero- und Header-CTAs (externe Booking-Links im neuen Tab).
+
+Kontext: Hero- und Header-CTA werden aus `site-data` gerendert und konnten bisher **kein** `target` setzen. Für einen externen Direkt-Link (z. B. cal.eu-Buchungsseite) im neuen Tab — DSGVO-sauber, kein Embed-Script auf der eigenen Domain, konsistent mit dem bestehenden `FloatingCalButton` — fehlte die Möglichkeit. Blitzsicht stellt damit seine Buchungs-CTAs auf 1-Klick-Direkt-Links um.
+
+Neue Props (beide optional, Default-Verhalten unverändert):
+
+- **`HeroCTA`** (`components/blocks/Hero.astro`): `target?: string` + `rel?: string` — gerendert auf `ctaPrimary` und `ctaSecondary`.
+- **`NavItem`** (`components/layout/Header.astro`): `target?: string` + `rel?: string` — gerendert auf highlight- und normale Nav-Links.
+
+Beispiel:
+
+```ts
+ctaSecondary: { label: '30-Min-Gespräch buchen', href: 'https://app.cal.eu/firma/30min', target: '_blank', rel: 'noopener noreferrer' }
+```
+
+**Migrations-Hinweis:** Keiner — Props sind optional, ohne Angabe rendert kein `target`/`rel` (wie bisher). Nur Customer, die externe CTA-Links im neuen Tab wollen, setzen sie.
+
+---
+
+## v0.32.2 (2026-06-11)
+
+**Feature + Fix:** Aktive Fehlmeldung bei fehlender Form-Env + bing-indexnow-Guard.
+
+Kontext: Fehlte eine Env-Var (`CONTACT_EMAIL`/`RESEND_API_KEY`), verschluckte der Handler das still (nur `console.error` + 500) → niemand merkte es, der Lead war weg. Außerdem crashte `bing-indexnow` kryptisch (`undefined.replace`), wenn `siteUrl` nicht übergeben wurde (Config-Drift) → Vercel-Build-Fail.
+
+- **`api/contact-handler.js`**: Bei fehlendem `CONTACT_EMAIL`/`RESEND_API_KEY` wird der Lead jetzt VOR dem 500 via `emitLead(..., { deliveryError })` an Telegram gemeldet → Ops wird **aktiv alarmiert** UND der Lead geht **nicht verloren** (kommt mit dem Alarm). Voraussetzung: `TELEGRAM_BOT_TOKEN`/`CHAT_ID` gesetzt (sonst still wie bisher).
+- **`api/lead-sink.js`**: `emitLead`/`formatTelegramMessage` unterstützen `ctx.deliveryError` → `⚠️ ZUSTELLUNG FEHLGESCHLAGEN (<grund>)`-Warn-Header vor der Lead-Darstellung. +3 node:tests.
+- **`integrations/bing-indexnow/index.ts`**: Guard — fehlt `siteUrl`, wird die Integration sauber deaktiviert (Warn-Log) statt den Build abzubrechen.
+
+**Migrations-Hinweis:** Keiner zwingend (Verhalten ist additiv/defensiv). Re-Pin auf v0.32.2 aktiviert die Fehlmeldung; ideal zusammen mit der RESEND-Shared-Var-Migration.
+
+---
+
+## v0.32.1 (2026-06-10)
+
+**Fix:** Build-Robustheit (optimize-images) + Origin-Drift-Guard — beide aus dem Kontaktformular-Vorfall.
+
+Kontext: Beim Cluster-Rollout zeigte sich: (1) `optimize-images.mjs` crasht mit `ENOENT public/images`, wenn ein Customer keine Bilder in dem Ordner hat (zink) → Vercel-Build schlägt fehl → altes Deployment bleibt live (mit veralteter Config). (2) zinks `allowedOrigins` zeigte nach Domain-Migration noch auf die tote `zinkbaeckerei.de` → Origin-Check lehnte echte Nutzer mit 403 ab.
+
+- **`scripts/optimize-images.mjs`**: fehlendes Bild-Verzeichnis wird sauber übersprungen (`ENOENT → []`, „No images found"), statt den Build abzubrechen. Robust für image-lose Customer.
+- **`scripts/validate-form-backend.mjs`**: zusätzlicher **Origin-Drift-Guard** — `allowedOrigins` in `/api/contact.ts` MUSS die Serving-Domain (aus astro.config `site`/site-data `url`) enthalten, sonst **exit 1** (www-tolerant). Hätte zinks 403 zur Build-Zeit gefangen.
+
+**Migrations-Hinweis:** Customer-Repos auf v0.32.1 pinnen. Wer eine falsche `allowedOrigins`-Domain hat, dessen CI wird jetzt rot, bis es korrigiert ist.
+
+---
+
+## v0.32.0 (2026-06-10)
+
+**Fix + Feature:** Kontaktformulare funktionsfähig + harter Guard gegen tote Formulare.
+
+Kontext (Vorfall 2026-06-10): donau-profis Kontaktformular postete an `/api/contact`, aber die Route-Datei `/api/contact.ts` fehlte → 404 → still tot. Bei mika & Co existiert die Route, doch der Handler erzwang **Turnstile** — ohne konfiguriertes Widget → 400 „Bot-Schutz-Prüfung fehlt". Resultat: ausgelieferte Seiten mit nicht-funktionierendem Formular. Das darf strukturell nicht passieren.
+
+- **`api/contact-handler.js`: Turnstile jetzt OPTIONAL** — nur erzwungen, wenn `TURNSTILE_SECRET_KEY` gesetzt ist; sonst übersprungen. Die übrigen Schichten (Honeypot, Rate-Limit, Origin-Check, Content-Filter, Email-Validation) bleiben aktiv. Formular funktioniert damit mit `RESEND_API_KEY` + `CONTACT_EMAIL` allein. Backward-compatible: mit gesetztem Secret weiterhin Pflicht.
+- **NEU `scripts/validate-form-backend.mjs`** — CI-Gate (build-check.yml-Step): **exit 1**, wenn eine Seite an `/api/contact` postet, aber `/api/contact.ts` (root, Vercel Function) bzw. `src/pages/api/contact.ts` fehlt → kein totes Formular kann mehr deployen.
+- **`scripts/verify-form-health.mjs` gehärtet** — `/api/contact` **404 = FAIL** (vorher als „sauberes 4xx" durchgewunken, der eigentliche Blind-Spot). Turnstile-Checks jetzt konditional (Widget vorhanden → Konsistenz prüfen, sonst valider Zustand).
+- **NEU `templates/api-contact.ts`** — Onboarding-Vorlage (root `/api/contact.ts`, `{{DOMAIN}}`/`{{LEGAL_NAME}}`).
+- **`PriceTransparency.astro`** — `.container`-Begrenzung (`max-width` + horizontales Padding) ergänzt; lief vorher über volle Viewport-Breite (Text links abgeschnitten).
+
+**Migrations-Hinweis:** Customer-Repos auf v0.32.0 pinnen + build-check.yml-Step `validate-form-backend.mjs` übernehmen. **donau-profi** braucht eine neue `/api/contact.ts`. Pflicht-Env je Vercel-Projekt: `RESEND_API_KEY` (account-weit) + `CONTACT_EMAIL` (= siteData.contact.email). Turnstile optional.
+
+---
+
+## v0.31.1 (2026-06-10)
+
+**Fix:** CI-Gate lauffähig machen — `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` behoben.
+
+Kontext: v0.31.0 ließ die CI-Scripts (`validate-csp.mjs`/`gen-vercel-csp.mjs`) die Logik aus `csp-check.ts`/`csp-build.ts` importieren. Im Customer-CI liegen diese Module aber **unter `node_modules`**, und Node weigert sich, dort TS-Typen zu strippen → der harte Gate-Step brach mit Exit 1 aus dem falschen Grund (Pilot donau-profi CI rot). Ein Gate, der aus technischen Gründen immer rot ist, wird vom Operator entnervt deaktiviert — also Pflicht-Fix vor Cluster-Rollout.
+
+- **`csp-check.ts` → `csp-check.js` + `csp-check.d.ts`**, **`csp-build.ts` → `csp-build.js` + `csp-build.d.ts`** — reines JS (`// @ts-check` + JSDoc) für node_modules-Lauf, Typen separat für TS-Consumer. Logik identisch.
+- **`gen-vercel-csp.mjs`:** `out.replace(csp, fixed)` → `out.split(csp).join(fixed)` (ersetzt jetzt **alle** CSP-Vorkommen, z. B. zusätzlicher Report-Only-Header — Review-Major-Finding).
+- **`csp-check.js` SELF_DIRECTIVES** um `media-src`/`img-src` ergänzt (Review-Finding: Pragma-Origin-Check deckte sie nicht ab).
+- **`fixCsp` aktive Security-Sanitisierung:** strippt `'unsafe-eval'`/`*`/`https:`/`http:` aus Script-Direktiven + ergänzt `frame-ancestors 'none'` (defense-in-depth, falls der Gate mal nicht läuft).
+- Tests + alle Modul-Imports (`index.ts`, beide Scripts, beide Test-Dateien) auf `.js` umgestellt. 29 Tests grün.
+
+**Migrations-Hinweis:** Keiner für Komponenten-Consumer (interne Umstrukturierung). Customer-Repos auf v0.31.1 pinnen statt v0.31.0, sonst bleibt das CI-Gate rot.
+
+---
+
+## v0.31.0 (2026-06-10)
+
+**Feature:** Harter, repo-übergreifender CSP-Gate — kaputte CSP kann nicht mehr live gehen.
+
+Kontext: Der v0.30-Soft-Warn-Guard hätte den donau-profi-Vorfall **nicht** gestoppt (Vercel liest vercel.json vor dem Build, Build-Log-Warnung blockt keinen Deploy). `/review` (critic+plan-reviewer+aegis) verlangte: hartes Gate, exakter Host-Match, echte Security-Checks. User-Entscheidung: Generator-Ansatz (drift-frei by-design).
+
+Neu in `ai-discovery`:
+- **`csp-build.ts`** — `buildCsp(origin, opts)` (SSOT, kanonische CSP) + `fixCsp(existing, origin)` (repariert bestehende CSP: Pragma-Origin neben jedes `'self'`, `object-src 'none'`/`base-uri 'self'`, `*-elem`-Konsistenz — ohne Dienst-Hosts zu verlieren, idempotent).
+- **`scripts/validate-csp.mjs`** — CI-Backstop: `exit 1` bei jedem Verstoß. Als Step in `build-check.yml`-Template → CI rot **vor** Vercel-Deploy, repo-übergreifend, unabhängig von astro.config-Flags.
+- **`scripts/gen-vercel-csp.mjs`** — regeneriert die vercel.json-CSP (ersetzt nur den CSP-Header, bewahrt redirects).
+- **`csp-check.ts` gehärtet:** exakter Host-Match statt substring (`tokenHost`, behebt `profi.de`⊂`donau-profi.de`-False-Positive), www-Normalisierung, `parseCsp` erste-Direktive-gewinnt (Spec), neue Security-Checks `unsafe_eval`/`script_src_wildcard`/`missing_object_src`/`missing_base_uri`.
+- Tests: 21 (csp-check) + 8 (csp-build), alle grün.
+
+**Migrations-Hinweis:** Customer-Repos bekommen den CI-Step via build-check.yml-Rollout; `gen-vercel-csp` regeneriert ihre CSP (ergänzt object-src/base-uri). Cluster-Scan v0.31: blitzsicht konform, ~10 fehlten object-src/base-uri, weinkontor+siluri-de fehlte Pragma — alle per Rollout gefixt.
+
+---
+
+## v0.30.0 (2026-06-10)
+
+**Feature:** CSP-Guard erkennt jetzt den `'self'`-ohne-Origin-Bug (`self_without_origin`).
+
+Kontext: `'self'` **allein** matcht same-origin Assets in Chrome/Edge/Safari (auch Inkognito) auf cw-core/Astro/Vercel-Static-Sites nicht zuverlässig → CSS/JS/Plausible geblockt, Seite ungestyled. Der Fix (expliziter Origin neben `'self'`) war seit 12.05. in `CLAUDE.md` + `docs/CSP-rationale.md` dokumentiert — aber nur **passiv**, und wurde beim donau-profi-Live-Gang (09.06.) übersehen → erneut stundenlanges Phantom-Debugging. Konsequenz: aus passiver Doku wird ein aktiver Build-Guard.
+
+`ai-discovery/csp-check.ts` bekommt eine neue Option `siteOrigin` (aus `siteData.url`); prüft jede `'self'`-Source-Direktive (`default-src`, `script-src{,-elem}`, `style-src{,-elem}`, `font-src`, `connect-src`) auf den expliziten Origin und warnt im `astro:build:done`-Hook. +4 node:test-Cases (15 gesamt).
+
+**Migrations-Hinweis:** Keiner für cw-core. Aber: Customer-`vercel.json` mit nur-`'self'`-CSP müssen den Pragma-Fix (`https://<domain>` neben `'self'`) bekommen — der Guard meldet sie ab nächstem Build. donau-profi bereits gefixt; übrige Customer folgen.
+
+---
+
+## v0.29.0 (2026-06-09)
+
+**Feature:** CSP-Drift-Guard in der `ai-discovery`-Integration (build-time). Koexistiert mit dem Brand-Name-Literal-Guard aus v0.28.0 (PR #46) im selben `astro:build:done`-Hook.
+
+Kontext: Das "DD-CSP-Mystery" (11.–12.05.2026) zeigte das Symptom `style-src-elem 'self'` blockt eigene `/_astro/*.css`. Damals nur per Re-Deploy umgangen, Root-Cause offen gelassen, kein Guard gebaut — Verstoß gegen die #1-Regel. Der konkrete Vorfall war ein gecachter alter CSP-Stand im Browser; der *wiederholbare* Bug dahinter ist CSP-Drift: 8/11 Customer-Repos hatten zeitweise unvollständige CSPs (manuell am 11.05. nachgezogen). Jetzt als zero-config Build-Check codifiziert.
+
+Neuer Check (`src/integrations/ai-discovery/csp-check.ts`), läuft im `astro:build:done`-Hook gegen die Customer-`vercel.json`:
+
+- fehlende `*-elem`-Direktiven (`style-src` ohne `style-src-elem`, analog `script-src`)
+- fehlendes `media-src` (stiller `default-src`-Fallback — der DD-Fall)
+- `*-elem` schmaler als die Basis-Direktive (z. B. `'unsafe-inline'` fehlt)
+- Analytics-Host (`plausible.io`) nicht in `script-src-elem` **und** `connect-src`
+- Smart-Quotes / Nicht-ASCII im CSP-String (U+2018/U+2019 statt ASCII `'`)
+
+Soft-Warn per Default; `strictCsp: true` → Build-Fail. Neue Optionen: `checkCsp` (default `true`), `strictCsp`, `analyticsHost`. Logik als pure, testbare Funktionen (`parseCsp`, `checkCspCompleteness`, `extractCspValuesFromVercelJson`) mit 11 `node:test`-Cases. Cluster-Scan beim Release: 13 Live-Repos, 1 echter Drift gefunden + gefixt (digital-direkt fehlte `media-src`).
+
+**Migrations-Hinweis:** Keiner — zero-config, greift automatisch bei Customern die `aiDiscovery()` nutzen (12/14). Soft-Warn, bricht keinen Build.
+
+---
+
+## v0.28.0 (2026-06-08)
 
 > Brand-Name-Literal-Guard in der ai-discovery-Integration. Verhindert, dass
 > triviale Umbenennungen zur teuren Multi-File-Aktion werden. Auslöser:
@@ -117,7 +624,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
-## [0.27.0] — 2026-05-30 (release/cw-core)
+## v0.27.0 (2026-05-30)
 
 > Meta-Length-Linter in der ai-discovery-Integration. Fängt zu lange `<title>`-
 > und `<meta name="description">`-Werte, die Google in den SERPs truncated
@@ -138,7 +645,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
-## [0.26.1] — 2026-05-30 (release/cw-core)
+## v0.26.1 (2026-05-30)
 
 > Bugfix zu v0.26.0: BaseLayout.astro reichte die neuen `slogan` + `numberOfEmployees`
 > Props nicht an SchemaOrg durch (in v0.26.0 nur am SchemaOrg-Type, nicht im Pass-through).
@@ -150,7 +657,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
-## [0.26.0] — 2026-05-30 (release/cw-core)
+## v0.26.0 (2026-05-30)
 
 > SchemaOrg.astro um `slogan` + `numberOfEmployees` erweitert. Schließt die Lücke,
 > wegen der customer-blitzsicht einen eigenen `orgSupplementSchema`-Block mit
@@ -167,7 +674,7 @@ Beide optional, additive — bestehende Customer ohne diese Props unverändert.
 
 ---
 
-## [0.25.0] — 2026-05-30 (release/cw-core)
+## v0.25.0 (2026-05-30)
 
 > Schema-Linter in der ai-discovery-Integration. Fängt den Drift, der bei blitzsicht
 > und zink-baeckerei auftrat: Customer-Pages emittieren parallel zu cw-core SchemaOrg
@@ -193,7 +700,7 @@ betroffen (blitzsicht, baeckereizink). Linter greift zero-config bei allen Custo
 
 ---
 
-## [0.24.0] — 2026-05-29 (release/cw-core)
+## v0.24.0 (2026-05-29)
 
 > Domain-Guard in der ai-discovery-Integration. Fängt den Drift, der bei zink-baeckerei
 > auftrat: `astro.config.site` zeigte auf die echte Domain, `site-data.url` auf eine
@@ -217,7 +724,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.23.0] — 2026-05-29 (release/cw-core)
+## v0.23.0 (2026-05-29)
 
 > Briefing-Form Vorausfüllung. Additive, backward-compatible — bestehende `briefing-fields.ts`
 > ohne `prefill` rendern unverändert.
@@ -237,7 +744,21 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.21.2] — 2026-05-26 (release/cw-core — Review-Polish zu v0.21.0)
+## v0.22.0 (2026-05-26)
+
+**Workflow:** Hard Rule "Customer-Repos enthalten keine UI-Logik" + `/cw-component-audit` Slash-Command.
+
+Komponenten-Audit-Workflow für Customer-Repos. Verstoß-Erkennung via Slash-Command in cw-core.
+Slice in `customer-websites/learnings/no-custom-components-in-customer-repos.md` (`applies_to: *`),
+gesynct in alle Customer-`MEMORY.md`.
+
+Zusätzlich Cleanup-Release: Tag-Schema kanonisiert auf `release/cw-core/vX.Y.Z`, parallele `v1.0.x`-Schatten-Tags gelöscht. Single Source of Truth: `cw-core/docs/RELEASE.md`. `cw-release` Skill aktualisiert (`-alpha`-Suffix raus, Tooling/Doku-Release-Case rein, 14-Repo-Loop mit dry-run).
+
+**Migrations-Hinweis:** Keiner — kein API-Change. Customer-Repos können bei v0.21.2 bleiben. Hard-Rule wird via Memory-Sync-System verteilt, nicht via `@cw/core`-Import.
+
+---
+
+## v0.21.2 (2026-05-26) — (release/cw-core — Review-Polish zu v0.21.0)
 
 > Kleine Korrekturen aus dem Code-Review der v0.21.0-Komponenten, vor dem Multi-Customer-Rollout
 > der Breadcrumb-bar. Rein additiv/kosmetisch, keine API-Änderung. (Hinweis: package.json war seit
@@ -254,7 +775,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.21.1] — 2026-05-26 (release/cw-core — verify-form-health Auto-Skip für form-lose Customer)
+## v0.21.1 (2026-05-26) — (release/cw-core — verify-form-health Auto-Skip für form-lose Customer)
 
 > Patch: `scripts/verify-form-health.mjs` skippt sich selbst (exit 0) wenn `/kontakt/`
 > kein `<form>`-Element enthält. Behebt False-positive failures bei phone-/whatsapp-only
@@ -276,7 +797,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.21.0] — 2026-05-26 (release/cw-core — Hero public-URL-Bild + Breadcrumbs bar-Variante)
+## v0.21.0 (2026-05-26) — (release/cw-core — Hero public-URL-Bild + Breadcrumbs bar-Variante)
 
 > Zwei additive, backward-kompatible Erweiterungen. Anlass: gottl-Production-Regressionen
 > nach der @cw/core-Migration — Homepage-Hero-Foto fehlte (public-Asset, kein astro:assets-Import
@@ -304,7 +825,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.20.0] — 2026-05-25 (release/cw-core — USPSection-Header + PageHero-CTAs)
+## v0.20.0 (2026-05-25) — (release/cw-core — USPSection-Header + PageHero-CTAs)
 
 > Zwei additive, backward-kompatible Prop-Erweiterungen für die faithful SEO-Page-Migration
 > (entdeckt bei gottl-richter-gomeier `fuer-anwaelte`): `vorteile`-Sections haben durchgängig
@@ -332,7 +853,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.19.0] — 2026-05-25 (release/cw-core — generische TeamGrid/TrustBadges/LinkGrid-Blocks)
+## v0.19.0 (2026-05-25) — (release/cw-core — generische TeamGrid/TrustBadges/LinkGrid-Blocks)
 
 > Drei neue, headless/prop-getriebene Block-Komponenten, die wiederkehrende Customer-Muster
 > abdecken, die bisher pro Site inline hand-codiert waren (Survey: `trust-bar` 7×, `related` 7×,
@@ -360,7 +881,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.18.0] — 2026-05-25 (release/cw-core — ImpressumBlock hasContactForm-Prop)
+## v0.18.0 (2026-05-25) — (release/cw-core — ImpressumBlock hasContactForm-Prop)
 
 > `ImpressumBlock` unterstützt jetzt den optionalen Prop `hasContactForm`.
 > Bisherige Customer ohne Änderungen weiter funktionsfähig (default `true`).
@@ -386,7 +907,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.17.0] — 2026-05-25 (release/cw-core — DatenschutzBlock prop-driven)
+## v0.17.0 (2026-05-25) — (release/cw-core — DatenschutzBlock prop-driven)
 
 > `DatenschutzBlock` unterstützt jetzt vier optionale Props zur Steuerung der Service-Sections.
 > Bisherige Customer ohne Änderungen weiter funktionsfähig (alle Props default `true`).
@@ -418,7 +939,7 @@ zero-config bei allen Customern, die ai-discovery bereits einbinden — kein ast
 
 ---
 
-## [0.16.0] — 2026-05-25 (release/cw-core — Status-Badge Auto-Detection)
+## v0.16.0 (2026-05-25) — (release/cw-core — Status-Badge Auto-Detection)
 
 > Customer-Sites müssen `statusBadge` nicht mehr explizit in `page-config.ts` setzen.
 > cw-core leitet den Slug aus `import.meta.env.CW_CUSTOMER_SLUG` (gefüllt via Vite-Define
@@ -460,7 +981,7 @@ Dann optional `statusBadge`-Eintrag aus `page-config.ts` entfernen (Cleanup).
 
 ---
 
-## [0.15.0] — 2026-05-24 (release/cw-core — Footer Status-Badge)
+## v0.15.0 (2026-05-24) — (release/cw-core — Footer Status-Badge)
 
 > Status-Badge im Customer-Footer (verlinkt auf `status.blitzsicht.com/`) — End-User-Trust
 > + Cross-Promotion ohne Aufdrängen. Opt-In per Customer (kein Default-Verhalten).
@@ -496,7 +1017,7 @@ statusBadge: { slug: 'hausamlago' },
 
 ---
 
-## [0.14.5-rc.1] — 2026-05-24 (release/cw-core — Email-Sig TIER-Gating)
+## v0.14.5-rc.1 (2026-05-24) — (release/cw-core — Email-Sig TIER-Gating)
 
 > **Plan-Phase 10.5:** Email-Sig v4-Extras (Booking-CTA, Google-Review-CTA, Trust-Badges) sind nur ab Business-Tier inkludiert. Bisher hätte `regenerate-all.sh` v4-Extras unabhängig vom Tier ausgegeben wenn die Vars in `site-data.ts` gesetzt sind. Diese Version macht das Tier-bewusst.
 
@@ -518,7 +1039,7 @@ statusBadge: { slug: 'hausamlago' },
 
 ---
 
-## [0.14.4-rc.1] — 2026-05-23 (release/cw-core — ContentPage padding-bottom)
+## v0.14.4-rc.1 (2026-05-23) — (release/cw-core — ContentPage padding-bottom)
 
 > **Plan-Phase 10 Hotfix:** ContentPage hatte `padding: 4rem 0 6rem` — bei Pages mit eigener CTA-Section am Ende (z.B. mika-elektrotechnik /leistungen/e-mobilitaet) war 6rem doppelt-padding zwischen CTA und Footer. Auf mobile sichtbar als großer Leerraum.
 
@@ -532,7 +1053,7 @@ Alle Customer-Sites die ContentPage-Layout nutzen — visuell etwas kompaktere B
 
 ---
 
-## [0.14.3-rc.1] — 2026-05-23 (release/cw-core — a11y-Fix AddOnsSection .addon-price)
+## v0.14.3-rc.1 (2026-05-23) — (release/cw-core — a11y-Fix AddOnsSection .addon-price)
 
 > **Plan-Phase 10 (a11y-Hotfix):** `.addon-price` hatte Kontrast 2.88:1 (orange `#EF7612` auf weiß) — unter WCAG-AA-Schwelle 3:1 für large bold text. Visual-Regression-CI hat das auf customer-blitzsicht detected.
 
@@ -547,7 +1068,7 @@ Alle Customer-Sites die `AddOnsSection` rendern — aktuell nur customer-blitzsi
 
 ---
 
-## [0.14.2-rc.1] — 2026-05-22 (release/cw-core — PaketeSection ctaSecondaryHref)
+## v0.14.2-rc.1 (2026-05-22) — (release/cw-core — PaketeSection ctaSecondaryHref)
 
 > **Plan-Phase 9 (Pakete-Redesign):** Sekundärer CTA in der Paket-Karte.
 > Vorher: "Alle Leistungen ansehen"-Block neben der PaketeSection.
@@ -585,7 +1106,7 @@ Customer-Sites brauchen kein Update.
 
 ---
 
-## [0.14.0-rc.1] — 2026-05-22 (release/cw-core — Pricing-Refresh: PaketeSection detailedFeatures + AddOnsSection)
+## v0.14.0-rc.1 (2026-05-22) — (release/cw-core — Pricing-Refresh: PaketeSection detailedFeatures + AddOnsSection)
 
 > **Blitzsicht Pricing-Pakete Refresh** (Plan: `kunde-markus-eule-will-spicy-pike.md` v2).
 > Macht 30 Standard-Services in Paket-Karten sichtbar + ermöglicht Cal-Booking-Tiering
@@ -653,7 +1174,7 @@ Kein Breaking Change. Sites die ihre Pakete mit den neuen Variants schärfen wol
 
 ---
 
-## [0.12.1-alpha] — 2026-05-21 (release/cw-core — Briefing-Handler: Telegram-Push-Fix)
+## v0.12.1-alpha (2026-05-21) — (release/cw-core — Briefing-Handler: Telegram-Push-Fix)
 
 > **Hotfix für v0.12.0-alpha.** `emitLead` wurde fälschlicherweise via `void`-Pattern
 > NACH `res.status(200)` aufgerufen — Vercel Serverless killt die Function aber
@@ -674,7 +1195,7 @@ Kein Breaking Change. Sites die ihre Pakete mit den neuen Variants schärfen wol
 
 ---
 
-## [0.12.0-alpha] — 2026-05-21 (release/cw-core — Briefing-Handler + BriefingForm)
+## v0.12.0-alpha (2026-05-21) — (release/cw-core — Briefing-Handler + BriefingForm)
 
 > **Phase A des `glistening-snacking-papert`-Plans.** Generischer Onboarding-
 > Briefing-Endpoint + Single-Page-Form, extrahiert aus Mika-Elektrotechnik
@@ -780,7 +1301,7 @@ Kein Breaking Change. Sites die ihre Pakete mit den neuen Variants schärfen wol
 
 ---
 
-## [0.11.0-rc.3] — 2026-05-19 (release/cw-core — Component-Showcase + quality-checks)
+## v0.11.0-rc.3 (2026-05-19) — (release/cw-core — Component-Showcase + quality-checks)
 
 ### Added (Plan-Phase 1.6 — Component-Showcase via Examples-Pattern)
 
@@ -798,7 +1319,7 @@ Kein Breaking Change. Sites die ihre Pakete mit den neuen Variants schärfen wol
 
 ---
 
-## [0.11.0-rc.2] — 2026-05-19 (release/cw-core — Quality-Checks-Integration)
+## v0.11.0-rc.2 (2026-05-19) — (release/cw-core — Quality-Checks-Integration)
 
 ### Added (Plan-Phase 1.3 — Build-Time-Checks)
 
@@ -816,7 +1337,7 @@ Kein Breaking Change. Sites die ihre Pakete mit den neuen Variants schärfen wol
 
 ---
 
-## [0.11.0-rc.1] — 2026-05-19 (release/cw-core — Google AI Optimization Guide Phase 1)
+## v0.11.0-rc.1 (2026-05-19) — (release/cw-core — Google AI Optimization Guide Phase 1)
 
 > **Release-Candidate.** Trifft erstmals den Plan-Phase-1-Scope (Google AI
 > Optimization Guide Rollout). Customer-Sites können auf diesen Commit-Hash
@@ -895,7 +1416,7 @@ Kein Breaking Change. Sites die ihre Pakete mit den neuen Variants schärfen wol
 
 ---
 
-## [0.10.7] — 2026-05-19 (release/cw-core — Header hideBrandName-Prop)
+## v0.10.7 (2026-05-19) — (release/cw-core — Header hideBrandName-Prop)
 
 ### Added
 
@@ -928,7 +1449,7 @@ export const headerConfig = {
 
 ---
 
-## [0.10.6] — 2026-05-19 (release/cw-core — StickyMobileCTA WCAG-Fix + primaryVariant)
+## v0.10.6 (2026-05-19) — (release/cw-core — StickyMobileCTA WCAG-Fix + primaryVariant)
 
 ### Fixed (Accessibility)
 
@@ -979,7 +1500,7 @@ export const headerConfig = {
 
 ---
 
-## [0.10.5] — 2026-05-19 (release/cw-core — StickyMobileCTA Split-CTA + StickyContact hideOnMobile)
+## v0.10.5 (2026-05-19) — (release/cw-core — StickyMobileCTA Split-CTA + StickyContact hideOnMobile)
 
 ### Added
 
@@ -1040,7 +1561,7 @@ export const headerConfig = {
 
 ---
 
-## [0.10.4] — 2026-05-19 (release/cw-core — StickyContact in cw-core hochgehoben)
+## v0.10.4 (2026-05-19) — (release/cw-core — StickyContact in cw-core hochgehoben)
 
 ### Added
 
@@ -1083,7 +1604,7 @@ Die `prefilledMessage`-Prop sollte weiterhin als Customer-spezifischer Wert übe
 
 ---
 
-## [0.10.3] — 2026-05-19 (release/cw-core — Footer WCAG 2.1 AA Kontrast-Fix)
+## v0.10.3 (2026-05-19) — (release/cw-core — Footer WCAG 2.1 AA Kontrast-Fix)
 
 ### Fixed (Accessibility)
 
@@ -1108,7 +1629,7 @@ Die `prefilledMessage`-Prop sollte weiterhin als Customer-spezifischer Wert übe
 
 ---
 
-## [0.10.2] — 2026-05-19 (release/cw-core — email-Prop optional in ImpressumBlock + DatenschutzBlock)
+## v0.10.2 (2026-05-19) — (release/cw-core — email-Prop optional in ImpressumBlock + DatenschutzBlock)
 
 ### Changed
 
@@ -1130,7 +1651,7 @@ Die `prefilledMessage`-Prop sollte weiterhin als Customer-spezifischer Wert übe
 
 ---
 
-## [0.10.1] — 2026-05-19 (release/cw-core — DSGVO-Fix datenschutzEmail)
+## v0.10.1 (2026-05-19) — (release/cw-core — DSGVO-Fix datenschutzEmail)
 
 ### Fixed (DSGVO-kritisch)
 
@@ -1162,7 +1683,7 @@ Die `prefilledMessage`-Prop sollte weiterhin als Customer-spezifischer Wert übe
 
 ---
 
-## [0.10.0] — 2026-05-19 (release/cw-core — SEO Components)
+## v0.10.0 (2026-05-19) — (release/cw-core — SEO Components)
 
 ### Added
 
@@ -1184,7 +1705,7 @@ Customer-Upgrade: `"@cw/core": "github:siluri/cw-core#release/cw-core/v0.10.0"`
 
 ---
 
-## [0.9.16] — 2026-05-13 (release/cw-core → main)
+## v0.9.16 (2026-05-13) — (release/cw-core → main)
 
 ### Fixed (kritisch)
 
@@ -1201,7 +1722,7 @@ Customer-Upgrade: `"@cw/core": "github:siluri/cw-core#release/cw-core/v0.10.0"`
 
 ---
 
-## [0.9.15] — 2026-05-13 (release/cw-core → main)
+## v0.9.15 (2026-05-13) — (release/cw-core → main)
 
 ### Highlights
 
@@ -1221,7 +1742,7 @@ Customer-Upgrade: `"@cw/core": "github:siluri/cw-core#release/cw-core/v0.10.0"`
 
 ---
 
-## [0.9.14] — 2026-05-13 (release/cw-core → main)
+## v0.9.14 (2026-05-13) — (release/cw-core → main)
 
 ### Fixed
 
@@ -1229,7 +1750,7 @@ Customer-Upgrade: `"@cw/core": "github:siluri/cw-core#release/cw-core/v0.10.0"`
 
 ---
 
-## [0.9.13] — 2026-05-13 (release/cw-core → main)
+## v0.9.13 (2026-05-13) — (release/cw-core → main)
 
 ### Highlights
 
@@ -1266,7 +1787,7 @@ Plus Footer-Link in `siteData.nav.footer.rechtliches`:
 
 ---
 
-## [0.9.12] — 2026-05-13 (release/cw-core → main)
+## v0.9.12 (2026-05-13) — (release/cw-core → main)
 
 ### Highlights
 
@@ -1288,7 +1809,7 @@ Plus Footer-Link in `siteData.nav.footer.rechtliches`:
 
 ---
 
-## [0.9.11] — 2026-05-12 (release/cw-core → main)
+## v0.9.11 (2026-05-12) — (release/cw-core → main)
 
 ### Highlights
 
@@ -1296,105 +1817,1009 @@ Plus Footer-Link in `siteData.nav.footer.rechtliches`:
 
 ---
 
-## [0.9.10] — 2026-05-12 (release/cw-core → main)
+## v0.9.10 (2026-05-12)
 
-### Highlights
+**Feature + Fix:** AI-SEO-Integration, Hreflang-Tags, Plausible Init-Bug-Fix
 
-- Structur-Reorganisation: `components/` und `layouts/` → `src/` (Breaking, aber customer-sites pinnen auf Tag — sicher)
-- Neue Legal-Components: `ImpressumBlock` + `DatenschutzBlock` (§5 DDG / Art. 13 DSGVO, prop-driven)
-- AI-Discovery-Integration + hreflang-Support
-- Plausible-Analytics-Stack: Component, Events-Helper, `data-cta`-Attribute
-- Email-Signaturen-Template-System (Standard-Service für alle Kunden)
-- Onboarding-Tooling: Docs, Checklist, Build-Check-Workflow-Template
+Drei zusammenhängende SEO-Verbesserungen aus dem digital-direkt.com Phase-2-Audit (`/cw-ai-seo` + `/cw-seo-audit`).
 
-### Breaking Changes
+### Feature: `@cw/core/integrations/ai-discovery`
 
-- Alle Components / Layouts liegen jetzt unter `src/components/` und `src/layouts/` (vorher direkt in `components/` / `layouts/`).  
-  Customer-sites müssen ihren Import-Pfad anpassen: `@cw/core/src/components/...` oder via Re-Exports in `src/index.ts`.
-- `faqs`-Prop aus `SchemaOrg` entfernt — `FAQPage` JSON-LD wird exklusiv durch `FAQ.astro` emittiert.
-- `Hero`: `ImageMetadata` statt `string` (Pipeline-erzwungen).
+Neue Astro-Integration die zur Build-Zeit `/llms.txt` + `/llms-full.txt` aus `site-data.ts` generiert (llmstxt.org-Spec). Spart pro Customer-Site 1-2h manuelle Wartung — Break-even ab Customer #3.
 
-### Added
+Setup in `astro.config.ts`:
 
-- `src/components/blocks/ImpressumBlock.astro` — §5 DDG konforme Impressum-Sektion, vollständig prop-driven
-- `src/components/blocks/DatenschutzBlock.astro` — Art. 13 DSGVO konforme Datenschutz-Sektion, prop-driven
-- `src/integrations/ai-discovery/index.ts` — AI-Discovery-Astro-Integration (llms.txt, robots.txt, structured data)
-- `src/components/analytics/Plausible.astro` — Self-hosted-kompatible Plausible-Einbindung
-- `src/components/analytics/PlausibleEvents.astro` — Client-seitige Event-Helper
-- `src/components/analytics/plausible-events.ts` — Typed Event-Map
-- `data-cta`-Attribute auf Hero / CTABlock / Header für globale Plausible-Events
-- `src/api/contact-handler.js` + `.d.ts` — zentraler `createContactHandler` für Vercel/Hono
-- `src/api/lead-sink.js` + `.d.ts` — opt-in Telegram Lead-Push via `emitLead`
-- `src/components/motion/` — komplettes Motion-System: AnimatedBlob, CountUp, CustomCursor, FullBleed, MagneticButton, ParallaxImage, ScrollProgress, ScrollReveal, SmoothScroll, StaggerGroup, TextReveal, TiltCard
-- `src/components/primitives/` — ResponsiveGrid, ResponsiveTable, Stack
-- `src/components/blocks/TechExcellence.astro` — Tech-Differentiator-Sektion
-- `src/components/blocks/AEOSection.astro` — AEO (Answer Engine Optimization) Block
-- `src/components/blocks/VergleichsTabelle.astro` — Vergleichstabelle für AI-SEO
-- `src/components/blocks/PageHero.astro` — Gradient-Banner für Unterseiten
-- `src/components/blocks/BentoGrid.astro`
-- `src/components/blocks/AuthorBox.astro`
-- `src/components/blocks/PageTOC.astro` — Inhaltsverzeichnis
-- `src/components/blocks/StickyMobileCTA.astro`
-- `src/components/seo/SchemaOrg.astro` — E-E-A-T Person-Entity (founder), `@id`-Anker
-- `src/components/forms/TurnstilePreClearance.astro` — site-wide Cloudflare Turnstile Pre-Clearance
-- `src/utils/forms/` — `handle-submission.{js,ts}`, `submit.ts`, `build-lead-email.{js,d.ts}`
-- `scripts/generate-og.mjs` — SVG+sharp OG-Image-Generator
-- `scripts/optimize-images.mjs` — WebP-Konvertierung
-- `scripts/stylelint-no-max-width.js` — Mobile-First-Lint-Gate
-- `scripts/validate-tokens-css.mjs` — Token-Konsistenz-Check
-- `scripts/verify-form-health.mjs` — Form-Health-Smoke-Test
-- `templates/email-signature/` — HTML+TXT Templates für Standard-Service Kunden-E-Mail-Signaturen, inkl. `generate.sh`
-- `templates/.github/workflows/build-check.yml` — CI-Build-Check-Template für Customer-Repos
-- `templates/customer-CLAUDE.md` — Mobile-First Conventions für Customer-Sites
-- `docs/CSP-rationale.md` — Risk-Acceptance Dokumentation für `unsafe-inline`
-- `docs/onboarding-checklist.md` — Onboarding-Checkliste für neue Customer-Sites
-- `CLAUDE.md` — Agent-Konventionen
-- `tsconfig.json` — Shared TS-Config
-- `.stylelintrc.json` — Projekt-weite Stylelint-Config
-- `astro.config.ts` — Shared Astro-Config
-- `pnpm-lock.yaml` — Lockfile
+```ts
+import aiDiscovery from '@cw/core/integrations/ai-discovery';
 
-### Changed
+export default defineConfig({
+  integrations: [
+    aiDiscovery({
+      siteData: () => import('./src/data/site-data').then(m => m.siteData),
+      faqs: (s) => s.faqs,
+      services: (s) => s.leistungen,
+    }),
+  ],
+});
+```
 
-- `src/components/layout/Header.astro` — hamburger breakpoint 1100px, Mobile-Only-Logo, touch-targets ≥44×44px
-- `src/components/layout/Footer.astro` — 4-/5-Spalten-Layout, extraLinks/extraLinks2, "Erstellt von Blitzsicht"-Backlink
-- `src/components/blocks/Hero.astro` — Bento-Layout, Triangle-Bento, MagneticButton-Wrapper, full-width mobile CTAs, collage mode
-- `src/components/blocks/Testimonials.astro` — Marquee-Carousel, aggregateRating JSON-LD
-- `src/components/blocks/ProcessSteps.astro` — smart grid (ceil(n/2) cols), cols-5-Support
-- `src/layouts/BaseLayout.astro` — founder-Prop, Plausible.init() fix, hreflang, ai-discovery
-- `src/layouts/ContentPage.astro` — logoSrcDark
-- `README.md` — Vollständige Rewrite mit Installations-/Nutzungs-Doku
-- `package.json` — peerDeps aktualisiert, `build`-Script (echo), `prepare` entfernt
+Output: `dist/llms.txt` (Discovery: name, description, services, contact) + `dist/llms-full.txt` (Volltext mit FAQs + Service-Details).
 
-### Fixed
+### Feature: Hreflang-Tags in BaseLayout.astro
 
-- `FAQ.astro` — doppelte FAQPage JSON-LD entfernt
-- `SchemaOrg.astro` — faqs werden nicht mehr doppelt emittiert
-- WCAG 2.2 AA: focus-indicators, sr-only, color-contrast, scrollable-region
-- WCAG 2.5.5: touch targets logo + hamburger ≥44×44px
-- `ProcessSteps`: bottom padding mobile, smart column-count (kein 3+1-Orphan)
-- `TechExcellence`: fixed 3/3 grid statt auto-fit
-- Contact-Handler: `await emitLead` vor `res.json` (Vercel function keep-alive)
-- API-Utils: relative imports statt `@/` alias (Node-Kompatibilität)
+Direkt nach `<link rel="canonical">` werden jetzt `hreflang={lang}` + `hreflang="x-default"` ausgegeben. Nutzt den vorhandenen `lang`-Prop (Default `de`), zero extra config.
 
-### Known Issues (pre-existing, separate tracking)
+### Fix: Plausible `init()` für Custom-Scripts
 
-- `BaseLayout.astro`: 5 TypeScript-Errors (`readonly`-Modifier + `faqs`-Prop) — separates Issue
+Bei Plausible Proxy-Scripts (`pa-XXX.js`) ohne `data-domain` muss `plausible.init()` explizit aufgerufen werden, sonst lädt das Script aber initialisiert sich nicht. Bisher wurde `init()` nur bei gesetztem `plausibleEndpoint` aufgerufen (für Self-Hosted-Proxy-Setups). Jetzt unconditional, mit optional Endpoint-Override.
+
+**Wer betroffen ist:** Alle Customer-Sites mit Plausible Custom-Scripts (`pa-...`) ohne Self-Hosted-Endpoint — Install-Verify schlug vorher fehl. DD war betroffen, der Bug hat dieses Release ausgelöst.
+
+**Keine Breaking Changes.** Drop-in-Update von `v0.9.8` aus möglich.
 
 ---
 
-## [0.9.9] — 2025 (pre-release)
+## v0.9.9 — 2025 (pre-release)
 
 - data-cta attributes on Hero/CTABlock/Header for global Plausible Events
 
-## [0.9.8] — 2025 (stable, promoted from -alpha)
+---
 
-- Plausible-Component + Events-Helper + Self-Hosted-Hook
+## v0.9.8 (2026-05-09)
 
-## [0.8.x] — 2025 (alpha series)
+**Stable-Promotion** von `v0.9.8-alpha`. **Keine Code-Änderungen** — identischer Tree, nur `-alpha`-Suffix entfernt.
 
-- Vielzahl von Features und Fixes während der Alpha-Phase — siehe Git-Log
+Hintergrund: `v0.9.8-alpha` lief seit dem 8. Mai produktiv in 8 von 10 Customer-Sites (digital-direkt, gottl-richter-gomeier, blitzsicht, hausammincio, hausamlago, soleno, weinkontor-sinzing, steller-sanierungen) ohne Regressions. Plausible-Components, Telegram-Lead-Sink + form-health Smoke-Test sind seitdem unverändert in Produktion. Der Stable-Tag erlaubt die zwei verbleibenden Customer (donau-profi, schiller-gartenbau, beide noch auf v0.9.7) auf einen klar promoteten Pin zu migrieren.
 
-## [0.1.0] — Initial (alpha)
+**Migration für Customer-Repos:**
+
+```diff
+-  "@cw/core": "github:siluri/cw-core#release/cw-core/v0.9.8-alpha",
++  "@cw/core": "github:siluri/cw-core#release/cw-core/v0.9.8",
+```
+
+(bzw. von `v0.9.7` aus für donau-profi + schiller-gartenbau).
+
+Ein nachfolgender `v1.0.0`-Major-Bump als symbolischer Production-Ready-Meilenstein ist eingeplant, sobald alle 10 Customer-Repos auf `v0.9.8` umgepinned und in Prod verifiziert sind.
+
+---
+
+## v0.9.8-alpha (2026-05-08)
+
+**Feature:** Neue Plausible-Analytics-Components als wiederverwendbares Modul unter `src/components/analytics/`.
+
+Bisher war die Plausible-Integration als Inline-Snippet im `BaseLayout.astro` (Zeile ~196–210) hart verdrahtet. Custom-Events lagen ausschließlich in `customer-soleno/src/components/PlausibleEvents.astro` und mussten pro Customer kopiert werden. Dieses Release promotet die Soleno-Lösung zu einem cw-core-Bürger und ergänzt einen Self-Hosted-Migration-Hook für den späteren Hetzner-Switch (Trigger ab Customer 15, M006-Vision).
+
+Neue Components/Module:
+
+- `components/analytics/Plausible.astro` — kapselt Queue-Shim + Script-Loading + Endpoint-Override + neuer `domain`-Override (Self-Hosted-Migration via `data-domain`).
+- `components/analytics/PlausibleEvents.astro` — Auto-Event-Tracking für Phone/WhatsApp/Email/CTA/Form/Scroll-Depth. Inhaltlich identisch zur soleno-Version, aber als cw-core-Komponente verfügbar.
+- `components/analytics/plausible-events.ts` — TypeScript-Helper `trackPlausible(event, props)` plus `PlausibleEvents`-Konstanten (PhoneClick, EmailClick, ...).
+
+Standard-Setup in einer Customer-Site:
+
+```astro
+<BaseLayout {...layoutProps}>
+  <Plausible script="https://plausible.io/js/pa-XYZ.js" endpoint="/api/event" />
+  <PlausibleEvents />
+  <slot />
+</BaseLayout>
+```
+
+Self-Hosted-Migration via Env-Variable:
+
+```astro
+<Plausible
+  script={import.meta.env.PLAUSIBLE_SCRIPT_URL ?? 'https://plausible.io/js/pa-XYZ.js'}
+  domain={import.meta.env.PLAUSIBLE_DOMAIN}
+/>
+```
+
+Custom-Events aus TS-Modulen:
+
+```ts
+import { trackPlausible, PlausibleEvents } from '@cw/core/components/analytics/plausible-events';
+trackPlausible(PlausibleEvents.PhoneClick, { location: 'header' });
+```
+
+**Migrations-Hinweis:** Backwards-compatible. Bestehende `BaseLayout`-Props (`plausibleScript`, `plausibleHost`, `plausibleEndpoint`) funktionieren weiter inline. Customer-Repos können optional auf die neuen Components migrieren — Empfehlung: bei nächster Touch-Renovation pro Customer.
+
+Privacy-Hinweis: keine Cookies, keine Schreib-Operationen in Browser-Speicher. Der defensive Lese-Zugriff des Plausible-Scripts auf `localStorage.plausible_ignore` (Self-Opt-Out für Site-Betreiber) ist im Doku-Header der `Plausible.astro`-Component dokumentiert (Pre-Audit M004).
+
+---
+
+## v0.8.31-alpha (2026-04-30)
+
+**Fix:** `ProcessSteps.astro` `.step-nr` als `::before` pseudo-element rendern.
+
+v0.8.30 hat `color: transparent` + `-webkit-text-stroke` versucht — axe-core 4.x prüft `color-contrast` trotzdem auf der computed `color`-Property (= `transparent`, was als 1:1 gegen jeden Hintergrund interpretiert wird) und meldete weiterhin `serious`.
+
+Pseudo-element-Lösung:
+
+- Markup: `<div class="step" data-step-nr={step.nr}>` (kein `<div class="step-nr">`-Inner mehr).
+- CSS: `.step::before { content: attr(data-step-nr); color: transparent; -webkit-text-stroke: 1.5px var(--color-accent); … }`.
+
+axe-core 4.x prüft `color-contrast` nicht auf CSS-generated content via `content:` — Pseudo-elemente werden in der color-contrast-Regel anders behandelt (DOM-Text-Knoten only). **Lokal verifiziert** mit cw-audit gegen `pnpm preview`-Build: a11y axe `pass`, 24 passes, 0 verbleibende color-contrast-Verstöße.
+
+Visueller Effekt unverändert: Outline-Watermark in accent-color, opacity 0.55.
+
+---
+
+## v0.8.30-alpha (2026-04-30)
+
+**Fix:** `ProcessSteps.astro` `.step-nr` Watermark rendert jetzt WCAG-konform.
+
+Das große dekorative Schritt-Nummer-Watermark (`<div class="step-nr" aria-hidden="true">`) nutzte `color: var(--color-accent)` + `opacity: 0.15`. Die effektive Farbe nach Alpha-Blending verfehlt WCAG 2.2 AA Color-Contrast (4.5:1) — axe meldet das als `serious`, weil `aria-hidden="true"` die `color-contrast`-Regel **nicht** ausnimmt (Spec-Konformität).
+
+Fix: `color: transparent` + `-webkit-text-stroke: 1.5px var(--color-accent)`. Element wird als Outline gerendert — kein Fill bedeutet keine Color-Contrast-Prüfung gegen den Hintergrund. Visueller Effekt bleibt subtil-dekorativ, opacity 0.55 ersetzt 0.15 für vergleichbare Dezenz.
+
+Wirkt auf alle Customer-Sites mit `<ProcessSteps/>` (schiller, gottl-richter-gomeier, hausamlago, hausammincio, steller, weinkontor, donau-profi, digital-direkt). Vorher 1× `serious` axe-Verstoß auf Sites mit ProcessSteps auf der Homepage; nach Pin-Bump weg.
+
+**Bonus:** `package.json`-Version war seit v0.8.27 nicht mehr gebumpt (v0.8.28 + v0.8.29 hatten den Bump vergessen) — jetzt auf v0.8.30-alpha synchronisiert.
+
+---
+
+## v0.8.29-alpha (2026-04-30)
+
+**Fix:** `BaseLayout.astro` reicht den `founder`-Prop jetzt durch zu `<SchemaOrg/>`.
+
+`v0.8.28` hat den `founder`-Prop in `SchemaOrg.astro` eingeführt, aber `BaseLayout` hatte den Typ nicht in `SchemaProps` und reichte den Wert nicht weiter. Resultat: Customer-Repos konnten den Prop in `schemaConfig` setzen, aber im gerenderten HTML fehlte das Person-JSON-LD. Behoben durch:
+
+- `SchemaProps.founder?: FounderData` im BaseLayout-Interface.
+- `<SchemaOrg founder={schema.founder} … />` im Forwarding-Block.
+
+**Customer-Repos:** Non-breaking. Wer den Prop nicht setzt, kriegt nichts. Aktivierung via `schemaConfig.founder` in `src/data/page-config.ts` (siehe schiller-gartenbau Commit `ae057a2` als Referenz).
+
+---
+
+## v0.8.28-alpha (2026-04-30)
+
+**Feature:** `founder`-Prop in `SchemaOrg.astro` für E-E-A-T Person-Entity.
+
+Audit-Warn `marketing.eeat-author` zeigt: Google + KI-Crawler bewerten Quellen-Vertrauen unter anderem über sichtbare Inhaber-/Autor-Entitäten (Schema.org `Person`, `rel="author"`, `worksFor`). Bisher rendert `SchemaOrg.astro` nur `LocalBusiness`/`ProfessionalService` ohne Personen-Verknüpfung.
+
+Neuer Prop:
+
+```typescript
+founder?: {
+  name: string;
+  jobTitle?: string;
+  description?: string;
+  image?: string;
+  email?: string;
+  phone?: string;
+  knowsAbout?: string[] | readonly string[];
+  credentials?: string[] | readonly string[];
+  sameAs?: string[] | readonly string[];
+};
+```
+
+Verhalten:
+- Wenn gesetzt: separates `<script type="application/ld+json">` mit `Person`-Entity, stable `@id` (`{siteUrl}/#person-{slug}`), `worksFor: { @id: organizationId }`.
+- LocalBusiness/Organization bekommt `founder: { @id: personId }` als Cross-Reference (Schema.org-Best-Practice für Entity-Linking).
+- `slugifyName()` normalisiert deutsche Umlaute (Schiller, Müller, Gröning) deterministisch.
+
+**Hinweis:** Dieser Tag allein reichte den Prop nicht durch BaseLayout — siehe v0.8.29 für den vollständigen Fix.
+
+---
+
+## v0.8.27-alpha (2026-04-30)
+
+**Feature:** Site-wide Cloudflare Turnstile Pre-Clearance — schließt Bot-Fight-Mode-Loop bei Plugin-heavy Browsern.
+
+Cloudflare Bot Fight Mode (`enable_js: true`) führt eine clientseitige JS-Challenge aus, die DevTools-Open + Browser-Plugins (1Password, Wappalyzer, etc.) als Bot-Signal interpretieren kann. Resultat: Visitor sieht "Sicherheitsüberprüfung wird durchgeführt", `cf_clearance` wird ausgestellt, beim nächsten Request invalidiert — Loop. Auf CF Free Plan koppelt die API `fight_mode` und `enable_js` (kann nicht solo abgeschaltet werden).
+
+Lösung: Pre-Clearance-Widget unsichtbar Site-Wide rendern, damit Cloudflare `cf_clearance` ausstellt **bevor** Bot Fight Mode challengen kann.
+
+Neue Komponente:
+
+- `@cw/core/components/forms/TurnstilePreClearance.astro` — invisible Turnstile-Widget. Renders nur wenn `sitekey` Prop gesetzt ist. Cohabitates mit Form-Widgets (gleicher Sitekey, andere `data-action`).
+
+Neue Layout-Props:
+
+- `LandingPage.turnstileSiteKey?: string`
+- `ContentPage.turnstileSiteKey?: string`
+
+**Voraussetzung:** Das Turnstile-Widget am angegebenen Sitekey muss `clearance_level: "non_interactive"` konfiguriert haben (CF-Setting, nicht im Code). Sonst zeigt CF beim Pre-Clearance-Check eine sichtbare Klick-Aufforderung.
+
+**Customer-Repos:** Non-breaking — wer den Prop nicht setzt, kriegt nichts gerendert (gleiches Verhalten wie v0.8.26). Aktivierung: `turnstileSiteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}` an LandingPage/ContentPage durchreichen (analog zum bestehenden Form-Widget-Pattern).
+
+### Auch in diesem Tag enthalten (Onboarding-Tooling)
+
+- `scripts/validate-tokens-css.mjs` — WCAG 2.2 AA Color-Contrast-Check für `tokens.css` vor erstem Build. Hätte gottl/siluri/schiller a11y-Fails beim Onboarding gefangen statt 6 Monate später beim Audit.
+- `src/templates/llms-endpoint.ts.template` — SSOT-getriebener Astro-Endpoint, generiert `public/llms.txt` aus `site-data.ts` beim Build. Customer kopiert nach `src/pages/llms.txt.ts`.
+- `templates/customer-CLAUDE.md` — Astro `<Image>` als Default-Pattern, llms-Endpoint-Convention, WCAG-Validator-Aufruf.
+
+---
+
+## v0.8.26-alpha (2026-04-30)
+
+**Feature:** Branded Lead-Notification-Mail mit Blitzsicht-Header + Direkt-Antworten-Button.
+
+`createContactHandler` ruft jetzt intern `buildLeadEmail` auf (`@cw/core/utils/forms/build-lead-email`) und schickt eine HTML-Mail an den Customer:
+
+- **FROM-Display-Name** zeigt `"{Lead-Name} via {Customer-Site}"` — Outlook-Posteingang macht sofort klar, *wer* der Lead ist und *über welche Seite* er kam.
+- **Branded HTML** mit Blitzsicht-Header (Logo + Nachtblau-Stripe), formatierter Lead-Detail-Tabelle, Nachricht in Akzent-Quote-Box, dickem Orange-CTA-Button, dezentem Footer-Stripe.
+- **Direkt-Antworten-Button** mit `mailto:` inkl. vorgefülltem Subject (`Re: Ihre Anfrage über {siteName}`) und freundlichem Body-Opener (`Hallo {leadName}, vielen Dank für Ihre Anfrage…`) plus Quote der Original-Anfrage.
+- **Plain-Text-Fallback** bleibt für Spam-Filter / alte Mail-Clients erhalten.
+- `reply_to: leadEmail` bleibt — Klick auf "Antworten" geht direkt an den Lead.
+
+**Voraussetzung:** Logo-Asset muss unter `https://blitzsicht.com/lead-mail/logo-white.png` öffentlich erreichbar sein (240×64, weiß auf transparent). Liegt im `customer-blitzsicht`-Repo.
+
+**Customer-Repos:** Nach `package.json`-Bump auf `v0.8.26-alpha` automatisch aktiv. Keine API-Änderungen, kein Code-Update im Customer-Repo nötig.
+
+---
+
+## v0.8.21-alpha (2026-04-29)
+
+**Chore:** `.d.ts` für `contact-handler.js` ergänzt — TypeScript-Customer-Repos können den Handler jetzt typsicher importieren.
+
+---
+
+## v0.8.20-alpha (2026-04-29)
+
+**Hotfix:** v0.8.19 hat den Handler als `.ts` exportiert, das kann Vercel Function Builder nicht aus node_modules auflösen. Konvertiert zu `.js` mit JSDoc-Types — gleicher Stil wie der bestehende `handle-submission.js`.
+
+→ **Customer-Repos sollten v0.8.19 überspringen und direkt auf v0.8.20-alpha pinnen.**
+
+---
+
+## v0.8.19-alpha (2026-04-29)
+
+**Feature:** Zentraler Form-Handler `createContactHandler` (`@cw/core/api/contact-handler`)
+
+**Hintergrund:** Bisher hatte jedes Customer-Repo seinen eigenen `api/contact.ts` mit unterschiedlichem Schutz-Niveau (Schiller hatte Turnstile, Weinkontor nicht, Hausamlago auch nicht…). cw-core-Bugs (z.B. fehlender Honeypot in v0.8.4) wurden N-mal wiederholt. Konsolidierung ist überfällig.
+
+**Neue API:**
+
+```typescript
+// customer-repo/api/contact.ts
+import { createContactHandler } from '@cw/core/api/contact-handler';
+
+export default createContactHandler({
+  allowedOrigins: ['https://kunde.de', 'https://www.kunde.de'],
+  fromName: 'Kunde GmbH',
+  subject: 'Neue Anfrage über kunde.de',
+});
+```
+
+**Schichten (in Prüf-Reihenfolge):** Method-Check → Origin-Check → Rate-Limit → Body-Parsing → Honeypot (botcheck + url_honey) → Turnstile (Pflicht) → Email-Validation → Content-Filter (Spam-Keywords, multiple URLs, BTC/ETH-Adressen, Cyrillic/CJK-Anteil ≥30%) → Resend-Versand.
+
+**Erforderliche Vercel Env-Vars:** `CONTACT_EMAIL`, `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY`. Optional `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` für persistenten Rate-Limit über alle Function-Instances.
+
+**Migration:** Customer-Repos mit eigenem `api/contact.ts` ersetzen ihren Code durch den 3-Zeilen-Aufruf oben + Bump auf v0.8.19-alpha. Der alte `handleFormSubmission` (v0.8.3) bleibt für Backwards-Compat erhalten, neue Repos sollten `createContactHandler` nutzen.
+
+---
+
+## v0.8.18-alpha (2026-04-29)
+
+**Fix:** Honeypot wurde nur im Web3Forms-Branch gerendert — Custom-Endpoint-Kunden hatten keinen Honeypot
+
+**Hintergrund:** Bei Schiller Gartenbau kam SPAM trotz Turnstile durch. Root Cause: Der `botcheck`-Honeypot in `ContactForm.astro` war innerhalb des `useWeb3Forms`-Conditional eingebettet (Zeile 72-80). Kunden mit eigenem `actionUrl` (Schiller, Blitzsicht) hatten den Honeypot nicht im DOM — die Server-Prüfung lief ins Leere. Bots die Turnstile via Captcha-Solving-Services lösen ($1-3/1000) hatten freie Bahn.
+
+**Fix:**
+- `botcheck`-Honeypot aus dem `useWeb3Forms`-Conditional rausgezogen → wird jetzt in beiden Submit-Pfaden gerendert
+- Zusätzlicher `url_honey`-Honeypot eingeführt (Bots füllen oft URL/Website-Felder automatisch aus)
+
+**Action für Customer-Repos mit eigenem `api/contact.ts`:**
+
+Server-seitig sicherstellen, dass beide Honeypot-Felder geprüft werden:
+
+```typescript
+if (body.botcheck || body.url_honey) {
+  res.status(200).json({ ok: true });  // silent drop
+  return;
+}
+```
+
+**Roll-out:** Alle Customer-Repos mit Custom-Endpoint sollten auf v0.8.18-alpha+ aktualisieren.
+
+---
+
+## v0.8.4-alpha (2026-04-23)
+
+**Fix:** Astro-Komponenten nutzten `@/`-Alias-Imports — bricht beim Build im Kunden-Repo
+
+Hintergrund: Seit v0.7.9 (Plausible-Tracking) verwendeten 12 Komponenten `import { track } from '@/utils/analytics/track'`. Im cw-core-Repo selbst funktioniert das (Alias in tsconfig), aber wenn die Komponenten als Tarball ins node_modules eines Kunden landen, kann Vite/Rollup `@/` nicht auflösen → `Rollup failed to resolve import`. Alle Kunden-Builds auf v0.7.9–v0.8.3 brechen.
+
+Fix: Alle `@/utils/...`-Imports in Komponenten/Layouts auf relative Pfade (`../../utils/...`) umgestellt.
+
+Betroffene Dateien (12):
+ContactForm, Hero, Header, BaseLayout, FAQ, CTABlock, DankePage, FloatingCalButton, LeistungenSection, NotFoundPage, PaketeSection, StellenListe.
+
+---
+
+## v0.8.3-alpha (2026-04-23)
+
+**Feature:** Cloudflare Turnstile Spam-Schutz für ContactForm
+
+**CSP-Pflicht:** Jedes Kunden-Repo braucht in `vercel.json` einen CSP-Update, sonst blockt der Browser das Turnstile-Widget (iframe + Script von `challenges.cloudflare.com`):
+
+```text
+script-src  ... https://challenges.cloudflare.com
+connect-src ... https://challenges.cloudflare.com
+frame-src   ... https://challenges.cloudflare.com
+```
+
+→ wurde am 2026-04-23 in allen 8 Customer-Repos nachgepflegt.
+
+Hintergrund: Kunden-Kontaktformulare wurden von Bots mit russischsprachigem Spam geflutet.
+Der bisherige Honeypot-Schutz (`botcheck`) wird von modernen Bots ignoriert.
+Cloudflare Turnstile ist kostenlos, DSGVO-konform, und für echte Nutzer unsichtbar.
+
+Neue Props / Config:
+
+- `ContactForm` akzeptiert optional `turnstileSiteKey?: string` — rendert das Turnstile-Widget und lädt das CF-Script
+- `handleFormSubmission` akzeptiert optional `turnstileSecretKey?: string` in der Config — validiert den Token gegen die Cloudflare-API
+- Ohne diese Props/Keys: kein Turnstile, altes Verhalten bleibt erhalten (backward-compatible)
+
+Setup pro Kunde:
+
+1. Turnstile-Site im CF Dashboard anlegen, Domain eintragen
+2. Vercel: `PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` setzen
+3. `kontakt.astro`: `turnstileSiteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}` zu `<ContactForm>` hinzufügen
+4. `api/contact.ts` (cw-core-Kunden): `turnstileSecretKey: process.env.TURNSTILE_SECRET_KEY` in den `handleFormSubmission`-Config
+
+**Neuer-Kunde-Hinweis:** Beim Onboarding die neue Domain im Cloudflare Turnstile Dashboard nachtragen.
+
+---
+
+## v0.8.2-alpha (2026-04-21)
+
+**Feature:** Form Abandonment, Service Click, Time on Page
+
+Kontext: Ergänzt das Event-Set um Abbruch-Tracking (welche Formulare werden angefangen aber nicht abgeschickt?), Leistungs-Interesse und Engagement-Tiefe über Zeit.
+
+Neue Events:
+
+| Event | Komponente | Props |
+| ----- | ---------- | ----- |
+| `Form Abandoned` | ContactForm | `type` — nur wenn Form gestartet, nicht submitted, Seite verlassen |
+| `Service Click` | LeistungenSection | `service` (Karten-Titel) — nur wenn Item ein `href` hat |
+| `Time on Page` | BaseLayout (global) | `duration: '30s' \| '2min' \| '5min'` |
+
+`Form Abandoned` feuert via `visibilitychange` — sicherer als `beforeunload` mit Astro View Transitions.
+
+---
+
+## v0.8.1-alpha (2026-04-21)
+
+**Feature:** DankePage Tracking, PDF Downloads, Nav Clicks, Mobile Nav Toggle
+
+Kontext: Schließt den Conversion-Funnel (Thank You Page als Zielereignis in Plausible nutzbar), erfasst PDF-Downloads und Navigation-Verhalten passiv ohne Konfiguration.
+
+Neue Events:
+
+| Event | Komponente | Props |
+| ----- | ---------- | ----- |
+| `Thank You Page Viewed` | DankePage | — |
+| `File Download` | BaseLayout (global) | `filename` |
+| `Nav Click` | Header | `label`, `href` |
+| `Mobile Nav Open` | Header | — |
+
+---
+
+## v0.8.0-alpha (2026-04-21)
+
+**Feature:** Erweiterte Plausible Events — Scroll Depth, Outbound Clicks, 404 Tracking, Job Application
+
+Kontext: v0.7.9 hat alle primären Conversion-Events eingebaut. v0.8.0 ergänzt Engagement-Metriken (Scroll Depth) und passives Tracking (Outbound, 404) — gibt Kunden ein vollständiges Bild wie weit User lesen und wohin sie abspringen.
+
+Neue Events:
+
+| Event | Komponente | Props |
+| ----- | ---------- | ----- |
+| `Scroll Depth` | BaseLayout (global) | `depth: '25%' \| '50%' \| '75%' \| '100%'` |
+| `Outbound Click` | BaseLayout (global) | `url` (nur Origin, z.B. `https://instagram.com`) |
+| `404 Error` | NotFoundPage | `path` (aktuelle URL-Pfad) |
+| `Job Application Click` | StellenListe | `position`, `type: 'apply' \| 'initiative'` |
+
+Scroll Depth wird einmalig pro Seite gefeuert (kein Doppelfire beim Zurückscrollen). Outbound trackt alle externen Links außer der eigenen Domain — Instagram, Google Maps, Partner-Sites etc.
+
+---
+
+## v0.7.9-alpha (2026-04-21)
+
+**Feature:** Plausible Custom Events in allen relevanten Komponenten
+
+Bisher hat cw-core nur Pageviews getrackt. Ab v0.7.9 feuern alle
+Conversion-relevanten Komponenten Custom Events — unabhängig davon ob
+der Kunde Plausible konfiguriert hat (Graceful Degradation).
+
+**Graceful Degradation Fix (BaseLayout):**
+Der `window.plausible` Queue-Shim wird jetzt immer gerendert, auch wenn
+`plausibleScript` nicht gesetzt ist. Bisher crashten Seiten ohne Plausible
+mit `TypeError` sobald eine Komponente `plausible()` aufrief.
+
+**Neue Tracking-Utility:** `src/utils/analytics/track.ts`
+Typsichere Wrapper-Funktion, importierbar in allen Astro-Script-Blöcken.
+
+**Neue Custom Events:**
+
+| Komponente         | Event               | Props                                                        |
+| ------------------ | ------------------- | ------------------------------------------------------------ |
+| `BaseLayout`       | `Phone Click`       | `number` — alle `tel:`-Links seitenübergreifend              |
+| `BaseLayout`       | `Email Click`       | `address` — alle `mailto:`-Links seitenübergreifend          |
+| `Hero`             | `Hero CTA Click`    | `label`                                                      |
+| `CTABlock`         | `CTA Click`         | `label`                                                      |
+| `ContactForm`      | `Form Start`        | `type` (contact/audit/bewerbung)                             |
+| `ContactForm`      | `Form Submit`       | `type`, `status` (success/error)                             |
+| `FAQ`              | `FAQ Open`          | `question` (erste 60 Zeichen)                                |
+| `PaketeSection`    | `Package Click`     | `package_name`                                               |
+| `CalEmbed`         | `Calendar Opened`   | — (nur lazy-mode)                                            |
+| `CalEmbed`         | `Booking Completed` | `calendar` — feuert wenn tatsächlich gebucht (lazy+non-lazy) |
+| `FloatingCalButton`| `Cal Button Click`  | —                                                            |
+
+**Migrations-Hinweis für bestehende Customer-Repos:**
+Keine Breaking Changes. Events sind additiv — Customer-Repos bauen ohne
+Änderungen. `window.plausible` ist jetzt immer als Shim vorhanden, selbst
+wenn `plausibleScript` in `site-data.ts` leer/undefined ist.
+
+**Weitere Fixes (aufgeräumte uncommitted changes):**
+
+- `Header.astro`: `width`/`height` Attribute auf Logo-`<img>` für bessere CLS-Werte
+- `Footer.astro`: Copyright-Zeile Textfarbe von `rgba(255,255,255,0.4)` → `0.6` (besser lesbar)
+
+---
+
+## v0.7.7-alpha (2026-04-21)
+
+**Tweak:** Bento-Hero symmetrisch — Triangle-Anordnung mit Spiegel-Achse
+
+v0.7.6 war rechtslastig: Big Hero rechts-außen, beide Inset-Cards unten
+rechts mit leichtem Overlap. User-Feedback: „schön symmetrisch ist".
+
+Neue Anordnung (Triangle-Bento):
+- `--1` (Big Hero): `top:0; left:50%; translateX(-50%); width:85%`
+  → zentriert oben
+- `--2` (Inset rechts): `bottom:0; right:0; width:45%; z-index:2`
+- `--3` (Inset links): `bottom:0; left:0; width:45%; z-index:2`
+
+Beide Inset-Cards haben jetzt identische Breite, gleiche Bottom-Ankerung,
+gleichen Kantenabstand und gleichen z-index. Vertikale Spiegel-Achse durch
+die Container-Mitte. Container-aspect 1/1 → 4/3 (breiter) für sauberen
+Überlapp zwischen Big Hero und den beiden unteren Karten.
+
+API/Props unverändert.
+
+---
+
+## v0.7.6-alpha (2026-04-21)
+
+**Redesign:** `Hero.images` — Bento-Layout statt Collage
+
+Nach 5 Collage-Iterationen (v0.7.0–v0.7.5) zeigte die finale diagonale Treppe
+mit 3 gleich breiten Bildern im 45%-Grid-Slot keine visuelle Wirkung — User-
+Feedback: „schaut nach nichts aus". Statt 6. Iteration: Konzeptwechsel auf
+Bento-Layout.
+
+**Neues Konzept:** klare Bild-Hierarchie
+- `--1` (Big Hero): `top:0; right:0; width:100%` — Haupt-Layer
+- `--2` (Medium Inset): `bottom:0; right:0; width:50%; z-index:2`
+- `--3` (Small Inset): `bottom:8%; left:12%; width:42%; z-index:3`
+
+Container-aspect von 5/4 → 1/1 (square) für mehr vertikalen Raum. Border von
+1px transparent auf 2px weiß verstärkt zur klaren Kartentrennung. Shadow
+0.32 Alpha (leicht dunkler als 0.28).
+
+**Backward-Compat:** API unverändert — `images?: HeroCollageImage[]`-Prop
+akzeptiert weiterhin 2–3 Einträge. Andere Customer ohne `images`-Prop
+unaffected (Split-Layout mit `image`-Prop bleibt identisch).
+
+Erhaltene Patterns aus v0.7.3–v0.7.5:
+- `.hero-collage :global(...)` Scoped-Parent-Pattern
+- `height: auto` Override für TiltCard's `height: 100%`
+- Mobile (< 900px) zeigt nur `--1` (display:none für --2, --3)
+
+---
+
+## v0.7.5-alpha (2026-04-21)
+
+**Fix:** Hero-Collage — TiltCard `height: 100%` verdeckt Item--1; Mobile-Single-Image
+
+**Bug 1 (Desktop):** Trotz korrekter Positionierung zeigten sich nur 2 von 3
+Collage-Bildern. Ursache: TiltCard's interne CSS setzt `.motion-tilt { height: 100% }`.
+Die `.hero-collage-item` Klasse liegt genau auf diesem Wrapper — jeder Item wurde
+damit full-height des Containers. Item--1 und Item--3 landeten komplett
+übereinander, DOM-später (Item--3) verdeckte Item--1 visuell.
+
+**Fix 1:** `.hero-collage :global(.hero-collage-item) { height: auto }` — Items
+nehmen jetzt Content-Höhe (= img mit aspect-ratio 4/3), diagonale Treppe ist
+sauber sichtbar.
+
+**Bug 2 (Desktop):** Item--2 mit `left: -18%; width: 80%` ragte bewusst über die
+Grid-Spalte hinaus, überlappte aber mit dem Text der linken Spalte.
+
+**Fix 2:** Conservativere Layout-Werte — alle Items `width: 68%`, Item--2
+leicht eingerückt mit `left: 6%` statt negative overhang. Saubere Treppe innerhalb
+der 45%-Spalte, kein Text-Overlap. `.hero-collage` aspect-ratio auf 5/4 (etwas
+breiter statt fast-square).
+
+**Feature (Mobile):** Nur Item--1 anzeigen, Item--2 und --3 `display: none`.
+Motivation: 3 gestackte Bilder auf schmalen Viewports waren visuell zu viel;
+ein klares Produktbild (Showroom) reicht auf Mobile.
+
+---
+
+## v0.7.4-alpha (2026-04-21)
+
+**Fix:** Hero-Collage Mobile-Override leakt auf Desktop — `@media` wurde gestrippt
+
+**Bug in v0.7.3:** Die Desktop-Regeln mit `:global(.hero-collage-item*)` funktionierten,
+aber die Mobile-Overrides — ebenfalls mit `:global(...)`, eingeschlossen in
+`@media (max-width: 900px)` — wurden von Astros Scoped-CSS-Compiler falsch
+transformiert: der `@media`-Wrapper verschwand aus der kompilierten CSS.
+
+Folge: `.hero-collage-item{position:static;width:100%}` galt auf allen Viewports,
+überschrieb die Desktop-Positionen (`left: -18%` etc.) → Items stapelten vertikal
+in der Flex-Column, volle Breite, ohne Diagonal-Versatz. Genau wie der User
+sagte: "Frames rendern vollflächig schwarz, keine Bildinhalte sichtbar" — in
+Wahrheit waren die Bilder 100%-breit gestapelt, nicht schwarz.
+
+**Fix:** Pattern-Wechsel von standalone `:global(.hero-collage-item*)` zu
+`.hero-collage :global(.hero-collage-item*)`. Der scoped `.hero-collage`-Parent
+bekommt Astros data-cid-Binding, der `:global(...)`-Child bleibt unscoped. Die
+Kombination behält den `@media`-Wrapper korrekt bei. Gleiche Spezifität auf
+Desktop wie Mobile → saubere Overrides per Media-Query.
+
+Gilt für alle Collage-Regeln: `.hero-collage-item*`, `.hero-collage-frame`,
+`.hero-collage-img`, `.hero-image-wrap` (im Collage-Modus versteckt).
+
+---
+
+## v0.7.3-alpha (2026-04-21) — CRITICAL
+
+**Fix:** Hero-Collage Positioning greift jetzt überhaupt (CSS-Scoping-Bug)
+
+**Bug:** In v0.7.0 / v0.7.1 / v0.7.2 wurden die `.hero-collage-item--1/2/3` sowie
+`.hero-collage-frame` und `.hero-collage-img` Regeln als Astro-scoped-CSS mit
+`data-astro-cid-oupxbpgs` kompiliert. Die Class landet aber auf Wrapper-Divs aus
+der `TiltCard`-Komponente (und `<Image>` aus `astro:assets`) — beide haben eigene
+Astro-Komponenten-Scopes (z.B. `data-astro-cid-wusev46n`). Der generierte Selector
+`.hero-collage-item--2[data-astro-cid-oupxbpgs]` matchte damit **null Elemente**.
+
+Resultat: `position: absolute` + `top/left/right` Werte wurden gar nicht
+angewendet. Die Items fielen auf `position: static` zurück und stapelten vertikal
+im Normal-Flow — in der 45%-Grid-Spalte des Split-Layouts.
+
+**Fix:** Alle Regeln die auf child-component-Wrapper zielen mit `:global(...)`
+wrappen: `.hero-collage-item*`, `.hero-collage-frame`, `.hero-collage-img`, und
+das versteckte `.hero-image-wrap` im Collage-Modus. Der äußere `.hero-collage`
+div bleibt scoped (gehört Hero.astro direkt).
+
+Ohne diesen Fix war jede `.hero-collage-item*`-Änderung seit v0.7.0 faktisch
+unwirksam.
+
+---
+
+## v0.7.2-alpha (2026-04-21)
+
+**Tweak:** `Hero.images` Collage — mittleres Bild ragt nach links aus Container
+
+- Feedback Digital-Direkt: In v0.7.1 lag die Staffelung komplett innerhalb der 45%-Spalte
+  des Split-Grids, wodurch die Diagonal-Staffelung visuell nicht ankam.
+- Neu: Das mittlere Bild wird mit `left: -18%` und `width: 80%` positioniert und ragt
+  damit bewusst über die Grid-Spaltengrenze in den Text-Raum hinein — analog zum
+  User-Mockup. Die äußeren Bilder bleiben im 72%-Bereich mit 0/4% Versatz rechts.
+- Container (`.hero--collage .container`) bekommt `overflow: visible`, damit das
+  "ausbrechende" Bild nicht abgeschnitten wird. Aspect-Ratio auf 4/4.2 (leicht hoch).
+- Border sehr dezent (1px halbtransparent) statt 2px weiß — keine Polaroid-Anmutung mehr.
+- API/Prop-Struktur unverändert.
+
+---
+
+## v0.7.1-alpha (2026-04-21)
+
+**Tweak:** `Hero.images` Collage — diagonale Treppe statt Polaroid-Rotation
+
+- Feedback aus Digital-Direkt-Release v0.7.0: die rotierten, stark überlappenden
+  Polaroids wirkten zu verspielt für ein B2B-Druckdienstleister-Hero.
+- Neues Layout: drei Bilder als diagonale Treppe (top-right → mid-left → bottom-right),
+  keine Rotation, nur leichte Überlappung an den Kanten. Border von 4px → 2px
+  reduziert, Shadow dezenter (`0 18px 40px rgba(0,0,0,0.30)`). Border-radius leicht
+  erhöht auf `1.125rem` für moderneren Look.
+- Nur CSS-Tweak an `.hero-collage-item--*` — API/Prop-Struktur unverändert,
+  Customer brauchen keinen Code-Change, nur Pin-Update.
+
+---
+
+## v0.7.0-alpha (2026-04-21)
+
+**Feature:** `Hero.images` — Collage-Modus mit 2–3 überlappenden Bildern
+
+- Neues optionales Prop `images?: readonly { src: ImageMetadata; alt?: string }[]` auf `Hero.astro`
+- Drittes Layout neben Split-Image und Gradient-Only: versetzte, rotierte Bilder mit weißem
+  Polaroid-Rahmen und Box-Shadow. Auf Desktop positioniert (rotate: -4deg / +2deg / +5deg),
+  stapelt mobil vertikal ohne Rotation.
+- Hover-Interaktivität über bestehende `TiltCard.astro` (`maxTilt={4}`, `scale={1.02}`) —
+  identische Subtle-Animation wie bei `PaketeSection`. Respektiert `prefers-reduced-motion`.
+- `images` hat Vorrang vor `image`, wenn ≥ 2 Einträge geliefert werden; das Split-Layout
+  bleibt für alle anderen Customer unverändert.
+- Use-Case: Digital-Direkt Hero (Kundenwunsch — drei Leistungsbilder überlappend).
+
+```astro
+<Hero
+  images={[
+    { src: imgA, alt: 'Büro' },
+    { src: imgB, alt: 'Managed Print' },
+    { src: imgC, alt: 'Service vor Ort' },
+  ]}
+  ... // alle anderen Props bleiben identisch
+/>
+```
+
+Backward-kompatibel: Customer ohne `images`-Prop laufen unverändert weiter.
+
+---
+
+## v0.6.5-alpha (2026-04-20)
+
+**BREAKING:** `Hero.image` und `KarriereHero.teamImage` akzeptieren nur noch `ImageMetadata`, nicht länger `string`
+
+- Bug: Ein String-Pfad (z.B. `"/images/hero/hero.webp"`) landete unverändert im `<img src="...">` und
+  umging Astros Bild-Pipeline komplett — kein `srcset`, keine Rekompression, keine Responsive-Varianten.
+  Konsequenz: Schiller Gartenbau lieferte 247 KB Hero-Bild in 946×728 aus, obwohl nur 788×560 angezeigt.
+  Lighthouse meldete 175 KiB Einsparpotenzial.
+- Fix: Prop-Typ auf `ImageMetadata` verengt. Der String-Fallback-Pfad im Template ist gestrichen.
+  TypeScript blockiert jetzt bereits beim Build, wenn jemand versehentlich einen String durchreicht.
+- Migration in `index.astro`:
+
+  ```diff
+  - image="/images/hero/hero.webp"
+  + import heroImage from '@/assets/images/hero.webp';
+  + image={heroImage}
+  ```
+
+- Das Bild muss dabei aus `public/images/hero/` nach `src/assets/images/` umziehen.
+
+---
+
+## v0.6.4-alpha (2026-04-18)
+
+**Fix:** `PageHero` Subtext-Zentrierung — `margin-inline: auto` auf `.page-hero p`
+
+- Bug: `max-width: 44rem` ohne `margin-inline: auto` → `<p>`-Block saß linksbündig
+  im Container (224px Versatz zur h1-Mitte auf Desktop). Text war zentriert
+  innerhalb des Blocks, der Block selbst nicht. Ein 1-Zeilen-Fix.
+
+**Fix:** `CalEmbed.lazy` Placeholder — kein 680px-Void mehr
+
+- Der Placeholder-Container startete mit `min-height: 680px` → Button schwamm
+  in einer 680px großen leeren Fläche (sah aus wie ein kaputter Ladescreen).
+- Neues Verhalten: Placeholder startet bei `min-height: 280px`. Bei Klick:
+  Container bekommt JS-gesteuertes `style.minHeight = fullHeight` → CSS-Transition
+  `0.3s ease-out` auf 680px → danach Cal-Script-Injection.
+- Kein CLS für echte User (aktiver Click = kein unerwarteter Layout-Shift).
+  Kein visuell gebrochenes Interface mehr.
+
+**Feature:** `PageHero` — neue Props `backgroundPosition` und `overlayStrength`
+
+- `backgroundPosition?: string` (Default `'center'`) — CSS-Position des Hintergrundbilds.
+- `overlayStrength?: 'light' | 'medium' | 'strong'` (Default `'medium'`) — steuert
+  die Dunkelheit des Overlay-Gradients über dem Bild.
+  - `light`: `rgba(29,30,59,0.45)` — Bild dominanter
+  - `medium`: `rgba(29,30,59,0.7)` — ausgewogen (bisheriges Verhalten)
+  - `strong`: `rgba(29,30,59,0.85)` — Text-Lesbarkeit maximiert
+- Beide Props sind opt-in, bestehende PageHero-Nutzungen unverändert.
+
+**Breaking:** Keine. Alle Änderungen sind backward compatible.
+
+**Upgrade-Check:**
+- `/kontakt`: Subtext jetzt korrekt zentriert ohne Änderungen am Customer-Repo.
+- Lazy-Cal: Placeholder-UI sieht jetzt sauber aus (280px statt 680px leer).
+- PageHero mit Bild: `overlayStrength="strong"` setzen wenn Text schwer lesbar.
+
+---
+
+## v0.6.3-alpha (2026-04-18)
+
+**Feature:** `CalEmbed.lazy` — Cal-Skript hinter Button-Klick verstecken (kein LCP-Impact)
+
+- Neues Prop `lazy?: boolean` (Default `false`). Bei `true`: Container behält `minHeight`
+  und zeigt einen "Termin direkt buchen"-Button. Beim Klick: Placeholder faded aus,
+  Cal-Skript wird dynamisch injiziert. **Kein CLS** — der Raum ist bereits reserviert.
+- `lazyLabel` und `lazySubtext` Props für Button-Beschriftung + Unterzeile.
+- Cleanup-Listener (`astro:before-swap`) wird nur registriert wenn tatsächlich geklickt.
+  Kein Memory-Leak, kein toter Listener auf Seiten wo der Button nie angeklickt wird.
+- Empfohlen für alle Seiten wo der Kalender below-the-fold ist (z.B. `/kontakt`).
+
+**Feature:** `PaketeSection.single` — Single-Card-Modus für Homepage-Teaser
+
+- Neues Prop `single?: boolean` (Default `false`). Bei `true`: Grid wechselt auf
+  `1 col, max-width 460px, margin-inline auto`. Negative Margins der Highlighted-Card
+  werden aufgehoben. Gedacht für Homepage-Pattern "nur das Highlight-Paket + Link zu /pakete".
+
+**Breaking:** Keine. Alle neuen Features sind opt-in.
+
+**Upgrade-Check:**
+- `/kontakt`: `<CalEmbed lazy={true} />` setzen → ~120 KB JS erst on-demand.
+- Homepage: `<PaketeSection items={[highlighted]} single />` + Link zu `/pakete`.
+
+---
+
+## v0.6.2-alpha (2026-04-18)
+
+**Docs:** `CalEmbed.astro` JSDoc um Layout-Regel erweitert — Widget gehört
+IMMER in eine eigene `<section>` mit full container-width, NIEMALS in Grid-
+Spalten oder neben Form-Feldern. Cal.com-Kalender braucht ≥ 600 px Breite,
+sonst gequetscht auf Desktop und unbenutzbar auf Tablet.
+
+**Fix:** `CalEmbed.minHeight` Default `500px → 600px` — 500 war zu knapp
+für den realen Widget-Inhalt (Monatsview + Slot-Picker).
+
+**Breaking:** Keine. API und Verhalten sind rückwärtskompatibel.
+
+---
+
+## v0.6.1-alpha (2026-04-18)
+
+**Fix:** Motion Wave 2 Defaults waren zu subtil — User sieht den Effekt nicht.
+
+- `TiltCard` Defaults: `maxTilt: 6 → 10`, `scale: 1.01 → 1.03`. Deutlich wahrnehmbar, weiterhin B2B-tauglich.
+- `MagneticButton` Defaults: `strength: 0.2 → 0.35` (am Clamp), `maxOffset: 18 → 28`, `radius: 120 → 140`.
+
+**Fix:** Konsistenz über Customer-Seiten hinweg — `PaketeSection` und `Testimonials` hatten
+`tilt` auf `false` als Default. Das führte dazu, dass nur Seiten mit explizitem `tilt={true}`
+Prop den Effekt zeigten (z.B. Homepage ja, `/pakete` nein — gleicher Block, anderes Verhalten).
+
+- `PaketeSection`: `tilt` Default **`true`** (opt-out via `tilt={false}`).
+- `Testimonials`: `tilt` Default **`true`** mit intern milderem `maxTilt={4}, scale={1.02}`
+  (textlastig → Lesbarkeit bleibt erhalten).
+
+**Breaking:** Keine — API ist gleich, nur Defaults anders. Customer die Tilt nicht wollen
+setzen `tilt={false}` explizit. Customer die v0.6.0 bereits auf `tilt={true}` gesetzt hatten
+können den Prop jetzt entfernen (wird Default).
+
+**Upgrade-Check:** Visuell auf `/pakete`, `/` sowie allen Seiten mit Testimonials prüfen.
+Falls zu aktiv → in der Customer-Seite `<Testimonials tilt={false} />` setzen.
+
+---
+
+## v0.6.0-alpha (2026-04-18)
+
+**Feature:** Motion Wave 2 — drei neue Hover- und Layout-Primitives
+
+- `motion/MagneticButton` — zieht Slot-Inhalt magnetisch zum Cursor. On-demand
+  rAF-Loop (stoppt bei Ruhelage), Rect-Cache + rAF-throttled Invalidierung,
+  harter Offset-Cap (default 18 px), `strength` auf ≤0.35 geclamped.
+  Capability-Check `(hover: hover) and (pointer: fine)` (iPad+Trackpad /
+  Surface+Maus werden unterstützt, Touch-only skippt sauber).
+- `motion/TiltCard` — subtiles 3D-Tilt auf Hover. rAF-Lerp während Hover
+  (`transition: none`), CSS-Transition nur beim Verlassen (präziser als
+  Transition-during-Hover). Defaults absichtlich zurückhaltend:
+  `maxTilt: 6`, `scale: 1.01`.
+- `blocks/BentoGrid` — asymmetrisches CSS-Grid-Primitive mit
+  Column-/Row-Spanning. Link-Kacheln werden als `<a>` gerendert
+  (A11y-konform), Daten-Kacheln als `<article>`. Zero Runtime-JS.
+
+**Feature:** `Hero.motion` hat neues Flag `magnetic` — wrappt **nur** den
+Primary-CTA in `<MagneticButton>`. Der Secondary-CTA bleibt statisch
+(bewusst — zwei magnetische Buttons wirken wie Demo-Seite).
+`motion={true}` expandiert jetzt automatisch inkl. `magnetic: true`.
+
+**Feature:** `PaketeSection` + `Testimonials` haben opt-in `tilt?: boolean`
+Prop. Default `false`. Empfohlen: `true` bei Pakete (Conversion-Punkt),
+aus bei Testimonials (textlastig → Tilt reduziert Lesbarkeit).
+
+**Astro View-Transitions:** MagneticButton + TiltCard registrieren
+`astro:before-swap` Cleanup-Listener (cancelAnimationFrame, disconnect
+ResizeObserver, removeEventListener) — kein Memory-Leak bei
+`<ClientRouter />`-Nutzung.
+
+**Bundle-Impact:** Keine neuen externen Deps. ~3 KB gzipped extra
+JavaScript für die drei neuen Primitives.
+
+**Breaking:** Keine. Alle neuen Features sind opt-in.
+
+**Upgrade-Check:** In `package.json` auf `github:siluri/cw-core#release/cw-core/v0.6.0-alpha`
+bumpen. Optional: `motion={{ magnetic: true }}` im Hero, `tilt={true}` in
+PaketeSection. Testimonials-Tilt bewusst ausgelassen lassen.
+
+---
+
+## v0.5.0-alpha (2026-04-18)
+
+**Feature:** Motion-System — 9 neue Motion-Primitives unter `@cw/core/components/motion/`
+
+- `ScrollReveal`, `StaggerGroup`, `ParallaxImage`, `CountUp`, `TextReveal`
+- `AnimatedBlob` (organische Mesh-Gradient-Backgrounds, CSS-only)
+- `SmoothScroll` (Lenis-Integration mit GSAP-ScrollTrigger-Bridge)
+- `ScrollProgress` (fixer Accent-Fortschrittsbalken)
+- `CustomCursor` (Follow-Circle auf Desktop, touch-safe)
+
+**Feature:** `Hero` hat neue opt-in `motion`-Prop (`blob`, `textReveal`, `stagger`, `parallax`)
+
+**Feature:** `LandingPage` hat neue opt-in `motion`-Prop (`smoothScroll`, `progress`, `cursor`)
+
+**Feature:** Motion-Tokens (`--motion-duration-*`, `--motion-ease-*`) + globales
+`prefers-reduced-motion: reduce` + Touch-Device-Fallbacks in `tokens-base.css`
+
+**Peer-Dependencies (optional):** `gsap >= 3.12`, `lenis >= 1.1`. Kunden die kein
+Motion wollen installieren die Peers nicht und ändern keinen Code — alle bestehenden
+Hero/LandingPage-Aufrufe bleiben unverändert funktionieren.
+
+**Breaking:** Keine. Alle Motion-Features sind opt-in über neue Props.
+
+**Upgrade-Check:** Falls du Motion nutzen willst: `pnpm add gsap lenis` in der Kundensite
+und setze `motion={true}` auf dem Hero bzw. `motion={{smoothScroll: true, progress: true, cursor: true}}`
+auf der LandingPage.
+
+---
+
+## v0.4.6-alpha (2026-04-17)
+
+**Fix:** Audit compliance — Security Headers, A11y, Bilddimensionen
+
+- CSP-Header, HSTS, X-Content-Type-Options
+- Aria-Labels, Alt-Texte, Bildgrößen
+
+**Upgrade-Check:** Prüfe ob CSP-Header mit externen Embeds (Cal.eu, etc.) kompatibel sind
+
+---
+
+## v0.4.5-alpha (2026-04-17)
+
+**Feature:** PageHero `backgroundImage` Prop + Leistung-Seiten-Template
+
+- Neue Prop `backgroundImage` für PageHero-Komponente
+- Template für individuelle Leistungs-Unterseiten
+
+**Upgrade-Check:** Bestehende PageHero-Nutzungen unverändert (backward compatible)
+
+---
+
+## v0.4.4-alpha (2026-04-17)
+
+**Feature:** generate-og.mjs Batch-Mode + Sharp-Fix
+
+- OG-Image Generator kann jetzt mehrere Seiten auf einmal verarbeiten
+- Sharp Resolution Bug behoben
+
+---
+
+## v0.4.3-alpha (2026-04-17)
+
+**Feature:** Script-Exports + Image-Optimierung
+
+- `scripts/*` wird jetzt exportiert
+- Neue npm Scripts: `optimize:images`, `generate:og`
+- `optimize-images.mjs` für WebP-Konvertierung
+
+**Fix:** Body/Footer/Badge-Farben von `--color-primary` entkoppelt
+
+**Upgrade-Check:** Kunden die eigene Footer-Farben haben: prüfen ob Colors noch stimmen
+
+---
+
+## v0.4.2-alpha (2026-04-17)
+
+**Feature:** SchemaOrg erweitert
+
+- `employees`, `services`, `faqs`, `additionalTypes`, `knowsAbout` als optionale Props
+- Alles backward compatible
+
+**Fix:** Hardcoded `#0f3460` Gradient durch `var(--color-primary-dark)` ersetzt
+
+**Upgrade-Check:** Kunden mit dunklem Primary: Gradient kontrollieren
+
+---
+
+## v0.4.1-alpha (2026-04-17)
+
+**Feature:** Neue Block-Komponenten
+
+- `AEOSection` (AI Engine Optimization)
+- `ReferenzenGrid`
+- Neue Types exportiert
+
+---
+
+## v0.4.0-alpha (2026-04-17)
+
+**Feature:** Große Block-Erweiterung
+
+- `StatsGrid`, `KundenfeedbackSection`, `CalEmbed` Blocks
+- `LeistungDetail` Type
+- `ProcessSteps` mit `columns` Prop
+- Readonly Array Props (TypeScript-Verbesserung)
+
+**Upgrade-Check:** Readonly Arrays — TypeScript-Fehler möglich wenn mutable Arrays übergeben werden
+
+---
+
+## v0.3.8-alpha (2026-04-17)
+
+**Feature:** PageHero mit Gradient-Banner für Unterseiten
+
+---
+
+## v0.3.7-alpha (2026-04-17)
+
+**Feature:** OG-Logo zentriert + Hero responsive srcset (mobile-first)
+
+---
+
+## v0.3.6-alpha (2026-04-17)
+
+**Feature:** "Erstellt von Blitzsicht" Backlink im Footer
+
+**Upgrade-Check:** Kunden sehen jetzt Blitzsicht-Backlink — falls unerwünscht, kommunizieren
+
+---
+
+## v0.3.5-alpha (2026-04-17)
+
+**Feature:** CTA-Button ist jetzt Pflichtfeld im OG-Image Generator
+
+---
+
+## v0.3.4-alpha (2026-04-17)
+
+**Feature:** OG Image Generator (SVG+Sharp, datengetrieben)
+
+---
+
+## v0.3.2-alpha (2026-04-17)
+
+**Feature:** Logo in eigener Zeile (Footer) + größer (Header)
+
+**Upgrade-Check:** Visuell prüfen ob Logo-Größe zum Kunden passt
+
+---
+
+## v0.3.1-alpha (2026-04-17)
+
+**Features:**
+- Breadcrumbs mit BreadcrumbList JSON-LD
+- OpeningHours, Geo, Multi-City AreaServed, FoundingDate im Schema
+- `--font-heading` Token für CI-Branding
+- `logoSrcDark` Prop für dunkle Hintergründe
+- `LeistungenSection` mit `columns` Prop
+- `plausibleEndpoint` Prop für Same-Origin-Proxy
+
+**Fixes:**
+- Logo weiß auf dunklem Header/Footer
+- `btn-accent` Textfarbe konfigurierbar (WCAG AA)
+- `fetchpriority="high"` für LCP Hero-Bild
+- "Auf Anfrage" wenn `priceSetup === 0`
+
+**Upgrade-Check:** Viele Änderungen — vollständiger visueller Check empfohlen
+
+---
+
+## v0.3.0-alpha (2026-04-16)
+
+**Features:**
+- Customer-Starter Template + `cw init` CLI
+- Public API Exports + Usage Docs
+- 13 prop-driven Komponenten extrahiert
+- Monorepo-Skeleton
+
+**Upgrade-Check:** BREAKING — erste echte Package-Version. Migration von Copy-Paste zu Package nötig.
+
+---
+
+## v0.2.0-alpha (2026-04-16)
+
+**Features:**
+- `--font-heading` Token
+- `logoSrcDark` Prop
+- `LeistungenSection` mit Columns
+- `plausibleEndpoint` Prop
+
+**Fixes:**
+- Hero fetchpriority
+- btn-accent WCAG
+- readonly string[] für sameAs
+
+---
+
+## v0.1.0 — Initial (alpha)
 
 - Monorepo-Skeleton, erste Komponenten-Extraktion
+
+---
+
+## v0.1.0-alpha (2026-04-15)
+
+**Initial Release** — Erster @cw/core Package-Extract aus customer-blitzsicht.

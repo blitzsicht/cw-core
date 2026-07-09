@@ -353,6 +353,14 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
     const cwTrackingMode = document.documentElement.dataset.cwTracking ?? 'inline';
     if (cwTrackingMode === 'inline') {
       document.addEventListener('click', (e) => {
+        // CTA Click zuerst und unabhängig vom Anchor-Zweig (data-cta sitzt auch auf
+        // <button>). Spiegelt PlausibleEvents (full-Mode) — ohne diesen Listener
+        // wäre das CORE_GOAL "CTA Click" bei jedem inline-Kunden eine tote DB-Zeile
+        // (Tracking-Audit 2026-07-09). Ein Klick = genau ein CTA-Click-Event.
+        const cta = (e.target as Element).closest('[data-cta]');
+        if (cta) {
+          track('CTA Click', { name: cta.getAttribute('data-cta') || 'unnamed' });
+        }
         const a = (e.target as Element).closest('a');
         if (!a) return;
         const href = a.getAttribute('href') ?? '';

@@ -47,17 +47,23 @@ Beispiel: `v0.22.0` (Hard-Rule + `/cw-component-audit`) — Workflow-Feature, ke
 
 ## CHANGELOG
 
-Liegt in `customer-websites/CHANGELOG-CW-CORE.md` (cross-repo, **nicht** in cw-core selbst).
-Pflicht: Eintrag pro Release. Format siehe `cw-release` Skill.
+Liegt in **`cw-core/CHANGELOG.md`** — kanonisch, im selben Repo wie der Code (SSOT seit 2026-07-09).
+Pflicht: Eintrag pro Release inkl. `[kunde]`-Check (kundenrelevante Zeile für den Monatsreport).
+Format siehe `cw-release` Skill.
 
-cw-core hat zwar auch ein `CHANGELOG.md` — das ist aber **nicht** canonical (separate History, ggf. veraltet).
+**Historie:** Bis v0.56.0 lebte der kanonische Changelog cross-repo in
+`customer-websites/CHANGELOG-CW-CORE.md`. Beide Historien wurden am 2026-07-09
+versions-sortiert in `cw-core/CHANGELOG.md` gemerged (122 Einträge); in customer-websites
+liegt nur noch ein Redirect-Stub.
 
 ## Workflow
 
 Verwende den `cw-release` Skill für jeden Release:
 - `~/.claude-siluri/skills/cw-release/SKILL.md`
 
-**Cross-Repo CHANGELOG-Timing:** Da `CHANGELOG-CW-CORE.md` in `customer-websites` lebt (separate Repo + PR-Flow), entsteht zwischen Tag-Push und CHANGELOG-PR-Merge ein kurzes Fenster (typisch < 5 Min), in dem der Tag remote existiert aber der CHANGELOG-Eintrag noch nicht. Akzeptiert als pragmatisches Trade-off. Wer den Skill als Single-Repo-Variant einsetzt (z.B. cw-cli mit lokalem CHANGELOG), folgt der strengen "Changelog zuerst"-Invariante.
+**CHANGELOG-Timing:** Seit dem SSOT-Wechsel (2026-07-09) ist der Changelog Teil des
+Release-Commits in cw-core — Changelog + Code + Tag sind atomar, das frühere Cross-Repo-Fenster
+existiert nicht mehr.
 
 Der Skill ist auch auf andere `cw-*` Repos übertragbar (Variables am Top: `CW_CORE_PATH`, `CHANGELOG_PATH`, `TAG_PREFIX`, `CUSTOMER_REPOS`).
 

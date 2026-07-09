@@ -89,8 +89,15 @@ export const siteData = {
 
   // ─── Analytics ─────────────────────────────────────────────────────────────
   analytics: {
-    // Plausible: neues Site in app.plausible.io anlegen, dann Script-URL hier eintragen
-    plausibleScript: 'TODO: https://plausible.io/js/pa-XXXXXX.js',
+    // First-Party-Proxy (Standard): onboard-site verdrahtet /js/script.js + /api/event
+    // als Vercel-Rewrite auf stats.blitzsicht.com/js/<pa-ID>.js. Diese beiden Pfade
+    // hier eintragen (NICHT die plausible.io-URL):
+    plausibleScript: '/js/script.js',
+    plausibleEndpoint: '/api/event',
+    // trackingMode: 'full' NUR setzen, wenn die Site zusätzlich <PlausibleEvents />
+    // mountet (voller Event-Satz inkl. CTA/Paid Visit). Ohne Mount 'inline' lassen
+    // (= weglassen); 'full' ohne Mount schaltet die Auto-Listener ab → keine Events.
+    // trackingMode: 'full',
   },
 
   // ─── SEO ───────────────────────────────────────────────────────────────────
