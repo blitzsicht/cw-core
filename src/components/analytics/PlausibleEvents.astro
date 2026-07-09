@@ -92,6 +92,26 @@
     });
   });
 
+  // Outbound + File Download (v0.54.2): die Tracker-eingebauten Auto-Events sind
+  // seit dem BaseLayout-Init abgeschaltet (Doppelzählungs-Fund, Tracking-Audit
+  // 2026-07-09) — im full-Mode ist diese Komponente die alleinige Quelle.
+  // Delegierter Listener (erfasst auch dynamische Links); WhatsApp ist oben
+  // spezifischer erfasst und wird übersprungen.
+  document.addEventListener('click', (e) => {
+    const a = (e.target as Element).closest?.('a');
+    if (!a) return;
+    const href = a.getAttribute('href') ?? '';
+    if (/(^|\/\/)(wa\.me|api\.whatsapp\.com)\//.test(href)) return;
+    if (href.endsWith('.pdf') || href.includes('.pdf?')) {
+      const filename = href.split('/').pop()?.split('?')[0] ?? href;
+      track('File Download', { filename });
+    } else if (href.startsWith('http') && !href.includes(window.location.hostname)) {
+      try {
+        track('Outbound Click', { url: new URL(href).origin });
+      } catch { /* ungültige URL — kein Event */ }
+    }
+  });
+
   // Eigen-Marken-Backlink (Footer „Erstellt von Blitzsicht"): die servende
   // Kunden-Domain als utm_source ergänzen, damit blitzsicht.com sieht, von
   // welcher Kundenseite der Klick kam (statt nur „footer").

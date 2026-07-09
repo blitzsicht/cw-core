@@ -271,7 +271,19 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
         {!plausibleEndpoint && <link rel="preconnect" href={plausibleHost} />}
         <script is:inline async src={plausibleScript}></script>
         <script is:inline define:vars={{ endpoint: plausibleEndpoint }}>
-          window.plausible.init(endpoint ? { endpoint } : {});
+          // Tracker-EINGEBAUTE Auto-Events abschalten (v0.54.2, Tracking-Audit
+          // 2026-07-09): der Tracker sendete zusätzlich "Outbound Link: Click",
+          // "File Download" (Name-Kollision → Doppelzählung!) und
+          // "Form: Submission" — parallel zu unseren kontrollierten Events aus
+          // Inline-Block bzw. PlausibleEvents. Ab jetzt EIN kanonischer
+          // Event-Satz: Outbound Click / File Download {filename} / Form Submit.
+          // Pageviews bleiben unberührt.
+          window.plausible.init({
+            outboundLinks: false,
+            fileDownloads: false,
+            formSubmissions: false,
+            ...(endpoint ? { endpoint } : {}),
+          });
         </script>
       </>
     )}
@@ -385,6 +397,15 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
       timeMilestones.forEach(([ms, label]) => {
         setTimeout(() => track('Time on Page', { duration: label }), ms);
       });
+
+      // Kanonisches Form-Event (v0.54.2): ersetzt das abgeschaltete Tracker-
+      // eingebaute "Form: Submission" — gleicher Name/Props wie PlausibleEvents
+      // im full-Mode, damit das Goal "Form Submit" clusterweit greift.
+      document.addEventListener('submit', (e) => {
+        const f = e.target as HTMLFormElement | null;
+        if (!f || f.tagName !== 'FORM') return;
+        track('Form Submit', { form: f.id || f.getAttribute('name') || f.getAttribute('action') || 'form' });
+      }, true);
     }
   </script>
 </html>
