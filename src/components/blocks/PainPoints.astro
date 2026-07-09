@@ -1,0 +1,182 @@
+---
+/**
+ * @cw/core – PainPoints.astro
+ *
+ * Blueprint-Sektion 2 „Problem": benennt die Schmerzpunkte der Zielgruppe, damit
+ * der Besucher „ja, das bin ich" denkt — Verstandenwerden VOR Verkaufen. KEIN CTA.
+ * Generalisiert aus customer-blitzsicht/src/components/PainPointsSection.astro
+ * (dort hardcoded) zu einer prop-driven cw-core-Komponente.
+ *
+ * Layout: Karten-Grid (1 → 2 → 3/4 Spalten), optionales eingebettetes Proof-Zitat,
+ * optionale Abschluss-Lede, die zur Lösung überleitet. Dunkler Hintergrund default.
+ *
+ * @example
+ *   <PainPoints
+ *     heading="Kennen Sie das?"
+ *     subheading="Warum viele Unternehmen die Reinigungsfirma wechseln."
+ *     items={[
+ *       { icon: '😤', text: '„…was hilft billig, wenn es dann immer dreckig ist?"' },
+ *       { icon: '🔁', text: 'Ständig wechselndes Personal, das Ihr Objekt nie kennt.' },
+ *     ]}
+ *     proof={{ text: '„Anders als die meisten anderen."', source: 'Dennis H. · Google' }}
+ *     lede="Das muss nicht sein. …"
+ *   />
+ */
+export interface PainItem {
+  /** Emoji/Icon-Zeichen. */
+  icon?: string;
+  /** Ein Satz Schmerz (idealerweise Kundensprache, ≥1 verbatim). */
+  text: string;
+}
+
+interface Props {
+  /** Sektions-Überschrift. */
+  heading: string;
+  /** Optionale Unterzeile. */
+  subheading?: string;
+  /** 3–5 Schmerzpunkte. */
+  items: readonly PainItem[];
+  /** Optionales eingebettetes Kundenzitat als Mini-Proof. */
+  proof?: { text: string; source?: string };
+  /** Optionale Abschluss-Lede (leitet zur Lösung über — KEIN CTA). */
+  lede?: string;
+  /** Hintergrund: 'dark' (default, Primary) oder 'surface'. */
+  bg?: 'dark' | 'surface';
+}
+
+const { heading, subheading, items = [], proof, lede, bg = 'dark' } = Astro.props;
+---
+{items.length > 0 && (
+  <section class:list={['painpoints', `painpoints--${bg}`]} aria-labelledby="painpoints-heading">
+    <div class="painpoints__container">
+      <header class="painpoints__header">
+        <h2 id="painpoints-heading" class="painpoints__title">{heading}</h2>
+        {subheading && <p class="painpoints__subline">{subheading}</p>}
+      </header>
+
+      <ul class="painpoints__grid" data-count={items.length}>
+        {items.map((it) => (
+          <li class="pain-card">
+            {it.icon && <span class="pain-card__icon" aria-hidden="true">{it.icon}</span>}
+            <p class="pain-card__text">{it.text}</p>
+          </li>
+        ))}
+      </ul>
+
+      {proof && (
+        <blockquote class="painpoints__proof">
+          <p class="painpoints__proof-text">{proof.text}</p>
+          {proof.source && <footer class="painpoints__proof-source">— {proof.source}</footer>}
+        </blockquote>
+      )}
+
+      {lede && <p class="painpoints__lede">{lede}</p>}
+    </div>
+  </section>
+)}
+
+<style>
+  .painpoints {
+    padding: clamp(3rem, 6vw, 5rem) 1.25rem;
+  }
+  .painpoints--dark {
+    background: var(--color-primary, #1d1e3b);
+    color: #fff;
+  }
+  .painpoints--surface {
+    background: var(--color-surface, #f8f9fb);
+    color: var(--color-primary, #1d1e3b);
+  }
+  .painpoints__container { max-width: 1200px; margin: 0 auto; }
+  .painpoints__header { text-align: center; margin-bottom: clamp(1.5rem, 3vw, 2.5rem); }
+  .painpoints__title {
+    font-size: clamp(1.6rem, 3.2vw, 2.25rem);
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+  .painpoints__subline {
+    margin: 0.85rem auto 0;
+    max-width: 640px;
+    font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+    line-height: 1.55;
+    font-weight: 500;
+    opacity: 0.75;
+  }
+
+  .painpoints__grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  @media (min-width: 600px) {
+    .painpoints__grid { grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+  }
+  @media (min-width: 1000px) {
+    .painpoints__grid[data-count="3"] { grid-template-columns: repeat(3, 1fr); }
+    .painpoints__grid { grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+  }
+
+  .pain-card {
+    border-radius: 14px;
+    padding: 1.5rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-height: 100%;
+  }
+  .painpoints--dark .pain-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .painpoints--surface .pain-card {
+    background: #fff;
+    border: 1px solid rgba(29, 30, 59, 0.08);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  .pain-card__icon { font-size: 1.85rem; line-height: 1; }
+  .pain-card__text {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.5;
+    font-weight: 500;
+    opacity: 0.92;
+  }
+
+  .painpoints__proof {
+    margin: clamp(1.75rem, 3.5vw, 2.5rem) auto 0;
+    max-width: 640px;
+    padding: 1.25rem 1.5rem;
+    border-left: 3px solid var(--color-accent, #ef7612);
+    border-radius: 0 10px 10px 0;
+  }
+  .painpoints--dark .painpoints__proof { background: rgba(255, 255, 255, 0.03); }
+  .painpoints--surface .painpoints__proof { background: rgba(29, 30, 59, 0.03); }
+  .painpoints__proof-text {
+    margin: 0;
+    font-style: italic;
+    font-size: 1rem;
+    line-height: 1.55;
+    opacity: 0.92;
+  }
+  .painpoints__proof-source {
+    margin-top: 0.6rem;
+    font-style: normal;
+    font-size: 0.875rem;
+    opacity: 0.6;
+  }
+
+  .painpoints__lede {
+    margin: clamp(1.75rem, 3.5vw, 2.5rem) auto 0;
+    max-width: 720px;
+    text-align: center;
+    font-size: clamp(1rem, 1.5vw, 1.15rem);
+    line-height: 1.6;
+    font-weight: 500;
+    opacity: 0.82;
+  }
+</style>

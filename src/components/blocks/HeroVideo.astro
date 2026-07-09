@@ -1,0 +1,257 @@
+---
+/**
+ * @cw/core – HeroVideo.astro
+ *
+ * Cinematischer Vollbild-Hero mit stummem, loopendem Hintergrund-Video
+ * (self-hosted MP4/WebM) + diagonalem Dunkel-Overlay und Overlay-Content
+ * (Badge, Headline, Subtext, CTAs, USP-Row). Adaptiert aus dem bewährten
+ * Soleno-Hero, aber cw-core-konform: token-basiert, self-contained (eigene
+ * Button-/Container-Styles, keine globalen Klassen-Abhängigkeiten).
+ *
+ * DSGVO/Performance: Video ist SELBST-GEHOSTET (kein Dritt-Request). Poster
+ * ist das LCP-Element; `preload="metadata"`; `prefers-reduced-motion` blendet
+ * das Video aus (nur Poster). Kleines, komprimiertes, tonloses MP4 verwenden.
+ *
+ * CSP: benötigt nur `media-src 'self'` (Standard) — KEIN frame-src nötig.
+ *
+ * Prop-Signatur ist bewusst kompatibel zu `Hero.astro` (badge/headline/
+ * subtext/ctaPrimary/ctaSecondary/usps/siteName) + Video-Felder.
+ *
+ * @example
+ *   <HeroVideo
+ *     videoSrc="/videos/hero.mp4"
+ *     poster="/videos/hero-poster.webp"
+ *     badge="★ 4,8 · 24 Bewertungen · seit 2009"
+ *     headline="Sauberkeit.<br/>Zuverlässigkeit."
+ *     subtext="…"
+ *     ctaPrimary={{ label: 'Angebot anfragen', href: '/kontakt' }}
+ *     ctaSecondary={{ label: 'Leistungen', href: '/#leistungen' }}
+ *     usps={siteData.usps}
+ *     siteName={siteData.name}
+ *   />
+ */
+export interface HeroCTA {
+  label: string;
+  href: string;
+}
+export interface HeroVideoUSP {
+  icon: string;
+  title: string;
+}
+
+interface Props {
+  /** Pfad zum self-hosted MP4 (Pflicht). */
+  videoSrc: string;
+  /** Optionaler zusätzlicher WebM-Pfad (wird vor dem MP4 als `<source>` gelistet). */
+  videoSrcWebm?: string;
+  /** Posterbild (LCP + Fallback bei reduced-motion / vor Video-Load). */
+  poster: string;
+  /** Kleine Badge-Pille über der Headline. */
+  badge?: string;
+  /** Headline (HTML erlaubt via set:html, z.B. `<br/>`). */
+  headline: string;
+  /** Sub-Copy unter der Headline. */
+  subtext?: string;
+  /** Primärer CTA (Accent-Button). */
+  ctaPrimary?: HeroCTA;
+  /** Optionaler sekundärer CTA (Outline-Button). */
+  ctaSecondary?: HeroCTA;
+  /** USP-Chips unter den CTAs (nutzt icon + title; weitere Felder werden ignoriert). */
+  usps?: readonly HeroVideoUSP[];
+  /** Für aria-label des Videos (Fallback). */
+  siteName?: string;
+}
+
+const {
+  videoSrc,
+  videoSrcWebm,
+  poster,
+  badge = '',
+  headline,
+  subtext,
+  ctaPrimary,
+  ctaSecondary,
+  usps = [],
+  siteName = '',
+} = Astro.props;
+---
+<section class="hero-video">
+  <video
+    class="hero-video-bg"
+    autoplay
+    muted
+    loop
+    playsinline
+    preload="metadata"
+    poster={poster}
+    aria-label={siteName ? `Imagevideo ${siteName}` : undefined}
+    tabindex="-1"
+  >
+    {videoSrcWebm && <source src={videoSrcWebm} type="video/webm" />}
+    <source src={videoSrc} type="video/mp4" />
+  </video>
+  <div class="hero-video-overlay" aria-hidden="true"></div>
+
+  <div class="hero-video-content">
+    {badge && <div class="hero-badge">{badge}</div>}
+
+    <h1 set:html={headline} />
+
+    {subtext && <p class="hero-sub">{subtext}</p>}
+
+    {(ctaPrimary || ctaSecondary) && (
+      <div class="hero-cta">
+        {ctaPrimary && <a href={ctaPrimary.href} class="hv-btn hv-btn--accent">{ctaPrimary.label}</a>}
+        {ctaSecondary && <a href={ctaSecondary.href} class="hv-btn hv-btn--outline">{ctaSecondary.label}</a>}
+      </div>
+    )}
+
+    {usps.length > 0 && (
+      <div class="hero-usps">
+        {usps.map((usp) => (
+          <div class="hero-usp-item">
+            <span class="usp-icon" aria-hidden="true">{usp.icon}</span>
+            <span>{usp.title}</span>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .hero-video {
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    padding: 4rem 1.5rem 3.5rem;
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    background: var(--color-primary, #303030);
+  }
+  @media (min-width: 641px) {
+    .hero-video { padding: 6rem 1.5rem 5rem; min-height: min(85vh, 720px); }
+  }
+  .hero-video-bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero-video-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(0, 0, 0, 0.78) 0%,
+      rgba(0, 0, 0, 0.52) 55%,
+      rgba(20, 20, 20, 0.45) 100%
+    );
+    z-index: 1;
+  }
+  .hero-video-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: var(--container-max, 72rem);
+    margin-inline: auto;
+  }
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 100px;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.02em;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+  h1 {
+    font-size: clamp(2.5rem, 5.5vw, 4rem);
+    color: #fff;
+    margin: 0 0 1.5rem;
+    max-width: 18ch;
+    line-height: 1.1;
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.35);
+  }
+  .hero-sub {
+    font-size: clamp(1rem, 1.5vw, 1.25rem);
+    color: rgba(255, 255, 255, 0.92);
+    max-width: 56ch;
+    line-height: 1.65;
+    margin: 0 0 2.5rem;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.3);
+  }
+  .hero-cta {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+  @media (min-width: 641px) {
+    .hero-cta { flex-direction: row; flex-wrap: wrap; margin-bottom: 3rem; }
+  }
+  .hv-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1.6rem;
+    border-radius: 0.6rem;
+    font-weight: 700;
+    font-size: 1rem;
+    text-decoration: none;
+    width: 100%;
+    transition: transform 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  @media (min-width: 641px) {
+    .hv-btn { width: auto; }
+  }
+  .hv-btn:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 2px;
+  }
+  .hv-btn--accent {
+    background: var(--color-accent, #ef7612);
+    color: var(--color-accent-btn-text, #fff);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  }
+  .hv-btn--accent:hover { background: var(--color-accent-hover, #d46610); transform: translateY(-2px); }
+  .hv-btn--outline {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+    border: 1.5px solid rgba(255, 255, 255, 0.6);
+  }
+  .hv-btn--outline:hover { background: rgba(255, 255, 255, 0.18); transform: translateY(-2px); }
+
+  .hero-usps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.75rem;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  .hero-usp-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.92);
+  }
+  .usp-icon { font-size: 1.125rem; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-video-bg { display: none; }
+    .hv-btn { transition: none; }
+  }
+</style>
