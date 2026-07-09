@@ -6,6 +6,7 @@
 //   const { buffer, ext } = await renderOg(cta({ claim: 'Ihr Elektriker in Regensburg.', rating: '4,9', domain: 'elektro-mueller.de' }));
 //   writeFileSync(`public/og/default.${ext}`, buffer);
 export { renderOg } from './engine.mjs';
+export { featherLeft } from './photo.mjs';
 export { loadFonts } from './fonts.mjs';
 export { h } from './h.mjs';
 export { BRAND, trustBadge, dataUri } from './brand.mjs';

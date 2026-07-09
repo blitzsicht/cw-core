@@ -14,6 +14,16 @@ export function dataUri(buffer, mime = 'image/svg+xml') {
   return `data:${mime};base64,${Buffer.from(buffer).toString('base64')}`;
 }
 
+/** Hex (#RGB/#RRGGBB) → rgba()-String mit gegebenem Alpha (für weiche Farb-Verläufe). */
+export function hexToRgba(hex, alpha = 1) {
+  let h = String(hex).replace('#', '');
+  if (h.length === 3) h = h.split('').map((c) => c + c).join('');
+  const r = parseInt(h.slice(0, 2), 16) || 0;
+  const g = parseInt(h.slice(2, 4), 16) || 0;
+  const b = parseInt(h.slice(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 /**
  * Logo-<img> mit korrektem Seitenverhältnis (nicht gequetscht).
  * Liest bei SVG das viewBox-Verhältnis, fixiert die HÖHE und berechnet die Breite.
@@ -31,6 +41,10 @@ export function logoImg(buffer, mime = 'image/svg+xml', height = 48) {
       const w = parseFloat(vb[1]), hh = parseFloat(vb[2]);
       if (w > 0 && hh > 0) ratio = w / hh;
     }
+  } else if (buffer.length > 24 && buffer[0] === 0x89 && buffer[1] === 0x50) {
+    // PNG: IHDR width@16 / height@20 (big-endian)
+    const w = buffer.readUInt32BE(16), hh = buffer.readUInt32BE(20);
+    if (w > 0 && hh > 0) ratio = w / hh;
   }
   return h('img', {
     src: dataUri(buffer, mime),
