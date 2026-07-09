@@ -5,6 +5,66 @@ So wird auf jeder Seite immer ein visuell ansprechendes Bild ausgeliefert — oh
 
 > **Verfuegbarkeit:** Verfuegbar auf `release/cw-core` (portiert von PR #12 via Issue #27) und `main`.
 
+---
+
+## OG-Studio v3 (`@cw/core/og`) — scharfe, brand-treue, CTA-fähige Templates
+
+Der bevorzugte Weg seit v0.57.0. Statt handgebautem SVG→sharp (System-Fallback-Schrift, flach)
+rendert **Satori** (Layout + eingebettete Brand-Fonts → SVG mit Text als Vektorpfaden), das
+bereits vorhandene **sharp** rastert mit 2×-Supersampling. Ergebnis: gestochen scharfe Typo,
+Ziel-Dateigröße < 300 KB (SISTRIX), automatischer JPG-Fallback bei Foto-Templates.
+
+**Dependencies im Consumer:** `pnpm add -D satori sharp` (beide optionale peerDependencies von cw-core).
+
+**Templates:**
+
+| Template | Für wen | Inhalt |
+|----------|---------|--------|
+| `cta` | **Cluster-Default** (alle Customer) | Nutzen-Claim + Ortsbezug, Trust-Signal (★-Google-Bewertung / Ort), Domain-Wortmarke, Logo |
+| `hero` | **Cluster-Default** | Foto-Composite (Gesicht = Vertrauen) + Gradient-Overlay + Claim + Trust-Signal |
+| `proof` | **nur Blitzsicht / Agentur** | Live-PageSpeed-Ringe aus `psi-live.json` + Claim (Ehrlichkeits-Beweis) |
+
+### CLI (Onboarding)
+
+```bash
+# Cluster-Default für einen neuen Customer:
+pnpm generate:og --template cta \
+  --name "Elektro Müller" \
+  --claim "Ihr Elektriker in Regensburg." \
+  --subline "Schnell erreichbar · Festpreis · Meisterbetrieb" \
+  --domain "elektro-mueller.de" \
+  --rating "4,9" --ort "Regensburg" \
+  --logo public/logo-inverted.svg \
+  --out public/og/default.png
+
+# Foto-Composite:
+pnpm generate:og --template hero --photo public/images/hero/team.webp \
+  --claim "Ihr Malerbetrieb in Regensburg." --domain "maler.de" --rating "4,8" \
+  --logo public/logo-inverted.svg --out public/og/default.png
+```
+
+### Programmatisch (prebuild-Script, z. B. Live-Scores)
+
+```js
+import { renderOg, proof } from '@cw/core/og';
+import { readFileSync, writeFileSync } from 'node:fs';
+
+const psi = JSON.parse(readFileSync('src/data/psi-live.json', 'utf-8'));
+const site = psi.sites.find((s) => s.slug === 'blitzsicht');
+const { buffer } = await renderOg(proof({ site }), { maxBytes: Infinity }); // immer PNG
+writeFileSync('public/og/home.png', buffer);
+```
+
+`renderOg(element, { width=1200, height=630, supersample=2, maxBytes=307200 })` →
+`{ buffer, ext: 'png'|'jpg', width, height, bytes }`. Brand-Farben pro Customer via
+`{ brand: { primary, accent } }` an jedes Template.
+
+---
+
+## Legacy (v2) — Sharp-Compositing
+
+Die folgenden Modi (`--from-hero`, `--from-dir`, Text-OG) bleiben für Rückwärtskompatibilität erhalten.
+
 ## Fallback-Chain (Prioritaet hoch → niedrig)
 
 | Level | Quelle | Wann aktiv |

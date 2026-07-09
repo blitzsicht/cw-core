@@ -86,6 +86,65 @@ const logoPath = args.logo || null;
 const ctaText = args.cta || null;
 const accent = args.accent || '#EF7612';
 
+// ─── Mode: OG-Studio v3 — Satori-Templates (scharf, brand-treu, CTA-fähig) ────
+// Neuer bevorzugter Weg. Legacy-Modi (--from-hero/--from-dir/Text) bleiben erhalten.
+//   node scripts/generate-og.mjs --template cta \
+//     --name "Elektro Müller" --claim "Ihr Elektriker in Regensburg." \
+//     --subline "Schnell erreichbar · Festpreis · Meisterbetrieb" \
+//     --domain "elektro-mueller.de" --rating "4,9" --ort "Regensburg" \
+//     --logo public/logo-inverted.svg --out public/og/default.png
+if (args.template) {
+  await runTemplateMode(args);
+  process.exit(0);
+}
+
+async function runTemplateMode(a) {
+  const { writeFileSync, mkdirSync } = await import('fs');
+  let mod;
+  try {
+    // aus dem Consumer-node_modules auflösen (wie sharp oben)
+    mod = await import(require.resolve('@cw/core/og'));
+  } catch {
+    try {
+      mod = await import('@cw/core/og');
+    } catch {
+      console.error("✗ '@cw/core/og' nicht auflösbar — cw-core muss verlinkt/installiert sein.");
+      process.exit(1);
+    }
+  }
+  const { renderOg, cta, proof, hero } = mod;
+  const brand = (a.primary || a.accent)
+    ? { primary: a.primary || '#1D1E3B', accent: a.accent || '#EF7612', primaryLight: a['primary-light'] || '#2a2c55', star: '#ffc531' }
+    : undefined;
+  const logo = a.logo && existsSync(a.logo) ? readFileSync(a.logo) : undefined;
+  const logoMime = a.logo && a.logo.toLowerCase().endsWith('.png') ? 'image/png' : 'image/svg+xml';
+
+  let element;
+  if (a.template === 'cta') {
+    element = cta({ eyebrow: a.eyebrow || (a.name ? a.name.toUpperCase() : undefined), claim: a.claim || a.tagline,
+      subline: a.subline, domain: a.domain, rating: a.rating, ort: a.ort, logo, logoMime, brand });
+  } else if (a.template === 'hero') {
+    if (!a.photo || !existsSync(a.photo)) { console.error('✗ --template hero benötigt --photo <bild>'); process.exit(1); }
+    const photo = readFileSync(a.photo);
+    const photoMime = a.photo.toLowerCase().endsWith('.png') ? 'image/png' : a.photo.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+    element = hero({ photo, photoMime, claim: a.claim || a.tagline, subline: a.subline, domain: a.domain, rating: a.rating, ort: a.ort, logo, logoMime, brand });
+  } else if (a.template === 'proof') {
+    if (!a.psi || !existsSync(a.psi)) { console.error('✗ --template proof benötigt --psi <psi-live.json> --slug <slug>'); process.exit(1); }
+    const psi = JSON.parse(readFileSync(a.psi, 'utf-8'));
+    const site = (psi.sites || []).find((s) => s.slug === a.slug) || psi;
+    element = proof({ site, brand });
+  } else {
+    console.error(`✗ Unbekanntes --template "${a.template}" (erlaubt: cta | hero | proof)`);
+    process.exit(1);
+  }
+
+  const { buffer, ext, bytes } = await renderOg(element);
+  let out = a.out || `public/og/default.${ext}`;
+  mkdirSync(dirname(out), { recursive: true });
+  writeFileSync(out, buffer);
+  console.log(`✓ ${out} (${Math.round(bytes / 1024)} KB, Template ${a.template})`);
+}
+
 // ─── Mode: Batch hero → OG ───────────────────────────────────────────────────
 if (args['from-dir']) {
   const heroDir = args['from-dir'];

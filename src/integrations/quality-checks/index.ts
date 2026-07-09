@@ -47,15 +47,51 @@ export interface QualityChecksOptions {
   requireSingleH1?: boolean;
   /** Default true. Prüft AnswerBlock auf Service-Pages. */
   requireAnswerBlock?: boolean;
+  /** Default true. Prüft og:image auf Existenz, 1200×630 und < maxOgBytes (SISTRIX-Specs). */
+  requireValidOgImage?: boolean;
+  /** Default 307200 (300 KB). Zielgröße-Obergrenze für og:image. */
+  maxOgBytes?: number;
   /** Default ['/404', '/danke', '/impressum', '/datenschutz']. Exclude paths from h1-check. */
   ignorePaths?: string[];
 }
 
 type Issue = {
   page: string;
-  type: 'h1_missing' | 'h1_multiple' | 'answer_block_missing';
+  type: 'h1_missing' | 'h1_multiple' | 'answer_block_missing'
+    | 'og_image_missing' | 'og_image_oversize' | 'og_image_wrong_dims';
   details: string;
 };
+
+/** og:image-URL aus dem HTML ziehen (erstes Vorkommen). */
+function extractOgImage(html: string): string | null {
+  const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  return m ? m[1] : null;
+}
+
+/**
+ * Bild-Dimensionen aus dem Datei-Header lesen — ohne sharp.
+ * Unterstützt PNG (IHDR) und JPEG (SOF-Marker). null bei Unbekannt.
+ */
+function imageDimensions(buf: Buffer): { width: number; height: number; format: 'png' | 'jpg' } | null {
+  // PNG: Signatur 89 50 4E 47, IHDR width@16 height@20 (big-endian)
+  if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20), format: 'png' };
+  }
+  // JPEG: FF D8 ... SOF0/1/2 (FF C0/C1/C2) → height@+5, width@+7
+  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
+    let off = 2;
+    while (off + 9 < buf.length) {
+      if (buf[off] !== 0xff) { off++; continue; }
+      const marker = buf[off + 1];
+      if (marker >= 0xc0 && marker <= 0xc3) {
+        return { height: buf.readUInt16BE(off + 5), width: buf.readUInt16BE(off + 7), format: 'jpg' };
+      }
+      off += 2 + buf.readUInt16BE(off + 2);
+    }
+  }
+  return null;
+}
 
 function walkHtml(dir: string, baseDir: string, results: string[] = []): string[] {
   if (!existsSync(dir)) return results;
@@ -96,8 +132,13 @@ export default function qualityChecks(opts: QualityChecksOptions = {}): AstroInt
     strict = false,
     requireSingleH1 = true,
     requireAnswerBlock = true,
+    requireValidOgImage = true,
+    maxOgBytes = 300 * 1024,
     ignorePaths = ['/404', '/danke/', '/impressum/', '/datenschutz/', '/agb/'],
   } = opts;
+
+  // og:image-Dateien nur einmal prüfen (viele Pages teilen dasselbe Bild).
+  const checkedOg = new Set<string>();
 
   return {
     name: '@cw/core/quality-checks',
@@ -151,6 +192,35 @@ export default function qualityChecks(opts: QualityChecksOptions = {}): AstroInt
               });
             }
           }
+
+          // og:image-Validität (SISTRIX-Specs: 1200×630, < 300 KB, png/jpg)
+          if (requireValidOgImage) {
+            const ogUrl = extractOgImage(html);
+            if (ogUrl) {
+              let ogPath: string;
+              try {
+                ogPath = new URL(ogUrl).pathname; // absolute URL → Pfad
+              } catch {
+                ogPath = ogUrl.startsWith('/') ? ogUrl : `/${ogUrl}`;
+              }
+              if (!checkedOg.has(ogPath)) {
+                checkedOg.add(ogPath);
+                const file = join(distDir, ogPath);
+                if (!existsSync(file)) {
+                  issues.push({ page: pagePath, type: 'og_image_missing', details: `og:image nicht im dist/: ${ogPath}` });
+                } else {
+                  const buf = readFileSync(file);
+                  if (buf.length > maxOgBytes) {
+                    issues.push({ page: pagePath, type: 'og_image_oversize', details: `${ogPath} ist ${Math.round(buf.length / 1024)} KB (> ${Math.round(maxOgBytes / 1024)} KB).` });
+                  }
+                  const dim = imageDimensions(buf);
+                  if (dim && (dim.width !== 1200 || dim.height !== 630)) {
+                    issues.push({ page: pagePath, type: 'og_image_wrong_dims', details: `${ogPath} ist ${dim.width}×${dim.height} (Soll 1200×630).` });
+                  }
+                }
+              }
+            }
+          }
         }
 
         if (issues.length === 0) {
@@ -163,6 +233,7 @@ export default function qualityChecks(opts: QualityChecksOptions = {}): AstroInt
           h1_missing: issues.filter((i) => i.type === 'h1_missing'),
           h1_multiple: issues.filter((i) => i.type === 'h1_multiple'),
           answer_block_missing: issues.filter((i) => i.type === 'answer_block_missing'),
+          og_image: issues.filter((i) => i.type.startsWith('og_image')),
         };
 
         logger.warn(`[quality-checks] ${issues.length} Quality-Issues in ${htmlFiles.length} Pages:`);
@@ -174,6 +245,9 @@ export default function qualityChecks(opts: QualityChecksOptions = {}): AstroInt
         }
         if (grouped.answer_block_missing.length > 0) {
           logger.warn(`  · ${grouped.answer_block_missing.length}× AnswerBlock missing: ${grouped.answer_block_missing.map((i) => i.page).join(', ')}`);
+        }
+        if (grouped.og_image.length > 0) {
+          logger.warn(`  · ${grouped.og_image.length}× og:image-Problem: ${grouped.og_image.map((i) => i.details).join(' | ')}`);
         }
 
         if (strict) {
