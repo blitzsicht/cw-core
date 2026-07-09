@@ -28,7 +28,33 @@ const { sitekey } = Astro.props;
 ---
 {sitekey && (
   <>
-    <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+    <link rel="preconnect" href="https://challenges.cloudflare.com" />
+    <script is:inline>
+      // Turnstile deferred (Speed-Rollout 2026-07-09): Pre-Clearance braucht
+      // keinen Platz im Startup-Critical-Path — api.js (~100–200 KB) erst
+      // nach window.load + idle. Das cf_clearance-Cookie kommt so 1–2 s
+      // später, der Bot-Fight-Mode-Schutz bleibt erhalten. Dedup über
+      // window.__cwTsLoad (geteilt mit ContactForm-Lazy-Load).
+      (function () {
+        var w = window;
+        var load = (w.__cwTsLoad =
+          w.__cwTsLoad ||
+          function () {
+            if (load.done) return;
+            load.done = true;
+            var s = document.createElement('script');
+            s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+            s.async = true;
+            document.head.appendChild(s);
+          });
+        var idle = function () {
+          if ('requestIdleCallback' in w) requestIdleCallback(load, { timeout: 2000 });
+          else setTimeout(load, 1500);
+        };
+        if (document.readyState === 'complete') idle();
+        else w.addEventListener('load', idle, { once: true });
+      })();
+    </script>
     <div
       class="cf-turnstile cf-turnstile-preclearance"
       data-sitekey={sitekey}

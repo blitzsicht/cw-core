@@ -225,7 +225,51 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
 )}
 
 {turnstileSiteKey && (
-  <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <>
+    <link rel="preconnect" href="https://challenges.cloudflare.com" />
+    <script is:inline>
+      // Turnstile lazy-load (Speed-Rollout 2026-07-09): api.js + Challenge-
+      // Assets (~100–200 KB) erst laden, wenn das Formular in Viewport-Nähe
+      // kommt oder fokussiert wird — nicht im Startup-Critical-Path.
+      // api.js scannt beim Laden alle .cf-turnstile-Container (implicit
+      // rendering), spätes Injecten ist daher sicher. Dedup über
+      // window.__cwTsLoad (geteilt mit TurnstilePreClearance).
+      (function () {
+        var w = window;
+        var load = (w.__cwTsLoad =
+          w.__cwTsLoad ||
+          function () {
+            if (load.done) return;
+            load.done = true;
+            var s = document.createElement('script');
+            s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+            s.async = true;
+            document.head.appendChild(s);
+          });
+        var el = document.querySelector('.cf-turnstile');
+        if (!el) return;
+        var form = el.closest('form');
+        if (form) form.addEventListener('focusin', load, { once: true });
+        if ('IntersectionObserver' in w) {
+          var io = new IntersectionObserver(
+            function (entries) {
+              for (var i = 0; i < entries.length; i++) {
+                if (entries[i].isIntersecting) {
+                  load();
+                  io.disconnect();
+                  return;
+                }
+              }
+            },
+            { rootMargin: '600px' },
+          );
+          io.observe(el);
+        } else {
+          load();
+        }
+      })();
+    </script>
+  </>
 )}
 
 <script>
