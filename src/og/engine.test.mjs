@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { renderOg, cta, proof, hero } from './index.mjs';
+import { renderOg, cta, offer, proof, hero } from './index.mjs';
 
 const require = createRequire(import.meta.url);
 const sharp = require('sharp');
@@ -27,6 +27,23 @@ test('cta: rendert 1200×630 PNG unter 300 KB', async () => {
   assert.equal(meta.width, 1200);
   assert.equal(meta.height, 630);
   assert.equal(meta.format, 'png');
+});
+
+test('offer: rendert Ad-Layout 1200×630 mit Bullets + Chip', async () => {
+  const { buffer, ext } = await renderOg(offer({
+    eyebrow: 'WEBDESIGN AUS REGENSBURG',
+    headline: ['Ihre Firmen-Website.', 'In 7 Werktagen live.'],
+    bullets: ['Ohne Cookie-Banner', 'Code gehört Ihnen', 'Fester Ansprechpartner'],
+    ctaText: 'Kostenloser Website-Check', domain: 'blitzsicht.com', proofChip: '100/100 Google PageSpeed',
+  }));
+  const meta = await sharp(buffer).metadata();
+  assert.equal(meta.width, 1200);
+  assert.equal(meta.height, 630);
+  assert.equal(ext, 'png');
+});
+
+test('offer: fehlende headline → Fehler', () => {
+  assert.throws(() => offer({ bullets: ['x'] }), /headline.*erforderlich/);
 });
 
 test('proof: rendert mit Live-Scores', async () => {

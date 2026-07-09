@@ -15,6 +15,32 @@ export function dataUri(buffer, mime = 'image/svg+xml') {
 }
 
 /**
+ * Logo-<img> mit korrektem Seitenverhältnis (nicht gequetscht).
+ * Liest bei SVG das viewBox-Verhältnis, fixiert die HÖHE und berechnet die Breite.
+ * @param {Buffer} buffer  Logo (SVG bevorzugt; PNG → quadratisch angenommen)
+ * @param {string} mime
+ * @param {number} height  Ziel-Höhe in px
+ * @returns {object} Satori-<img>-Element
+ */
+export function logoImg(buffer, mime = 'image/svg+xml', height = 48) {
+  let ratio = 1; // Breite/Höhe
+  if (mime.includes('svg')) {
+    const svg = buffer.toString('utf-8');
+    const vb = svg.match(/viewBox\s*=\s*["']\s*[\d.]+\s+[\d.]+\s+([\d.]+)\s+([\d.]+)/i);
+    if (vb) {
+      const w = parseFloat(vb[1]), hh = parseFloat(vb[2]);
+      if (w > 0 && hh > 0) ratio = w / hh;
+    }
+  }
+  return h('img', {
+    src: dataUri(buffer, mime),
+    width: Math.round(height * ratio),
+    height,
+    style: { objectFit: 'contain' },
+  });
+}
+
+/**
  * Trust-Signal statt Pseudo-Button: ★-Google-Bewertung und/oder Ortsband.
  * @param {object} o
  * @param {string} [o.rating]   z. B. "4,9"

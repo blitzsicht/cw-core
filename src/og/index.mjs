@@ -10,5 +10,6 @@ export { loadFonts } from './fonts.mjs';
 export { h } from './h.mjs';
 export { BRAND, trustBadge, dataUri } from './brand.mjs';
 export { cta } from './templates/cta.mjs';
+export { offer } from './templates/offer.mjs';
 export { proof } from './templates/proof.mjs';
 export { hero } from './templates/hero.mjs';

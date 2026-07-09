@@ -20,9 +20,21 @@ Ziel-Dateigröße < 300 KB (SISTRIX), automatischer JPG-Fallback bei Foto-Templa
 
 | Template | Für wen | Inhalt |
 |----------|---------|--------|
-| `cta` | **Cluster-Default** (alle Customer) | Nutzen-Claim + Ortsbezug, Trust-Signal (★-Google-Bewertung / Ort), Domain-Wortmarke, Logo |
-| `hero` | **Cluster-Default** | Foto-Composite (Gesicht = Vertrauen) + Gradient-Overlay + Claim + Trust-Signal |
-| `proof` | **nur Blitzsicht / Agentur** | Live-PageSpeed-Ringe aus `psi-live.json` + Claim (Ehrlichkeits-Beweis) |
+| `offer` | **Cluster-Default (Homepage)** | Ad-Stil: Angebot (Headline) + 3 Benefit-Bullets + Grund-zu-klicken (CTA + Domain) + optionaler Trust-Chip. Betrachter-zentriert — „Was kriege ich? Warum klicke ich?" |
+| `cta` | Cluster-Default (einfach) | Nutzen-Claim + Ortsbezug, Trust-Signal (★-Google-Bewertung / Ort), Domain-Wortmarke, Logo |
+| `hero` | Cluster-Default (mit Foto) | Foto-Composite (Gesicht = Vertrauen) + Gradient-Overlay + Claim + Trust-Signal |
+| `proof` | **nur Blitzsicht / Agentur** | Live-PageSpeed-Ringe aus `psi-live.json` + Claim (Ehrlichkeits-Beweis). Kein Homepage-Share-Bild. |
+
+`offer`-Beispiel:
+```bash
+pnpm generate:og --template offer \
+  --eyebrow "WEBDESIGN AUS REGENSBURG" \
+  --headline "Ihre Firmen-Website.|In 7 Werktagen live." \
+  --bullets "Ohne Cookie-Banner|Code gehört Ihnen|Fester Ansprechpartner" \
+  --cta "Kostenloser Website-Check" --domain "blitzsicht.com" \
+  --proofchip "100/100 Google PageSpeed" \
+  --logo public/logo-inverted.svg --out public/og/home.png
+```
 
 ### CLI (Onboarding)
 

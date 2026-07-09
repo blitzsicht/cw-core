@@ -5,7 +5,7 @@
 // Das Foto als Buffer übergeben (idealerweise vom Aufrufer schon auf ~1200×630
 // zugeschnitten); objectFit:cover fängt Abweichungen ab.
 import { h } from '../h.mjs';
-import { BRAND, dataUri, trustBadge } from '../brand.mjs';
+import { BRAND, dataUri, logoImg, trustBadge } from '../brand.mjs';
 
 /**
  * @param {object} o
@@ -44,7 +44,7 @@ export function hero(o = {}) {
     h('div', {
       style: { position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '60px 68px' },
     },
-      o.logo && h('img', { src: dataUri(o.logo, o.logoMime ?? 'image/svg+xml'), width: 52, height: 52 }),
+      o.logo && logoImg(o.logo, o.logoMime ?? 'image/svg+xml', 50),
       h('div', { style: { display: 'flex', flexDirection: 'column' } },
         h('div', { style: { display: 'flex', fontFamily: 'Jakarta', fontWeight: 800, fontSize: 72, color: 'white', lineHeight: 1.05 } }, o.claim),
         o.subline && h('div', { style: { display: 'flex', marginTop: 18, fontSize: 28, color: 'rgba(255,255,255,0.82)' } }, o.subline),

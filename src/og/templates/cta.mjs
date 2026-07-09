@@ -2,7 +2,7 @@
 // Nutzenversprechen + Ortsbezug groß, Trust-Signal (★-Bewertung / Ort) statt
 // Pseudo-Button, Domain als dezente Wortmarke, optional Logo.
 import { h } from '../h.mjs';
-import { BRAND, dataUri, trustBadge } from '../brand.mjs';
+import { BRAND, logoImg, trustBadge } from '../brand.mjs';
 
 /**
  * @param {object} o
@@ -31,7 +31,7 @@ export function cta(o = {}) {
   },
     // Kopf: Logo + Eyebrow
     h('div', { style: { display: 'flex', alignItems: 'center', gap: '18px' } },
-      o.logo && h('img', { src: dataUri(o.logo, o.logoMime ?? 'image/svg+xml'), width: 52, height: 52 }),
+      o.logo && logoImg(o.logo, o.logoMime ?? 'image/svg+xml', 50),
       o.eyebrow && h('div', {
         style: { display: 'flex', fontSize: 21, fontWeight: 600, letterSpacing: 3, color: brand.accent },
       }, o.eyebrow),

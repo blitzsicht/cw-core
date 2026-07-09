@@ -112,7 +112,8 @@ async function runTemplateMode(a) {
       process.exit(1);
     }
   }
-  const { renderOg, cta, proof, hero } = mod;
+  const { renderOg, cta, offer, proof, hero } = mod;
+  const splitList = (v) => (v ? String(v).split('|').map((s) => s.trim()).filter(Boolean) : []);
   const brand = (a.primary || a.accent)
     ? { primary: a.primary || '#1D1E3B', accent: a.accent || '#EF7612', primaryLight: a['primary-light'] || '#2a2c55', star: '#ffc531' }
     : undefined;
@@ -123,6 +124,11 @@ async function runTemplateMode(a) {
   if (a.template === 'cta') {
     element = cta({ eyebrow: a.eyebrow || (a.name ? a.name.toUpperCase() : undefined), claim: a.claim || a.tagline,
       subline: a.subline, domain: a.domain, rating: a.rating, ort: a.ort, logo, logoMime, brand });
+  } else if (a.template === 'offer') {
+    // Werbe-Stil: --headline "Zeile 1|Zeile 2" --bullets "a|b|c" --cta "..." --domain --proofchip
+    element = offer({ eyebrow: a.eyebrow || (a.name ? a.name.toUpperCase() : undefined),
+      headline: splitList(a.headline || a.claim || a.tagline), bullets: splitList(a.bullets),
+      ctaText: a.cta || a.ctaText, domain: a.domain, proofChip: a.proofchip, logo, logoMime, brand });
   } else if (a.template === 'hero') {
     if (!a.photo || !existsSync(a.photo)) { console.error('✗ --template hero benötigt --photo <bild>'); process.exit(1); }
     const photo = readFileSync(a.photo);
@@ -134,7 +140,7 @@ async function runTemplateMode(a) {
     const site = (psi.sites || []).find((s) => s.slug === a.slug) || psi;
     element = proof({ site, brand });
   } else {
-    console.error(`✗ Unbekanntes --template "${a.template}" (erlaubt: cta | hero | proof)`);
+    console.error(`✗ Unbekanntes --template "${a.template}" (erlaubt: offer | cta | hero | proof)`);
     process.exit(1);
   }
 
