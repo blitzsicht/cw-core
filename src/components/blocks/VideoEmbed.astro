@@ -2,31 +2,31 @@
 /**
  * @cw/core – VideoEmbed.astro
  *
- * DSGVO-konformer YouTube-Lite-Embed (Facade-Pattern):
- * Vor dem Klick wird NUR ein selbst-gehostetes Posterbild + Play-Button
- * gerendert — KEIN Request an Google/YouTube, KEIN Cookie. Erst beim Klick
- * wird das `<iframe>` von `youtube-nocookie.com` nachgeladen (autoplay).
+ * DSGVO-konformer Video-Block mit zwei Modi:
  *
- * Voraussetzung CSP: `frame-src https://www.youtube-nocookie.com` muss im
- * Vercel-CSP-Header stehen (siehe templates/vercel.template.json).
+ * 1. **YouTube-Facade** (`youtubeId`): Vor dem Klick nur Posterbild + Play-Button —
+ *    KEIN Request an Google, KEIN Cookie. Erst beim Klick wird das `<iframe>` von
+ *    `youtube-nocookie.com` nachgeladen. CSP-Voraussetzung: `frame-src https://www.youtube-nocookie.com`.
+ * 2. **Self-hosted** (`src`): natives `<video controls preload="none" poster>` mit lokaler
+ *    MP4-Quelle — KEIN Dritt-Request, kein iframe, nur `media-src 'self'` nötig. Mit Ton.
  *
- * Kein Autoplay, kein Hero-Einsatz (LCP/Fold-Kollision) — Blueprint v2.2:
- * Video gehört in „Lösung/Prozess" oder „Proof", click-to-play, Posterbild.
+ * Genau EINES von `youtubeId` / `src` angeben. Kein Autoplay, kein Hero-Einsatz
+ * (Blueprint v2.2: Video gehört in „Lösung/Prozess" oder „Proof", click-to-play).
  *
- * @example
- *   <VideoEmbed
- *     youtubeId="airgjR6JN0Y"
- *     title="Donau-Profi — Erklärvideo"
- *     poster="/video/erklaervideo-poster.webp"
- *     heading="Lernen Sie uns kennen"
- *   />
+ * @example YouTube-Facade
+ *   <VideoEmbed youtubeId="airgjR6JN0Y" title="Erklärvideo" poster="/videos/poster.webp" heading="Lernen Sie uns kennen" />
+ *
+ * @example Self-hosted (mit Ton)
+ *   <VideoEmbed src="/videos/erklaervideo.mp4" title="Erklärvideo" poster="/videos/erklaervideo-poster.webp" heading="So arbeiten wir" />
  */
 interface Props {
-  /** YouTube-Video-ID (der Teil nach `watch?v=` bzw. `/embed/`). */
-  youtubeId: string;
+  /** YouTube-Video-ID (Facade-Modus). Genau eines von youtubeId/src. */
+  youtubeId?: string;
+  /** Pfad zur selbst-gehosteten MP4-Datei (nativer `<video>`-Modus). Genau eines von youtubeId/src. */
+  src?: string;
   /** Zugänglicher Titel des Videos (aria-label / iframe title). */
   title: string;
-  /** Pfad zum selbst-gehosteten Posterbild (z.B. `/video/poster.webp`). */
+  /** Pfad zum selbst-gehosteten Posterbild (z.B. `/videos/poster.webp`). */
   poster: string;
   /** Optionale Sektions-Überschrift. */
   heading?: string;
@@ -34,7 +34,7 @@ interface Props {
   sub?: string;
 }
 
-const { youtubeId, title, poster, heading, sub } = Astro.props;
+const { youtubeId, src, title, poster, heading, sub } = Astro.props;
 ---
 <section class="video-embed">
   <div class="container">
@@ -46,21 +46,27 @@ const { youtubeId, title, poster, heading, sub } = Astro.props;
     )}
 
     <div class="video-frame">
-      <button
-        type="button"
-        class="video-facade"
-        data-youtube-id={youtubeId}
-        data-title={title}
-        aria-label={`Video abspielen: ${title}`}
-      >
-        <img class="video-poster" src={poster} alt={title} loading="lazy" decoding="async" width="1280" height="720" />
-        <span class="video-play" aria-hidden="true">
-          <svg viewBox="0 0 68 48" width="68" height="48">
-            <path class="video-play-bg" d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55c-2.93.78-4.63 3.26-5.42 6.19C.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z"/>
-            <path d="M45 24 27 14v20" fill="#fff"/>
-          </svg>
-        </span>
-      </button>
+      {src ? (
+        <video class="video-native" controls preload="none" playsinline poster={poster} width="1280" height="720">
+          <source src={src} type="video/mp4" />
+        </video>
+      ) : (
+        <button
+          type="button"
+          class="video-facade"
+          data-youtube-id={youtubeId}
+          data-title={title}
+          aria-label={`Video abspielen: ${title}`}
+        >
+          <img class="video-poster" src={poster} alt={title} loading="lazy" decoding="async" width="1280" height="720" />
+          <span class="video-play" aria-hidden="true">
+            <svg viewBox="0 0 68 48" width="68" height="48">
+              <path class="video-play-bg" d="M66.52 7.74c-.78-2.93-2.49-5.41-5.42-6.19C55.79.13 34 0 34 0S12.21.13 6.9 1.55c-2.93.78-4.63 3.26-5.42 6.19C.06 13.05 0 24 0 24s.06 10.95 1.48 16.26c.78 2.93 2.49 5.41 5.42 6.19C12.21 47.87 34 48 34 48s21.79-.13 27.1-1.55c2.93-.78 4.64-3.26 5.42-6.19C67.94 34.95 68 24 68 24s-.06-10.95-1.48-16.26z"/>
+              <path d="M45 24 27 14v20" fill="#fff"/>
+            </svg>
+          </span>
+        </button>
+      )}
     </div>
   </div>
 </section>
@@ -154,6 +160,15 @@ const { youtubeId, title, poster, heading, sub } = Astro.props;
   .video-facade:focus-visible .video-play-bg {
     fill: #ff0000;
     fill-opacity: 1;
+  }
+  .video-native {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #000;
+    border: 0;
   }
   .video-iframe {
     position: absolute;
