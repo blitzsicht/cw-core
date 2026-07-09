@@ -76,31 +76,30 @@ export function offer(o = {}) {
     ),
   );
 
-  const bg = `linear-gradient(135deg, ${brand.primary} 0%, ${brand.primaryLight} 100%)`;
+  const gradientBg = `linear-gradient(135deg, ${brand.primary} 0%, ${brand.primaryLight} 100%)`;
 
-  // Logo-Fallback: kein Foto → Marken-Logo groß im rechten Panel (nie leere Fläche).
+  // Logo-Fallback: kein Foto → Marken-Logo groß rechts. EINFARBIGER Hintergrund
+  // (Marken-Primary), KEIN Verlauf, KEIN Panel-Tint → der Logo-Bereich hat exakt
+  // dieselbe Fläche/Farbe wie die Textseite.
   if (logoPanel) {
-    return h('div', { style: { position: 'relative', width: '100%', height: '100%', display: 'flex', backgroundImage: bg, fontFamily: 'Inter' } },
+    return h('div', { style: { position: 'relative', width: '100%', height: '100%', display: 'flex', backgroundColor: brand.primary, fontFamily: 'Inter' } },
       h('div', {
-        style: {
-          position: 'absolute', top: 0, right: 0, width: panelW, height: 630, display: 'flex',
-          alignItems: 'center', justifyContent: 'center',
-          backgroundColor: 'rgba(255,255,255,0.05)', borderLeft: '1px solid rgba(255,255,255,0.10)',
-        },
-      }, logoImgFit(o.logo, o.logoMime ?? 'image/svg+xml', panelW - 96, 210)),
+        style: { position: 'absolute', top: 0, right: 0, width: panelW, height: 630, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      }, logoImgFit(o.logo, o.logoMime ?? 'image/svg+xml', panelW - 96, 320)),
       content,
     );
   }
 
   if (!hasPhoto) {
-    return h('div', { style: { width: '100%', height: '100%', display: 'flex', backgroundImage: bg, fontFamily: 'Inter' } }, content);
+    // Text-only: ebenfalls einfarbig (gleiche Fläche wie Logo-Fallback).
+    return h('div', { style: { width: '100%', height: '100%', display: 'flex', backgroundColor: brand.primary, fontFamily: 'Inter' } }, content);
   }
 
   // Split-Layout: Foto rechts. Der weiche Links-Übergang steckt als Alpha-Feather
   // IM Foto (featherLeft() aus photo.mjs) — KEIN Farb-Wash übers Gesicht. Das
   // Foto-Alpha blendet über die Hintergrund-Fläche → nahtlos, farbecht, Gesicht
-  // bleibt rechts voll erhalten. Foto muss RGBA (PNG) sein.
-  return h('div', { style: { position: 'relative', width: '100%', height: '100%', display: 'flex', backgroundImage: bg, fontFamily: 'Inter' } },
+  // bleibt rechts voll erhalten. Foto muss RGBA (PNG) sein. Verlauf hier ok (Foto deckt).
+  return h('div', { style: { position: 'relative', width: '100%', height: '100%', display: 'flex', backgroundImage: gradientBg, fontFamily: 'Inter' } },
     h('img', {
       src: dataUri(o.photo, o.photoMime ?? 'image/png'), width: photoW, height: 630,
       style: { position: 'absolute', top: 0, right: 0, width: photoW, height: 630 },
