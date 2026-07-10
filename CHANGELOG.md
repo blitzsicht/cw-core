@@ -22,6 +22,26 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.65.0 (2026-07-10)
+
+- [kunde:sichtbar] Die Website lädt schneller: Bilder werden im Browser zwischengespeichert, Folgeseiten laden im Hintergrund vor, und Seitenwechsel sind jetzt sanft animiert.
+
+**Feature (Perf):** Speed-Rollout — Build-time-Perf-Guards, Turnstile-Lazy-Load, View Transitions zentral, Performance-Standard-Templates.
+
+Kontext: Cluster-Audit 2026-07-09 fand: keine einzige Customer-`vercel.json` hatte Cache-Control-Header (alle public/-Assets gingen mit `max-age=0` zum Browser; nur `/_astro/*` ist via Vercel-Preset immutable), kein Astro-Prefetch, `inlineStylesheets: 'always'` nur bei blitzsicht (~720 ms gemessen), Turnstile-`api.js` (~100–200 KB) im Startup-Critical-Path jeder Formular-Seite, tote Font-Referenzen ohne `@font-face`. Nach der #1-Regel als wiederverwendbare Guards + Templates codifiziert. Rationale-SSOT: `docs/caching-rationale.md` (u. a.: Vercel IST das CDN — kein Cloudflare-Proxy davor; kein `immutable` auf public/-Pfaden; SWR wird von Vercels Proxy konsumiert).
+
+Neue Konzepte/APIs:
+
+- `ai-discovery` Cache-Header-Linter (`cache-header-check.js`): warnt bei fehlender Cache-Control für public/-Assets, `immutable` außerhalb `/_astro/`, `no-store` auf Assets. Optionen `checkCacheHeaders`/`strictCacheHeaders` (Default: an / Soft-Warn).
+- `ai-discovery` Perf-Linter (`perf-check.js`): render-blockendes `<link rel="stylesheet">` auf `/_astro/`-CSS (= fehlendes `inlineStylesheets: 'always'`) + tote Font-Familien ohne `@font-face`. Optionen `checkInlineCss`/`strictInlineCss`, `checkFonts`/`strictFonts`.
+- Turnstile lädt lazy: `ContactForm` erst bei Form-im-Viewport/Fokus, `TurnstilePreClearance` nach `window.load` + idle; `preconnect` + Dedup via `window.__cwTsLoad`.
+- View Transitions zentral in `tokens-base.css` (`@view-transition`, hinter `prefers-reduced-motion`) — alle Sites erben beim Pin-Bump.
+- Neues Template `src/templates/astro.config.template.mjs` (Pflicht-Standard: `prefetch` viewport + `inlineStylesheets: 'always'`); `vercel.template.json` um Cache-Control-Blöcke + Plausible-Script-Rewrite-Caching erweitert; `templates/customer-CLAUDE.md` um Abschnitt „Performance-Standard".
+
+**Migrations-Hinweis:** Keiner für den Pin-Bump (Guards sind Soft-Warn, View Transitions sind Progressive Enhancement). Empfohlen pro Customer-Repo (Config-Sweep `rollout-perf-config.sh`): Cache-Control-Blöcke in `vercel.json` + `prefetch`/`inlineStylesheets` in `astro.config` — sonst melden die neuen Linter Warnings im Build-Log.
+
+---
+
 ## v0.64.0 (2026-07-10)
 
 **Feature (Blocks):** `Testimonials.astro` — optionale Props `ratingValue` + `reviewCount`, die den aus den `items`-Sternen errechneten `aggregateRating`-Wert im Schema.org-Markup überschreiben.
