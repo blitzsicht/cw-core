@@ -46,6 +46,21 @@ interface Props {
    * Google-„G"-Logo + Label. Opt-in — ohne diesen Prop unverändert.
    */
   reviewSource?: 'google';
+  /**
+   * Overschreibt den aus den Sternen errechneten `aggregateRating`-Wert.
+   * Nötig, wenn die kuratierten `items` nur ein Ausschnitt der echten
+   * Bewertungen sind (z. B. 6 handverlesene 5★-Stimmen), das Schema aber die
+   * tatsächliche GBP-Aggregatbewertung spiegeln soll. Ohne diesen Prop
+   * unverändert (Ø der `items`). Immer zusammen mit `reviewCount` setzen.
+   */
+  ratingValue?: number;
+  /**
+   * Überschreibt den `reviewCount` im `aggregateRating`-Schema (Default:
+   * `items.length`). Auf die echte GBP-Gesamtzahl setzen, damit das Markup
+   * nicht die Anzahl der angezeigten Karten, sondern die reale Bewertungsbasis
+   * ausweist. Immer zusammen mit `ratingValue` setzen.
+   */
+  reviewCount?: number;
 }
 
 const {
@@ -55,6 +70,8 @@ const {
   subheading = 'Bewertungen von Unternehmen aus der Region.',
   productName,
   reviewSource,
+  ratingValue,
+  reviewCount,
 } = Astro.props;
 
 const itempropName = productName ?? `${siteName} Website-Service`;
@@ -62,13 +79,16 @@ const loop = [...items, ...items];
 const avgRating = items.length > 0
   ? (items.reduce((s, t) => s + t.stars, 0) / items.length).toFixed(1)
   : '5.0';
+// Schema-Aggregat: explizite GBP-Zahlen haben Vorrang vor dem items-Durchschnitt.
+const schemaRating = ratingValue !== undefined ? ratingValue.toFixed(1) : avgRating;
+const schemaCount = reviewCount ?? items.length;
 ---
 {items.length > 0 && (
 <section class="testimonials-marquee" itemscope itemtype="https://schema.org/Product">
   <meta itemprop="name" content={itempropName} />
   <div itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
-    <meta itemprop="ratingValue" content={avgRating} />
-    <meta itemprop="reviewCount" content={String(items.length)} />
+    <meta itemprop="ratingValue" content={schemaRating} />
+    <meta itemprop="reviewCount" content={String(schemaCount)} />
     <meta itemprop="bestRating" content="5" />
     <meta itemprop="worstRating" content="1" />
   </div>

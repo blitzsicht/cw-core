@@ -22,6 +22,26 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.64.0 (2026-07-10)
+
+**Feature (Blocks):** `Testimonials.astro` — optionale Props `ratingValue` + `reviewCount`, die den aus den `items`-Sternen errechneten `aggregateRating`-Wert im Schema.org-Markup überschreiben.
+
+Kontext: Bisher leitete `Testimonials` das strukturierte `aggregateRating` (JSON-LD/Microdata) hart aus den angezeigten `items` ab — `ratingValue` = Ø der Sterne, `reviewCount` = `items.length`. Wenn die kuratierten Stimmen nur ein Ausschnitt der echten Bewertungen sind (z. B. 6 handverlesene 5★-Karten bei real 4,8★/24 Google-Rezensionen), wies das Markup gegenüber Google eine Zahl aus, die weder dem eigenen Google Business Profile noch der Realität entsprach — eine Inkonsistenz, die Googles Rich-Results-Richtlinie (aggregateRating muss die echte Gesamtbewertung spiegeln) verletzt.
+
+Neue Props:
+- `ratingValue?: number` — überschreibt den Sterne-Durchschnitt (z. B. `4.8`)
+- `reviewCount?: number` — überschreibt `items.length` (z. B. `24`)
+
+Beide immer zusammen setzen; wird die echte GBP-Aggregatzahl durchgereicht, spiegelt das Schema die Realität statt der angezeigten Kartenanzahl.
+
+```astro
+<Testimonials items={siteData.testimonials} ratingValue={4.8} reviewCount={24} reviewSource="google" />
+```
+
+**Migrations-Hinweis:** Keiner. Vollständig rückwärtskompatibel — ohne die neuen Props verhält sich `Testimonials` exakt wie bisher (berechneter Durchschnitt). Opt-in.
+
+---
+
 ## v0.63.0 (2026-07-09)
 
 - [kunde] Klicks auf die Handlungs-Buttons (z. B. „Anfragen", „Kontakt aufnehmen") werden jetzt in der Besucherstatistik gezählt. Damit ist erkennbar, wie viele Besucher aktiv einen Kontakt starten wollten — nicht nur, wie viele die Seite geöffnet haben.
