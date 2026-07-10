@@ -22,6 +22,22 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.72.0 (2026-07-10)
+
+**Feature (dormant):** Geteilte Image-Sitemap-`serialize`-Factory für `@astrojs/sitemap`
+(`@cw/core/integrations/sitemap-images` → `imageSitemapSerialize`, `ogImageFor`), die
+`<image:image>`-Einträge an Sitemap-Items hängt.
+
+Kontext: Aus dem Bild-SEO-Review als Phase-2b-Option. **Bewusst NIRGENDWO verdrahtet** — für
+unsere statischen HTML-Sites ist der ROI niedrig (Google crawlt in-page-`<img>` ohnehin; ein
+sinnvoller Eintrag bräuchte gepflegte Per-Page-Bilddaten). Liegt im Repo bereit für den Fall
+CDN-/JS-gerenderte Bilder oder große Kataloge. Reine, getestete Funktionen (4 Tests).
+
+**Migrations-Hinweis:** Keiner — additiver, ungenutzter Export. **Kein Customer-Bump** (kein
+Kunde importiert den Helper; die `@cw/core`-Auflösung ändert sich für bestehende Sites nicht).
+
+---
+
 ## v0.71.0 (2026-07-10)
 
 **Fix (Review-Nachzug):** Zwei Befunde aus dem Selbst-Review von v0.69.0/v0.70.0 behoben.
