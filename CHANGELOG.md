@@ -22,6 +22,20 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.65.1 (2026-07-10)
+
+**Fix (Types):** `BaseLayout.astro` — TypeScript-Fehler in den Schema-Props behoben, sodass `astro check` in Kunden-Repos nicht mehr an diesen Meldungen scheitert.
+
+Kontext: Die `BaseLayout`-Props deklarierten Arrays als `Array<T> | readonly Array<T>` — `readonly Array<...>` ist ungültiges TypeScript (ts(1354): `readonly` nur auf Array-/Tupel-Literaltypen erlaubt), korrekt ist `ReadonlyArray<...>`. Diese Syntax-Fehler maskierten zusätzlich einen echten Prop-Mismatch: `BaseLayout` reichte `faqs` an `<SchemaOrg>` durch, obwohl `SchemaOrg` bewusst **kein** `faqs`-Prop hat (sonst doppelte FAQPage-Schemas). Zur Laufzeit war der Prop wirkungslos (Astro ignoriert unbekannte Props), aber `astro check` brach mit ts(2322).
+
+Änderungen:
+- `readonly Array<...>` → `ReadonlyArray<...>` (3× in der Props-Definition)
+- Wirkungslosen `faqs={schema.faqs}`-Pass an `<SchemaOrg>` entfernt
+
+**Migrations-Hinweis:** Keiner. Rein typseitig, kein Verhaltens- oder Darstellungs-Unterschied.
+
+---
+
 ## v0.65.0 (2026-07-10)
 
 - [kunde:sichtbar] Die Website lädt schneller: Bilder werden im Browser zwischengespeichert, Folgeseiten laden im Hintergrund vor, und Seitenwechsel sind jetzt sanft animiert.
