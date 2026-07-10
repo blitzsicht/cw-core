@@ -22,6 +22,27 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.69.0 (2026-07-10)
+
+- [kunde] Die Urheber-/Copyright-Angabe in den Bild-Metadaten nennt jetzt zuverlässig den Firmennamen (statt in Sonderfällen eine Privatperson). Rein technisch, keine sichtbare Änderung.
+
+**Feature (Guards + Bild-Metadaten-Härtung):** Multi-Agent-Review des v0.68.0-Rollouts deckte einen Live-Attributionsfehler + einen stillen Schema-Mismatch auf. Beide werden jetzt clusterweit per Build-Guard verhindert (CLAUDE.md #1-Rule), plus zwei SEO-Grundlagen-Checks.
+
+Kontext: gottl lieferte `© Gottl Reiner` (Privatperson) statt „Gottl Richter Gomeier GbR" — `buildCommonTags` ignorierte `legal.company`. Zusätzlich taten divergente site-data-Shapes (gottl `services[].label`/`images.hero`, Ferienhäuser `images.hero`, donau `hero.imageAlt` ohne `image`) die Bild-Pipeline still WENIGER (keine Service-Keywords, keine Description), ohne Fehler. Reframe aus der Recherche: EXIF-GPS/XMP:City sind fürs Google-Ranking ~wertlos (EXIF wird gestrippt) — die echten Hebel sind Alt-Text, ImageObject-Schema, Image-Sitemap.
+
+Neue Konzepte:
+
+- **Copyright-Fix:** geteilter `resolveCopyrightHolder(data)` (= `legal.company || legal.owner || name`) in `geotag-core.js`; `buildCommonTags` nutzt ihn. Firma-als-owner-Kunden + Einzelunternehmer bleiben korrekt.
+- **Pipeline-Tolerance:** `geotag-core` liest jetzt auch `images.hero`-String + `services[].label`, taggt `.jpg`, überspringt verwaiste Alt-Texte → divergente Kunden werden nicht mehr still weniger getaggt.
+- **Denylist:** `walkImages` schließt `/og/`, `/icons/`, `favicon*` aus (keine Keyword/GPS-Payload auf Share-Cards/Favicons).
+- **Schema-Consistency-Guard** `lintSiteDataShape` (soft-warn `strictSiteDataShape`) — macht Shape-Abweichungen im Build-Log sichtbar (Konvergenz auf Canonical). Nur `warn`-Severity bricht bei strict; reine SEO-Hinweise (fehlendes `legal.region`/`knowsAbout`) nie.
+- **Alt-Text-Guard** `lintPageImgAlt` (soft-warn `strictAltText`) — flaggt `<img>` ohne bzw. leeres `alt=""` (ohne Deko-Marker); fängt das still auf `alt=""` kippende Hero-LCP-Bild.
+- **Robustheit:** Top-Level-Error-Boundaries in `scripts/geotag-dist.mjs` + `verify-image-metadata.mjs`; Verify-Guard-Blindspot-Fix (loggt `✗` auch bei Totalausfall); `isTodo()` erweitert (TBD/Muster/[…]).
+
+**Migrations-Hinweis:** Keiner. Neue `strict*`-Flags sind default soft-warn (opt-in strict später wie v0.67.0-Flip). Optional pro Kunde `legal.region` (→ `XMP:State`) pflegen — der Guard weist im Build-Log darauf hin.
+
+---
+
 ## v0.68.0 (2026-07-10)
 
 - [kunde:sichtbar] Die Bilder auf der Website tragen jetzt zusätzlich Ort- und Stichwort-Angaben in ihren Metadaten. Das verbessert die lokale Auffindbarkeit in Google, Google Bilder und KI-Suchen.

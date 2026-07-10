@@ -97,9 +97,10 @@ export async function geotagDist(distDir, data, logger) {
     // Liest bis zu 3 frisch getaggte Bilder zurück und prüft, ob die erwarteten
     // Tags wirklich im File stehen. Non-fatal (bricht Deploy nicht), aber sichtbar
     // im Build-Log — sonst würde ein defektes exiftool Metadaten still strippen.
+    const expectTags = common.GPSLatitude !== undefined || common.Copyright !== undefined;
     const expectGps = common.GPSLatitude !== undefined;
     const expectCopyright = common.Copyright !== undefined;
-    if ((expectGps || expectCopyright) && tagged.length > 0) {
+    if (expectTags && tagged.length > 0) {
       const sample = tagged.slice(0, 3);
       let verified = 0;
       for (const file of sample) {
@@ -120,6 +121,14 @@ export async function geotagDist(distDir, data, logger) {
             `exiftool im Build gescheitert? Ausgelieferte Bilder ggf. OHNE Geo/Meta.`,
         );
       }
+    } else if (expectTags && ok === 0) {
+      // Blindspot-Fix: Tags waren erwartet, aber NULL Datei erfolgreich getaggt
+      // (exiftool auf allen Dateien gescheitert) → der Sample-Recheck lief nie.
+      // Trotzdem laut ✗ loggen, sonst bliebe der Totalausfall unsichtbar.
+      logger.warn(
+        `Geotag-Verify: ✗ 0/${files.length} Bilder getaggt trotz erwarteter Tags — ` +
+          `exiftool im Build gescheitert? Ausgelieferte Bilder OHNE Geo/Meta.`,
+      );
     }
   } finally {
     await et.end();

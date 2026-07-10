@@ -33,6 +33,8 @@ import {
   synthesizeKeywords,
   walkImages,
   descForFile,
+  resolveCopyrightHolder,
+  isDenied,
   MAX_KEYWORDS,
 } from '../../src/integrations/ai-discovery/geotag-core.js';
 
@@ -132,4 +134,61 @@ test('7. TODO-Platzhalter aus dem Template werden NICHT getaggt', () => {
   assert.equal(t.Copyright, undefined);
   assert.equal(t['XMP:City'], undefined);
   assert.equal(t['XMP:Country'], 'DE'); // echter Wert bleibt
+});
+
+test('8. Copyright: legal.company hat Vorrang (Negativ-Test gegen gottl-Bug)', () => {
+  // gottl: owner=Privatperson, company=Firma → Copyright MUSS die Firma sein.
+  assert.equal(
+    resolveCopyrightHolder({ legal: { owner: 'Gottl Reiner', company: 'Gottl Richter Gomeier GbR' } }),
+    'Gottl Richter Gomeier GbR',
+  );
+  // Firma direkt im owner (6 Kunden) → owner bleibt korrekt.
+  assert.equal(resolveCopyrightHolder({ legal: { owner: 'Soleno GmbH' } }), 'Soleno GmbH');
+  // Einzelunternehmer ohne company → Person ist legitim der Rechteinhaber.
+  assert.equal(resolveCopyrightHolder({ legal: { owner: 'Frank Steller' } }), 'Frank Steller');
+  // TODO-Platzhalter → null.
+  assert.equal(resolveCopyrightHolder({ legal: { owner: 'TODO: Name' } }), null);
+  // buildCommonTags nutzt den Resolver:
+  const t = buildCommonTags({ legal: { owner: 'Gottl Reiner', company: 'Gottl Richter Gomeier GbR' } });
+  assert.equal(t.Copyright, '© Gottl Richter Gomeier GbR');
+  assert.equal(t.Artist, 'Gottl Richter Gomeier GbR');
+});
+
+test('9. Keywords tolerieren services[].label (gottl) neben leistungen[].title', () => {
+  const kw = synthesizeKeywords({
+    seo: { areaServed: ['Regensburg'] },
+    services: [{ label: 'Wertermittlung' }, { label: 'Bauschäden' }],
+  });
+  assert.deepEqual(kw, ['Regensburg', 'Wertermittlung', 'Bauschäden']);
+});
+
+test('10. buildDescByStem tolerant für images.hero-String (gottl/Ferienhäuser)', () => {
+  const map = buildDescByStem({
+    images: { hero: '/images/hero.jpg' },
+    hero: { imageAlt: 'Sachverständigenbüro Team' },
+  });
+  assert.equal(descForFile('hero.Hash9.jpg', map), 'Sachverständigenbüro Team');
+});
+
+test('11. Denylist: OG/Icons/Favicons werden NICHT getaggt', () => {
+  assert.equal(isDenied('dist/og/default.png'), true);
+  assert.equal(isDenied('dist/icons/icon-192.png'), true);
+  assert.equal(isDenied('dist/favicon.png'), true);
+  assert.equal(isDenied('dist/apple-touch-icon.png'), true);
+  assert.equal(isDenied('dist/_astro/hero.abc.webp'), false);
+  assert.equal(isDenied('dist/images/team.webp'), false);
+  // walkImages wendet die Denylist an:
+  const dir = mkdtempSync(join(tmpdir(), 'geotag-deny-'));
+  try {
+    mkdirSync(join(dir, 'og'));
+    mkdirSync(join(dir, '_astro'));
+    writeFileSync(join(dir, 'og', 'default.png'), 'x');
+    writeFileSync(join(dir, 'favicon.png'), 'x');
+    writeFileSync(join(dir, '_astro', 'hero.abc.webp'), 'x');
+    writeFileSync(join(dir, '_astro', 'foto.def.jpg'), 'x'); // .jpg jetzt taggbar
+    const found = walkImages(dir).map((p) => p.split('/').pop()).sort();
+    assert.deepEqual(found, ['foto.def.jpg', 'hero.abc.webp']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

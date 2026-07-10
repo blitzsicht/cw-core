@@ -93,38 +93,45 @@ try {
   fail('exiftool-vendored nicht installiert (cw-core dependency) — kein Geotagging');
 }
 
-// ── alle dist-Bilder (.webp + .png) sammeln ─────────────────────────────────
-const files = walkImages(DIST);
-if (files.length === 0) fail('keine .webp/.png in dist/ gefunden');
-
-const et = new ExifTool({ taskTimeoutMillis: 20000 });
-let ok = 0;
-let failed = 0;
+// ── alle dist-Bilder sammeln + taggen (Top-Level-Error-Boundary: non-fatal) ──
+// Jeder unerwartete Fehler (walkImages-Permission, ExifTool-Konstruktion) → LOG +
+// exit 0, damit der als `postbuild` verdrahtete CLI-Twin NIE den Build/Deploy bricht
+// (spiegelt das non-fatal-Verhalten des astro:build:done-Hooks in geotag.js).
 try {
-  for (const file of files) {
-    const tags = { ...common };
-    const d = descForFile(path.basename(file), descByStem);
-    if (d) {
-      tags.ImageDescription = d;
-      tags['XMP:Description'] = d;
-    }
-    if (Object.keys(tags).length === 0) continue;
-    try {
-      await et.write(file, tags, { writeArgs: ['-overwrite_original'] });
-      ok++;
-    } catch (e) {
-      failed++;
-      LOG(`⚠ ${path.relative(CWD, file)}: ${e?.message ?? e}`);
-    }
-  }
-} finally {
-  await et.end();
-}
+  const files = walkImages(DIST);
+  if (files.length === 0) fail('keine taggbaren Bilder in dist/ gefunden');
 
-const geoNote = common.GPSLatitude !== undefined ? 'mit GPS' : 'ohne GPS';
-const kwNote = common['IPTC:Keywords'] ? `, ${common['IPTC:Keywords'].length} Keywords` : '';
-LOG(
-  `✓ getaggt: ${ok}/${files.length} Bilder (${geoNote}${kwNote}, © ${common.Artist ?? '—'})` +
-    (failed ? `, ${failed} Fehler` : ''),
-);
+  const et = new ExifTool({ taskTimeoutMillis: 20000 });
+  let ok = 0;
+  let failed = 0;
+  try {
+    for (const file of files) {
+      const tags = { ...common };
+      const d = descForFile(path.basename(file), descByStem);
+      if (d) {
+        tags.ImageDescription = d;
+        tags['XMP:Description'] = d;
+      }
+      if (Object.keys(tags).length === 0) continue;
+      try {
+        await et.write(file, tags, { writeArgs: ['-overwrite_original'] });
+        ok++;
+      } catch (e) {
+        failed++;
+        LOG(`⚠ ${path.relative(CWD, file)}: ${e?.message ?? e}`);
+      }
+    }
+  } finally {
+    await et.end();
+  }
+
+  const geoNote = common.GPSLatitude !== undefined ? 'mit GPS' : 'ohne GPS';
+  const kwNote = common['IPTC:Keywords'] ? `, ${common['IPTC:Keywords'].length} Keywords` : '';
+  LOG(
+    `✓ getaggt: ${ok}/${files.length} Bilder (${geoNote}${kwNote}, © ${common.Artist ?? '—'})` +
+      (failed ? `, ${failed} Fehler` : ''),
+  );
+} catch (e) {
+  fail(`unerwarteter Fehler: ${e?.message ?? e}`);
+}
 process.exit(0);

@@ -33,9 +33,15 @@ if (!fs.existsSync(DIST)) {
   process.exit(0);
 }
 
-const files = walkImages(DIST);
+let files;
+try {
+  files = walkImages(DIST);
+} catch (e) {
+  LOG(`⚠ dist-Scan fehlgeschlagen (${e?.message ?? e}) — Audit übersprungen.`);
+  process.exit(0);
+}
 if (files.length === 0) {
-  LOG(`keine .webp/.png in ${DIST} — nichts zu prüfen.`);
+  LOG(`keine taggbaren Bilder in ${DIST} — nichts zu prüfen.`);
   process.exit(0);
 }
 

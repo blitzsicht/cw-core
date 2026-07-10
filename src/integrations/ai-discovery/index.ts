@@ -209,6 +209,24 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * (throw) bei toten Font-Familien. Opt-out pro Site: explizit `false`.
    */
   strictFonts?: boolean;
+
+  /**
+   * Default false (soft-warn). Bei true → Build-Fail, wenn der Alt-Text-Guard ein
+   * nicht-dekoratives `<img>` ohne bzw. mit leerem `alt` im dist-HTML findet.
+   * Hintergrund: der Hero-Fallback konnte still auf `alt=""` kippen — das LCP-Bild
+   * ohne Alt ist ein Ranking-/A11y-Verlust. Auf true flippen, sobald die Fleet clean ist.
+   */
+  strictAltText?: boolean;
+
+  /**
+   * Default false (soft-warn). Bei true → Build-Fail, wenn der Schema-Consistency-
+   * Guard eine site-data-Shape-Abweichung findet (z.B. `images.hero`-String statt
+   * `hero.image`, `services[]` statt `leistungen[]`, `hero.imageAlt` ohne `image`).
+   * Die Bild-Pipeline toleriert diese Shapes bereits — der Guard macht sie sichtbar,
+   * damit die Fleet auf die Canonical-Shape konvergiert. Nur `warn`-Severity bricht
+   * den Build (reine SEO-Hinweise wie fehlendes `legal.region` nie).
+   */
+  strictSiteDataShape?: boolean;
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -522,6 +540,50 @@ function lintPageMeta(
   return issues;
 }
 
+/** Ein `<img>` ohne verwertbaren Alt-Text auf einer dist-Page. */
+export interface AltIssue {
+  page: string;
+  type: 'alt_missing' | 'alt_empty';
+  detail: string;
+}
+
+/**
+ * Scannt eine dist-HTML nach `<img>`-Tags ohne verwertbaren Alt-Text.
+ * Dekorativ ausgenommen: `role="presentation"` / `aria-hidden="true"`. Sonst wird
+ * fehlendes `alt` (alt_missing) UND leeres `alt=""` ohne Deko-Marker (alt_empty)
+ * geflaggt — letzteres fängt das still auf `alt=""` kippende Hero-LCP-Bild.
+ * Pure Funktion (Regex, kein DOM) — wie lintPageMeta/lintPageSchema.
+ */
+export function lintPageImgAlt(htmlPath: string, distDir: string): AltIssue[] {
+  const issues: AltIssue[] = [];
+  const pagePath = htmlPath.slice(distDir.length).replace(/\/index\.html$/, '/');
+  const page = pagePath.startsWith('/') ? pagePath : `/${pagePath}`;
+  const html = readFileSync(htmlPath, 'utf-8');
+  const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
+  for (const tag of imgs) {
+    // Dekorative Bilder sind bewusst alt-frei → nicht flaggen.
+    if (
+      /\brole\s*=\s*["']presentation["']/i.test(tag) ||
+      /\baria-hidden\s*=\s*["']true["']/i.test(tag)
+    ) {
+      continue;
+    }
+    const srcM = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+    const srcNote = srcM ? ` (src=${srcM[1]})` : '';
+    const altMatch = tag.match(/\balt\s*=\s*("([^"]*)"|'([^']*)')/i);
+    if (!altMatch) {
+      issues.push({ page, type: 'alt_missing', detail: `<img> ohne alt-Attribut${srcNote}.` });
+    } else if ((altMatch[2] ?? altMatch[3] ?? '').trim() === '') {
+      issues.push({
+        page,
+        type: 'alt_empty',
+        detail: `<img alt=""> ohne Deko-Marker${srcNote} — dekorativ? role="presentation" setzen, sonst Alt-Text ergänzen.`,
+      });
+    }
+  }
+  return issues;
+}
+
 /** Prüft eine einzelne dist-HTML auf Schema-Probleme. */
 function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
   const issues: SchemaIssue[] = [];
@@ -809,6 +871,90 @@ export function lintImpressumLegalForm(legal: AiDiscoverySiteData['legal']): Imp
   return issues;
 }
 
+/** Eine site-data-Shape-Abweichung (Bild-Pipeline/SEO betroffen). */
+export interface ShapeIssue {
+  /** Betroffenes site-data-Feld. */
+  field: string;
+  /** `warn` = die Bild-Pipeline tut still weniger; `info` = reiner SEO-Vollständigkeits-Hinweis. */
+  severity: 'warn' | 'info';
+  /** Erklärung + Fix-Hinweis. */
+  detail: string;
+}
+
+/**
+ * Schema-Consistency-Guard: findet Abweichungen der site-data-Shape von der
+ * Canonical-Vorlage (site-data.template.ts), die dazu führen, dass die Bild-Geotag-
+ * Pipeline + SEO still WENIGER tun (keine Service-Keywords, keine Hero-Description,
+ * XMP:State-Lücke). Die Pipeline toleriert diese Shapes bereits (geotag-core) —
+ * dieser Guard macht sie im Build-Log sichtbar, damit die Fleet auf die Canonical-
+ * Shape konvergiert (der Mismatch bleibt nie wieder unbemerkt).
+ *
+ * Auslöser (Review 2026-07-10): gottl nutzt `services[].label` + `images.hero`-String,
+ * die Ferienhäuser `images.hero`, donau `hero.imageAlt` ohne `hero.image` → alle
+ * bekamen still weniger Bild-Metadaten als die Canonical-Kunden.
+ */
+export function lintSiteDataShape(data: any): ShapeIssue[] {
+  const issues: ShapeIssue[] = [];
+  const hero = data?.hero ?? {};
+  const stringHero = typeof data?.images?.hero === 'string' ? data.images.hero : null;
+
+  // (a) Hero-Bild-Shape
+  if (stringHero && !hero.image) {
+    issues.push({
+      field: 'images.hero',
+      severity: 'warn',
+      detail:
+        `Hero-Bild als images.hero-String ('${stringHero}') statt canonical hero.image/hero.imageAlt. ` +
+        `Die Pipeline toleriert es, aber ohne hero.imageAlt fehlt die Bild-Description.`,
+    });
+    if (/\.jpe?g$/i.test(stringHero)) {
+      issues.push({
+        field: 'images.hero',
+        severity: 'warn',
+        detail: `Hero ist ${stringHero} (.jpg) — Cluster-Standard ist .webp (kleiner, via optimize-images).`,
+      });
+    }
+  }
+  if (hero.imageAlt && !hero.image) {
+    issues.push({
+      field: 'hero.imageAlt',
+      severity: 'warn',
+      detail: `hero.imageAlt gesetzt, aber hero.image fehlt → verwaister Alt-Text, kein Hero-Bild getaggt.`,
+    });
+  }
+
+  // (b) Service-Shape
+  const hasLeistungen = Array.isArray(data?.leistungen) && data.leistungen.length > 0;
+  const hasServices = Array.isArray(data?.services) && data.services.length > 0;
+  if (hasServices && !hasLeistungen) {
+    issues.push({
+      field: 'services',
+      severity: 'warn',
+      detail:
+        `Service-Liste als services[].label statt canonical leistungen[].title. Die Pipeline ` +
+        `toleriert es für Keywords, aber andere cw-core-Features erwarten leistungen[].`,
+    });
+  }
+
+  // (c) SEO-Vollständigkeit (reine Hinweise, brechen nie den Build)
+  if (!data?.legal?.region) {
+    issues.push({
+      field: 'legal.region',
+      severity: 'info',
+      detail: `legal.region fehlt → das Bild-Geo-Tag XMP:State bleibt leer. Region ergänzen (z.B. 'Bayern').`,
+    });
+  }
+  if (!(Array.isArray(data?.seo?.knowsAbout) && data.seo.knowsAbout.length)) {
+    issues.push({
+      field: 'seo.knowsAbout',
+      severity: 'info',
+      detail: `seo.knowsAbout fehlt/leer → schwächere AI-Zitierbarkeit + weniger Keyword-Quelle für Bild-Tags.`,
+    });
+  }
+
+  return issues;
+}
+
 export default function aiDiscovery<T extends AiDiscoverySiteData>(
   options: AiDiscoveryOptions<T>,
 ): AstroIntegration {
@@ -920,6 +1066,32 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         } else {
           logger.info(`Impressum-Linter: ✓ Rechtsform-Angaben vollständig.`);
         }
+
+        // -------------------------------------------------------------------
+        // Schema-Consistency-Guard: site-data-Shape-Drift sichtbar machen
+        // -------------------------------------------------------------------
+        // Divergente Shapes (images.hero-String, services[], hero.imageAlt ohne
+        // image) ließen die Bild-Pipeline still WENIGER tun. Die Pipeline toleriert
+        // sie jetzt — dieser Guard loggt sie, damit die Fleet konvergiert. Nur
+        // warn-Severity bricht bei strict; reine SEO-Hinweise (region/knowsAbout) nie.
+        const shapeIssues = lintSiteDataShape(data);
+        const shapeWarn = shapeIssues.filter((i) => i.severity === 'warn');
+        if (shapeIssues.length === 0) {
+          logger.info(`SiteData-Shape: ✓ Canonical-Shape (Bild-Pipeline voll wirksam).`);
+        } else {
+          logger.warn(
+            `SiteData-Shape: ${shapeWarn.length} Shape-Abweichung(en), ` +
+              `${shapeIssues.length - shapeWarn.length} SEO-Hinweis(e):`,
+          );
+          for (const issue of shapeIssues) {
+            logger.warn(`  [${issue.severity}] ${issue.field}: ${issue.detail}`);
+          }
+          if (options.strictSiteDataShape && shapeWarn.length > 0) {
+            throw new Error(
+              `[ai-discovery] strictSiteDataShape=true: Build abgebrochen wegen ${shapeWarn.length} Shape-Abweichung(en).`,
+            );
+          }
+        }
       },
 
       'astro:build:done': async ({ dir, logger }) => {
@@ -1025,6 +1197,37 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           if (options.strictMeta) {
             throw new Error(
               `[ai-discovery] strictMeta=true: Build abgebrochen wegen ${metaIssues.length} Meta-Length-Issues.`,
+            );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Alt-Text-Guard: <img> ohne (verwertbaren) Alt-Text
+        // -------------------------------------------------------------------
+        // Alt-Text ist eines der stärksten Bild-Ranking- + A11y-Signale (Mueller:
+        // "alt + surrounding text = really strong signals"). Der Hero-Fallback
+        // konnte still auf alt="" kippen (LCP-Bild). Soft-warn (opt-in strict).
+        const altIssues: AltIssue[] = [];
+        for (const file of htmlFiles) {
+          altIssues.push(...lintPageImgAlt(file, distDir));
+        }
+        if (altIssues.length === 0) {
+          logger.info(`Alt-Text-Guard: ✓ ${htmlFiles.length} Pages — alle <img> mit Alt-Text.`);
+        } else {
+          const miss = altIssues.filter((i) => i.type === 'alt_missing').length;
+          const empty = altIssues.filter((i) => i.type === 'alt_empty').length;
+          logger.warn(
+            `Alt-Text-Guard: ${miss}× <img> ohne alt, ${empty}× leeres alt="" ohne Deko-Marker:`,
+          );
+          for (const issue of altIssues.slice(0, 20)) {
+            logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+          }
+          if (altIssues.length > 20) {
+            logger.warn(`  … und ${altIssues.length - 20} weitere.`);
+          }
+          if (options.strictAltText) {
+            throw new Error(
+              `[ai-discovery] strictAltText=true: Build abgebrochen wegen ${altIssues.length} Alt-Text-Issues.`,
             );
           }
         }

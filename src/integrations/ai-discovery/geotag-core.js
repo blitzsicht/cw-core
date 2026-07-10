@@ -15,26 +15,50 @@
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Endungen, die exiftool taggen kann (WebP + PNG unterstützen EXIF/XMP). */
-export const TAGGABLE_EXT = ['.webp', '.png'];
+/** Endungen, die exiftool taggen kann (WebP + PNG + JPEG unterstützen EXIF/XMP). */
+export const TAGGABLE_EXT = ['.webp', '.png', '.jpg', '.jpeg'];
 
 /** Max. Anzahl Keyword-Tags pro Bild (SERP/IPTC-Hygiene). */
 export const MAX_KEYWORDS = 20;
 
-/** Rekursiver Walk über dist → alle taggbaren Bilder (.webp + .png). */
+/**
+ * Nicht-Content-Bilder vom Tagging ausschließen: Share-Cards (`/og/`), Icon-Sets
+ * (`/icons/`) und Favicons sollen KEINE Keyword-/GPS-Payload tragen — sie haben
+ * keinen fotografischen Inhalt, dieselben 20 Keywords auf einem 32px-Favicon sind
+ * ein undifferenziertes (potenziell negatives) Signal. Match auf den Pfad (POSIX-
+ * normalisiert, damit es auf Windows-Backslash-Pfaden ebenfalls greift).
+ */
+export const TAG_DENY_RE = /(^|\/)(og|icons)\/|(^|\/)favicon[^/]*$|(^|\/)apple-touch-icon[^/]*$/i;
+
+/** Ob ein Pfad vom Tagging ausgeschlossen ist (OG/Icons/Favicons). */
+export function isDenied(p) {
+  return TAG_DENY_RE.test(String(p).replace(/\\/g, '/'));
+}
+
+/** Rekursiver Walk über dist → taggbare Content-Bilder (.webp/.png/.jpg, ohne OG/Icons/Favicons). */
 export function walkImages(dir, acc = []) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     const st = statSync(p);
     if (st.isDirectory()) walkImages(p, acc);
-    else if (st.isFile() && TAGGABLE_EXT.some((e) => p.toLowerCase().endsWith(e))) acc.push(p);
+    else if (
+      st.isFile() &&
+      TAGGABLE_EXT.some((e) => p.toLowerCase().endsWith(e)) &&
+      !isDenied(p)
+    )
+      acc.push(p);
   }
   return acc;
 }
 
-/** TODO-Platzhalter aus der site-data-Vorlage nicht als echten Wert taggen. */
+/**
+ * Platzhalter aus der site-data-Vorlage nicht als echten Wert taggen.
+ * Fängt `TODO…`, `TBD`, `Muster…` (Musterstadt/Musterstraße) und Bracket-Slots `[…]`.
+ */
 function isTodo(v) {
-  return typeof v === 'string' && v.trim().startsWith('TODO');
+  if (typeof v !== 'string') return false;
+  const t = v.trim();
+  return /^(TODO|TBD)\b/i.test(t) || /^Muster/i.test(t) || /^\[.*\]$/.test(t);
 }
 
 /**
@@ -51,7 +75,10 @@ export function synthesizeKeywords(data) {
       : [
           ...(data?.seo?.knowsAbout ?? []),
           ...(data?.seo?.areaServed ?? []),
+          // Service-Titel: canonical `leistungen[].title` UND divergentes `services[].label`
+          // (z.B. gottl) tolerieren, damit divergente Kunden nicht still weniger getaggt werden.
           ...((data?.leistungen ?? []).map((l) => l?.title).filter(Boolean)),
+          ...((data?.services ?? []).map((s) => s?.label ?? s?.title).filter(Boolean)),
         ];
   const seen = new Set();
   const out = [];
@@ -68,6 +95,20 @@ export function synthesizeKeywords(data) {
 }
 
 /**
+ * Kanonischer Copyright-/Urheber-Name = die rechtlich verantwortliche Entität.
+ * `legal.company` (Firma) hat Vorrang vor `legal.owner` (kann Privatperson sein) —
+ * verhindert den gottl-Fehler (`© Gottl Reiner` statt „Gottl Richter Gomeier GbR").
+ * Spiegelt die Firmennamen-Logik des Impressum-Linters (company-first). Bei
+ * Einzelunternehmern ohne `company` ist `owner` (= die Person) korrekt der Rechteinhaber.
+ * @param {any} data  aufgelöstes siteData
+ * @returns {string|null}
+ */
+export function resolveCopyrightHolder(data) {
+  const holder = data?.legal?.company || data?.legal?.owner || data?.name || null;
+  return holder && !isTodo(holder) ? holder : null;
+}
+
+/**
  * Customer-globale Tags für ALLE Bilder bauen:
  *   Meta:   Copyright, Artist
  *   Geo-Koordinaten: GPSLatitude/Ref, GPSLongitude/Ref
@@ -78,7 +119,7 @@ export function synthesizeKeywords(data) {
  * @returns {Record<string, any>}
  */
 export function buildCommonTags(data) {
-  const owner = data?.legal?.owner || data?.name || null;
+  const owner = resolveCopyrightHolder(data);
   const geo = data?.seo?.geo || null;
   const lat = geo && typeof geo.latitude === 'number' ? geo.latitude : null;
   const lng = geo && typeof geo.longitude === 'number' ? geo.longitude : null;
@@ -87,7 +128,7 @@ export function buildCommonTags(data) {
   const country = data?.legal?.country || null;
 
   const tags = {};
-  if (owner && !isTodo(owner)) {
+  if (owner) {
     tags.Copyright = `© ${owner}`;
     tags.Artist = owner;
   }
@@ -120,14 +161,16 @@ export function buildCommonTags(data) {
 export function buildDescByStem(data) {
   const map = new Map();
   const add = (img, alt) => {
-    if (!img || !alt) return;
+    if (!img || !alt) return; // Orphan (Alt ohne Bild, z.B. donau) → sauber überspringen
     const stem = String(img)
       .replace(/\.(webp|png|jpe?g)$/i, '')
       .split('/')
       .pop();
     if (stem) map.set(stem, alt);
   };
+  // Canonical Hero (`hero.image`) UND divergenter String-Hero (`images.hero`, z.B. gottl/Ferienhäuser).
   add(data?.hero?.image, data?.hero?.imageAlt);
+  add(data?.images?.hero, data?.hero?.imageAlt || data?.hero?.headline);
   for (const l of data?.leistungen ?? []) {
     add(l?.image, l?.imageAlt);
     add(l?.heroImage, l?.imageAlt || l?.title);
