@@ -31,6 +31,7 @@
  *   />
  */
 import type { WithContext, LocalBusiness, WebSite } from 'schema-dts';
+import { imageObjectSchema } from '../../schema/image-object';
 
 export interface EmployeeData {
   name: string;
@@ -241,7 +242,17 @@ const localBusinessSchema = {
   description,
   url,
   logo: resolvedLogo,
-  image: resolvedImage,
+  // ImageObject statt nackter URL: strukturiertes Bild-Signal für Google Images +
+  // KI-Suche (caption/creator/credit). Der eigentliche Bild-Ranking-Hebel — anders
+  // als EXIF wird schema.org/ImageObject beim Indexieren tatsächlich ausgewertet.
+  image: imageObjectSchema({
+    id: `${url}/#primaryimage`,
+    url: resolvedImage,
+    caption: name,
+    creditText: name,
+    copyrightNotice: `© ${name}`,
+    creatorId: orgId,
+  }),
   ...(phone ? { telephone: phone } : {}),
   ...(street || zip || city || country
     ? {

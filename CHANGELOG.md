@@ -22,6 +22,25 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.70.0 (2026-07-10)
+
+- [kunde] Die Bilder der Website liefern jetzt strukturierte Angaben (Bildunterschrift, Urheber, Copyright) mit, die Google Bilder und KI-Suchen tatsächlich auswerten — die Grundlage für bessere Bild-Auffindbarkeit.
+
+**Feature (SEO/GEO):** `SchemaOrg` emittiert das LocalBusiness-Bild jetzt als schema.org `ImageObject` statt als nackte URL. Das ist — anders als eingebettete EXIF-Daten (die Google beim Ausliefern strippt) — ein Bild-Signal, das Google Images + KI-Suche (AI Overviews, Perplexity) beim Indexieren real auswerten. Zugleich der stärkste Hebel, damit KI-Antworten unsere eigenen Bilder zitieren statt Stock.
+
+Kontext: Der v0.68.0-Review-Reframe zeigte, dass die EXIF-Bild-Metadaten fürs Ranking ~wertlos sind; die echten Hebel sind Alt-Text (v0.69.0-Guard) + ImageObject-JSON-LD (dieses Release).
+
+Neue Konzepte:
+
+- Neuer Builder `@cw/core/schema` → `imageObjectSchema({ url, caption, creditText, copyrightNotice, creatorId, ... })` (contentUrl, optional width/height nur bei bekannten Maßen, optionale Licensable-Felder).
+- `SchemaOrg.astro`: LocalBusiness-`image` = ImageObject mit `@id` (`#primaryimage`), caption (Firmenname), creditText, copyrightNotice + creator-Referenz auf die Organization. Universell über das (immer vorhandene) OG-Bild — keine Per-Kunde-Datenpflege nötig.
+
+**Migrations-Hinweis:** Keiner. Rein additive Schema-Anreicherung; der Schema-Linter bleibt clean (`#primaryimage` ist pro Seite eindeutig).
+
+**Noch offen (Phase 2b, bewusst nicht in diesem Release):** Image-Sitemap (`<image:image>`) — für unsere statischen HTML-Sites niedriger ROI (Google findet die Bilder ohnehin per Crawl) und bräuchte gepflegte Per-Page-Bilddaten. Bei Bedarf separat.
+
+---
+
 ## v0.69.0 (2026-07-10)
 
 - [kunde] Die Urheber-/Copyright-Angabe in den Bild-Metadaten nennt jetzt zuverlässig den Firmennamen (statt in Sonderfällen eine Privatperson). Rein technisch, keine sichtbare Änderung.

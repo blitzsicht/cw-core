@@ -15,6 +15,7 @@ export {
 } from "./local-business.js";
 
 export { articleSchema, type ArticleInput } from "./article.js";
+export { imageObjectSchema, type ImageObjectInput } from "./image-object.js";
 export { caseStudySchema, type CaseStudyInput } from "./creative-work.js";
 export { breadcrumbListSchema, type BreadcrumbItem } from "./breadcrumb-list.js";
 export { serviceSchema, type ServiceInput } from "./service.js";
