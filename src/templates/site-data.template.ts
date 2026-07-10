@@ -34,6 +34,7 @@ export const siteData = {
     zip: 'TODO: 12345',
     city: 'TODO: Musterstadt',
     country: 'DE',
+    region: undefined as string | undefined,  // Bundesland/Region → Bild-Geo-Tag XMP:State (z.B. 'Bayern')
     phone: 'TODO: +49 123 456789',    // Mit tel:-Link im Footer + Kontakt
     ustIdNr: undefined as string | undefined,
     handelsregister: undefined as string | undefined, // z.B. 'HRB 12345, Amtsgericht Regensburg'
@@ -112,6 +113,9 @@ export const siteData = {
     areaServed: [] as string[],             // z.B. ['Regensburg', 'Barbing', 'Lappersdorf']
     sameAs: [] as string[],                 // Social-Profile-URLs: Google Business, LinkedIn, etc.
     knowsAbout: [] as string[],             // Fachthemen: ['Webdesign', 'DSGVO', ...] — AI-Zitierbarkeit
+    // Explizite Bild-Keyword-Tags (IPTC:Keywords/XMP:Subject in den dist-Bildern).
+    // Leer lassen → geotag-core synthetisiert aus knowsAbout + areaServed + leistungen.
+    imageKeywords: [] as string[],
     openingHours: [] as string[],           // z.B. ['Mo-Fr 08:00-17:00']
     foundingDate: undefined as string | undefined,  // z.B. '2015'
     geo: undefined as { latitude: number; longitude: number } | undefined,

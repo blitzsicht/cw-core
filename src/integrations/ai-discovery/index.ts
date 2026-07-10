@@ -60,6 +60,10 @@ export interface AiDiscoverySiteData {
     street?: string;
     zip?: string;
     city?: string;
+    // Geo-Tags (Ortsnamen) fürs Bild-Metadaten-Tagging (geotag-core):
+    // country/region landen als XMP:Country / XMP:State in den dist-Bildern.
+    country?: string;
+    region?: string;
     // Rechtsform-Felder (optional) — vom Impressum-Linter geprüft. Customer ohne
     // gepflegtes Rechtsform-Schema lassen sie weg → Linter überspringt sie.
     owner?: string;
@@ -72,6 +76,11 @@ export interface AiDiscoverySiteData {
   seo?: {
     foundingDate?: string;
     areaServed?: readonly string[];
+    knowsAbout?: readonly string[];
+    // Optionale explizite Bild-Keyword-Tags (IPTC:Keywords / XMP:Subject). Fehlt
+    // das Feld, synthetisiert geotag-core aus knowsAbout + areaServed + leistungen.
+    imageKeywords?: readonly string[];
+    geo?: { latitude: number; longitude: number };
   };
   faqs?: ReadonlyArray<FAQItem>;
   leistungen?: ReadonlyArray<ServiceItem>;

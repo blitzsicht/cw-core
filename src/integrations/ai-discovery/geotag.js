@@ -17,20 +17,16 @@
  * site-data-Felder (seo.geo, leistungen[].image/imageAlt) ohne Typ-Reibung geht.
  */
 
-import { readdirSync, statSync, realpathSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { basename } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-
-function walkWebp(dir, acc = []) {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    const st = statSync(p);
-    if (st.isDirectory()) walkWebp(p, acc);
-    else if (st.isFile() && p.toLowerCase().endsWith('.webp')) acc.push(p);
-  }
-  return acc;
-}
+import {
+  buildCommonTags,
+  buildDescByStem,
+  descForFile,
+  walkImages,
+} from './geotag-core.js';
 
 /**
  * @param {string} distDir  Absoluter Pfad zum dist-Verzeichnis.
@@ -38,20 +34,13 @@ function walkWebp(dir, acc = []) {
  * @param {{info:Function,warn:Function}} logger  Astro-Integration-Logger.
  */
 export async function geotagDist(distDir, data, logger) {
-  const owner = data?.legal?.owner || data?.name || null;
-  const geo = data?.seo?.geo || null;
-  const lat = geo && typeof geo.latitude === 'number' ? geo.latitude : null;
-  const lng = geo && typeof geo.longitude === 'number' ? geo.longitude : null;
+  // Customer-globale Tags (Meta + GPS + Ortsnamen + Keywords) aus geotag-core.
+  const common = buildCommonTags(data);
+  const descByStem = buildDescByStem(data);
 
-  if (!owner && lat === null) {
-    logger.info('Geotag: weder legal.owner noch seo.geo in site-data — Skip.');
+  if (Object.keys(common).length === 0 && descByStem.size === 0) {
+    logger.info('Geotag: keine taggbaren Felder (owner/geo/keywords/alt) in site-data — Skip.');
     return;
-  }
-
-  // image-Dateiname (ohne .webp) → imageAlt (für Description, best-effort)
-  const descByStem = new Map();
-  for (const l of data?.leistungen ?? []) {
-    if (l?.image && l?.imageAlt) descByStem.set(String(l.image).replace(/\.webp$/i, ''), l.imageAlt);
   }
 
   // exiftool-vendored ist cw-core-Dependency. Astro lädt die Integration über den
@@ -71,55 +60,75 @@ export async function geotagDist(distDir, data, logger) {
 
   let files = [];
   try {
-    files = walkWebp(distDir);
+    files = walkImages(distDir);
   } catch (e) {
     logger.warn(`Geotag: dist-Scan fehlgeschlagen (${e?.message ?? e}) — Skip.`);
     return;
   }
   if (files.length === 0) {
-    logger.info('Geotag: keine .webp in dist — Skip.');
+    logger.info('Geotag: keine .webp/.png in dist — Skip.');
     return;
-  }
-
-  const common = {};
-  if (owner) {
-    common.Copyright = `© ${owner}`;
-    common.Artist = owner;
-  }
-  if (lat !== null && lng !== null) {
-    common.GPSLatitude = Math.abs(lat);
-    common.GPSLatitudeRef = lat >= 0 ? 'N' : 'S';
-    common.GPSLongitude = Math.abs(lng);
-    common.GPSLongitudeRef = lng >= 0 ? 'E' : 'W';
   }
 
   const et = new ExifTool({ taskTimeoutMillis: 20000 });
   let ok = 0;
   let failed = 0;
+  const tagged = [];
   try {
     for (const file of files) {
-      const stem = basename(file).split('.')[0];
-      const desc = descByStem.get(stem);
+      const desc = descForFile(basename(file), descByStem);
       const tags = { ...common };
       if (desc) {
         tags.ImageDescription = desc;
         tags['XMP:Description'] = desc;
       }
+      if (Object.keys(tags).length === 0) continue; // nichts zu schreiben für diese Datei
       try {
         await et.write(file, tags, { writeArgs: ['-overwrite_original'] });
         ok++;
+        tagged.push(file);
       } catch (e) {
         failed++;
         logger.warn(`Geotag: ${basename(file)}: ${e?.message ?? e}`);
+      }
+    }
+
+    // ── Verify-Guard gegen stilles Stripping (exiftool-Ausfall im Vercel-Build) ──
+    // Liest bis zu 3 frisch getaggte Bilder zurück und prüft, ob die erwarteten
+    // Tags wirklich im File stehen. Non-fatal (bricht Deploy nicht), aber sichtbar
+    // im Build-Log — sonst würde ein defektes exiftool Metadaten still strippen.
+    const expectGps = common.GPSLatitude !== undefined;
+    const expectCopyright = common.Copyright !== undefined;
+    if ((expectGps || expectCopyright) && tagged.length > 0) {
+      const sample = tagged.slice(0, 3);
+      let verified = 0;
+      for (const file of sample) {
+        try {
+          const t = await et.read(file);
+          const gpsOk = !expectGps || t.GPSLatitude !== undefined;
+          const cprOk = !expectCopyright || !!t.Copyright;
+          if (gpsOk && cprOk) verified++;
+        } catch {
+          /* Lesefehler zählt als nicht verifiziert */
+        }
+      }
+      if (verified === sample.length) {
+        logger.info(`Geotag-Verify: ✓ ${verified}/${sample.length} Sample-Bilder tragen die Metadaten.`);
+      } else {
+        logger.warn(
+          `Geotag-Verify: ✗ nur ${verified}/${sample.length} Sample-Bilder mit Metadaten — ` +
+            `exiftool im Build gescheitert? Ausgelieferte Bilder ggf. OHNE Geo/Meta.`,
+        );
       }
     }
   } finally {
     await et.end();
   }
 
-  const geoNote = lat !== null ? `GPS ${lat},${lng}` : 'ohne GPS';
+  const geoNote = common.GPSLatitude !== undefined ? 'mit GPS' : 'ohne GPS';
+  const kwNote = common['IPTC:Keywords'] ? `, ${common['IPTC:Keywords'].length} Keywords` : '';
   logger.info(
-    `Geotag: ✓ ${ok}/${files.length} dist-Bilder getaggt (${geoNote}, © ${owner ?? '—'})` +
+    `Geotag: ✓ ${ok}/${files.length} dist-Bilder getaggt (${geoNote}${kwNote}, © ${common.Artist ?? '—'})` +
       (failed ? `, ${failed} Fehler` : ''),
   );
 }

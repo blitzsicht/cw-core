@@ -22,6 +22,28 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.68.0 (2026-07-10)
+
+- [kunde:sichtbar] Die Bilder auf der Website tragen jetzt zusätzlich Ort- und Stichwort-Angaben in ihren Metadaten. Das verbessert die lokale Auffindbarkeit in Google, Google Bilder und KI-Suchen.
+
+**Feature (SEO/Bild-Metadaten):** Bild-Metadaten-Pipeline um Keyword-Tags + Ortsnamen-Geo-Tags + PNG-Abdeckung erweitert, plus Selbstprüfung gegen stilles Metadaten-Stripping.
+
+Kontext: Ein Audit (2026-07-10) zeigte, dass die Post-Build-Geotagging-Pipeline zwar Copyright/Artist + GPS-Koordinaten + best-effort Description in die dist-Bilder schrieb, aber **keine** Keyword-Tags (`IPTC:Keywords`/`XMP:Subject`) und **keine** Ortsnamen-Geo-Tags (`XMP:City/State/Country`) — und nur `.webp`, nie `.png`. Der Hook ist non-fatal → ein exiftool-Ausfall im Vercel-Build hätte alle Metadaten still gestrippt, ohne Alarm. Zudem waren `geotag.js` (Hook) und `scripts/geotag-dist.mjs` (CLI-Twin) divergierende Logik-Kopien.
+
+Neue Konzepte/APIs:
+
+- Neues shared Modul `src/integrations/ai-discovery/geotag-core.js` (reine, testbare Tag-Builder: `buildCommonTags`, `buildDescByStem`, `synthesizeKeywords`, `walkImages`, `descForFile`). `geotag.js` + `geotag-dist.mjs` importieren es jetzt beide → keine Twin-Divergenz mehr.
+- Keyword-Tags: `IPTC:Keywords` + `XMP:Subject`, synthetisiert aus `seo.knowsAbout` + `seo.areaServed` + `leistungen[].title` (dedupe, cap 20) — oder explizit via neuem `seo.imageKeywords`.
+- Ortsnamen-Geo-Tags: `XMP:City` (←`legal.city`), `XMP:State` (←neuem `legal.region`), `XMP:Country` (←`legal.country`). Getrennt von den reinen GPS-Zahlen.
+- PNG-Tagging: `walkImages` erfasst `.webp` **und** `.png` (vorher nur `.webp`).
+- Verify-Guard: nach dem Tagging werden 3 Sample-Bilder zurückgelesen; das Build-Log zeigt `Geotag-Verify: ✓/✗` → stilles Stripping wird sichtbar (bleibt non-fatal).
+- Neues Audit-Script `scripts/verify-image-metadata.mjs` — prüft einen dist-Satz gegen alle 6 Kriterien (Größe/Meta/Keywords/Alt/GPS/Ort) mit Exit-Code für CI.
+- Schema: `legal.region` + `seo.imageKeywords` neu (beide optional). TODO-Platzhalter aus der Vorlage werden nie getaggt.
+
+**Migrations-Hinweis:** Keiner. Alle neuen Felder sind optional; ohne Pflege greift die Keyword-Synthese automatisch. Kunden können optional `legal.region` (→ `XMP:State`) und kuratierte `seo.imageKeywords` setzen.
+
+---
+
 ## v0.67.1 (2026-07-10)
 
 **Fix (Perf):** Dead-Font-Linter — False-Positives vom v0.67.0-Canary behoben (blitzsicht).

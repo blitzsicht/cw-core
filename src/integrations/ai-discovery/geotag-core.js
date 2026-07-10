@@ -1,0 +1,142 @@
+/**
+ * @cw/core/integrations/ai-discovery – geotag-core.js
+ *
+ * Shared, FS-arme Bausteine für das Post-Build-Geotagging der dist-Bilder.
+ * Importiert von BEIDEN Pfaden:
+ *   - geotag.js            (astro:build:done-Hook, zero-config aktiv)
+ *   - scripts/geotag-dist.mjs (CLI-Twin, manueller postbuild)
+ * damit die Tag-Logik NIE divergiert (Twin-Divergenz-Guard, CLAUDE.md #1-Rule).
+ *
+ * `buildCommonTags` / `buildDescByStem` / `synthesizeKeywords` sind rein
+ * (keine I/O) → per node:test ohne exiftool/Dateisystem testbar.
+ * `walkImages` liest nur das Verzeichnis (read-only), findet .webp UND .png.
+ */
+
+import { readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** Endungen, die exiftool taggen kann (WebP + PNG unterstützen EXIF/XMP). */
+export const TAGGABLE_EXT = ['.webp', '.png'];
+
+/** Max. Anzahl Keyword-Tags pro Bild (SERP/IPTC-Hygiene). */
+export const MAX_KEYWORDS = 20;
+
+/** Rekursiver Walk über dist → alle taggbaren Bilder (.webp + .png). */
+export function walkImages(dir, acc = []) {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    const st = statSync(p);
+    if (st.isDirectory()) walkImages(p, acc);
+    else if (st.isFile() && TAGGABLE_EXT.some((e) => p.toLowerCase().endsWith(e))) acc.push(p);
+  }
+  return acc;
+}
+
+/** TODO-Platzhalter aus der site-data-Vorlage nicht als echten Wert taggen. */
+function isTodo(v) {
+  return typeof v === 'string' && v.trim().startsWith('TODO');
+}
+
+/**
+ * Keyword-Tags synthetisieren. Explizite `seo.imageKeywords` haben Vorrang;
+ * sonst aus knowsAbout + areaServed + leistungen[].title (dedupe, cap MAX_KEYWORDS).
+ * @param {any} data  aufgelöstes siteData
+ * @returns {string[]}
+ */
+export function synthesizeKeywords(data) {
+  const explicit = data?.seo?.imageKeywords;
+  const pool =
+    Array.isArray(explicit) && explicit.length
+      ? explicit
+      : [
+          ...(data?.seo?.knowsAbout ?? []),
+          ...(data?.seo?.areaServed ?? []),
+          ...((data?.leistungen ?? []).map((l) => l?.title).filter(Boolean)),
+        ];
+  const seen = new Set();
+  const out = [];
+  for (const raw of pool) {
+    const k = String(raw ?? '').trim();
+    if (!k || isTodo(k)) continue;
+    const key = k.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(k);
+    if (out.length >= MAX_KEYWORDS) break;
+  }
+  return out;
+}
+
+/**
+ * Customer-globale Tags für ALLE Bilder bauen:
+ *   Meta:   Copyright, Artist
+ *   Geo-Koordinaten: GPSLatitude/Ref, GPSLongitude/Ref
+ *   Geo-Tags (Ortsnamen): XMP:City, XMP:State, XMP:Country
+ *   Keyword-Tags: IPTC:Keywords, XMP:Subject
+ * Nur gesetzte/valide Felder landen im Objekt (rückwärtskompatibel).
+ * @param {any} data  aufgelöstes siteData
+ * @returns {Record<string, any>}
+ */
+export function buildCommonTags(data) {
+  const owner = data?.legal?.owner || data?.name || null;
+  const geo = data?.seo?.geo || null;
+  const lat = geo && typeof geo.latitude === 'number' ? geo.latitude : null;
+  const lng = geo && typeof geo.longitude === 'number' ? geo.longitude : null;
+  const city = data?.legal?.city || data?.seo?.areaServed?.[0] || null;
+  const region = data?.legal?.region || null;
+  const country = data?.legal?.country || null;
+
+  const tags = {};
+  if (owner && !isTodo(owner)) {
+    tags.Copyright = `© ${owner}`;
+    tags.Artist = owner;
+  }
+  if (lat !== null && lng !== null) {
+    tags.GPSLatitude = Math.abs(lat);
+    tags.GPSLatitudeRef = lat >= 0 ? 'N' : 'S';
+    tags.GPSLongitude = Math.abs(lng);
+    tags.GPSLongitudeRef = lng >= 0 ? 'E' : 'W';
+  }
+  // Ortsnamen-Geo-Tags (XMP-photoshop) — getrennt von den reinen GPS-Zahlen.
+  if (city && !isTodo(city)) tags['XMP:City'] = city;
+  if (region && !isTodo(region)) tags['XMP:State'] = region;
+  if (country && !isTodo(country)) tags['XMP:Country'] = country;
+  // Keyword-Tags (IPTC + XMP-dc:Subject).
+  const keywords = synthesizeKeywords(data);
+  if (keywords.length) {
+    tags['IPTC:Keywords'] = keywords;
+    tags['XMP:Subject'] = keywords;
+  }
+  return tags;
+}
+
+/**
+ * Dateiname-Stamm (basename ohne Endung) → Alt-Text/Description.
+ * Quellen: hero.image/imageAlt, leistungen[].image/imageAlt,
+ * leistungen[].heroImage/(imageAlt||title). Best-effort pro Datei-Prefix.
+ * @param {any} data  aufgelöstes siteData
+ * @returns {Map<string,string>}
+ */
+export function buildDescByStem(data) {
+  const map = new Map();
+  const add = (img, alt) => {
+    if (!img || !alt) return;
+    const stem = String(img)
+      .replace(/\.(webp|png|jpe?g)$/i, '')
+      .split('/')
+      .pop();
+    if (stem) map.set(stem, alt);
+  };
+  add(data?.hero?.image, data?.hero?.imageAlt);
+  for (const l of data?.leistungen ?? []) {
+    add(l?.image, l?.imageAlt);
+    add(l?.heroImage, l?.imageAlt || l?.title);
+  }
+  return map;
+}
+
+/** Description für eine dist-Datei nachschlagen (Stamm vor dem ersten '.'). */
+export function descForFile(fileBasename, descByStem) {
+  const stem = fileBasename.split('.')[0];
+  return descByStem.get(stem) || null;
+}
