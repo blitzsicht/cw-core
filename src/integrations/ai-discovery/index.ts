@@ -221,12 +221,11 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   strictAltText?: boolean;
 
   /**
-   * Default false (soft-warn). Bei true → Build-Fail, wenn der Schema-Consistency-
-   * Guard eine site-data-Shape-Abweichung findet (z.B. `images.hero`-String statt
-   * `hero.image`, `services[]` statt `leistungen[]`, `hero.imageAlt` ohne `image`).
-   * Die Bild-Pipeline toleriert diese Shapes bereits — der Guard macht sie sichtbar,
-   * damit die Fleet auf die Canonical-Shape konvergiert. Nur `warn`-Severity bricht
-   * den Build (reine SEO-Hinweise wie fehlendes `legal.region` nie).
+   * Default TRUE seit v0.76.0 (strict-Flip, Fleet shape-clean). Build-Fail, wenn der
+   * Schema-Consistency-Guard eine `warn`-Shape-Abweichung findet (z.B. `images.hero`-String
+   * statt `hero.image`, `services[]` ohne `leistungen[]`, `hero.imageAlt` ohne `image`).
+   * Opt-out pro Site: explizit `false`. Nur `warn`-Severity bricht den Build (reine SEO-
+   * Hinweise wie fehlendes `legal.region`/`knowsAbout` nie).
    */
   strictSiteDataShape?: boolean;
 }
@@ -1088,9 +1087,10 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           for (const issue of shapeIssues) {
             logger.warn(`  [${issue.severity}] ${issue.field}: ${issue.detail}`);
           }
-          if (options.strictSiteDataShape && shapeWarn.length > 0) {
+          if (options.strictSiteDataShape !== false && shapeWarn.length > 0) {
             throw new Error(
-              `[ai-discovery] strictSiteDataShape=true: Build abgebrochen wegen ${shapeWarn.length} Shape-Abweichung(en).`,
+              `[ai-discovery] strictSiteDataShape=true: Build abgebrochen wegen ${shapeWarn.length} Shape-Abweichung(en). ` +
+                `Auf Canonical-Shape bringen (hero.image/hero.imageAlt, leistungen[].title). Opt-out: strictSiteDataShape:false.`,
             );
           }
         }

@@ -22,6 +22,25 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.76.0 (2026-07-10)
+
+**Breaking (Build-Guard):** `strictSiteDataShape` ist jetzt **Default `true`** — der Build **failt**
+bei einer `warn`-Shape-Abweichung (z.B. `images.hero`-String statt canonical `hero.image`,
+`services[]` ohne `leistungen[]`, verwaister `hero.imageAlt`). Vorher soft-warn. Muster wie
+`strictAltText` (v0.75.0). Opt-out pro Site: `strictSiteDataShape: false`. Reine `[info]`-SEO-
+Hinweise (fehlendes `legal.region`/`knowsAbout`) brechen NIE.
+
+Kontext: Der Fleet war nach 4 Kunden-Fixes shape-clean (gottl: vestigiales `images.hero` entfernt +
+abgeleitetes `leistungen[]`; hausamlago: vestigiales `images.hero` entfernt; hausammincio: canonical
+`hero.image/imageAlt`; donau-profi: verwaisten `hero.imageAlt` entfernt). Jetzt wird die Canonical-
+Shape erzwungen. Verifiziert: cleaner Build passt, künstliche Abweichung bricht mit klarer Meldung.
+
+**Migrations-Hinweis:** Fleet ist beim Flip clean → kein Kunde betroffen. Neue Sites: Hero als
+`hero: { image, imageAlt }` (nicht `images.hero`-String), Service-Liste als `leistungen[].title`
+(oder `leistungen[]` als Alias, falls `services[].label` für SchemaOrg gebraucht wird).
+
+---
+
 ## v0.75.0 (2026-07-10)
 
 **Breaking (Build-Guard):** `strictAltText` ist jetzt **Default `true`** — der Build **failt**, wenn
