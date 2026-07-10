@@ -104,6 +104,26 @@ gottl-richter-gomeier hat `#C8963E` Gold + Override `#111C33` Navy = 6.7:1.
 
 ---
 
+## Performance-Standard (verbindlich seit 2026-07)
+
+Rationale + Details: `cw-core/docs/caching-rationale.md`. Die ai-discovery-Linter
+prüfen das bei jedem Build (Soft-Warn) — Warnings nicht ignorieren, fixen.
+
+- **Vercel IST das CDN.** NIEMALS Cloudflare-Proxy (orange cloud) vor Vercel
+  schalten — Cloudflare bleibt DNS-only.
+- **Cache-Control in vercel.json ist Pflicht** für public/-Assets
+  (`/images/`, `/og/`, Logo/Favicon → `public, max-age=86400`).
+  **KEIN `immutable` außerhalb `/_astro/`** — public/-Dateinamen sind stabil
+  über Deploys, immutable würde Änderungen für immer stale machen.
+- **astro.config braucht immer:** `prefetch: { prefetchAll: true,
+  defaultStrategy: 'viewport' }` und `build: { inlineStylesheets: 'always' }`.
+- **Fonts:** System-Stack bevorzugen; nie Font-Namen ohne @font-face
+  referenzieren (Linter warnt). Google Fonts bleiben tabu (DSGVO).
+- **Turnstile lädt lazy** (macht cw-core automatisch) — kein eigenes
+  `<script src="…turnstile…api.js">` einbauen.
+
+---
+
 ## Commits
 
 Format: `type(scope): kurze Nachricht` — z. B. `feat(hero): add srcset`, `fix(a11y): contrast token`
