@@ -22,6 +22,24 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.75.0 (2026-07-10)
+
+**Breaking (Build-Guard):** `strictAltText` ist jetzt **Default `true`** — der Build **failt**, wenn
+ein nicht-dekoratives `<img>` mit fehlendem/leerem `alt` im dist-HTML landet (vorher soft-warn).
+Muster wie `strictFonts` (v0.67.0). Opt-out pro Site: `strictAltText: false` in der ai-discovery-Config.
+
+Kontext: Der v0.73-Rollout-Audit deckte ~359 leere `alt=""` fleet-weit auf; v0.74.0 (a11y-Marker am
+`<img>`) + per-Kunde-Fixes (soleno/donau-profi FeaturedLeistungen) haben die Fleet auf 0 gebracht.
+Jetzt wird der Zustand erzwungen: kein neuer leerer Alt kommt mehr unbemerkt live. Verifiziert:
+cleaner Build passt, künstlich leeres `alt=""` bricht mit klarer Meldung (Fall-1/Fall-2-Test).
+
+**Migrations-Hinweis:** Fleet ist beim Flip clean → kein Kunde betroffen. Neue/dekorative Bilder:
+`aria-hidden="true"` bzw. `role="presentation"` **am `<img>`-Tag** setzen (nicht nur am Eltern-
+Element — der Guard prüft tag-lokal), sonst echtes Alt ergänzen. `strictSiteDataShape` bleibt soft
+(3 Kunden je 1 Abweichung offen).
+
+---
+
 ## v0.74.0 (2026-07-10)
 
 - [kunde] Dekorative Bilder (Logo, Icons, Signets) werden von Screenreadern nicht mehr doppelt vorgelesen — bessere Barrierefreiheit; sichtbar ändert sich nichts.

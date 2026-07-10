@@ -211,10 +211,12 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   strictFonts?: boolean;
 
   /**
-   * Default false (soft-warn). Bei true → Build-Fail, wenn der Alt-Text-Guard ein
-   * nicht-dekoratives `<img>` ohne bzw. mit leerem `alt` im dist-HTML findet.
-   * Hintergrund: der Hero-Fallback konnte still auf `alt=""` kippen — das LCP-Bild
-   * ohne Alt ist ein Ranking-/A11y-Verlust. Auf true flippen, sobald die Fleet clean ist.
+   * Default TRUE seit v0.75.0 (strict-Flip, Fleet clean nach v0.74.0-a11y-Fix) → Build-Fail
+   * (throw), wenn der Alt-Text-Guard ein nicht-dekoratives `<img>` ohne bzw. mit leerem `alt`
+   * im dist-HTML findet. Dekorative Bilder mit `aria-hidden="true"`/`role="presentation"` am
+   * `<img>`-Tag markieren. Opt-out pro Site: explizit `false`.
+   * Hintergrund: der Hero-Fallback konnte still auf `alt=""` kippen — das LCP-Bild ohne Alt
+   * ist ein Ranking-/A11y-Verlust.
    */
   strictAltText?: boolean;
 
@@ -1225,9 +1227,10 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           if (altIssues.length > 20) {
             logger.warn(`  … und ${altIssues.length - 20} weitere.`);
           }
-          if (options.strictAltText) {
+          if (options.strictAltText !== false) {
             throw new Error(
-              `[ai-discovery] strictAltText=true: Build abgebrochen wegen ${altIssues.length} Alt-Text-Issues.`,
+              `[ai-discovery] strictAltText=true: Build abgebrochen wegen ${altIssues.length} Alt-Text-Issues. ` +
+                `Dekorative <img> mit aria-hidden="true"/role="presentation" markieren, sonst Alt-Text ergänzen. Opt-out: strictAltText:false.`,
             );
           }
         }
