@@ -151,6 +151,18 @@ test('9. NEG Logo-Alt (=== Firmenname, class=logo) → Ausnahme, keine Issue', (
   }
 });
 
+test('9b. NEG Logo-Alt via src (Klasse am Eltern-<a>, NICHT am img) → Ausnahme', () => {
+  // Echter Fund (soleno v0.77.0): <a class="logo-img"><img src="/logo-soleno.svg"
+  // alt="Soleno GmbH"> — img hat KEINE logo-Klasse, nur src verrät das Logo.
+  const { dist, file } = makePage('<img src="/logo-soleno.svg" alt="Soleno GmbH" width="50">');
+  try {
+    const { issues } = lintPageImgAltQuality(file, dist, ['Soleno GmbH']);
+    assert.equal(issues.length, 0);
+  } finally {
+    rmSync(dist, { recursive: true, force: true });
+  }
+});
+
 test('10. NEG genericTerms undefined → kein Crash, keine generic_term-Issue', () => {
   const { dist, file } = makePage('<img src="/a.webp" alt="Ein Team vor dem Haus in Regensburg">');
   try {

@@ -22,6 +22,20 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.77.1 (2026-07-10)
+
+**Fix (Alt-Qualität-Guard):** Logo-`<img>` werden jetzt auch über den **`src`** ausgenommen
+(`src` enthält `logo`/`favicon`) — nicht nur über `class~=logo`/`data-logo` am img-Tag. Auslöser:
+der v0.77.0-Fleet-Audit flaggte fleet-weit das Footer-/Nav-Logo (`<a class="logo-img"><img
+src="/logo-*.svg" alt="{Firmenname}">`) als `alt_generic_term` auf JEDER Seite — die `logo`-Klasse
+sitzt am Eltern-`<a>`, das img-lokale (ancestor-blinde) Regex sah sie nicht. Das blähte jeden Kunden
+um ~1 False-Positive pro Seite (soleno 96, blitzsicht 44, digital-direkt 42 — fast ausschließlich
+das Logo). `src~=logo|favicon` fängt Logos ancestor-frei. Logo-Alt === Markenname ist korrekt.
+
+**Migrations-Hinweis:** Keiner. Weiterhin additiv/soft-warn. Reduziert nur die Guard-Warnungen.
+
+---
+
 ## v0.77.0 (2026-07-10)
 
 **Feature (Build-Guard):** Neuer **Alt-Qualität-Guard** in ai-discovery — ergänzt die bestehenden

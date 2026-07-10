@@ -615,8 +615,10 @@ const ALT_SLUG_RE = /^[a-z0-9]+([-_][a-z0-9]+)+$/;
  * Scannt eine dist-HTML nach `<img>` mit nicht-leerem, aber QUALITATIV schwachem Alt:
  * generischer Term (=== Firmenname/Leistungstitel, exact-match), Platzhalter-Präfix,
  * Dateiname-als-Alt, zu kurz (<5). Ergänzt `lintPageImgAlt` (Existenz) um Güte.
- * Deko-/Logo-Bilder (`role=presentation`/`aria-hidden`/`class~=logo`/`data-logo`) sind
- * ausgenommen (Logo-Alt === Markenname ist korrekt). Pure Funktion (Regex, kein DOM).
+ * Deko-/Logo-Bilder sind ausgenommen (Logo-Alt === Markenname ist korrekt):
+ * `role=presentation`/`aria-hidden`/`class~=logo`/`data-logo` ODER `src` enthält
+ * `logo`/`favicon` — letzteres fängt Logos, deren `logo`-Klasse am Eltern-`<a>` sitzt
+ * (der Guard sieht keine Vorfahren). Pure Funktion (Regex, kein DOM).
  *
  * `genericTerms` = Firmenname + Leistungstitel + areaServed (aus siteData, im Hook).
  * Liefert `{ issues, alts }` — `alts` = nicht-dekorative, nicht-leere Alt-Strings der
@@ -636,11 +638,15 @@ export function lintPageImgAltQuality(
   const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
   for (const tag of imgs) {
     // Deko + Logo ausnehmen — deren Alt ist bewusst leer bzw. der Markenname.
+    // src~=logo/favicon fängt Logos, deren logo-Klasse am Eltern-<a> hängt
+    // (img-lokaler Guard sieht keine Vorfahren) → sonst flaggt jedes Footer-/
+    // Nav-Logo (alt===Firmenname) auf JEDER Seite als generischer Term.
     if (
       /\brole\s*=\s*["']presentation["']/i.test(tag) ||
       /\baria-hidden\s*=\s*["']true["']/i.test(tag) ||
       /\bclass\s*=\s*["'][^"']*\blogo\b[^"']*["']/i.test(tag) ||
-      /\bdata-logo\b/i.test(tag)
+      /\bdata-logo\b/i.test(tag) ||
+      /\bsrc\s*=\s*["'][^"']*(?:logo|favicon)[^"']*["']/i.test(tag)
     ) {
       continue;
     }
