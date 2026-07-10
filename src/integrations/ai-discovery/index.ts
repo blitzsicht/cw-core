@@ -228,6 +228,16 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * Hinweise wie fehlendes `legal.region`/`knowsAbout` nie).
    */
   strictSiteDataShape?: boolean;
+
+  /**
+   * PERMANENT soft-warn (Default undefined/false) — bewusst KEIN Strict-Flip wie
+   * `strictAltText`/`strictSiteDataShape`. Der Alt-Qualität-Guard (`lintPageImgAltQuality` +
+   * `aggregateCrossPageDupAlts`) flaggt nicht-leere, aber generische/schwache Alts
+   * (Firmenname/Leistungstitel, „Bild:"-Platzhalter, Dateiname-als-Alt, <5 Zeichen,
+   * Cross-Page-Duplikate). Qualität ist fuzzy → ein False-Positive darf keinen Deploy
+   * brechen. Nur `true` (explizit pro Site opt-in) macht daraus einen Build-Fail.
+   */
+  strictAltQuality?: boolean;
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -579,6 +589,115 @@ export function lintPageImgAlt(htmlPath: string, distDir: string): AltIssue[] {
         page,
         type: 'alt_empty',
         detail: `<img alt=""> ohne Deko-Marker${srcNote} — dekorativ? role="presentation" setzen, sonst Alt-Text ergänzen.`,
+      });
+    }
+  }
+  return issues;
+}
+
+/** Ein `<img>` mit nicht-leerem, aber generischem/schwachem Alt-Text. */
+export interface AltQualityIssue {
+  page: string;
+  type: 'alt_generic_term' | 'alt_placeholder' | 'alt_filename' | 'alt_too_short' | 'alt_dup_crosspage';
+  detail: string;
+}
+
+// „Bild: …", „Foto –", „Abbildung" etc. als Alt-Präfix — sagt nichts über den Inhalt.
+const ALT_PLACEHOLDER_RE = /^(bild|foto|image|grafik|abbildung)\s*[:\-–]?\s*/i;
+// Alt endet auf eine Bild-Endung → jemand hat den Dateinamen ins alt kopiert.
+const ALT_EXT_RE = /\.(jpe?g|png|webp|svg|gif|avif)$/i;
+// All-lowercase-Slug mit Separatoren („hero-image-2", „hero_bg") — filename-artig.
+// Bewusst all-lowercase, damit deutsche Namen/Wörter mit Bindestrich („Vorher-Nachher",
+// „Max-Mustermann") NICHT als Dateiname geflaggt werden (Groß-/Kleinschreibung schützt).
+const ALT_SLUG_RE = /^[a-z0-9]+([-_][a-z0-9]+)+$/;
+
+/**
+ * Scannt eine dist-HTML nach `<img>` mit nicht-leerem, aber QUALITATIV schwachem Alt:
+ * generischer Term (=== Firmenname/Leistungstitel, exact-match), Platzhalter-Präfix,
+ * Dateiname-als-Alt, zu kurz (<5). Ergänzt `lintPageImgAlt` (Existenz) um Güte.
+ * Deko-/Logo-Bilder (`role=presentation`/`aria-hidden`/`class~=logo`/`data-logo`) sind
+ * ausgenommen (Logo-Alt === Markenname ist korrekt). Pure Funktion (Regex, kein DOM).
+ *
+ * `genericTerms` = Firmenname + Leistungstitel + areaServed (aus siteData, im Hook).
+ * Liefert `{ issues, alts }` — `alts` = nicht-dekorative, nicht-leere Alt-Strings der
+ * Seite (Input für `aggregateCrossPageDupAlts`, Cross-Page-Duplikate). Single-read.
+ */
+export function lintPageImgAltQuality(
+  htmlPath: string,
+  distDir: string,
+  genericTerms: readonly string[] = [],
+): { issues: AltQualityIssue[]; alts: string[] } {
+  const issues: AltQualityIssue[] = [];
+  const alts: string[] = [];
+  const pagePath = htmlPath.slice(distDir.length).replace(/\/index\.html$/, '/');
+  const page = pagePath.startsWith('/') ? pagePath : `/${pagePath}`;
+  const html = readFileSync(htmlPath, 'utf-8');
+  const terms = new Set(genericTerms.map((t) => t.trim().toLowerCase()).filter(Boolean));
+  const imgs = html.match(/<img\b[^>]*>/gi) ?? [];
+  for (const tag of imgs) {
+    // Deko + Logo ausnehmen — deren Alt ist bewusst leer bzw. der Markenname.
+    if (
+      /\brole\s*=\s*["']presentation["']/i.test(tag) ||
+      /\baria-hidden\s*=\s*["']true["']/i.test(tag) ||
+      /\bclass\s*=\s*["'][^"']*\blogo\b[^"']*["']/i.test(tag) ||
+      /\bdata-logo\b/i.test(tag)
+    ) {
+      continue;
+    }
+    const altMatch = tag.match(/\balt\s*=\s*("([^"]*)"|'([^']*)')/i);
+    if (!altMatch) continue; // fehlendes alt → Existenz-Guard (lintPageImgAlt), nicht Qualität
+    const alt = (altMatch[2] ?? altMatch[3] ?? '').trim();
+    if (alt === '') continue; // leeres alt → Existenz-Guard
+    alts.push(alt);
+    const srcM = tag.match(/\bsrc\s*=\s*["']([^"']+)["']/i);
+    const srcNote = srcM ? ` (src=${srcM[1]})` : '';
+    if (terms.has(alt.toLowerCase())) {
+      issues.push({
+        page,
+        type: 'alt_generic_term',
+        detail: `Alt „${alt}" = generischer Term (Firmenname/Leistungstitel)${srcNote} — konkretes Motiv beschreiben.`,
+      });
+    } else if (ALT_PLACEHOLDER_RE.test(alt)) {
+      issues.push({ page, type: 'alt_placeholder', detail: `Alt „${alt}" beginnt mit Platzhalter-Wort${srcNote}.` });
+    } else if (ALT_EXT_RE.test(alt) || ALT_SLUG_RE.test(alt)) {
+      issues.push({ page, type: 'alt_filename', detail: `Alt „${alt}" sieht wie ein Dateiname/Slug aus${srcNote}.` });
+    } else if (alt.length < 5) {
+      issues.push({ page, type: 'alt_too_short', detail: `Alt „${alt}" zu kurz (<5 Zeichen)${srcNote}.` });
+    }
+  }
+  return { issues, alts };
+}
+
+/**
+ * Findet Alt-Strings, die wortgleich (trim, ci) auf ≥`threshold` VERSCHIEDENEN Seiten
+ * vorkommen — der Per-Page-Linter sieht das nicht. Schwelle 3 (nicht 2), damit ein
+ * gemeinsamer Fallback-Alt zweier Templates nicht sofort flaggt. Pure Funktion.
+ */
+export function aggregateCrossPageDupAlts(
+  pageAlts: ReadonlyArray<{ page: string; alts: readonly string[] }>,
+  threshold = 3,
+): AltQualityIssue[] {
+  const byAlt = new Map<string, { pages: Set<string>; sample: string }>();
+  for (const { page, alts } of pageAlts) {
+    for (const alt of alts) {
+      const key = alt.trim().toLowerCase();
+      if (!key) continue;
+      let entry = byAlt.get(key);
+      if (!entry) {
+        entry = { pages: new Set(), sample: alt.trim() };
+        byAlt.set(key, entry);
+      }
+      entry.pages.add(page);
+    }
+  }
+  const issues: AltQualityIssue[] = [];
+  for (const { pages, sample } of byAlt.values()) {
+    if (pages.size >= threshold) {
+      const shown = [...pages].slice(0, 3).join(', ');
+      issues.push({
+        page: [...pages][0],
+        type: 'alt_dup_crosspage',
+        detail: `Alt „${sample}" wortgleich auf ${pages.size} Seiten (${shown}…) — pro Seite eigenes Motiv beschreiben.`,
       });
     }
   }
@@ -1231,6 +1350,50 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             throw new Error(
               `[ai-discovery] strictAltText=true: Build abgebrochen wegen ${altIssues.length} Alt-Text-Issues. ` +
                 `Dekorative <img> mit aria-hidden="true"/role="presentation" markieren, sonst Alt-Text ergänzen. Opt-out: strictAltText:false.`,
+            );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Alt-Qualität-Guard: nicht-leere, aber generische/schwache Alts
+        // -------------------------------------------------------------------
+        // Ergänzt den Existenz-Guard (oben) um QUALITÄT: Alt === Firmenname/
+        // Leistungstitel, „Bild:"-Platzhalter, Dateiname-als-Alt, <5 Zeichen +
+        // Cross-Page-Duplikate. PERMANENT soft-warn — Qualität ist fuzzy, ein
+        // False-Positive darf keinen Deploy brechen (opt-in strict: strictAltQuality:true).
+        // Divergente Kunden haben teils `services[].label` statt `leistungen[].title` —
+        // defensiv über unknown lesen (nicht im kanonischen Typ), damit beide erfasst sind.
+        const extraServices = (data as unknown as {
+          services?: ReadonlyArray<{ label?: string; title?: string }>;
+        }).services;
+        const genericTerms = [
+          data.name,
+          ...(Array.isArray(data.leistungen) ? data.leistungen.map((l) => l?.title) : []),
+          ...(Array.isArray(extraServices) ? extraServices.map((s) => s?.label ?? s?.title) : []),
+          ...(Array.isArray(data.seo?.areaServed) ? data.seo!.areaServed : []),
+        ].filter((t): t is string => typeof t === 'string' && t.trim() !== '');
+        const qualityIssues: AltQualityIssue[] = [];
+        const pageAlts: Array<{ page: string; alts: string[] }> = [];
+        for (const file of htmlFiles) {
+          const { issues, alts } = lintPageImgAltQuality(file, distDir, genericTerms);
+          qualityIssues.push(...issues);
+          const qp = file.slice(distDir.length).replace(/\/index\.html$/, '/');
+          pageAlts.push({ page: qp.startsWith('/') ? qp : `/${qp}`, alts });
+        }
+        qualityIssues.push(...aggregateCrossPageDupAlts(pageAlts));
+        if (qualityIssues.length === 0) {
+          logger.info(`Alt-Qualität-Guard: ✓ ${htmlFiles.length} Pages — keine generischen Alts.`);
+        } else {
+          logger.warn(`Alt-Qualität-Guard: ${qualityIssues.length} generische/schwache Alts (soft-warn):`);
+          for (const issue of qualityIssues.slice(0, 20)) {
+            logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+          }
+          if (qualityIssues.length > 20) {
+            logger.warn(`  … und ${qualityIssues.length - 20} weitere.`);
+          }
+          if (options.strictAltQuality === true) {
+            throw new Error(
+              `[ai-discovery] strictAltQuality=true: Build abgebrochen wegen ${qualityIssues.length} Alt-Qualität-Issues.`,
             );
           }
         }

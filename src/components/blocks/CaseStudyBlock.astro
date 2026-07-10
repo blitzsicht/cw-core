@@ -111,7 +111,13 @@ const schema = caseStudySchema(schemaInput);
 
     {images.length > 0 && (
       <div class="case-study-gallery">
-        {images.slice(0, 3).map((src) => <img src={src} alt={`Bild: ${customer}`} loading="lazy" />)}
+        {images.slice(0, 3).map((src, i) => (
+          <img
+            src={src}
+            alt={`${provider.name} — Referenzprojekt für ${customer}${location ? ` in ${location}` : ''}${images.length > 1 ? ` (${i + 1})` : ''}`}
+            loading="lazy"
+          />
+        ))}
       </div>
     )}
   </div>

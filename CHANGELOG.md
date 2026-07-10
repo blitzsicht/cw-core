@@ -22,6 +22,36 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.77.0 (2026-07-10)
+
+**Feature (Build-Guard):** Neuer **Alt-Qualität-Guard** in ai-discovery — ergänzt die bestehenden
+Alt-Text-Guards (die nur die *Existenz* eines Alt-Textes sichern) um die *Güte*. Zwei neue Exporte:
+`lintPageImgAltQuality(htmlPath, distDir, genericTerms)` (per-Page) + `aggregateCrossPageDupAlts(pageAlts)`
+(seitenübergreifend). Flaggt nicht-leere, aber generische/schwache Alts: `alt_generic_term`
+(Alt === Firmenname/Leistungstitel/areaServed, exact-match), `alt_placeholder` (beginnt mit
+„Bild/Foto/Image/Grafik/Abbildung"), `alt_filename` (Dateiname-/Slug-als-Alt), `alt_too_short` (<5
+Zeichen), `alt_dup_crosspage` (wortgleicher Alt auf ≥3 Seiten). Deko-/Logo-Bilder (`aria-hidden`/
+`role=presentation`/`class~=logo`/`data-logo`) sind ausgenommen.
+
+Kontext: Der v0.73-Audit zeigte fleet-weit systematisch generische Alts (Hero → nackter Firmenname
+via `imageAlt ?? siteName`-Fallback, Leistungs-Kacheln → Leistungstitel, Case-Study → „Bild: X").
+Alt-Text ist einer der echten Bild-Ranking- + A11y-Hebel; die Existenz-Guards konnten schwache Alts
+nicht erkennen. Der Guard macht sie sichtbar.
+
+**Wichtig — permanent soft-warn:** Flag `strictAltQuality` ist **bewusst KEIN** Strict-Flip wie
+`strictAltText`/`strictSiteDataShape`. Default = nur Warnung im Build-Log, **nie Build-Fail**.
+Qualität ist fuzzy — ein False-Positive darf keinen Deploy brechen. Nur explizit `strictAltQuality: true`
+pro Site macht daraus einen Fail. Der Guard wirkt als Signal + Regressionsschutz per Build-Log.
+
+**Tweak (CaseStudyBlock):** Gallery-`<img>`-Fallback `alt={`Bild: ${customer}`}` → beschreibend
+(`{Provider} — Referenzprojekt für {Kunde} in {Ort} (n)`) — kein literales „Bild:" mehr.
+
+**Migrations-Hinweis:** Keiner. Additiv + soft-warn. Bestehende Builds sehen nur eine neue
+Log-Zeile `Alt-Qualität-Guard: …`; kein Build bricht. Der Fleet-Rollout dieses Pins dient als
+Gratis-Audit (Build-Logs harvesten → generische Alts pro Kunde beheben).
+
+---
+
 ## v0.76.0 (2026-07-10)
 
 **Breaking (Build-Guard):** `strictSiteDataShape` ist jetzt **Default `true`** — der Build **failt**
