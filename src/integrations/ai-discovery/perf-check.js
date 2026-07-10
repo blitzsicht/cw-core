@@ -54,6 +54,8 @@ export function checkRenderBlockingCss(html, pagePath = '') {
  */
 const SYSTEM_FONT_ALLOWLIST = new Set(
   [
+    // CSS-wide keywords (blitzsicht-Canary-Befund 2026-07-10: 'inherit')
+    'inherit', 'initial', 'unset', 'revert', 'revert-layer',
     // generisch (CSS-Spec)
     'sans-serif', 'serif', 'monospace', 'cursive', 'fantasy', 'math',
     'system-ui', 'ui-sans-serif', 'ui-serif', 'ui-monospace', 'ui-rounded',
@@ -99,28 +101,40 @@ function expandVarFallbacks(value) {
 }
 
 /**
- * Extrahiert alle in `font-family:`-Deklarationen und `--font-*`-Custom-
- * Properties referenzierten Familien (ohne @font-face-Blöcke selbst).
+ * Extrahiert alle Font-STACKS aus `font-family:`-Deklarationen und
+ * `--font-*`-Custom-Properties (ohne @font-face-Blöcke selbst).
+ * Jeder Stack ist die geordnete Namensliste einer Deklaration.
  * @param {string} css
- * @returns {Set<string>}
+ * @returns {string[][]}
  */
-export function extractReferencedFontFamilies(css) {
+export function extractFontStacks(css) {
   const cleaned = stripCssComments(css)
     // @font-face-Blöcke ausblenden — deren font-family ist eine DEKLARATION.
     .replace(/@font-face\s*\{[^}]*\}/gi, '');
-  /** @type {Set<string>} */
-  const families = new Set();
+  /** @type {string[][]} */
+  const stacks = [];
   const declRe = /(?:^|[;{\s])(?:font-family|--font-[a-z0-9-]+)\s*:\s*([^;}]+)/gi;
   let m;
   while ((m = declRe.exec(cleaned)) !== null) {
     const value = expandVarFallbacks(m[1]);
+    const stack = [];
     for (const part of value.split(',')) {
       const name = normFontName(part);
       if (!name || name.includes('(')) continue;
-      families.add(name);
+      stack.push(name);
     }
+    if (stack.length > 0) stacks.push(stack);
   }
-  return families;
+  return stacks;
+}
+
+/**
+ * Flache Menge aller referenzierten Familien (Kompat-Helfer über extractFontStacks).
+ * @param {string} css
+ * @returns {Set<string>}
+ */
+export function extractReferencedFontFamilies(css) {
+  return new Set(extractFontStacks(css).flat());
 }
 
 /**
@@ -142,32 +156,42 @@ export function extractFontFaceFamilies(css) {
 }
 
 /**
- * Tote Font-Familien: referenziert, aber weder @font-face-deklariert noch
- * System-/generische Schrift. Nimmt ALLE CSS-Texte einer Site zusammen
- * (Inline-`<style>` + externe .css), damit Deklaration und Referenz in
- * unterschiedlichen Dateien liegen dürfen. Wirft nie.
+ * Tote Font-Familien: ein Stack, dessen FÜHRENDER Name weder @font-face-
+ * deklariert noch System-/generische Schrift ist → die Deklaration
+ * suggeriert einen Custom-Font, liefert aber still den System-Fallback
+ * (der steller-Bug). Spätere Stack-Namen ohne @font-face sind LEGITIME
+ * lokale Fallbacks (blitzsicht-Muster: 'Inter Variable' deklariert,
+ * dahinter 'Inter' für lokal installierte Fonts) und melden nicht.
+ * Nimmt ALLE CSS-Texte einer Site zusammen (Inline-`<style>` + externe
+ * .css), damit Deklaration und Referenz in unterschiedlichen Dateien
+ * liegen dürfen. Wirft nie.
  * @param {string[]} cssTexts
  * @returns {PerfIssue[]}
  */
 export function checkDeadFontFamilies(cssTexts) {
-  /** @type {Set<string>} */
-  const referenced = new Set();
+  /** @type {string[][]} */
+  const stacks = [];
   /** @type {Set<string>} */
   const declared = new Set();
   for (const css of cssTexts) {
     if (typeof css !== 'string' || !css) continue;
-    for (const f of extractReferencedFontFamilies(css)) referenced.add(f);
+    stacks.push(...extractFontStacks(css));
     for (const f of extractFontFaceFamilies(css)) declared.add(f);
+  }
+  /** @type {Set<string>} */
+  const deadLeads = new Set();
+  for (const stack of stacks) {
+    const lead = stack[0];
+    if (!lead || SYSTEM_FONT_ALLOWLIST.has(lead) || declared.has(lead)) continue;
+    deadLeads.add(lead);
   }
   /** @type {PerfIssue[]} */
   const issues = [];
-  for (const name of [...referenced].sort()) {
-    if (SYSTEM_FONT_ALLOWLIST.has(name)) continue;
-    if (declared.has(name)) continue;
+  for (const name of [...deadLeads].sort()) {
     issues.push({
       type: 'dead_font_family',
       details:
-        `font-family '${name}' referenziert, aber kein @font-face gefunden → stiller System-Fallback. ` +
+        `font-family-Stack führt mit '${name}', aber kein @font-face gefunden → stiller System-Fallback. ` +
         'Entweder Font self-hosten (@font-face + woff2) oder den toten Namen aus dem Stack entfernen.',
     });
   }

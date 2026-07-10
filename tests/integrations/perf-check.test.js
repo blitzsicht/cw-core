@@ -80,6 +80,30 @@ test('8. extractInlineStyles holt mehrere <style>-Blöcke', () => {
   assert.ok(styles[0].includes('color:blue'));
 });
 
+test('11. Fallback-Namen hinter deklariertem Lead sind legitim (blitzsicht-Muster)', () => {
+  // 'Inter Variable' ist @font-face-deklariert; 'Inter' dahinter ist bewusster
+  // Fallback auf lokal installierte Fonts — KEIN toter Verweis (Canary-Befund 2026-07-10).
+  const css =
+    "@font-face { font-family: 'Inter Variable'; src: url('/x.woff2'); } " +
+    ":root { --font-sans: 'Inter Variable', 'Inter', system-ui, sans-serif; } " +
+    "h1 { font-family: 'Plus Jakarta Sans Variable', 'Plus Jakarta Sans', sans-serif; } " +
+    "@font-face { font-family: 'Plus Jakarta Sans Variable'; src: url('/y.woff2'); }";
+  assert.deepEqual(checkDeadFontFamilies([css]), []);
+});
+
+test('12. CSS-wide keywords (inherit etc.) → keine False-Positives', () => {
+  const css = 'button { font-family: inherit; } .x { font-family: unset; }';
+  assert.deepEqual(checkDeadFontFamilies([css]), []);
+});
+
+test('13. toter LEAD-Name meldet weiterhin (steller-Bug bleibt gefangen)', () => {
+  // Lead 'Work Sans' ohne @font-face → Issue, auch wenn Fallbacks systemisch sind.
+  const css = ":root { --font-heading: 'Work Sans', system-ui, sans-serif; }";
+  const issues = checkDeadFontFamilies([css]);
+  assert.equal(issues.length, 1);
+  assert.ok(issues[0].details.includes("'work sans'"));
+});
+
 test('10. var()-Fallback-Listen (Tailwind v4) → keine False-Positives', () => {
   // Reproduziert den hausamlago-E2E-Befund: Tokens wie 'monospace)' /
   // 'noto color emoji")' durch var(--x, fallback, …)-Wrapper.

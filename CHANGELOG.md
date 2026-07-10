@@ -22,6 +22,20 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.67.1 (2026-07-10)
+
+**Fix (Perf):** Dead-Font-Linter — False-Positives vom v0.67.0-Canary behoben (blitzsicht).
+
+Kontext: Der strict-Canary brach blitzsicht mit 4 False-Positives: `inherit` (CSS-wide keyword, fehlte in der Allowlist) und Fallback-Namen hinter deklarierten Variable-Fonts (`'Inter Variable', 'Inter', …` — 'Inter' ist bewusster Fallback auf lokal installierte Fonts, kein toter Verweis).
+
+- Allowlist um CSS-wide keywords ergänzt (inherit, initial, unset, revert, revert-layer).
+- Neue Stack-Logik: Issue nur, wenn der FÜHRENDE Name eines font-family-Stacks weder @font-face-deklariert noch System-Font ist (der echte steller-Bug). Spätere Stack-Namen sind legitime Fallbacks.
+- Neue API `extractFontStacks()`; `extractReferencedFontFamilies()` bleibt kompatibel.
+
+**Migrations-Hinweis:** Keiner. Font-Demo-Seiten (z. B. Brand-Guides, die Kundenschriften zeigen) nutzen bei Bedarf das Opt-out `strictFonts: false`.
+
+---
+
 ## v0.67.0 (2026-07-10)
 
 **Workflow (Perf):** Perf-Guards strict — Cache-Header-, Inline-CSS- und Dead-Font-Linter brechen den Build jetzt per Default ab statt nur zu warnen (blitzsicht-ops#538).
