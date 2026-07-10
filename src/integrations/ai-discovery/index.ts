@@ -167,7 +167,11 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * zum Browser. Siehe docs/caching-rationale.md.
    */
   checkCacheHeaders?: boolean;
-  /** Bei true → Build-Fail (throw) bei Cache-Header-Issues. Default false (Soft-Warn). */
+  /**
+   * Default TRUE seit v0.67.0 (strict-Flip, blitzsicht-ops#538) → Build-Fail
+   * (throw) bei Cache-Header-Issues. Opt-out pro Site: explizit `false`
+   * setzen (Soft-Warn) — nur für begründete Sonderfälle.
+   */
   strictCacheHeaders?: boolean;
 
   /**
@@ -177,7 +181,10 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * (blitzsicht-Messung: ~720 ms Ersparnis durch Inlining).
    */
   checkInlineCss?: boolean;
-  /** Bei true → Build-Fail (throw) bei render-blockendem CSS. Default false (Soft-Warn). */
+  /**
+   * Default TRUE seit v0.67.0 (strict-Flip, blitzsicht-ops#538) → Build-Fail
+   * (throw) bei render-blockendem CSS. Opt-out pro Site: explizit `false`.
+   */
   strictInlineCss?: boolean;
 
   /**
@@ -188,7 +195,10 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * Font-Dateien im Repo.
    */
   checkFonts?: boolean;
-  /** Bei true → Build-Fail (throw) bei toten Font-Familien. Default false (Soft-Warn). */
+  /**
+   * Default TRUE seit v0.67.0 (strict-Flip, blitzsicht-ops#538) → Build-Fail
+   * (throw) bei toten Font-Familien. Opt-out pro Site: explizit `false`.
+   */
   strictFonts?: boolean;
 }
 
@@ -1096,7 +1106,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               for (const ci of cacheIssues) {
                 logger.warn(`  [${ci.type}] ${ci.details}`);
               }
-              if (options.strictCacheHeaders) {
+              if (options.strictCacheHeaders !== false) {
                 throw new Error(
                   `[ai-discovery] strictCacheHeaders=true: Build abgebrochen wegen ${cacheIssues.length} Cache-Header-Issue(s).`,
                 );
@@ -1131,7 +1141,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             if (renderBlockingIssues.length > 5) {
               logger.warn(`  … und ${renderBlockingIssues.length - 5} weitere Seite(n).`);
             }
-            if (options.strictInlineCss) {
+            if (options.strictInlineCss !== false) {
               throw new Error(
                 `[ai-discovery] strictInlineCss=true: Build abgebrochen wegen render-blockendem CSS auf ${renderBlockingIssues.length} Seite(n).`,
               );
@@ -1160,7 +1170,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               for (const fi of fontIssues) {
                 logger.warn(`  [${fi.type}] ${fi.details}`);
               }
-              if (options.strictFonts) {
+              if (options.strictFonts !== false) {
                 throw new Error(
                   `[ai-discovery] strictFonts=true: Build abgebrochen wegen ${fontIssues.length} toter Font-Familie(n).`,
                 );

@@ -71,7 +71,7 @@ export function isAssetSource(source) {
   const s = source.toLowerCase();
   if (s.startsWith('/_astro')) return false;
   return (
-    /\/(images|img|icons|og|media|assets)\//.test(s) ||
+    /\/(images|img|icons|og|media|assets|videos)\//.test(s) ||
     /favicon|logo/.test(s) ||
     /\((?:[a-z0-9]+\|)*(?:jpg|jpeg|png|webp|avif|gif|svg|ico)(?:\|[a-z0-9]+)*\)/.test(s)
   );

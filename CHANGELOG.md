@@ -22,6 +22,21 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.67.0 (2026-07-10)
+
+**Workflow (Perf):** Perf-Guards strict — Cache-Header-, Inline-CSS- und Dead-Font-Linter brechen den Build jetzt per Default ab statt nur zu warnen (blitzsicht-ops#538).
+
+Kontext: Der Speed-Rollout (v0.65.0/v0.65.1) ist fleet-weit abgeschlossen — alle 11 Live-Kunden haben Cache-Control-Regeln, `inlineStylesheets: 'always'` und saubere Font-Stacks (Config-Sweep `rollout-perf-config.sh`, inkl. Nachfass soleno/donau-profi + immutable-Anti-Pattern-Fix). Damit der Standard nicht zurückdriftet, gilt ab jetzt Build-Fail statt Soft-Warn. E2E-verifiziert: compliant Site baut grün; vercel.json ohne Asset-Cache-Regel → `strictCacheHeaders=true: Build abgebrochen`.
+
+Änderungen:
+
+- `strictCacheHeaders`, `strictInlineCss`, `strictFonts` defaulten auf **true** (vorher false). Opt-out pro Site: Option explizit auf `false` setzen (nur für begründete Sonderfälle).
+- `isAssetSource` erkennt jetzt auch `/videos/`-Pfade (soleno-Befund: `immutable` auf `/videos/` wäre unentdeckt geblieben).
+
+**Migrations-Hinweis:** Keiner für compliant Sites (alle 11 Live-Kunden sind es seit dem Config-Sweep). Nicht-compliant Sites: Build schlägt mit konkreter Guard-Meldung fehl → `rollout-perf-config.sh --only <slug>` fixt, oder begründetes Opt-out (`strictCacheHeaders: false` etc.) in `aiDiscovery({...})`.
+
+---
+
 ## v0.66.0 (2026-07-10)
 
 - [kunde] Die Auswertung von Klicks auf der Website misst jetzt sauberer: Klicks auf Navigations-Links werden nicht mehr fälschlich als Button-Klick gezählt, und mehrfach erfasste Klicks auf denselben Button wurden entfernt. Die Zahlen zu Handlungsaufrufen werden dadurch genauer.

@@ -133,6 +133,7 @@ test('8. immutable auf /_astro/ ist OK (kein False-Positive)', () => {
 
 test('9. isAssetSource-Heuristik', () => {
   assert.equal(isAssetSource('/images/(.*)'), true);
+  assert.equal(isAssetSource('/videos/(.*)'), true); // soleno-Befund 2026-07-10
   assert.equal(isAssetSource('/og/(.*)'), true);
   assert.equal(isAssetSource('/(favicon|logo)\\.(svg|png)'), true);
   assert.equal(isAssetSource('/(.*)\\.(jpg|png|webp)'), true);
