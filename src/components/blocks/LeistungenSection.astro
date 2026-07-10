@@ -302,7 +302,12 @@ const toTelHref = (p?: string) => {
 
 <script>
   import { track } from '../../utils/analytics/track';
-  document.querySelectorAll<HTMLAnchorElement>('.leistung-link').forEach((link) => {
+  // cw-tracking-safe: Selektor 'a.leistung-link' trifft NUR den Read-More-Anchor
+  // (Branch A, kein data-cta) — nicht den dekorativen <span class="leistung-link">
+  // in der Link-Card (Branch B), der in einem <a data-cta="leistung-card:"> liegt.
+  // So feuert ein Karten-Klick entweder "Service Click" ODER "CTA Click", nie
+  // beide (Doppelfeuer-Fix 2026-07-10, Guard: cta-double-fire.test.js).
+  document.querySelectorAll<HTMLAnchorElement>('a.leistung-link').forEach((link) => {
     link.addEventListener('click', () => {
       const service = link.closest('.leistung-card')?.querySelector('h3')?.textContent?.trim() ?? '';
       track('Service Click', { service });

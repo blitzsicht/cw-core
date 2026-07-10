@@ -22,6 +22,30 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.66.0 (2026-07-10)
+
+- [kunde] Die Auswertung von Klicks auf der Website misst jetzt sauberer: Klicks auf Navigations-Links werden nicht mehr fälschlich als Button-Klick gezählt, und mehrfach erfasste Klicks auf denselben Button wurden entfernt. Die Zahlen zu Handlungsaufrufen werden dadurch genauer.
+
+**Fix (Tracking):** CTA-Click-Doppelfeuer in Hero, Header und LeistungenSection entfernt + Cluster-Guard `cta-double-fire`.
+
+Kontext: Live-Audit auf blitzsicht.com (2026-07-10) zeigte, dass ein einzelner Klick zwei Plausible-Events auslöste. Ursache: Seit v0.63 feuert der globale SSOT-Listener (BaseLayout im inline-Modus, `<PlausibleEvents>` im full-Modus) das CORE-Goal `CTA Click` für jedes `[data-cta]`-Element. Drei Komponenten hatten zusätzlich einen eigenen `click`→`track`-Listener auf denselben (oder umschliessenden) Elementen:
+
+- `Hero.astro` → `Hero CTA Click` + `CTA Click` (`hero-primary:`)
+- `Header.astro` → `Nav Click` + `CTA Click` (`nav:`) — jeder Nav-Link trug `data-cta`, wodurch reine Navigation das CTA-Goal aufblähte
+- `LeistungenSection.astro` → `Service Click` + `CTA Click` (`leistung-card:`) beim Klick auf die Link-Karte
+
+Alle drei Komponenten-Events (`Hero CTA Click`, `Nav Click`, `Service Click`) sind keine konfigurierten Goals (`plausible-goals.mjs`) → totes Volumen auf demselben Klick, plus ein aufgeblähtes CTA-Click-Goal durch Navigations-Klicks.
+
+Änderungen:
+- `Hero.astro`: redundanten `Hero CTA Click`-Listener entfernt — Hero-CTAs zählen weiter via globalem `CTA Click` (`hero-primary:`/`hero-secondary:`).
+- `Header.astro`: `data-cta` von normalen Nav-Links entfernt (nur der `nav-highlight`-Button behält es); Nav-Click-Listener auf `#main-nav a:not(.btn-accent)` eingeschränkt. Nav = `Nav Click`, der Highlight-CTA = `CTA Click` — nie beides.
+- `LeistungenSection.astro`: Service-Click-Selektor auf `a.leistung-link` verengt (trifft nicht mehr den dekorativen `<span>` in der `data-cta`-Karte).
+- **Neuer Guard** `scripts/lint/cta-double-fire-check.mjs` + Test `tests/ai-discovery/cta-double-fire.test.js`: scannt Komponenten auf `click`→`track`-Listener neben `data-cta` und verlangt Allowlist oder `cw-tracking-safe`-Annotation. Verhindert clusterweit die Wiedereinführung dieses Musters.
+
+**Migrations-Hinweis:** Keiner (kein Prop-/API-Change). Rein tracking-seitig. Kunden mit einem eigens angelegten `Hero CTA Click`-/`Nav Click`-/`Service Click`-Goal (keiner im Cluster) würden ab dieser Version keine bzw. weniger Treffer sehen; die Conversion bleibt über `CTA Click` erfasst.
+
+---
+
 ## v0.65.1 (2026-07-10)
 
 **Fix (Types):** `BaseLayout.astro` — TypeScript-Fehler in den Schema-Props behoben, sodass `astro check` in Kunden-Repos nicht mehr an diesen Meldungen scheitert.

@@ -324,15 +324,14 @@ const motionCfg: HeroMotionConfig =
   </div>
 </section>
 
-<script>
-  import { track } from '../../utils/analytics/track';
-  document.querySelectorAll<HTMLAnchorElement>('.hero-cta a').forEach((link) => {
-    link.addEventListener('click', () => {
-      track('Hero CTA Click', { label: link.textContent?.trim() ?? '' });
-    });
-  });
-</script>
-
+<!--
+  Kein komponenten-lokaler CTA-Click-Listener mehr (entfernt v0.66):
+  '.hero-cta a' trägt data-cta (hero-primary:/hero-secondary:), das der globale
+  BaseLayout-Listener (inline) bzw. <PlausibleEvents> (full) als SSOT-Goal
+  "CTA Click" abfängt. Der frühere track('Hero CTA Click') war ein totes
+  Non-Goal-Event, das auf denselben Klick doppelt feuerte (Tracking-Audit
+  2026-07-10). Guard: tests/ai-discovery/cta-double-fire.test.js.
+-->
 <style>
   .hero {
     background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-hero-gradient-end, color-mix(in srgb, var(--color-primary), #000 35%)) 100%);
