@@ -22,6 +22,19 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.71.0 (2026-07-10)
+
+**Fix (Review-Nachzug):** Zwei Befunde aus dem Selbst-Review von v0.69.0/v0.70.0 behoben.
+
+Kontext: Der Multi-Agent-Review fand (1) den `images.hero`-Caption-Fallback als toten Code — divergente Kunden (gottl, Ferienhäuser) haben KEINEN top-level `hero`-Key, also war `data.hero.imageAlt || data.hero.headline` immer `undefined` → keine Bild-Description trotz „Tolerance"-Claim; (2) den zugehörigen Unit-Test (#10), der eine fiktive Hybrid-Shape prüfte statt der echten → False-PASS-Risiko (CLAUDE.md-Testregel).
+
+- `buildDescByStem`: Caption-Fallback für `images.hero`-Kunden jetzt auf `data.name` (Firmen-/Objektname) statt des nie existierenden `hero.headline` — echter, sinnvoller Wert.
+- Test #10 nutzt jetzt die ECHTE divergente Shape (`images.hero`-String ohne `hero`-Objekt) + testet explizit die dokumentierte Grenze (kein `name`/`hero` → keine Caption).
+
+**Migrations-Hinweis:** Keiner. `images.hero`-Kunden (gottl, hausamlago, hausammincio) bekommen jetzt den Firmennamen als Hero-Bild-Caption statt gar keiner.
+
+---
+
 ## v0.70.0 (2026-07-10)
 
 - [kunde] Die Bilder der Website liefern jetzt strukturierte Angaben (Bildunterschrift, Urheber, Copyright) mit, die Google Bilder und KI-Suchen tatsächlich auswerten — die Grundlage für bessere Bild-Auffindbarkeit.

@@ -162,12 +162,22 @@ test('9. Keywords tolerieren services[].label (gottl) neben leistungen[].title',
   assert.deepEqual(kw, ['Regensburg', 'Wertermittlung', 'Bauschäden']);
 });
 
-test('10. buildDescByStem tolerant für images.hero-String (gottl/Ferienhäuser)', () => {
-  const map = buildDescByStem({
+test('10. buildDescByStem: images.hero mit ECHTER divergenter Shape (gottl/Ferienhäuser)', () => {
+  // Reale Shape: images.hero-String, KEIN top-level hero-Objekt (wie gottl/hausamlago tatsächlich).
+  // Caption fällt auf data.name zurück (kein toter hero.imageAlt-Verweis).
+  const real = buildDescByStem({
+    name: 'Sachverständigenbüro Gottl Richter Gomeier',
     images: { hero: '/images/hero.jpg' },
-    hero: { imageAlt: 'Sachverständigenbüro Team' },
   });
-  assert.equal(descForFile('hero.Hash9.jpg', map), 'Sachverständigenbüro Team');
+  assert.equal(descForFile('hero.Hash9.jpg', real), 'Sachverständigenbüro Gottl Richter Gomeier');
+
+  // Ohne name UND ohne hero → keine Caption (dokumentierte Grenze, nicht "still gefixt").
+  const none = buildDescByStem({ images: { hero: '/images/hero.jpg' } });
+  assert.equal(descForFile('hero.Hash9.jpg', none), null);
+
+  // Canonical hero.imageAlt hat weiterhin Vorrang.
+  const canonical = buildDescByStem({ name: 'X', hero: { image: '/images/hero.webp', imageAlt: 'Alt-Text' } });
+  assert.equal(descForFile('hero.Z.webp', canonical), 'Alt-Text');
 });
 
 test('11. Denylist: OG/Icons/Favicons werden NICHT getaggt', () => {

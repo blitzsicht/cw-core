@@ -169,8 +169,10 @@ export function buildDescByStem(data) {
     if (stem) map.set(stem, alt);
   };
   // Canonical Hero (`hero.image`) UND divergenter String-Hero (`images.hero`, z.B. gottl/Ferienhäuser).
+  // Divergente Kunden haben KEINEN top-level `hero`-Key → als Caption der Firmen-/Objektname
+  // (`data.name`) als sinnvoller Fallback (kein toter `hero.imageAlt`-Verweis, den es dort nie gibt).
   add(data?.hero?.image, data?.hero?.imageAlt);
-  add(data?.images?.hero, data?.hero?.imageAlt || data?.hero?.headline);
+  add(data?.images?.hero, data?.hero?.imageAlt || data?.name);
   for (const l of data?.leistungen ?? []) {
     add(l?.image, l?.imageAlt);
     add(l?.heroImage, l?.imageAlt || l?.title);
