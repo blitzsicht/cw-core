@@ -45,7 +45,7 @@ const { heading = 'Unser Service', italic = true, background = 'accent', items }
         {items.map((s) => (
           <div class="service-card">
             <div class="service-icon" aria-hidden="true">
-              <img src={s.iconSvg} alt="" loading="lazy" decoding="async" />
+              <img src={s.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" />
             </div>
             <h3>{s.title}</h3>
           </div>

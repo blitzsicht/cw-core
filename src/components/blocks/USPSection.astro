@@ -47,7 +47,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
       {items.map((usp) => (
         <div class="usp-card">
           {usp.iconSvg
-            ? <div class:list={["usp-icon usp-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={usp.iconSvg} alt="" loading="lazy" decoding="async" /></div>
+            ? <div class:list={["usp-icon usp-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={usp.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
             : usp.icon && <div class="usp-icon" aria-hidden="true">{usp.icon}</div>
           }
           <h3>{usp.title}</h3>

@@ -22,6 +22,26 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.74.0 (2026-07-10)
+
+- [kunde] Dekorative Bilder (Logo, Icons, Signets) werden von Screenreadern nicht mehr doppelt vorgelesen — bessere Barrierefreiheit; sichtbar ändert sich nichts.
+
+**Fix (a11y):** Dekorative `<img>` tragen den `aria-hidden="true"`-Marker jetzt am `<img>`-Tag selbst
+statt nur am Eltern-Element. Betroffen: Header-Logo (`layout/Header.astro`), Block-Icons
+(`LeistungenSection`, `ServiceTrioSection`, `USPSection`), CTA-Signets (`CTAHeroBlock`).
+
+Kontext: Der Alt-Text-Guard (`lintPageImgAlt`) prüft nur das `<img>`-Tag auf `aria-hidden`/`role`,
+nicht die Vorfahren. Dadurch flaggte er fleet-weit ~359 genuin-dekorative Bilder mit `alt=""` als
+`alt_empty` (v0.73-Rollout-Audit: soleno 156, blitzsicht 41, …), obwohl der Marker korrekt am
+Eltern-Link (`aria-label`) bzw. -Div (`aria-hidden`) saß. Der Marker am Tag ist a11y-korrekt (die
+beschrifteten Vorfahren behalten den Accessible Name) UND räumt die Guard-Treffer ab. Verifiziert:
+gottl 22→0, soleno 156→72 (Rest = kunden-eigene Content-Bilder, separat).
+
+**Migrations-Hinweis:** Keiner (rein additiv). Ebnet den Weg für den `strictAltText`-Flip (v0.75.0),
+sobald auch kunden-eigene Content-Bilder echtes Alt haben. strict-Flags unverändert soft.
+
+---
+
 ## v0.73.0 (2026-07-10)
 
 - [kunde] Die Urheber-/Copyright-Angabe in den Suchmaschinen-Strukturdaten der Bilder nennt jetzt einheitlich das rechtlich verantwortliche Unternehmen — identisch zur Angabe in den Bilddateien selbst.

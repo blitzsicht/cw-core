@@ -67,13 +67,13 @@ const {
 
     {signetLayered ? (
       <div class="cta-hero-signets" aria-hidden="true">
-        <img class="signet-back" src={signetSrc} alt="" />
-        <img class="signet-mid" src={signetSrc} alt="" />
-        <img class="signet-front" src={signetSrc} alt="" />
+        <img class="signet-back" src={signetSrc} alt="" aria-hidden="true" />
+        <img class="signet-mid" src={signetSrc} alt="" aria-hidden="true" />
+        <img class="signet-front" src={signetSrc} alt="" aria-hidden="true" />
       </div>
     ) : (
       <div class="cta-hero-signet-single" aria-hidden="true">
-        <img src={signetSrc} alt="" />
+        <img src={signetSrc} alt="" aria-hidden="true" />
       </div>
     )}
   </div>
