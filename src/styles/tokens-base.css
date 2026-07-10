@@ -257,3 +257,14 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
   border: 0;
 }
+
+/* Cross-Document View Transitions (Chrome/Edge 126+, Safari 18.2+) —
+   zentral für alle Customer-Sites (Speed-Rollout 2026-07). Reines CSS,
+   Progressive Enhancement: nicht unterstützte Browser navigieren normal.
+   Hinter prefers-reduced-motion, damit Motion-sensitive Nutzer harte
+   Wechsel behalten. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+  }
+}

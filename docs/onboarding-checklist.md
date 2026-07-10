@@ -11,7 +11,7 @@
 
 ## 2. Vercel-Konfiguration (kritisch für Audit)
 
-- [ ] **`vercel.json` aus Template:** `cw-core/src/templates/vercel.template.json` als Basis kopieren
+- [ ] **`vercel.json` aus Template:** `cw-core/src/templates/vercel.template.json` als Basis kopieren — enthält Security-Header UND den Cache-Control-Standard (public/-Assets 1d, kein `immutable` außerhalb `/_astro/`; Rationale: `docs/caching-rationale.md`). Cache-Pfade gegen das tatsächliche `public/`-Layout prüfen.
 - [ ] **CSP site-spezifisch anpassen** — Drittanbieter-URLs in `script-src`, `connect-src`, `frame-src`:
   - Plausible Analytics? → `https://plausible.io` in script/connect
   - Cal.com Booking? → `https://app.cal.eu` in script/connect/frame
@@ -34,6 +34,7 @@ Audit-Drift-Vermeidung: Beim ersten Deploy direkt einen cw-audit-Run gegen die L
 
 ## 4. Astro-Site-Inhalte (cw-core-Komponenten)
 
+- [ ] **`astro.config.mjs` aus Template:** `cw-core/src/templates/astro.config.template.mjs` kopieren — enthält den Pflicht-Performance-Standard (`prefetch` viewport + `inlineStylesheets: 'always'`, Rationale: `docs/caching-rationale.md`) plus faviconIco/aiDiscovery/bingIndexNow-Wiring. Der ai-discovery-Perf-Linter warnt, wenn Seiten render-blockendes CSS ausliefern.
 - [ ] **`<StickyMobileCTA href="/kontakt" label="..." />`** in `src/pages/index.astro` einbinden — ist NICHT auto-included in BaseLayout.astro
 - [ ] **LocalBusiness JSON-LD** über `<LocalBusinessSchema>` (oder manuell) im BaseLayout — Pflicht für lokale Suche
 - [ ] **FAQ-Block** mit FAQPage-Schema auf der Hauptseite (Google AI Overview-Sichtbarkeit)

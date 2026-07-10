@@ -33,6 +33,46 @@
           "value": "default-src 'self' https://{{DOMAIN}}; script-src 'self' https://{{DOMAIN}} 'unsafe-inline' https://plausible.io https://tally.so https://app.cal.eu; script-src-elem 'self' https://{{DOMAIN}} 'unsafe-inline' https://plausible.io https://tally.so https://app.cal.eu; style-src 'self' https://{{DOMAIN}} 'unsafe-inline'; style-src-elem 'self' https://{{DOMAIN}} 'unsafe-inline'; img-src 'self' data: blob: https:; media-src 'self' https://{{DOMAIN}}; frame-src https://tally.so https://app.cal.eu https://www.youtube-nocookie.com; connect-src 'self' https://{{DOMAIN}} https://plausible.io https://app.cal.eu; font-src 'self' https://{{DOMAIN}} data:; object-src 'none'; base-uri 'self'; form-action 'self' https://tally.so; frame-ancestors 'none'"
         }
       ]
+    },
+    {
+      "_comment_cache": "Cache-Control für public/-Assets (Speed-Rollout 2026-07-09, siehe docs/caching-rationale.md). Bewusst KEIN immutable: public/-Dateinamen sind stabil über Deploys — immutable würde geänderte Inhalte für immer stale machen. /_astro/* braucht KEINEN Block: Vercels Astro-Preset setzt dort bereits max-age=31536000, immutable (live verifiziert). HTML ebenfalls Default lassen (max-age=0 + Edge-Cache mit Deploy-Invalidierung).",
+      "source": "/images/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/icons/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/og/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "source": "/(favicon|favicon-192|favicon-512|logo|logo-dark)\\.(svg|png|ico)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" }
+      ]
+    },
+    {
+      "_comment_fonts": "Forward-looking: nur wirksam, wenn die Site Fonts self-hostet (public/fonts/). Fonts ändern sich praktisch nie → 30 Tage.",
+      "source": "/fonts/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=2592000" }
+      ]
+    },
+    {
+      "_comment_rewrite_cache": "Plausible-Proxy-Script am Edge cachen (6h) — sonst trifft jeder Edge-Cold-Request den stats-Origin. NIEMALS auf /api/event anwenden (Event-Beacon muss durch).",
+      "source": "/js/script.js",
+      "headers": [
+        { "key": "x-vercel-enable-rewrite-caching", "value": "1" },
+        { "key": "CDN-Cache-Control", "value": "max-age=21600" }
+      ]
     }
   ],
   "redirects": [

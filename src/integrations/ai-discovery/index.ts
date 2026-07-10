@@ -24,6 +24,12 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { AstroIntegration } from 'astro';
 import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.js';
+import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
+import {
+  checkDeadFontFamilies,
+  checkRenderBlockingCss,
+  extractInlineStyles,
+} from './perf-check.js';
 import { geotagDist } from './geotag.js';
 
 // ---------------------------------------------------------------------------
@@ -151,6 +157,39 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   strictCsp?: boolean;
   /** Analytics-Host für die CSP-Konsistenz-Prüfung. Default 'plausible.io'; null = aus. */
   analyticsHost?: string | null;
+
+  /**
+   * Default true. Prüft die `vercel.json` auf Cache-Control-Politik für
+   * public/-Assets: fehlende Asset-/Font-Cache-Regeln, `immutable` auf
+   * Nicht-/_astro-Pfaden (Stale-forever-Anti-Pattern), `no-store` auf Assets.
+   * Hintergrund (Speed-Rollout 2026-07-09): kein Customer-vercel.json im
+   * Cluster hatte Cache-Control → alle public/-Assets gingen mit max-age=0
+   * zum Browser. Siehe docs/caching-rationale.md.
+   */
+  checkCacheHeaders?: boolean;
+  /** Bei true → Build-Fail (throw) bei Cache-Header-Issues. Default false (Soft-Warn). */
+  strictCacheHeaders?: boolean;
+
+  /**
+   * Default true. Warnt, wenn gebaute Seiten render-blockende
+   * `<link rel="stylesheet">` auf /_astro/-CSS enthalten — d. h.
+   * `build: { inlineStylesheets: 'always' }` fehlt in astro.config
+   * (blitzsicht-Messung: ~720 ms Ersparnis durch Inlining).
+   */
+  checkInlineCss?: boolean;
+  /** Bei true → Build-Fail (throw) bei render-blockendem CSS. Default false (Soft-Warn). */
+  strictInlineCss?: boolean;
+
+  /**
+   * Default true. Warnt bei toten Font-Familien: `font-family`/`--font-*`
+   * referenziert einen Namen, für den es kein `@font-face` gibt und der
+   * keine System-/generische Schrift ist → stiller System-Fallback.
+   * Hintergrund: steller referenzierte 'Inter'/'Work Sans' ohne jegliche
+   * Font-Dateien im Repo.
+   */
+  checkFonts?: boolean;
+  /** Bei true → Build-Fail (throw) bei toten Font-Familien. Default false (Soft-Warn). */
+  strictFonts?: boolean;
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -1026,6 +1065,104 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               if (options.strictCsp) {
                 throw new Error(
                   `[ai-discovery] strictCsp=true: Build abgebrochen wegen ${cspIssues.length} CSP-Drift-Issue(s).`,
+                );
+              }
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Cache-Header-Linter: vercel.json (Speed-Rollout 2026-07-09)
+        // -------------------------------------------------------------------
+        // Kein Customer-vercel.json im Cluster hatte Cache-Control → alle
+        // public/-Assets gingen mit Vercel-Default max-age=0 zum Browser
+        // (nur gehashte /_astro/* sind via Astro-Preset immutable). Dazu
+        // Anti-Pattern-Schutz: immutable auf public/-Pfaden, no-store auf
+        // Assets. Siehe cache-header-check.js + docs/caching-rationale.md.
+        if (options.checkCacheHeaders !== false) {
+          const vercelPath = [join(process.cwd(), 'vercel.json'), join(distDir, '..', 'vercel.json')].find(
+            (p) => existsSync(p),
+          );
+          if (!vercelPath) {
+            logger.info('Cache-Header-Linter: keine vercel.json gefunden — Skip.');
+          } else {
+            const rules = extractHeaderRulesFromVercelJson(readFileSync(vercelPath, 'utf-8'));
+            const hasFontsDir = existsSync(join(distDir, 'fonts'));
+            const cacheIssues = checkCacheHeaders(rules, { hasFontsDir });
+            if (cacheIssues.length === 0) {
+              logger.info('Cache-Header-Linter: ✓ vercel.json Cache-Politik ok.');
+            } else {
+              logger.warn(`Cache-Header-Linter: ${cacheIssues.length} Issue(s) in ${vercelPath}:`);
+              for (const ci of cacheIssues) {
+                logger.warn(`  [${ci.type}] ${ci.details}`);
+              }
+              if (options.strictCacheHeaders) {
+                throw new Error(
+                  `[ai-discovery] strictCacheHeaders=true: Build abgebrochen wegen ${cacheIssues.length} Cache-Header-Issue(s).`,
+                );
+              }
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Perf-Linter: Render-Blocking-CSS + tote Font-Familien (dist)
+        // -------------------------------------------------------------------
+        // Directory-Walk hier (walkHtml in Scope), pure Checks in perf-check.js.
+        if (options.checkInlineCss !== false || options.checkFonts !== false) {
+          const perfHtmlFiles = walkHtml(distDir);
+          const inlineCssTexts: string[] = [];
+          let renderBlockingIssues: { type: string; details: string }[] = [];
+          for (const file of perfHtmlFiles) {
+            const html = readFileSync(file, 'utf-8');
+            const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+            if (options.checkInlineCss !== false) {
+              renderBlockingIssues = renderBlockingIssues.concat(checkRenderBlockingCss(html, rel));
+            }
+            inlineCssTexts.push(...extractInlineStyles(html));
+          }
+          if (renderBlockingIssues.length > 0) {
+            logger.warn(
+              `Perf-Linter: ${renderBlockingIssues.length} Seite(n) mit render-blockendem CSS (build.inlineStylesheets: 'always' fehlt?):`,
+            );
+            for (const pi of renderBlockingIssues.slice(0, 5)) {
+              logger.warn(`  [${pi.type}] ${pi.details}`);
+            }
+            if (renderBlockingIssues.length > 5) {
+              logger.warn(`  … und ${renderBlockingIssues.length - 5} weitere Seite(n).`);
+            }
+            if (options.strictInlineCss) {
+              throw new Error(
+                `[ai-discovery] strictInlineCss=true: Build abgebrochen wegen render-blockendem CSS auf ${renderBlockingIssues.length} Seite(n).`,
+              );
+            }
+          } else if (options.checkInlineCss !== false) {
+            logger.info('Perf-Linter: ✓ kein render-blockendes CSS.');
+          }
+
+          if (options.checkFonts !== false) {
+            // Externe CSS (falls nicht inlined) mit einsammeln, damit
+            // @font-face-Deklaration und Referenz in verschiedenen Dateien liegen dürfen.
+            const astroDir = join(distDir, '_astro');
+            const cssTexts = [...inlineCssTexts];
+            if (existsSync(astroDir)) {
+              for (const entry of readdirSync(astroDir)) {
+                if (entry.endsWith('.css')) {
+                  cssTexts.push(readFileSync(join(astroDir, entry), 'utf-8'));
+                }
+              }
+            }
+            const fontIssues = checkDeadFontFamilies(cssTexts);
+            if (fontIssues.length === 0) {
+              logger.info('Perf-Linter: ✓ keine toten Font-Familien.');
+            } else {
+              logger.warn(`Perf-Linter: ${fontIssues.length} tote Font-Familie(n):`);
+              for (const fi of fontIssues) {
+                logger.warn(`  [${fi.type}] ${fi.details}`);
+              }
+              if (options.strictFonts) {
+                throw new Error(
+                  `[ai-discovery] strictFonts=true: Build abgebrochen wegen ${fontIssues.length} toter Font-Familie(n).`,
                 );
               }
             }

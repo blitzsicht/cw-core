@@ -49,10 +49,11 @@ cw-core/
     ContentPage.astro      # BaseLayout + Header + Prose-Container + Footer
   styles/
     tokens-base.css        # Shared Utility-Klassen (.btn-accent, .container …)
-  templates/
+  templates/               # (liegt unter src/templates/)
     site-data.template.ts  # Annotiertes Template für neue Kunden
     tokens.template.css    # CSS-Token-Template mit WCAG-Hinweisen
-    vercel.template.json   # Security-Header-Basis für Vercel
+    vercel.template.json   # Security-Header + Cache-Control-Standard für Vercel
+    astro.config.template.mjs # astro.config mit Pflicht-Perf-Standard (prefetch, inlineStylesheets)
 ```
 
 ## Layouts
@@ -380,10 +381,14 @@ Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No
 
 ## Neue Kundensite aufsetzen
 
+Vollständiger Ablauf: `customer-websites/docs/09-howto-onboard-new-customer.md` + `docs/onboarding-checklist.md`. Templates liegen in `src/templates/`:
+
 1. Neues Repo von der Blitzsicht-Template klonen
-2. `templates/site-data.template.ts` → `src/data/site-data.ts` kopieren und alle `// TODO`-Felder ausfüllen
-3. `templates/tokens.template.css` → `src/styles/tokens.css` kopieren und Markenfarben eintragen
-4. `pnpm install` → `pnpm dev`
+2. `src/templates/site-data.template.ts` → `src/data/site-data.ts` kopieren und alle `// TODO`-Felder ausfüllen
+3. `src/templates/tokens.template.css` → `src/styles/tokens.css` kopieren und Markenfarben eintragen
+4. `src/templates/astro.config.template.mjs` → `astro.config.mjs` kopieren (enthält den Pflicht-Performance-Standard: prefetch + inlineStylesheets, siehe `docs/caching-rationale.md`)
+5. `src/templates/vercel.template.json` → `vercel.json` kopieren (Security-Header + Cache-Control-Standard)
+6. `pnpm install` → `pnpm dev`
 
 ## SEO & Schema.org
 
