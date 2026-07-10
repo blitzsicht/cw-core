@@ -83,6 +83,13 @@ interface Props {
   ogImage: string;
   /** Path or absolute URL to logo. Defaults to `${url}/logo.png`. */
   logoUrl?: string;
+  /**
+   * Rechtlich verantwortliche Entität für die `copyrightNotice` des Primärbild-
+   * ImageObject. Default `name`. Übergib `resolveCopyrightHolder(siteData)` aus
+   * `@cw/core/utils/copyright`, damit die JSON-LD-`copyrightNotice` mit dem
+   * EXIF-Copyright der Bilder (company-first) übereinstimmt.
+   */
+  copyrightHolder?: string;
   /** Street address. */
   street?: string;
   /** Postal code. */
@@ -174,6 +181,7 @@ const {
   url,
   ogImage,
   logoUrl,
+  copyrightHolder,
   street,
   zip,
   city,
@@ -250,7 +258,9 @@ const localBusinessSchema = {
     url: resolvedImage,
     caption: name,
     creditText: name,
-    copyrightNotice: `© ${name}`,
+    // Rechtlich verantwortliche Entität (company-first via resolveCopyrightHolder),
+    // konsistent zum EXIF-Copyright der Bilder. Fallback: Markenname.
+    copyrightNotice: `© ${copyrightHolder || name}`,
     creatorId: orgId,
   }),
   ...(phone ? { telephone: phone } : {}),

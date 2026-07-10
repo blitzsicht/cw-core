@@ -46,6 +46,8 @@ export interface SchemaProps {
   url: string;
   ogImage: string;
   logoUrl?: string;
+  /** Rechtlich verantwortliche Entität für `copyrightNotice` (company-first). Default `name`. */
+  copyrightHolder?: string;
   street?: string;
   zip?: string;
   city?: string;
@@ -296,6 +298,7 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
         url={schema.url}
         ogImage={schema.ogImage}
         logoUrl={schema.logoUrl}
+        copyrightHolder={schema.copyrightHolder}
         street={schema.street}
         zip={schema.zip}
         city={schema.city}

@@ -14,6 +14,14 @@
 
 import { readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+// Kanonischer Copyright-/Urheber-Name + TODO-Guard leben in einem reinen `.js`-Util,
+// damit EXIF (hier) und JSON-LD (SchemaOrg) dieselbe Logik nutzen (Single Source of
+// Truth). Import bleibt plain-node-tauglich (kein `.ts`) für den CLI-Twin geotag-dist.mjs.
+import { isTodo, resolveCopyrightHolder } from '../../utils/copyright.js';
+
+// Öffentliche API stabil halten: bestehende Importer (geotag.js, Tests) beziehen
+// resolveCopyrightHolder weiterhin aus geotag-core.
+export { resolveCopyrightHolder };
 
 /** Endungen, die exiftool taggen kann (WebP + PNG + JPEG unterstützen EXIF/XMP). */
 export const TAGGABLE_EXT = ['.webp', '.png', '.jpg', '.jpeg'];
@@ -52,16 +60,6 @@ export function walkImages(dir, acc = []) {
 }
 
 /**
- * Platzhalter aus der site-data-Vorlage nicht als echten Wert taggen.
- * Fängt `TODO…`, `TBD`, `Muster…` (Musterstadt/Musterstraße) und Bracket-Slots `[…]`.
- */
-function isTodo(v) {
-  if (typeof v !== 'string') return false;
-  const t = v.trim();
-  return /^(TODO|TBD)\b/i.test(t) || /^Muster/i.test(t) || /^\[.*\]$/.test(t);
-}
-
-/**
  * Keyword-Tags synthetisieren. Explizite `seo.imageKeywords` haben Vorrang;
  * sonst aus knowsAbout + areaServed + leistungen[].title (dedupe, cap MAX_KEYWORDS).
  * @param {any} data  aufgelöstes siteData
@@ -92,20 +90,6 @@ export function synthesizeKeywords(data) {
     if (out.length >= MAX_KEYWORDS) break;
   }
   return out;
-}
-
-/**
- * Kanonischer Copyright-/Urheber-Name = die rechtlich verantwortliche Entität.
- * `legal.company` (Firma) hat Vorrang vor `legal.owner` (kann Privatperson sein) —
- * verhindert den gottl-Fehler (`© Gottl Reiner` statt „Gottl Richter Gomeier GbR").
- * Spiegelt die Firmennamen-Logik des Impressum-Linters (company-first). Bei
- * Einzelunternehmern ohne `company` ist `owner` (= die Person) korrekt der Rechteinhaber.
- * @param {any} data  aufgelöstes siteData
- * @returns {string|null}
- */
-export function resolveCopyrightHolder(data) {
-  const holder = data?.legal?.company || data?.legal?.owner || data?.name || null;
-  return holder && !isTodo(holder) ? holder : null;
 }
 
 /**

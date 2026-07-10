@@ -22,6 +22,34 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.73.0 (2026-07-10)
+
+- [kunde] Die Urheber-/Copyright-Angabe in den Suchmaschinen-Strukturdaten der Bilder nennt jetzt einheitlich das rechtlich verantwortliche Unternehmen — identisch zur Angabe in den Bilddateien selbst.
+
+**Feature:** JSON-LD `copyrightNotice` des Primärbild-`ImageObject` läuft jetzt über dieselbe
+company-first-Logik (`resolveCopyrightHolder`) wie das EXIF-Copyright der Bilder — Single Source
+of Truth, EXIF == JSON-LD.
+
+Kontext: Bisher war die `copyrightNotice` in SchemaOrg hart auf `© ${name}` (Markenname) verdrahtet,
+während das EXIF-Copyright der dist-Bilder bereits `resolveCopyrightHolder` (`legal.company ||
+legal.owner || name`) nutzt. Für ~15 der Fleet-Repos divergiert der Markenname vom rechtlichen
+Träger (z.B. „Sachverständigenbüro Gottl Richter Gomeier" vs. „Gottl Richter Gomeier GbR") — die
+JSON-LD-Angabe war damit inkonsistent zur Bild-Metadaten-Angabe.
+
+Neue APIs:
+
+- `@cw/core/utils/copyright` — reiner `.js`-Util mit `resolveCopyrightHolder(siteData)` + `isTodo`.
+  Kanonische Heimat; `geotag-core.js` importiert von hier und re-exportiert (öffentliche API stabil).
+- `<SchemaOrg copyrightHolder={…} />` + `SchemaProps.copyrightHolder` (optional, additiv). Ohne
+  Wert Fallback auf `name` → vollständig rückwärtskompatibel.
+
+**Migrations-Hinweis:** Keiner (additiv). Optional pro Customer in `page-config.ts` im `schema`-Objekt
+`copyrightHolder: resolveCopyrightHolder(siteData)` setzen (Import aus `@cw/core/utils/copyright`),
+damit die JSON-LD-Angabe den rechtlichen Träger statt des Markennamens nennt. Die strict-Flags
+(`strictAltText`/`strictSiteDataShape`) bleiben unverändert soft-warn (T3-Flip folgt in v0.74.0).
+
+---
+
 ## v0.72.0 (2026-07-10)
 
 **Feature (dormant):** Geteilte Image-Sitemap-`serialize`-Factory für `@astrojs/sitemap`
