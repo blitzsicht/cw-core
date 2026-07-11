@@ -113,7 +113,10 @@ export function extractFontStacks(css) {
     .replace(/@font-face\s*\{[^}]*\}/gi, '');
   /** @type {string[][]} */
   const stacks = [];
-  const declRe = /(?:^|[;{\s])(?:font-family|--font-[a-z0-9-]+)\s*:\s*([^;}]+)/gi;
+  // --font-weight-*/-size-* etc. sind Tailwind-v4-Property-Tokens (Wert z.B. `700`),
+  // keine Familien-Stacks — ohne Ausschluss meldet der Dead-Font-Check '700' als Familie.
+  const declRe =
+    /(?:^|[;{\s])(?:font-family|--font-(?!(?:weight|size|style|stretch|variant|feature|variation|optical|kerning|smoothing|synthesis)\b)[a-z0-9-]+)\s*:\s*([^;}]+)/gi;
   let m;
   while ((m = declRe.exec(cleaned)) !== null) {
     const value = expandVarFallbacks(m[1]);

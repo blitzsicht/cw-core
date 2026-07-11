@@ -22,6 +22,23 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.77.3 (2026-07-11)
+
+**Fix (Perf-Linter/Dead-Font-Check):** `extractFontStacks` parst Tailwind-v4-Property-Tokens
+(`--font-weight-*`, `--font-size-*`, `--font-style-*` u. ä.) nicht mehr als Font-Familien-Stacks.
+Vorher wurde z. B. `--font-weight-bold: 700` als Stack mit Lead `'700'` gelesen →
+`dead_font_family`-False-Positive, der mit `strictFonts=true` den Build abbricht.
+
+Kontext: Gefunden bei der @cw/core-Aufnahme von customer-gympanzen (blitzsicht-ops#545) —
+erste Site im Cluster, die Font-Weight-Tokens als `--font-weight-*` Custom-Properties emittiert.
+Familien-Tokens (`--font-display`, `--font-sans` …) werden unverändert extrahiert
+(Regressionstest 14 in `tests/integrations/perf-check.test.js`).
+
+**Migrations-Hinweis:** Keiner. Fleet-Bump nicht dringend (nur Sites mit `--font-weight-*`-Tokens
+betroffen) — läuft mit dem nächsten Release-Train mit.
+
+---
+
 ## v0.77.2 (2026-07-11)
 
 **Fix (Alt-Qualität-Guard):** (a) Brand-Mark-/Chrome-Ausnahme um `signet`/`badge` im `src`

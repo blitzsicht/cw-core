@@ -21,6 +21,7 @@ import {
   checkDeadFontFamilies,
   extractReferencedFontFamilies,
   extractFontFaceFamilies,
+  extractFontStacks,
   extractInlineStyles,
 } from '../../src/integrations/ai-discovery/perf-check.js';
 
@@ -111,6 +112,19 @@ test('10. var()-Fallback-Listen (Tailwind v4) → keine False-Positives', () => 
     'body { font-family: var(--default-font-family, ui-sans-serif, system-ui, "Noto Color Emoji"); } ' +
     'code { font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace); }';
   assert.deepEqual(checkDeadFontFamilies([css]), []);
+});
+
+test('14. Tailwind-v4 Property-Tokens (--font-weight-* etc.) → keine False-Positives', () => {
+  // Reproduziert den gympanzen-Befund (2026-07-11): --font-weight-bold:700 wurde
+  // als Font-Stack geparst → dead_font_family mit Lead '700'.
+  const css =
+    ':root { --font-weight-bold: 700; --font-size-base: 16px; --font-style-em: italic; ' +
+    "--font-display: 'Arial Black', 'Helvetica Neue', Impact, system-ui, sans-serif; }";
+  assert.deepEqual(checkDeadFontFamilies([css]), []);
+  // Familien-Tokens (--font-display) werden weiterhin extrahiert:
+  const stacks = extractFontStacks(css);
+  assert.equal(stacks.length, 1);
+  assert.equal(stacks[0][0], 'arial black');
 });
 
 test('9. Extraktions-Helfer: Referenzen vs. @font-face-Deklarationen', () => {
