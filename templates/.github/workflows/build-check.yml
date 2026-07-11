@@ -52,12 +52,24 @@ jobs:
         # Verhindert das DD-/donau-profi-CSP-Mystery: 'self' allein bricht
         # same-origin Assets in Chrome/Edge/Safari. exit 1 → CI rot VOR Vercel-Deploy.
         # Fix bei rot: node node_modules/@cw/core/scripts/gen-vercel-csp.mjs + commit.
-        run: node node_modules/@cw/core/scripts/validate-csp.mjs
+        # Guard: Repos ohne @cw/core (noch nicht migriert, z.B. gympanzen/herztoene)
+        # skippen statt MODULE_NOT_FOUND — Gate bleibt hart, sobald @cw/core da ist.
+        run: |
+          if [ -f node_modules/@cw/core/scripts/validate-csp.mjs ]; then
+            node node_modules/@cw/core/scripts/validate-csp.mjs
+          else
+            echo "skip: kein @cw/core installiert — Repo noch nicht auf cw-core migriert"
+          fi
 
       - name: Validate Form-Backend (harter Gate — kein totes Kontaktformular)
         # Vorfall 2026-06-10: Formular postet an /api/contact, aber Route fehlte → 404,
         # still tot. exit 1 wenn ein Formular an /api/contact postet ohne /api/contact.ts.
-        run: node node_modules/@cw/core/scripts/validate-form-backend.mjs
+        run: |
+          if [ -f node_modules/@cw/core/scripts/validate-form-backend.mjs ]; then
+            node node_modules/@cw/core/scripts/validate-form-backend.mjs
+          else
+            echo "skip: kein @cw/core installiert — Repo noch nicht auf cw-core migriert"
+          fi
 
       - name: Build
         run: pnpm build
