@@ -12,7 +12,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldRewriteWebp } from './optimize-images.mjs';
+import { shouldRewriteWebp, isDenied } from './optimize-images.mjs';
 
 test('jpg/png wird immer konvertiert (auch wenn WebP größer würde)', () => {
   assert.equal(
@@ -72,4 +72,32 @@ test('Grenzfall: >2 KB aber <2 % gespart → SKIP (große Datei)', () => {
     shouldRewriteWebp({ isWebP: true, needsResize: false, sizeBefore: 500_000, sizeAfter: 497_000 }),
     false,
   );
+});
+
+// ── isDenied — Denylist für --dir=public (blitzsicht-ops#541-Nachlauf) ──────
+test('Denylist: OG-Bilder werden NICHT optimiert', () => {
+  assert.equal(isDenied('public/og/default.png'), true);
+  assert.equal(isDenied('public/og/home.webp'), true);
+});
+
+test('Denylist: Icons + Favicons ausgenommen', () => {
+  assert.equal(isDenied('public/icons/star.png'), true);
+  assert.equal(isDenied('public/icon/star.png'), true); // icon ODER icons
+  assert.equal(isDenied('public/favicon-192.png'), true);
+  assert.equal(isDenied('public/images/favicon.png'), true); // favicon egal wo
+});
+
+test('Denylist: /email/ (animierte PNGs) ausgenommen', () => {
+  assert.equal(isDenied('public/email/logo-light-animated.png'), true);
+});
+
+test('Denylist: echte Content-Bilder werden optimiert (Negativ-Test)', () => {
+  assert.equal(isDenied('public/images/hero/bodenrichtwerte.webp'), false);
+  assert.equal(isDenied('public/staedte/tegernheim.webp'), false); // die #541-Lücke
+  assert.equal(isDenied('public/leistungen/gruenanlagenpflege.webp'), false);
+});
+
+test('Denylist: Windows-Backslash-Pfade normalisiert', () => {
+  assert.equal(isDenied('public\\og\\default.png'), true);
+  assert.equal(isDenied('public\\images\\hero.webp'), false);
 });

@@ -2,7 +2,8 @@
 /**
  * @cw/core – optimize-images.mjs
  *
- * Converts all images in public/images/ to optimized WebP.
+ * Converts all images under public/ to optimized WebP. OG-Bilder, Icons,
+ * Favicons und /email/ (animierte PNGs) sind per Denylist ausgenommen.
  * Keeps originals as .bak (pass --delete-originals to remove).
  *
  * Usage:
@@ -13,8 +14,15 @@
  * Options:
  *   --max-width=N        Max width in px (default: 1200)
  *   --quality=N          WebP quality 1-100 (default: 80)
+ *   --target-kb=N        KB-Budget pro Bild: ist das WebP über Budget, wird die
+ *                        Breite iterativ gesenkt (bis --min-width) bis es ≤ N KB
+ *                        ist. Default 0 = aus. Fängt AI-1024²-Bilder, die unter
+ *                        --max-width fallen und drum nie verkleinert werden
+ *                        (blitzsicht-ops#541).
+ *   --min-width=N        Untergrenze für --target-kb-Resize (default: 640) —
+ *                        schützt Heroes vor Über-Verkleinerung.
  *   --delete-originals   Remove original files after conversion
- *   --dir=path           Image directory (default: public/images)
+ *   --dir=path           Image directory (default: public)
  *
  * Requires: sharp (already a devDependency in customer repos)
  */
@@ -44,10 +52,22 @@ const hasFlag = (name) => args.includes(`--${name}`);
 
 const MAX_WIDTH = parseInt(getArg('max-width', '1200'), 10);
 const QUALITY = parseInt(getArg('quality', '80'), 10);
+const TARGET_BYTES = Math.max(0, parseInt(getArg('target-kb', '0'), 10)) * 1024;
+const MIN_WIDTH_FLOOR = parseInt(getArg('min-width', '640'), 10);
 const DELETE_ORIGINALS = hasFlag('delete-originals');
-const IMAGE_DIR = getArg('dir', 'public/images');
+const IMAGE_DIR = getArg('dir', 'public');
 
 const SUPPORTED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.JPEG', '.PNG']);
+
+// Denylist: diese Pfade NIE optimieren — OG-Bilder (feste 1200×630, teils PNG für
+// Social-Scraper), Icons/Favicons (klein, oft PNG-Pflicht), /email/ (animierte PNGs,
+// die beim WebP-Flatten ihre Animation verlören). Spiegelt die walkImages-Denylist in
+// geotag-core wider, damit `--dir=public` (Default) sicher das ganze public/ scannt.
+const DENY_PATTERNS = [/\/og\//i, /\/icons?\//i, /\/email\//i, /favicon/i];
+export function isDenied(filePath) {
+  const norm = String(filePath).replace(/\\/g, '/');
+  return DENY_PATTERNS.some((re) => re.test(norm));
+}
 
 /**
  * Idempotenz-Guard: Entscheidet, ob eine Datei neu geschrieben werden darf.
@@ -83,11 +103,20 @@ async function findImages(dir) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
       files.push(...await findImages(fullPath));
-    } else if (SUPPORTED_EXT.has(extname(entry.name))) {
+    } else if (SUPPORTED_EXT.has(extname(entry.name)) && !isDenied(fullPath)) {
       files.push(fullPath);
     }
   }
   return files;
+}
+
+/** Kodiert filePath als WebP-Buffer, optional auf `width` verkleinert (nie vergrößert). */
+async function encodeWebp(filePath, width, origWidth) {
+  let pipeline = getSharp()(filePath);
+  if (origWidth && width < origWidth) {
+    pipeline = pipeline.resize(width, null, { withoutEnlargement: true });
+  }
+  return pipeline.webp({ quality: QUALITY, effort: 4 }).toBuffer();
 }
 
 async function optimizeImage(filePath) {
@@ -108,22 +137,36 @@ async function optimizeImage(filePath) {
       return { file: filePath, skipped: true, reason: 'too small' };
     }
 
-    let pipeline = image;
-
-    // Resize if wider than MAX_WIDTH
-    const needsResize = Boolean(meta.width && meta.width > MAX_WIDTH);
-    if (needsResize) {
-      pipeline = pipeline.resize(MAX_WIDTH, null, { withoutEnlargement: true });
+    // Animierte Bilder (APNG / animiertes GIF/WebP) NICHT anfassen — `.webp()` ohne
+    // `animated: true` behielte nur Frame 1 und zerstörte die Animation. /email/-APNGs
+    // sind zwar schon per Denylist raus, aber dieser Guard schützt fleet-weit.
+    if (meta.pages && meta.pages > 1) {
+      return { file: filePath, skipped: true, reason: 'animated' };
     }
 
-    // Convert to WebP
-    const buffer = await pipeline
-      .webp({ quality: QUALITY, effort: 4 })
-      .toBuffer();
+    const origWidth = meta.width || MAX_WIDTH;
+
+    // Stufe 1: max-width-Cap (wie bisher).
+    let targetWidth = Math.min(origWidth, MAX_WIDTH);
+    const needsResize = targetWidth < origWidth;
+    let buffer = await encodeWebp(filePath, targetWidth, origWidth);
+
+    // Stufe 2: KB-Budget (opt-in via --target-kb). Breite iterativ um 15 % senken,
+    // bis das WebP ≤ Budget ist oder der --min-width-Floor erreicht ist. Immer vom
+    // Original neu kodiert → deterministisch + idempotent (keine Generationsdrift).
+    let budgetResized = false;
+    if (TARGET_BYTES > 0) {
+      while (buffer.length > TARGET_BYTES && targetWidth > MIN_WIDTH_FLOOR) {
+        targetWidth = Math.max(MIN_WIDTH_FLOOR, Math.round(targetWidth * 0.85));
+        buffer = await encodeWebp(filePath, targetWidth, origWidth);
+        budgetResized = true;
+      }
+    }
 
     const sizeAfter = buffer.length;
+    const didResize = needsResize || budgetResized;
 
-    if (shouldRewriteWebp({ isWebP, needsResize, sizeBefore, sizeAfter })) {
+    if (shouldRewriteWebp({ isWebP, needsResize: didResize, sizeBefore, sizeAfter })) {
       // Write optimized file
       await getSharp()(buffer).toFile(outPath);
 
@@ -142,7 +185,7 @@ async function optimizeImage(filePath) {
         after: sizeAfter,
         saved: sizeBefore - sizeAfter,
         pct: Math.round((1 - sizeAfter / sizeBefore) * 100),
-        resized: needsResize ? `${meta.width}→${MAX_WIDTH}` : null,
+        resized: didResize ? `${origWidth}→${targetWidth}` : null,
       };
     }
 
@@ -160,7 +203,8 @@ function formatBytes(bytes) {
 
 async function main() {
   console.log(`\n🖼️  cw-core image optimizer`);
-  console.log(`   Dir: ${IMAGE_DIR} | Max: ${MAX_WIDTH}px | Quality: ${QUALITY}\n`);
+  const budgetInfo = TARGET_BYTES > 0 ? ` | Budget: ${TARGET_BYTES / 1024}KB (min ${MIN_WIDTH_FLOOR}px)` : '';
+  console.log(`   Dir: ${IMAGE_DIR} | Max: ${MAX_WIDTH}px | Quality: ${QUALITY}${budgetInfo}\n`);
 
   const files = await findImages(IMAGE_DIR);
   if (files.length === 0) {

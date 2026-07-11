@@ -22,6 +22,30 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.79.0 (2026-07-11)
+
+**Feature (optimize-images):** Der Bild-Optimierer schließt zwei Lücken, durch die AI-generierte
+1024²-Bilder als 230–260 KB in `public/` landeten (Ursache der #541-Fleet-Baseline von 18 Bildern):
+
+- **Scope:** `--dir`-Default jetzt `public` statt `public/images` → auch `/staedte/`, `/leistungen/`
+  u. a. public/-Unterordner werden optimiert. OG-Bilder, Icons, Favicons und `/email/` (animierte PNGs)
+  sind per Denylist ausgenommen (neuer exportierter `isDenied`).
+- **KB-Budget:** neuer opt-in `--target-kb=N` — ist ein WebP über Budget, wird die Breite iterativ
+  (×0,85) bis `--min-width` (Default 640, schützt Heroes vor Über-Verkleinerung) gesenkt, bis es ≤ N KB
+  ist. Immer vom Original neu kodiert → deterministisch + idempotent. Fängt 1024²-Bilder, die unter
+  `--max-width` (1200) fallen und drum nie verkleinert wurden.
+- **Animated-Guard:** animierte Bilder (`meta.pages > 1`) werden übersprungen (kein Frame-1-Flatten).
+
+5 neue `isDenied`-Tests (204 gesamt grün). Verifiziert mit echtem sharp: 1024²/248 KB → 870²/180 KB
+(−26 %, unter 200 KB Budget), zweiter Lauf idempotent (`already optimal`).
+
+**Migrations-Hinweis:** `pnpm optimize:images` (prebuild) scannt nach dem Pin-Bump das ganze `public/`
+statt nur `public/images/`. Beim ersten Build danach können bisher unoptimierte public/-Bilder einmalig
+im Working Tree auftauchen (jpg/png → webp, > 1200 px verkleinert). `--target-kb` bleibt opt-in (kein
+Auto-Resize bestehender Bilder ohne das Flag). Kein Code-Change an Komponenten.
+
+---
+
 ## v0.78.0 (2026-07-11)
 
 **Feature (Perf-Budget-Guard):** Neuer ai-discovery-Guard `checkImageBudget` warnt post-Build bei
