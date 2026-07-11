@@ -61,9 +61,10 @@ const SUPPORTED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.JPEG'
 
 // Denylist: diese Pfade NIE optimieren — OG-Bilder (feste 1200×630, teils PNG für
 // Social-Scraper), Icons/Favicons (klein, oft PNG-Pflicht), /email/ (animierte PNGs,
-// die beim WebP-Flatten ihre Animation verlören). Spiegelt die walkImages-Denylist in
-// geotag-core wider, damit `--dir=public` (Default) sicher das ganze public/ scannt.
-const DENY_PATTERNS = [/\/og\//i, /\/icons?\//i, /\/email\//i, /favicon/i];
+// die beim WebP-Flatten ihre Animation verlören), /social/ (Facebook-Share-PNGs mit
+// spec-fixer Größe). Spiegelt die TAG_DENY_RE-Denylist in geotag-core wider
+// (Twin-Divergenz-Guard), damit `--dir=public` (Default) sicher das ganze public/ scannt.
+const DENY_PATTERNS = [/\/og\//i, /\/icons?\//i, /\/email\//i, /\/social\//i, /favicon/i];
 export function isDenied(filePath) {
   const norm = String(filePath).replace(/\\/g, '/');
   return DENY_PATTERNS.some((re) => re.test(norm));

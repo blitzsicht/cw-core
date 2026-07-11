@@ -180,19 +180,31 @@ test('10. buildDescByStem: images.hero mit ECHTER divergenter Shape (gottl/Ferie
   assert.equal(descForFile('hero.Z.webp', canonical), 'Alt-Text');
 });
 
-test('11. Denylist: OG/Icons/Favicons werden NICHT getaggt', () => {
+test('11. Denylist: OG/Icons/Favicons/Email/Social werden NICHT getaggt', () => {
   assert.equal(isDenied('dist/og/default.png'), true);
   assert.equal(isDenied('dist/icons/icon-192.png'), true);
   assert.equal(isDenied('dist/favicon.png'), true);
   assert.equal(isDenied('dist/apple-touch-icon.png'), true);
+  // v0.81.0: /email/ + /social/ ergänzt — Twin-Alignment mit optimize-images DENY_PATTERNS,
+  // damit strictImageBudget spec-fixe Newsletter-APNGs + FB-Share-PNGs nicht als Verstoß flaggt.
+  assert.equal(isDenied('dist/email/newsletter-banner.png'), true);
+  assert.equal(isDenied('dist/social/titelbild.png'), true);
+  assert.equal(isDenied('public/images/social/fb-card.png'), true);
   assert.equal(isDenied('dist/_astro/hero.abc.webp'), false);
   assert.equal(isDenied('dist/images/team.webp'), false);
+  // Negativ-Guard: „social" als Teilstring in einem Content-Dateinamen darf NICHT greifen
+  // (nur das Segment /social/, nicht z. B. images/social-media-tipps.webp).
+  assert.equal(isDenied('dist/images/social-media-tipps.webp'), false);
   // walkImages wendet die Denylist an:
   const dir = mkdtempSync(join(tmpdir(), 'geotag-deny-'));
   try {
     mkdirSync(join(dir, 'og'));
+    mkdirSync(join(dir, 'email'));
+    mkdirSync(join(dir, 'social'));
     mkdirSync(join(dir, '_astro'));
     writeFileSync(join(dir, 'og', 'default.png'), 'x');
+    writeFileSync(join(dir, 'email', 'banner.png'), 'x');
+    writeFileSync(join(dir, 'social', 'titelbild.png'), 'x');
     writeFileSync(join(dir, 'favicon.png'), 'x');
     writeFileSync(join(dir, '_astro', 'hero.abc.webp'), 'x');
     writeFileSync(join(dir, '_astro', 'foto.def.jpg'), 'x'); // .jpg jetzt taggbar

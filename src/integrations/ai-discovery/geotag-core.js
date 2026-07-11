@@ -31,14 +31,18 @@ export const MAX_KEYWORDS = 20;
 
 /**
  * Nicht-Content-Bilder vom Tagging ausschließen: Share-Cards (`/og/`), Icon-Sets
- * (`/icons/`) und Favicons sollen KEINE Keyword-/GPS-Payload tragen — sie haben
- * keinen fotografischen Inhalt, dieselben 20 Keywords auf einem 32px-Favicon sind
- * ein undifferenziertes (potenziell negatives) Signal. Match auf den Pfad (POSIX-
- * normalisiert, damit es auf Windows-Backslash-Pfaden ebenfalls greift).
+ * (`/icons/`), Favicons, Newsletter-Assets (`/email/`) und Social-Share-Grafiken
+ * (`/social/`) sollen KEINE Keyword-/GPS-Payload tragen — sie haben keinen
+ * fotografischen Inhalt, dieselben 20 Keywords auf einem 32px-Favicon sind ein
+ * undifferenziertes (potenziell negatives) Signal. `/email/` + `/social/` zusätzlich,
+ * damit der `strictImageBudget`-Guard (walkImages) sie nicht als Budget-Verstoß
+ * flaggt — Newsletter-APNGs + Facebook-Share-PNGs haben spec-bedingt feste Größen.
+ * Match auf den Pfad (POSIX-normalisiert, damit es auf Windows-Backslash-Pfaden greift).
+ * Spiegelt die DENY_PATTERNS in scripts/optimize-images.mjs (Twin-Divergenz-Guard).
  */
-export const TAG_DENY_RE = /(^|\/)(og|icons)\/|(^|\/)favicon[^/]*$|(^|\/)apple-touch-icon[^/]*$/i;
+export const TAG_DENY_RE = /(^|\/)(og|icons|email|social)\/|(^|\/)favicon[^/]*$|(^|\/)apple-touch-icon[^/]*$/i;
 
-/** Ob ein Pfad vom Tagging ausgeschlossen ist (OG/Icons/Favicons). */
+/** Ob ein Pfad vom Tagging ausgeschlossen ist (OG/Icons/Favicons/Email/Social). */
 export function isDenied(p) {
   return TAG_DENY_RE.test(String(p).replace(/\\/g, '/'));
 }

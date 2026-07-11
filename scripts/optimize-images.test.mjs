@@ -91,6 +91,13 @@ test('Denylist: /email/ (animierte PNGs) ausgenommen', () => {
   assert.equal(isDenied('public/email/logo-light-animated.png'), true);
 });
 
+test('Denylist: /social/ (FB-Share-PNGs, spec-fixe Größe) ausgenommen — v0.81.0', () => {
+  assert.equal(isDenied('public/social/titelbild.png'), true);
+  assert.equal(isDenied('public/images/social/fb-card.png'), true);
+  // Negativ-Guard: „social" als Teilstring im Dateinamen greift NICHT (nur Segment /social/).
+  assert.equal(isDenied('public/images/social-media-tipps.webp'), false);
+});
+
 test('Denylist: echte Content-Bilder werden optimiert (Negativ-Test)', () => {
   assert.equal(isDenied('public/images/hero/bodenrichtwerte.webp'), false);
   assert.equal(isDenied('public/staedte/tegernheim.webp'), false); // die #541-Lücke

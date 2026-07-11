@@ -22,6 +22,24 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.81.0 (2026-07-11)
+
+**Fix (Denylist-Twin-Alignment, blitzsicht-ops-Nachlauf):** `/email/` und `/social/` werden jetzt
+in BEIDEN Bild-Denylists ausgeschlossen — `TAG_DENY_RE` (geotag-core.js) und `DENY_PATTERNS`
+(scripts/optimize-images.mjs).
+
+Kontext: Die zwei „Twin"-Denylists waren divergiert — `optimize-images` schloss `/email/` bereits
+aus, `geotag-core` nicht, obwohl der Kommentar Spiegelung behauptete. Der `strictImageBudget`-Guard
+walkt über `TAG_DENY_RE`; ohne `/email/` + `/social/` dort würden beim späteren Strict-Flip
+spec-fixe Assets fälschlich als Budget-Verstoß blocken (z. B. donau-Facebook-Share-PNG
+`titelbild.png` 1182 KB, Newsletter-APNGs). Beide Twins sind jetzt wieder ausgerichtet
+(Twin-Divergenz-Guard, CLAUDE.md #1-Rule). Negativ-Guard im Test: „social" als Teilstring im
+Dateinamen (`social-media-tipps.webp`) greift NICHT — nur das Pfad-Segment `/social/`.
+
+**Migrations-Hinweis:** Keiner — reines internes Guard-Tuning, kein API-/Prop-Change.
+
+---
+
 ## v0.80.0 (2026-07-11)
 
 - [kunde] Das große Bild oben auf der Startseite lädt jetzt in einem moderneren, kleineren Bildformat — schnellerer Seitenaufbau bei gleichem Aussehen.
