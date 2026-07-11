@@ -12,16 +12,6 @@ export const siteData = {
   // ─── Logo & Bilder ────────────────────────────────────────────────────────
   // Dateien liegen in public/ – Pfad beginnt mit /
   images: {
-    // OG-Image Fallback-Chain (5 Levels — automatisch in BaseLayout):
-    //   1. Seiten-spezifisches ogImage (prop an LandingPage/ContentPage)
-    //   2. heroImage der Seite (prop an LandingPage — z.B. siteData.hero.image)
-    //   3. contentImage (erstes Bild im Seiteninhalt — prop an LandingPage)
-    //   4. Generiertes Standard-OG (/og/default.png — via `pnpm generate:og`)
-    //   5. Dieses Feld: Kunden-spezifisches Standard-OG (immer vorhanden)
-    //
-    // Setup: `pnpm generate:og --name "..." --cta "..." --logo public/logo.png --out public/og/default.png`
-    // Levels 4+5 erhalten automatisch Logo+CTA-Overlay.
-    ogImage: '/og/og-image.png',       // 1200×630px — Fallback-Level 5 (letzter Fallback)
     aboutTeam: undefined as string | undefined,  // z.B. '/images/team/team.webp'
     gallery: [] as string[],           // z.B. ['/images/gallery/projekt-1.webp']
   },
@@ -108,7 +98,11 @@ export const siteData = {
     // Lokal-SEO: Geo-Keyword IMMER im Title. Bsp: "Elektriker Regensburg – 24h Notdienst | Müller"
     defaultTitle: 'TODO: Hauptkeyword Ort – USP | Firmenname',
     defaultDescription: 'TODO: 1-2 Sätze mit Geo + Zielgruppe + USP für Google-Snippet (150-160 Zeichen)',
-    ogImage: '/og/og-image.png',
+    // OG-Image Fallback-Chain (BaseLayout, 5 Levels): 1. Seiten-ogImage-Prop →
+    // 2. heroImage → 3. contentImage → 4. generiertes /og/default.png →
+    // 5. DIESES Feld (defaultOgImage via page-config, immer vorhanden, letzter Fallback).
+    // Setup: `pnpm generate:og --name "..." --cta "..." --logo public/logo.png --out public/og/default.png`
+    ogImage: '/og/og-image.png',       // 1200×630px — letzter OG-Fallback (Level 5)
     // Schema.org LocalBusiness — verbessert Knowledge Panel + AI-Suche
     areaServed: [] as string[],             // z.B. ['Regensburg', 'Barbing', 'Lappersdorf']
     sameAs: [] as string[],                 // Social-Profile-URLs: Google Business, LinkedIn, etc.
