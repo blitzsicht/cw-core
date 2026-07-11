@@ -22,6 +22,34 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.78.0 (2026-07-11)
+
+**Feature (Perf-Budget-Guard):** Neuer ai-discovery-Guard `checkImageBudget` warnt post-Build bei
+einzelnen dist-Bildern über `maxImageKb` (Default 200 KB) — fängt das schwere Hero/Foto, das durch
+die bestehenden Cache-/CSS-/Font-Guards fällt (blitzsicht-ops#541).
+
+Kontext: Die Perf-Guards prüften Cache-Header, render-blockendes CSS und tote Fonts — aber niemand
+fing ein 500-KB-Bild in dist. Große Bilder verschlechtern LCP + Bandbreite.
+
+Neue Optionen (ai-discovery):
+
+- `checkImageBudget` (Default true) — Guard an/aus
+- `maxImageKb` (Default 200) — KB-Schwelle pro Einzelbild
+- `strictImageBudget` (Default **false**, opt-IN) — `true` → Build-Fail bei Über-Budget-Bildern
+
+Bewusst **Soft-Warn-Start** (anders als die v0.67-Guards, die opt-out-strict sind): Bildgröße ist
+fuzzy, ein Strict-Default würde 7/11 Sites brechen. Reuse `walkImages` → OG-Bilder/Icons/Favicons
+sind ausgenommen (dürfen legitim größer sein). Fleet-Audit-Baseline: 18 Bilder > 200 KB
+(gottl/donau/schiller/soleno/zink/steller/digital-direkt — echte Treffer, keine Fehlfeuer;
+blitzsicht/hausamlago/hausammincio/mika clean) → korrekt soft, Strict-Kandidat erst nach
+Optimierungs-Sweep. 6 Logik-Tests (Cases 10–15 in `tests/integrations/perf-check.test.js`),
+199 gesamt grün.
+
+**Migrations-Hinweis:** Keiner (rein additiv, soft-warn). Fleet-Bump nicht dringend — läuft mit dem
+nächsten Release-Train mit.
+
+---
+
 ## v0.77.3 (2026-07-11)
 
 **Fix (Perf-Linter/Dead-Font-Check):** `extractFontStacks` parst Tailwind-v4-Property-Tokens

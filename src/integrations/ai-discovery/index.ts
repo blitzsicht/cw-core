@@ -28,9 +28,11 @@ import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-hea
 import {
   checkDeadFontFamilies,
   checkRenderBlockingCss,
+  checkImageBudget,
   extractInlineStyles,
 } from './perf-check.js';
 import { geotagDist } from './geotag.js';
+import { walkImages } from './geotag-core.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -209,6 +211,21 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * (throw) bei toten Font-Familien. Opt-out pro Site: explizit `false`.
    */
   strictFonts?: boolean;
+
+  /**
+   * Default true. Perf-Budget-Guard (blitzsicht-ops#541): warnt bei einzelnen
+   * dist-Bildern über `maxImageKb`. Reuse `walkImages` → OG/Icons/Favicons
+   * sind ausgenommen (dürfen legitim größer sein). Opt-out pro Site: `false`.
+   */
+  checkImageBudget?: boolean;
+  /** KB-Schwelle pro Einzelbild für den Perf-Budget-Guard. Default 200. */
+  maxImageKb?: number;
+  /**
+   * Default FALSE (Soft-Warn-Start, opt-IN — anders als die v0.67-Guards):
+   * `true` setzen → Build-Fail (throw) bei Bildern über Budget. Strict-Kandidat
+   * erst nach Fleet-Lauf ohne False-Positives (blitzsicht-ops#541).
+   */
+  strictImageBudget?: boolean;
 
   /**
    * Default TRUE seit v0.75.0 (strict-Flip, Fleet clean nach v0.74.0-a11y-Fix) → Build-Fail
@@ -1516,6 +1533,38 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                   `[ai-discovery] strictFonts=true: Build abgebrochen wegen ${fontIssues.length} toter Font-Familie(n).`,
                 );
               }
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Perf-Budget-Guard: dist-Bilder über KB-Budget (blitzsicht-ops#541)
+        // -------------------------------------------------------------------
+        // Fängt das 2-MB-Hero, das durch die Cache-/CSS-/Font-Guards fällt.
+        // Directory-Walk + statSync hier, reiner Größenvergleich in perf-check.js.
+        // reuse walkImages → OG/Icons/Favicons ausgenommen. Soft-Warn-Start
+        // (strictImageBudget opt-IN), erst nach Fleet-Lauf strict-Kandidat.
+        if (options.checkImageBudget !== false) {
+          const maxKb = options.maxImageKb ?? 200;
+          const budgetImages = walkImages(distDir).map((p: string) => ({
+            path: p.slice(distDir.length).replace(/^\//, ''),
+            sizeBytes: statSync(p).size,
+          }));
+          const budgetIssues = checkImageBudget(budgetImages, maxKb);
+          if (budgetIssues.length === 0) {
+            logger.info(`Perf-Budget-Guard: ✓ alle dist-Bilder ≤ ${maxKb} KB.`);
+          } else {
+            logger.warn(`Perf-Budget-Guard: ${budgetIssues.length} Bild(er) über ${maxKb} KB:`);
+            for (const bi of budgetIssues.slice(0, 10)) {
+              logger.warn(`  [${bi.type}] ${bi.details}`);
+            }
+            if (budgetIssues.length > 10) {
+              logger.warn(`  … und ${budgetIssues.length - 10} weitere.`);
+            }
+            if (options.strictImageBudget === true) {
+              throw new Error(
+                `[ai-discovery] strictImageBudget=true: Build abgebrochen wegen ${budgetIssues.length} Bild(ern) über ${maxKb} KB.`,
+              );
             }
           }
         }

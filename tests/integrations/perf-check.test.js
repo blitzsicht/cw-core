@@ -19,11 +19,14 @@ import assert from 'node:assert/strict';
 import {
   checkRenderBlockingCss,
   checkDeadFontFamilies,
+  checkImageBudget,
   extractReferencedFontFamilies,
   extractFontFaceFamilies,
   extractFontStacks,
   extractInlineStyles,
 } from '../../src/integrations/ai-discovery/perf-check.js';
+
+const KB = 1024;
 
 const types = (issues) => issues.map((i) => i.type);
 
@@ -134,4 +137,45 @@ test('9. Extraktions-Helfer: Referenzen vs. @font-face-Deklarationen', () => {
   const refs = extractReferencedFontFamilies(css);
   assert.ok(refs.has('inter'));
   assert.ok(refs.has('serif'));
+});
+
+// ── checkImageBudget (blitzsicht-ops#541) ──────────────────────────────────
+const budgetTypes = (issues) => issues.map((i) => i.type);
+
+test('10. Bild über Default-Budget (200 KB) → image_over_budget', () => {
+  const issues = checkImageBudget([{ path: 'images/hero.webp', sizeBytes: 350 * KB }]);
+  assert.deepEqual(budgetTypes(issues), ['image_over_budget']);
+  assert.match(issues[0].details, /hero\.webp/);
+  assert.match(issues[0].details, /350 KB/); // Meldung nennt Datei + KB (AC)
+});
+
+test('11. Bild unter Budget → kein Issue (Negativ-Test)', () => {
+  assert.deepEqual(checkImageBudget([{ path: 'images/klein.webp', sizeBytes: 80 * KB }]), []);
+});
+
+test('12. Bild exakt am Limit → kein Issue (Grenze: nur > zählt)', () => {
+  assert.deepEqual(checkImageBudget([{ path: 'x.png', sizeBytes: 200 * KB }], 200), []);
+});
+
+test('13. Custom maxKb wird respektiert', () => {
+  const imgs = [{ path: 'a.webp', sizeBytes: 120 * KB }];
+  assert.deepEqual(checkImageBudget(imgs, 200), []); // unter 200
+  assert.deepEqual(budgetTypes(checkImageBudget(imgs, 100)), ['image_over_budget']); // über 100
+});
+
+test('14. Leere Liste + gemischte Liste (nur Über-Budget geflaggt)', () => {
+  assert.deepEqual(checkImageBudget([]), []);
+  const mixed = [
+    { path: 'ok.webp', sizeBytes: 50 * KB },
+    { path: 'gross.png', sizeBytes: 500 * KB },
+    { path: 'auchok.jpg', sizeBytes: 199 * KB },
+  ];
+  const issues = checkImageBudget(mixed);
+  assert.equal(issues.length, 1);
+  assert.match(issues[0].details, /gross\.png/);
+});
+
+test('15. Robustheit: malformte Einträge / undefined → keine Crashes', () => {
+  assert.deepEqual(checkImageBudget(undefined), []);
+  assert.deepEqual(checkImageBudget([null, { path: 'x' }, { sizeBytes: 'big' }]), []);
 });

@@ -16,7 +16,7 @@
  *     ohne jegliches @font-face/woff2 im Repo → stiller System-Fallback,
  *     toter Verweis, den nie jemand bemerkt hat.
  *
- * @typedef {'render_blocking_css'|'dead_font_family'} PerfIssueType
+ * @typedef {'render_blocking_css'|'dead_font_family'|'image_over_budget'} PerfIssueType
  * @typedef {{ type: PerfIssueType, details: string }} PerfIssue
  */
 
@@ -43,6 +43,34 @@ export function checkRenderBlockingCss(html, pagePath = '') {
           "`build: { inlineStylesheets: 'always' }` in astro.config setzen (blitzsicht: ~720 ms gemessen).",
       });
       break; // Eine Meldung pro Seite reicht.
+    }
+  }
+  return issues;
+}
+
+/**
+ * Perf-Budget-Guard (blitzsicht-ops#541): flaggt dist-Bilder über dem KB-Budget.
+ * Fängt das 2-MB-Hero, das durch die Cache-/CSS-/Font-Guards fällt. Reine
+ * Größen-Logik — der Directory-Walk + `statSync` passiert im Aufrufer (index.ts,
+ * reuse `walkImages`, das OG/Icons/Favicons schon ausschließt → keine FP auf
+ * legitim großen OG-Bildern).
+ * @param {{ path: string, sizeBytes: number }[]} images  dist-Bilder mit Größe.
+ * @param {number} [maxKb=200] Schwelle pro Einzelbild in KB.
+ * @returns {PerfIssue[]}
+ */
+export function checkImageBudget(images, maxKb = 200) {
+  /** @type {PerfIssue[]} */
+  const issues = [];
+  const limitBytes = maxKb * 1024;
+  for (const img of images ?? []) {
+    if (img && typeof img.sizeBytes === 'number' && img.sizeBytes > limitBytes) {
+      const kb = Math.round(img.sizeBytes / 1024);
+      issues.push({
+        type: 'image_over_budget',
+        details:
+          `${img.path || 'Bild'}: ${kb} KB > ${maxKb} KB — via optimize-images verkleinern ` +
+          '(oder AVIF-Variante). Große Bilder verschlechtern LCP + Bandbreite.',
+      });
     }
   }
   return issues;
