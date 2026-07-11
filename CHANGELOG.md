@@ -22,6 +22,28 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.80.0 (2026-07-11)
+
+- [kunde] Das große Bild oben auf der Startseite lädt jetzt in einem moderneren, kleineren Bildformat — schnellerer Seitenaufbau bei gleichem Aussehen.
+
+**Feature (Hero/AVIF, blitzsicht-ops#540):** Hero.astro liefert das astro:assets-Hero jetzt als
+`<Picture formats={['avif','webp']}>` statt `<Image format="webp">` — moderne Browser bekommen AVIF
+(~33–43 % kleiner als WebP, an schiller gemessen), ältere den WebP-Fallback. Support 93–95 %, Encode ist
+reine Build-Zeit (egal für statische Sites).
+
+Details:
+
+- Beide Hero-Bild-Pfade (Parallax + statisch) auf `<Picture>` umgestellt.
+- Neue CSS-Regel `.hero-image-wrap picture { display: contents }` macht den `<picture>`-Wrapper
+  layout-transparent → `.hero-img` (width:100%) füllt weiter den Wrap, KEIN CLS/Layout-Shift.
+- Nur der `image`-Prop (ImageMetadata/astro:assets). Der `imageSrc`-String-Pfad (public-URL) bleibt
+  plain `<img>` — public/-srcset ist separat (#542).
+
+**Migrations-Hinweis:** Keiner (rein additiv, gleiche Props). Nur Sites mit `<Hero image={…}>`
+(astro:assets) profitieren; Fleet-Bump läuft mit dem Release-Train.
+
+---
+
 ## v0.79.0 (2026-07-11)
 
 **Feature (optimize-images):** Der Bild-Optimierer schließt zwei Lücken, durch die AI-generierte
