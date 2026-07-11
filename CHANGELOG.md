@@ -22,6 +22,27 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.77.2 (2026-07-11)
+
+**Fix (Alt-Qualität-Guard):** (a) Brand-Mark-/Chrome-Ausnahme um `signet`/`badge` im `src`
+erweitert (vorher nur `logo`/`favicon`). (b) Cross-Page-Duplikat-Check (`aggregateCrossPageDupAlts`,
+`alt_dup_crosspage`) **entfernt**.
+
+Kontext: Der v0.77.1-Fleet-Audit (lokale Builds aller 11 Live-Kunden) zeigte, dass die verbliebenen
+Warnungen fast ausschließlich **globales Chrome** waren, das legitim auf jeder Seite wiederholt:
+mika-„signet" (Bildmarke, `src=/signet.svg`, alt===Firmenname) + Status-/PageSpeed-Trust-Badges
+(`status.…/badge/…svg`, festes Label). Der Cross-Page-Check verfehlte zudem sein eigentliches Ziel
+(2-Seiten-Landing-Dups liegen unter Schwelle 3) und flaggte in der Praxis nur solches Chrome →
+netto-negativ, daher entfernt. `signet`/`badge` im `src` nimmt die Bildmarken/Badges img-lokal aus.
+
+**Ergebnis:** Fleet ist alt-quality-clean. Der Guard bleibt als rausch-freier **Regressions-Wächter**
+(fängt künftige echte Fälle: Hero mit bloßem Firmennamen, „Bild:"-Platzhalter, Dateiname-als-Alt, <5).
+
+**Migrations-Hinweis:** Keiner. Additiv/soft-warn. Reduziert nur Warnungen. `aggregateCrossPageDupAlts`
+war nie öffentlich genutzt (nur intern im Hook) — Entfernen ist kein Breaking Change für Kunden.
+
+---
+
 ## v0.77.1 (2026-07-10)
 
 **Fix (Alt-Qualität-Guard):** Logo-`<img>` werden jetzt auch über den **`src`** ausgenommen
