@@ -1,0 +1,84 @@
+---
+/**
+ * @cw/core – RichContentBlocks.astro
+ *
+ * Rendert strukturierten Fließ-Content (Abschnittsüberschriften, Zwischenüberschriften,
+ * Absätze, Stichpunkte mit fettem Lead-in) aus einem `RichContentBlock[]`-Array.
+ * Bildet die Original-Copy-Struktur (Markdown `##`/`###`/`- **Lead:** Text`) 1:1 ab.
+ *
+ * Marken-neutral gestylt (nur cw-core-Tokens) — Customer-Repos branden per
+ * `:global(.rich-content h2){…}`-Override, ohne die Komponente zu forken.
+ *
+ * Prop-driven: kein @/data-Import. Telefonnummern in Absätzen/Stichpunkten werden
+ * (Default) via linkifyPhones automatisch zu `tel:`-Links.
+ *
+ * @example
+ *   <RichContentBlocks blocks={leistung.content} />
+ */
+import { linkifyPhones } from '../../utils/text/linkify-phones';
+import type { RichContentBlock } from '../../types/rich-content';
+
+interface Props {
+  /** Content-Blöcke in Reihenfolge. */
+  blocks: readonly RichContentBlock[];
+  /** Telefonnummern automatisch verlinken (Default true). */
+  linkify?: boolean;
+}
+
+const { blocks, linkify = true } = Astro.props;
+const fmt = (s: string) => (linkify ? linkifyPhones(s) : s);
+---
+
+{blocks && blocks.length > 0 && (
+  <div class="rich-content">
+    {blocks.map((block) => {
+      if (block.kind === 'h2') return <h2>{block.text}</h2>;
+      if (block.kind === 'h3') return <h3>{block.text}</h3>;
+      if (block.kind === 'p') return <p set:html={fmt(block.text)} />;
+      // kind === 'ul'
+      return (
+        <ul>
+          {block.items.map((item) => (
+            <li>
+              {item.lead && <strong>{item.lead}:</strong>}
+              {item.lead ? ' ' : ''}
+              <Fragment set:html={fmt(item.text)} />
+            </li>
+          ))}
+        </ul>
+      );
+    })}
+  </div>
+)}
+
+<style>
+  .rich-content h2 {
+    color: var(--color-primary);
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    margin: 2.5rem 0 1rem;
+  }
+  .rich-content h2:first-child { margin-top: 0; }
+  .rich-content h3 {
+    color: var(--color-primary);
+    font-family: var(--font-heading);
+    font-size: 1.15rem;
+    margin: 1.75rem 0 0.75rem;
+  }
+  .rich-content p {
+    line-height: 1.7;
+    color: var(--color-muted-dark, #4b5563);
+    margin: 0 0 1rem;
+  }
+  .rich-content ul {
+    list-style-type: disc;
+    line-height: 1.7;
+    padding-left: 1.25rem;
+    margin: 0 0 1rem;
+  }
+  .rich-content li {
+    margin-bottom: 0.5rem;
+    color: var(--color-muted-dark, #4b5563);
+  }
+  .rich-content li strong { color: var(--color-primary); }
+</style>

@@ -25,7 +25,7 @@
  *   />
  */
 interface Props {
-  /** Bold-Italic-Hauptclaim. Pflicht. */
+  /** Bold-Italic-Hauptclaim. Pflicht. Unterstützt HTML (z. B. `<br/>`) via set:html. */
   headline: string;
   /** Sub-Text unter der Headline. */
   sub?: string;
@@ -55,7 +55,7 @@ const {
 <section class:list={['cta-hero-block', `bg-${background}`]}>
   <div class="cta-hero-container">
     <div class="cta-hero-content">
-      <h2 class="cta-hero-headline">{headline}</h2>
+      <h2 class="cta-hero-headline" set:html={headline}></h2>
       {sub && <p class="cta-hero-sub">{sub}</p>}
       {ctaLabel && ctaHref && (
         <a class="cta-hero-button" href={ctaHref} data-cta={`cta-hero:${ctaLabel}`}>

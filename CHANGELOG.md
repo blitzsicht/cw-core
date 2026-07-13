@@ -22,6 +22,41 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.82.0 (2026-07-13)
+
+**Feature (RichContentBlocks):** Neue Komponente `RichContentBlocks.astro` +
+Typ `RichContentBlock` (`@cw/core/types/rich-content`) für strukturierten Fließ-Content
+auf Detail-/Leistungsseiten: mehrere Abschnittsüberschriften (h2), Zwischenüberschriften
+(h3), Absätze (p) und Stichpunktlisten (ul) mit optionalem fettem Lead-in pro Punkt.
+
+Kontext: Detailseiten konnten Content bisher nur als flache `string[]`-Liste rendern.
+Die Original-Copy-Struktur (Markdown `##`/`###`/`- **Lead:** Text`) wurde dadurch
+plattgemacht — Zwischenüberschriften und Absatz-Umbrüche gingen verloren (Mika-Reklamation
+07/2026). Die Komponente bildet die Struktur 1:1 ab, ohne Markdown-Parsing, und ist
+marken-neutral gestylt (Customer branden per `:global(.rich-content h2){…}`-Override).
+
+```astro
+import RichContentBlocks from '@cw/core/components/blocks/RichContentBlocks.astro';
+import type { RichContentBlock } from '@cw/core/types/rich-content';
+<RichContentBlocks blocks={leistung.content} />
+```
+
+**Feature (CTAHeroBlock HTML-Headline):** `CTAHeroBlock.astro` rendert die `headline` jetzt
+via `set:html` (wie `Hero.astro`) — erlaubt `<br/>` u. a. für harte Umbrüche
+(z. B. „Ihr Dach?<br/>Hat Potenzial!").
+
+**Tweak (tel:-Normalisierung):** Neuer Util `phoneToTelHref` (`@cw/core/utils/text/tel-href`)
+normalisiert Anzeige-Nummern (führende `0`) zu internationalen `tel:`-Hrefs (`+49…`).
+`Footer.astro` und `LeistungenSection.astro` nutzen ihn jetzt gemeinsam. Entkoppelt
+Anzeige-Format („0160 …") vom Link, sodass alle Call-Sites konsistent `+49…` verlinken.
+
+**Migrations-Hinweis:** Keiner (rein additiv). Bestehende Props/Verhalten unverändert;
+`CTAHeroBlock`-Headlines als reiner Text rendern weiter identisch. `set:html`-Umstellung
+beim Fleet-Bump beachten: Headlines mit rohem `<`/`&` würden als HTML interpretiert —
+Fleet-Audit 07/2026 zeigte keine problematischen Fälle (nur gewolltes `&nbsp;`/`<br/>`).
+
+---
+
 ## v0.81.0 (2026-07-11)
 
 **Fix (Denylist-Twin-Alignment, blitzsicht-ops-Nachlauf):** `/email/` und `/social/` werden jetzt

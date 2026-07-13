@@ -1,5 +1,6 @@
 ---
 import cwCorePkg from '../../../package.json';
+import { phoneToTelHref } from '../../utils/text/tel-href';
 const cwCoreVersion = cwCorePkg.version;
 
 /**
@@ -202,7 +203,7 @@ const psiDetailUrl = effectiveSlug
           </a>
         )}
         {phone && (
-          <a href={`tel:${phone.replace(/\s/g, '')}`} class="contact-link">
+          <a href={`tel:${phoneToTelHref(phone)}`} class="contact-link">
             {phone}
           </a>
         )}

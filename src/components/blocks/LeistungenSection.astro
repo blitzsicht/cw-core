@@ -15,6 +15,7 @@
  *   />
  */
 import { linkifyPhones } from '../../utils/text/linkify-phones';
+import { phoneToTelHref } from '../../utils/text/tel-href';
 import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 
@@ -83,11 +84,7 @@ const {
 } = Astro.props;
 
 const containerStyle = iconContainerColor ? `--icon-container-color:${iconContainerColor}` : undefined;
-const toTelHref = (p?: string) => {
-  if (!p) return '';
-  const d = p.replace(/[^\d+]/g, '');
-  return d.startsWith('+') ? d : '+49' + d.replace(/^0/, '');
-};
+const toTelHref = phoneToTelHref;
 ---
 
 {items.length > 0 && (
