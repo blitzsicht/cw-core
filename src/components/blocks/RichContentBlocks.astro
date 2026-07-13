@@ -35,8 +35,7 @@ const fmt = (s: string) => (linkify ? linkifyPhones(s) : s);
       if (block.kind === 'h2') return <h2>{block.text}</h2>;
       if (block.kind === 'h3') return <h3>{block.text}</h3>;
       if (block.kind === 'p') return <p set:html={fmt(block.text)} />;
-      // kind === 'ul'
-      return (
+      if (block.kind === 'ul') return (
         <ul>
           {block.items.map((item) => (
             <li>
@@ -47,6 +46,7 @@ const fmt = (s: string) => (linkify ? linkifyPhones(s) : s);
           ))}
         </ul>
       );
+      return null; // unbekannter Block-Typ → still ignorieren (kein Crash bei künftiger Union-Erweiterung)
     })}
   </div>
 )}

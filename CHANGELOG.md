@@ -22,6 +22,34 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.83.0 (2026-07-13)
+
+**Feature (FloatingCallButton):** Neue Komponente `FloatingCallButton.astro` — feste
+Bottom-right-Anruf-Pill (Schwester zu `FloatingCalButton`, aber `tel:` statt cal.com).
+Props: `phone`, `label`, `variant` ('notfall' Signal-Rot / 'primary' / 'accent'), `stacked`
+(sitzt über einem WhatsApp-Sticky). DSGVO-clean (reiner `tel:`-Link, kein Client-JS —
+Klick-Tracking über den globalen `[data-cta]`-Listener, kein CTA-Doppelfeuer).
+
+```astro
+<FloatingCallButton phone="0160 91172381" label="Schnellhilfe" variant="notfall" stacked />
+```
+
+**Fix (phoneToTelHref-Härtung):** Eine Nummer im Format `49 160 …` (Ländercode ohne `+`)
+wurde bisher fälschlich zu `+4949…` (doppelter Ländercode). Jetzt: führendes `49` ohne `+`
+wird als Ländercode erkannt. `0…` → `+49…`, `+…` bleibt. Verhindert kaputte `tel:`-Links
+beim Fleet-Bump (plan-reviewer-Befund).
+
+**Tweak (DRY/Konsistenz):** `linkify-phones` und `LeistungenSection` nutzen jetzt den
+gemeinsamen `phoneToTelHref` (vorher dupliziert). `LeistungenSection` verlinkt außerdem die
+Telefonnummer im Text der `ctaPhone`-Karte (vorher nur im Button). `RichContentBlocks` hat
+einen expliziten `ul`-Guard (kein stiller Crash bei künftiger Union-Erweiterung).
+`CTAHeroBlock.headline`-JSDoc warnt vor ungetrimmtem User-Input (set:html-Sink).
+
+**Migrations-Hinweis:** Keiner (rein additiv). Neue Komponente ist opt-in; bestehende
+Props/Verhalten unverändert.
+
+---
+
 ## v0.82.0 (2026-07-13)
 
 **Feature (RichContentBlocks):** Neue Komponente `RichContentBlocks.astro` +

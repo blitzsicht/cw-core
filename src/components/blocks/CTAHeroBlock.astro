@@ -25,7 +25,11 @@
  *   />
  */
 interface Props {
-  /** Bold-Italic-Hauptclaim. Pflicht. Unterstützt HTML (z. B. `<br/>`) via set:html. */
+  /**
+   * Bold-Italic-Hauptclaim. Pflicht. Wird via `set:html` gerendert → unterstützt HTML
+   * (z. B. `<br/>`). ⚠️ Nur für entwickler-/redaktionell kontrollierte Literal-Strings —
+   * niemals ungetrimmten Kunden-/User-Input (kein Auto-Escaping, XSS-Sink).
+   */
   headline: string;
   /** Sub-Text unter der Headline. */
   sub?: string;

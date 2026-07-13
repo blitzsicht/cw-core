@@ -15,6 +15,7 @@
  * @example
  *   <div set:html={linkifyPhones(item.a)} />
  */
+import { phoneToTelHref } from './tel-href';
 
 const HTML_ESCAPE: Record<string, string> = {
   '&': '&amp;',
@@ -35,13 +36,6 @@ function escapeHtml(input: string): string {
  */
 const PHONE_RE = /(?<!\d)(?:\+49[ ]|0)\d{2,4}[ ]\d{5,10}(?!\d)/g;
 
-/** Normalisiert eine sichtbare Nummer auf einen `tel:`-tauglichen href (+49…). */
-function toTelHref(visible: string): string {
-  const digits = visible.replace(/[^\d+]/g, '');
-  if (digits.startsWith('+')) return digits;
-  return '+49' + digits.replace(/^0/, '');
-}
-
 /**
  * @param text  Roher Prosa-Text (unescaped).
  * @returns     HTML-String (escaped) mit `tel:`-Links auf erkannte Rufnummern.
@@ -50,7 +44,7 @@ export function linkifyPhones(text: string): string {
   if (!text) return '';
   const escaped = escapeHtml(text);
   return escaped.replace(PHONE_RE, (match) => {
-    const href = toTelHref(match);
+    const href = phoneToTelHref(match);
     // Plausibilitäts-Gate: echte DE-Rufnummern haben +49 + 9–12 Nutzziffern.
     const digitCount = href.replace(/\D/g, '').length;
     if (digitCount < 11 || digitCount > 14) return match;

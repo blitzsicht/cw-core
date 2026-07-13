@@ -1,0 +1,101 @@
+---
+/**
+ * FloatingCallButton — fixed bottom-right CTA pill for a `tel:` call.
+ *
+ * Schwester-Komponente zu FloatingCalButton (cal.com), aber für Direkt-Anruf
+ * (Schnellhilfe/Notfall/Ernstfall). DSGVO-clean: reiner `tel:`-Link, kein Script
+ * beim Seitenaufruf. Anzeige-Nummer bleibt national („0160 …"); der `tel:`-Href
+ * wird via phoneToTelHref auf +49 normalisiert.
+ *
+ * Stapelbar: mit `stacked` sitzt der Button über einem bottom-right WhatsApp-Sticky.
+ *
+ * @example
+ *   <FloatingCallButton phone="0160 91172381" label="Schnellhilfe" variant="notfall" stacked />
+ */
+import { phoneToTelHref } from '../../utils/text/tel-href';
+
+interface Props {
+  /** Sichtbare Rufnummer, z. B. "0160 91172381". Der tel:-Link wird normalisiert. */
+  phone: string;
+  /** Button-Label (auf Mobile ausgeblendet, nur Icon). */
+  label?: string;
+  /** Screenreader-/Tooltip-Label. */
+  ariaLabel?: string;
+  /** Farbvariante: 'notfall' (Signal-Rot), 'primary' (Marken-Primär), 'accent' (Marken-Akzent). */
+  variant?: 'notfall' | 'primary' | 'accent';
+  /** Über einem bottom-right WhatsApp-Sticky stapeln (höherer bottom-Offset). */
+  stacked?: boolean;
+}
+
+const {
+  phone,
+  label = 'Schnellhilfe',
+  ariaLabel = `Anrufen: ${Astro.props.phone}`,
+  variant = 'notfall',
+  stacked = false,
+} = Astro.props;
+
+const telHref = phoneToTelHref(phone);
+---
+{phone && (
+  <a
+    class:list={['floating-call', `variant-${variant}`, stacked && 'is-stacked']}
+    href={`tel:${telHref}`}
+    data-cta="floating-call"
+    aria-label={ariaLabel}
+  >
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/>
+    </svg>
+    <span class="label">{label}</span>
+  </a>
+)}
+
+{/* Kein lokaler click→track-Listener: der globale [data-cta]-SSOT-Listener trackt den
+   Klick (verhindert CTA-Doppelfeuer, kein Client-JS in der Komponente). */}
+
+<style>
+  .floating-call {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 999;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    border-radius: 999px;
+    text-decoration: none;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  }
+  .variant-notfall { background: var(--color-danger, #c62828); box-shadow: 0 8px 24px rgba(198, 40, 40, 0.4), 0 2px 6px rgba(0, 0, 0, 0.12); }
+  .variant-primary { background: var(--color-primary); box-shadow: 0 8px 24px color-mix(in srgb, var(--color-primary) 35%, transparent), 0 2px 6px rgba(0, 0, 0, 0.12); }
+  .variant-accent { background: var(--color-accent); color: var(--color-primary); box-shadow: 0 8px 24px color-mix(in srgb, var(--color-accent) 35%, transparent), 0 2px 6px rgba(0, 0, 0, 0.12); }
+  .floating-call:hover,
+  .floating-call:focus-visible {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+  }
+  .floating-call:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.6);
+    outline-offset: 2px;
+  }
+  .floating-call .icon { width: 1.375rem; height: 1.375rem; flex-shrink: 0; }
+  /* Über dem WhatsApp-Sticky stapeln (WhatsApp: bottom 1.25rem, ~3rem hoch). */
+  .is-stacked { bottom: 5.25rem; }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- konsistent mit FloatingCalButton */
+  @media (max-width: 640px) {
+    .floating-call { bottom: 1rem; right: 1rem; padding: 0.875rem; }
+    .floating-call.is-stacked { bottom: 4.75rem; }
+    .floating-call .label {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+  }
+  @media print {
+    .floating-call { display: none; }
+  }
+</style>
