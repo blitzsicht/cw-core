@@ -1,5 +1,20 @@
 # @cw/core
 
+> ⚠️ **`main` ist deprecated seit 2026-05-26.** Source-of-Truth für alle
+> `cw-core`-Entwicklung ist der Branch **`release/cw-core`**. Bitte NICHT
+> gegen `main` committen oder PRs gegen `main` öffnen — Ausnahme ist
+> ausschließlich dieser Deprecation-Guard selbst (siluri/blitzsicht-ops#511).
+> Frühere Vorfälle: PRs #47/#48/#49/#51 landeten versehentlich auf `main`
+> und erreichten die Customer-Sites nie (siehe siluri/blitzsicht-ops#509,
+> #507). Historischer Stand von `main` ist als Tag
+> `archive/main-pre-2026-05-26` erhalten.
+>
+> Arbeite stattdessen auf `release/cw-core`:
+> ```bash
+> git fetch origin release/cw-core
+> git checkout -b feature/issue-N origin/release/cw-core
+> ```
+
 Gemeinsame Astro-Komponenten, Layouts und Styles für Blitzsicht-Kundenseiten.
 
 ## Konzept
