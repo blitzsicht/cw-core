@@ -22,6 +22,27 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.84.0 (2026-07-13)
+
+- [kunde:sichtbar] Der farbige Aufruf-Block „Sprechen wir über Ihr Projekt" nutzt jetzt die volle Breite — Text und Button mittig statt schmal links.
+
+**Feature (CTAHeroBlock signet-los):** Neuer Prop `signet` (Default `true`). Mit `signet={false}`
+rendert `CTAHeroBlock` eine signet-lose Volle-Breite-Variante: einspaltig, Inhalt zentriert und
+breiter (`.cta-hero-content` 56rem, `.cta-hero-sub` 48rem) statt der schmalen 40rem/32rem-Spalte.
+
+Kontext: Sites, die das Signet per Customer-CSS ausblenden (Grid auf 1fr zwangen), hatten eine
+schmale Textspalte links + leeren rechten Grid-Block. Die Variante löst das in der Standard-
+komponente — der Customer-CSS-Hack entfällt. `signetSrc`/`signetLayered` werden bei
+`signet={false}` ignoriert.
+
+```astro
+<CTAHeroBlock headline="…" sub="…" ctaLabel="…" ctaHref="…" background="primary" signet={false} />
+```
+
+**Migrations-Hinweis:** Keiner (rein additiv, Default `true` = unverändertes Verhalten).
+
+---
+
 ## v0.83.0 (2026-07-13)
 
 **Feature (FloatingCallButton):** Neue Komponente `FloatingCallButton.astro` — feste

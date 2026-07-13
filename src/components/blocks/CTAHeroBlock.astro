@@ -43,6 +43,12 @@ interface Props {
   signetSrc?: string;
   /** Signet als Layered-Pattern (3-fach versetzt). Default: true. */
   signetLayered?: boolean;
+  /**
+   * Signet überhaupt anzeigen. Default: true. `false` = signet-lose Volle-Breite-Variante:
+   * einspaltig, Inhalt zentriert und breiter (kein leerer rechter Grid-Block).
+   * `signetSrc`/`signetLayered` werden dann ignoriert.
+   */
+  signet?: boolean;
 }
 
 const {
@@ -53,10 +59,11 @@ const {
   background = 'accent',
   signetSrc = '/signet.svg',
   signetLayered = true,
+  signet = true,
 } = Astro.props;
 ---
 
-<section class:list={['cta-hero-block', `bg-${background}`]}>
+<section class:list={['cta-hero-block', `bg-${background}`, !signet && 'no-signet']}>
   <div class="cta-hero-container">
     <div class="cta-hero-content">
       <h2 class="cta-hero-headline" set:html={headline}></h2>
@@ -69,7 +76,7 @@ const {
       )}
     </div>
 
-    {signetLayered ? (
+    {signet && (signetLayered ? (
       <div class="cta-hero-signets" aria-hidden="true">
         <img class="signet-back" src={signetSrc} alt="" aria-hidden="true" />
         <img class="signet-mid" src={signetSrc} alt="" aria-hidden="true" />
@@ -79,7 +86,7 @@ const {
       <div class="cta-hero-signet-single" aria-hidden="true">
         <img src={signetSrc} alt="" aria-hidden="true" />
       </div>
-    )}
+    ))}
   </div>
 </section>
 
@@ -106,6 +113,21 @@ const {
     position: relative;
     z-index: 2;
     max-width: 40rem;
+  }
+
+  /* Signet-lose Volle-Breite-Variante (signet={false}): einspaltig, zentriert, breiter Inhalt.
+     Höhere Spezifität als das Default-Grid (auch das 1fr-1fr im Media-Query unten). */
+  .cta-hero-block.no-signet .cta-hero-container {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  .no-signet .cta-hero-content {
+    max-width: 56rem;
+    margin-inline: auto;
+  }
+  .no-signet .cta-hero-sub {
+    max-width: 48rem;
+    margin-inline: auto;
   }
 
   .cta-hero-headline {
