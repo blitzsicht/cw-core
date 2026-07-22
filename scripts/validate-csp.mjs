@@ -14,28 +14,13 @@ import {
   checkCspCompleteness,
   extractCspValuesFromVercelJson,
 } from '../src/integrations/ai-discovery/csp-check.js';
+import { resolveOrigin } from './lib/resolve-origin.mjs';
 
 const root = process.argv[2] || process.cwd();
 const vj = join(root, 'vercel.json');
 if (!existsSync(vj)) {
   console.log('validate-csp: keine vercel.json — skip.');
   process.exit(0);
-}
-
-function resolveOrigin(dir) {
-  for (const f of ['astro.config.ts', 'astro.config.mjs', 'astro.config.js']) {
-    const p = join(dir, f);
-    if (existsSync(p)) {
-      const m = readFileSync(p, 'utf-8').match(/site:\s*['"]https?:\/\/([^'"/]+)/);
-      if (m) return `https://${m[1]}`;
-    }
-  }
-  const sd = join(dir, 'src/data/site-data.ts');
-  if (existsSync(sd)) {
-    const m = readFileSync(sd, 'utf-8').match(/url:\s*['"]https?:\/\/([^'"/]+)/);
-    if (m) return `https://${m[1]}`;
-  }
-  return null;
 }
 
 const origin = resolveOrigin(root);

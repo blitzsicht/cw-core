@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.84.0",
+  "version": "0.85.0",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -12,6 +12,7 @@
     "./styles/*": "./src/styles/*",
     "./templates/*": "./src/templates/*",
     "./integrations/ai-discovery": "./src/integrations/ai-discovery/index.ts",
+    "./csp": "./src/integrations/ai-discovery/csp-public.js",
     "./integrations/sitemap-images": "./src/integrations/sitemap-images.ts",
     "./integrations/bing-indexnow": "./src/integrations/bing-indexnow/index.ts",
     "./integrations/quality-checks": "./src/integrations/quality-checks/index.ts",

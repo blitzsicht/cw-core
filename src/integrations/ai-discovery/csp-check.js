@@ -96,6 +96,10 @@ function sourcesIncludeHost(sources, needle) {
 const SELF_DIRECTIVES = [
   'default-src', 'script-src', 'script-src-elem',
   'style-src', 'style-src-elem', 'font-src', 'connect-src', 'media-src', 'img-src',
+  // Nachgetragen 22.07.2026: der Output-Scanner fand bei gympanzen ein nacktes
+  // 'self' in manifest-src auf allen 18 Seiten — diese Liste kannte die
+  // Direktive nicht, also blieb der Drift unsichtbar.
+  'manifest-src', 'worker-src',
 ];
 
 /**
