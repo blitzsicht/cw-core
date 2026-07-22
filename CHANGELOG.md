@@ -22,6 +22,13 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.85.1 (2026-07-22)
+
+**Fix (Typen):** `csp-public.d.ts` nachgeliefert. Der neue Export `@cw/core/csp` hatte keine
+Typdeklaration — TS-Consumer außerhalb des Astro-Builds (cw-uptime) bekamen
+`TS7016: Could not find a declaration file`. Aufgefallen beim Worker-Typecheck, nicht bei
+den cw-core-Tests (die importieren die `.js` direkt).
+
 ## v0.85.0 (2026-07-22)
 
 - [kunde] Ein neuer Sicherheitsschritt prüft beim Erstellen der Website, ob alle Bausteine der Seite (Schriften, Bilder, Gestaltung) auch wirklich geladen werden dürfen. Findet er ein Problem, wird die Veröffentlichung gestoppt und die bisherige Seite bleibt online — statt dass eine unlesbare Version live geht.
