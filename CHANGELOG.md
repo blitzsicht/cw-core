@@ -22,6 +22,66 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.85.0 (2026-07-22)
+
+- [kunde] Ein neuer Sicherheitsschritt prüft beim Erstellen der Website, ob alle Bausteine der Seite (Schriften, Bilder, Gestaltung) auch wirklich geladen werden dürfen. Findet er ein Problem, wird die Veröffentlichung gestoppt und die bisherige Seite bleibt online — statt dass eine unlesbare Version live geht.
+
+**Feature (CSP-Output-Verifikation):** Der CSP-Schutz prüft ab jetzt nicht mehr nur den
+CSP-*Text* gegen bekannte Fehlermuster, sondern die CSP gegen das **tatsächlich gebaute
+`dist/`**. Damit fängt er auch Bruchmuster, die noch nie aufgetreten sind.
+
+Anlass — der fünfte Vorfall derselben Familie: gympanzen.com lieferte vom 17.–22.07.2026 eine
+komplett ungestylte Seite aus. `inlineStylesheets: 'always'` (Perf-Standard) erzeugt genau
+einen `<style>`-Block, den `style-src-elem 'self'` verwirft. Der bestehende `validate-csp`-Gate
+meldete dabei **exit 0** — die CSP war strukturell einwandfrei, sie passte nur nicht zum Output.
+Vorgeschichte: soleno (09.05.), digital-direkt (11.05.), donau-profi (09.06.). Jedes Mal wurde
+eine neue Regel für genau das beobachtete Symptom nachgerüstet; der Katalog stand bei 11 Regeln.
+
+Neue Module (alle reines JS + `.d.ts`, ohne `node:*` — laufen im Astro-Build, im Customer-CI
+unter `node_modules` und im Cloudflare-Worker):
+
+- **`csp-match.js`** — `checkResource()`/`findViolations()`: macht, was der Browser macht.
+  Fallback-Ketten (`style-src-elem` → `style-src` → `default-src`), `'unsafe-inline'`/Hash/Nonce
+  inkl. der CSP2+-Regel „Nonce/Hash präsent ⇒ `'unsafe-inline'` wird ignoriert", Schema-Sources,
+  Subdomain-Wildcards, exakter Host-Match. Markiert nacktes `'self'` in Asset-Direktiven als
+  `risky` (donau-profi-Klasse) — bewusst **nicht** bei `form-action`/`frame-src`, sonst Rauschen.
+- **`html-resources.js`** — `extractResources()`: zieht jede CSP-relevante Referenz aus dem HTML
+  (`<style>`, Inline-`<script>`, `<link>`-Varianten, `img`/`srcset`, `<source>` je nach
+  Medien-Kontext, `<iframe>`, `style=`/`on*=`-Attribute, `url()` inkl. `@font-face`).
+  **`application/ld+json` wird nie als Script gewertet** — es steht auf jeder Kundenseite.
+- **`csp-audit.js`** — `auditHtml()` + `formatFinding()`, mit Dedup (50 gleiche Bilder = 1 Fund).
+- **`csp-public.js`** → neuer Export **`@cw/core/csp`**: der laufzeit-neutrale Kern für
+  Consumer außerhalb des Astro-Builds (cw-uptime).
+
+Zwei Verankerungen, eine Logik:
+
+| Anker | Wirkung |
+|---|---|
+| `astro:build:done` (neue Option `checkOutputCsp`, Default **true und hart**) | `astro build` exit 1 ⇒ Vercel-Deploy `ERROR` ⇒ **der alte Build bleibt live** |
+| `scripts/csp-audit-dist.mjs` als CI-Step nach `pnpm build` | Datei-genaues PR-Feedback |
+
+Warum hart und warum im Build: ein rotes GitHub-CI stoppt keinen Deploy — ein Push auf `main`
+startet den Vercel-Prod-Deploy **parallel** zur CI. Nur ein Fehlschlag im Build selbst hält den
+kaputten Stand von Produktion fern. Verifiziert an einer Wegwerf-Site: kaputte CSP → Exit 1,
+gefixte CSP → Exit 0.
+
+**Fix (Guard-Lücke):** `SELF_DIRECTIVES` in `csp-check.js` **und** `csp-build.js` um
+`manifest-src` + `worker-src` ergänzt. Der Output-Scanner fand bei gympanzen ein nacktes
+`'self'` in `manifest-src` auf allen 18 Seiten — die Liste kannte die Direktive nicht.
+
+**Refactor:** `resolveOrigin()` aus `validate-csp.mjs` nach `scripts/lib/resolve-origin.mjs`
+gezogen, von beiden CLIs geteilt.
+
+Tests: +37 (`csp-match` 21, `csp-audit` 16) — darunter die drei realen Vorfälle als Gegenbeweis
+(gympanzen/donau-profi/soleno) und die Fallgruben (JSON-LD, Hash-CSP, externes Stylesheet).
+CSP-Suite gesamt 66/66 grün.
+
+**Migrations-Hinweis:** Keine Prop-Änderung. Beim Pin-Bump kann der Build **hart brechen**, wenn
+die CSP des Repos etwas blockt, das der Build ausliefert — das ist der Zweck. Fix:
+`node node_modules/@cw/core/scripts/gen-vercel-csp.mjs` + commit. Cluster-Sweep gegen die live
+ausgelieferten Header am 22.07.2026: 21 Repos, 14 auf Vercel und grün, 1 kaputt (gympanzen,
+gefixt), 5 liegen nicht auf Vercel (nginx/Apache/IONOS), 1 offline.
+
 ## v0.84.0 (2026-07-13)
 
 - [kunde:sichtbar] Der farbige Aufruf-Block „Sprechen wir über Ihr Projekt" nutzt jetzt die volle Breite — Text und Button mittig statt schmal links.

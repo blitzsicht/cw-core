@@ -76,6 +76,9 @@ export function buildCsp(siteOrigin, opts = {}) {
 const SELF_DIRECTIVES = [
   'default-src', 'script-src', 'script-src-elem',
   'style-src', 'style-src-elem', 'font-src', 'connect-src', 'media-src', 'img-src',
+  // Muss mit csp-check.js SELF_DIRECTIVES deckungsgleich bleiben — sonst
+  // repariert fixCsp genau die Direktiven nicht, die der Check beanstandet.
+  'manifest-src', 'worker-src',
 ];
 
 /**

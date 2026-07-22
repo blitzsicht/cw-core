@@ -74,6 +74,25 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: CSP-Output-Check (prüft die CSP gegen das GEBAUTE dist/)
+        # Der validate-csp-Schritt oben prüft den CSP-*Text* gegen bekannte
+        # Fehlermuster und kann darum nur Brüche fangen, die schon einmal live
+        # waren. gympanzen (22.07.2026) bestand ihn mit 0 Issues und war fünf
+        # Tage lang komplett ungestylt live: inlineStylesheets:'always' erzeugt
+        # einen <style>-Block, den "style-src-elem 'self'" verwirft.
+        #
+        # Dieser Schritt vergleicht die CSP mit dem, was der Build tatsächlich
+        # ausliefert. Redundant zum harten Abbruch im astro:build:done-Hook
+        # (der greift schon in `pnpm build` oben) — bewusst: der Hook schützt
+        # Produktion, dieser Schritt macht den Fehler im PR sichtbar, auch wenn
+        # ein Repo den Guard per checkOutputCsp:false abgeschaltet hat.
+        run: |
+          if [ -f node_modules/@cw/core/scripts/csp-audit-dist.mjs ]; then
+            node node_modules/@cw/core/scripts/csp-audit-dist.mjs
+          else
+            echo "skip: kein @cw/core installiert — Repo noch nicht auf cw-core migriert"
+          fi
+
   # ─── Form Health Smoke-Test ─────────────────────────────────────────────
   # Läuft NUR auf main nach Vercel-Auto-Deploy. Verifiziert dass /kontakt/
   # mit Turnstile-Widget ausgeliefert wird und /api/contact nicht crasht.

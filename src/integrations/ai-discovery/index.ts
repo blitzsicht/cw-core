@@ -21,9 +21,11 @@
 
 import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
+import { createHash } from 'node:crypto';
 import type { AstroIntegration } from 'astro';
 import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.js';
+import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import {
   checkDeadFontFamilies,
@@ -168,6 +170,20 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   strictCsp?: boolean;
   /** Analytics-Host für die CSP-Konsistenz-Prüfung. Default 'plausible.io'; null = aus. */
   analyticsHost?: string | null;
+  /**
+   * Default true, und bewusst HART (kein Soft-Warn-Modus): prüft die CSP gegen
+   * das tatsächlich gebaute `dist/` und bricht den Build ab, wenn sie eine
+   * ausgelieferte Ressource blocken würde.
+   *
+   * Warum hart: gympanzen (22.07.2026) bestand den textuellen CSP-Linter mit
+   * 0 Issues und war fünf Tage lang komplett ungestylt live. Ein rotes
+   * GitHub-CI hätte das nicht verhindert — ein Push auf main startet den
+   * Vercel-Prod-Deploy parallel zur CI. Nur ein Fehlschlag im Build selbst
+   * hält den kaputten Stand von Produktion fern (der alte Build bleibt live).
+   *
+   * Auf `false` nur in begründeten Ausnahmen (z. B. Fremd-HTML im dist/).
+   */
+  checkOutputCsp?: boolean;
 
   /**
    * Default true. Prüft die `vercel.json` auf Cache-Control-Politik für
@@ -1434,6 +1450,73 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 throw new Error(
                   `[ai-discovery] strictCsp=true: Build abgebrochen wegen ${cspIssues.length} CSP-Drift-Issue(s).`,
                 );
+              }
+            }
+
+            // ---------------------------------------------------------------
+            // CSP-Output-Verifikation: CSP gegen das GEBAUTE dist/ (hart)
+            // ---------------------------------------------------------------
+            // Der Linter oben prüft den CSP-*Text* gegen bekannte Fehlermuster
+            // und kann darum nur Brüche fangen, die schon einmal live waren.
+            // gympanzen (22.07.2026) bestand ihn mit 0 Issues und lieferte
+            // trotzdem fünf Tage lang eine komplett ungestylte Seite aus:
+            // inlineStylesheets:'always' erzeugt einen <style>-Block, den
+            // "style-src-elem 'self'" verwirft.
+            //
+            // Deshalb hier die Gegenprobe gegen den echten Output — und
+            // bewusst HART: ein Fehlschlag im astro:build:done lässt den
+            // Vercel-Build scheitern, wodurch der alte (funktionierende)
+            // Build live bleibt. Ein GitHub-CI-Gate allein reicht nicht: ein
+            // Push auf main startet den Prod-Deploy PARALLEL zur CI, rotes CI
+            // stoppt ihn nicht.
+            if (options.checkOutputCsp !== false) {
+              const htmlFiles: string[] = [];
+              const walk = (dir: string) => {
+                for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                  const p = join(dir, entry.name);
+                  if (entry.isDirectory()) walk(p);
+                  else if (entry.name.endsWith('.html')) htmlFiles.push(p);
+                }
+              };
+              walk(distDir);
+
+              const hashFn = (content: string, algo: string) =>
+                createHash(algo).update(content, 'utf8').digest('base64');
+
+              let blockedCount = 0;
+              let riskyCount = 0;
+              const messages: string[] = [];
+              for (const file of htmlFiles) {
+                const rel = relative(process.cwd(), file);
+                const html = readFileSync(file, 'utf-8');
+                for (const csp of cspValues) {
+                  for (const f of auditHtml(html, csp, { siteOrigin: data.url, file: rel, hashFn })) {
+                    if (f.result.allowed) riskyCount++;
+                    else blockedCount++;
+                    messages.push(formatFinding(f));
+                  }
+                }
+              }
+
+              if (blockedCount === 0 && riskyCount === 0) {
+                logger.info(
+                  `CSP-Output-Check: ✓ ${htmlFiles.length} Seite(n) gegen die CSP geprüft — keine blockierte Ressource.`,
+                );
+              } else {
+                // Als Pfeilfunktion, nicht als Methoden-Referenz: Astros Logger
+                // braucht sein `this` (sonst "Cannot read properties of undefined").
+                const log = (msg: string) => (blockedCount > 0 ? logger.error(msg) : logger.warn(msg));
+                log(
+                  `CSP-Output-Check: ${blockedCount} blockierte (❌), ${riskyCount} riskante (⚠) Ressource(n) in ${htmlFiles.length} Seite(n):`,
+                );
+                for (const m of messages.slice(0, 20)) log(`  ${m.replace(/\n/g, '\n  ')}`);
+                if (messages.length > 20) log(`  … und ${messages.length - 20} weitere.`);
+                if (blockedCount > 0) {
+                  throw new Error(
+                    `[ai-discovery] Build abgebrochen: die CSP in vercel.json blockt ${blockedCount} Ressource(n), die dieser Build ausliefert. ` +
+                      'Der Deploy würde eine kaputte Seite live stellen. Fix: node node_modules/@cw/core/scripts/gen-vercel-csp.mjs + commit.',
+                  );
+                }
               }
             }
           }
