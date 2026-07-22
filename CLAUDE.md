@@ -104,3 +104,22 @@ Wert ist `'shine-sweep' | 'fade-reveal' | 'subtle-pulse' | 'color-shift' | 'unde
 - `customer-websites` — Cross-Repo Learnings, Spec-Repo
 - `cw-onboarding` — nutzt `cw-core` Templates für neue Kunden
 - `customer-*` — alle 11 Customer-Sites importieren `@cw/core`
+
+<!-- SILURI-INFRA-SSOT:START (generiert von siluri-infra/scripts/install-pointer.sh) -->
+## Infrastruktur-SSOT — Telegram & Co.
+
+Bot-Handles, Chat-IDs, 1Password-Items und wer welchen Bot pollen darf stehen **nicht in
+diesem Repo**, sondern zentral in `siluri-infra`:
+
+| Was | Wo |
+|---|---|
+| Registry (maschinenlesbar) | `siluri-infra/integrations/telegram/bots.yaml` |
+| Regeln & Runbooks | `siluri-infra/integrations/telegram/README.md` |
+| Senden ohne Token-Wissen | `siluri-infra/integrations/telegram/tg-send.sh <bot-handle> "<text>"` |
+
+Pfad: `$SILURI_INFRA`, sonst `<dieses-repo>/../siluri-infra`.
+
+**Bevor du hier Telegram-Code anfasst:** erst `bots.yaml` lesen. Besonders `polled_by` —
+`getUpdates` ist single-consumer, ein zweiter Poller am selben Bot bricht den ersten mit
+`409 Conflict`. Neue Bots/Chat-IDs gehören in die Registry, nicht in dieses Repo.
+<!-- SILURI-INFRA-SSOT:END -->
