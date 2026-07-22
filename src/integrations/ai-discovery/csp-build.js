@@ -12,7 +12,7 @@
  *   script-Direktiven) — ohne customer-spezifische Dienst-Hosts zu verlieren.
  *   Idempotent. Output besteht checkCspCompleteness mit 0 Issues.
  *
- * @typedef {{ plausible?: boolean, turnstile?: boolean, cal?: boolean, tally?: boolean }} BuildCspOptions
+ * @typedef {{ plausible?: boolean, turnstile?: boolean, cal?: boolean, tally?: boolean, youtube?: boolean, osm?: boolean, vercelToolbar?: boolean, inlineStyles?: boolean, inlineScripts?: boolean }} BuildCspOptions
  */
 
 import { parseCsp, tokenHost } from './csp-check.js';
@@ -29,6 +29,11 @@ const HOSTS = {
   turnstile: 'https://challenges.cloudflare.com',
   cal: 'https://app.cal.eu',
   tally: 'https://tally.so',
+  // Ergänzt 22.07.2026 aus dem Fleet-Ist-Stand — ohne diese Hosts kann buildCsp
+  // die real gewachsenen CSPs nicht reproduzieren und taugt nicht als SSOT.
+  youtube: 'https://www.youtube-nocookie.com',
+  osm: 'https://tile.openstreetmap.org',
+  vercelToolbar: 'https://vercel.live',
 };
 
 // Quellen, die in Script-Direktiven nie erlaubt sein dürfen (XSS-Vektoren).
@@ -41,32 +46,53 @@ const UNSAFE_SCRIPT_SOURCES = new Set(["'unsafe-eval'", '*', 'https:', 'http:'])
  * @returns {string}
  */
 export function buildCsp(siteOrigin, opts = {}) {
-  const { plausible = true, turnstile = true, cal = false, tally = false } = opts;
+  const {
+    plausible = true,
+    turnstile = true,
+    cal = false,
+    tally = false,
+    youtube = false,
+    osm = false,
+    vercelToolbar = false,
+    // Astros `inlineStylesheets: 'always'` (Perf-Standard) erzeugt einen
+    // <style>-Block — ohne 'unsafe-inline' wäre die Seite komplett ungestylt.
+    // Das war der gympanzen-Vorfall. Default true, weil der Perf-Standard gilt.
+    inlineStyles = true,
+    // Default true = Fleet-Ist-Stand. Auf false setzen, wenn der Build keine
+    // ausführbaren Inline-Scripts erzeugt (JSON-LD zählt nicht) — dann bleibt
+    // die CSP strenger. Der Output-Check (csp-audit) verifiziert das je Build.
+    inlineScripts = true,
+  } = opts;
   const O = normOrigin(siteOrigin);
   const SELF = `'self' ${O}`;
-  const flags = { plausible, turnstile, cal, tally };
+  const flags = { plausible, turnstile, cal, tally, youtube, osm, vercelToolbar };
 
   /** @param {(keyof typeof HOSTS)[]} keys */
   const pick = (keys) => keys.filter((k) => flags[k]).map((k) => HOSTS[k]);
 
-  const scriptHosts = pick(['plausible', 'turnstile', 'cal', 'tally']);
-  const connectHosts = pick(['plausible', 'turnstile', 'cal']);
-  const frameHosts = pick(['turnstile', 'cal', 'tally']);
-  const script = [SELF, "'unsafe-inline'", ...scriptHosts].join(' ');
+  const scriptHosts = pick(['plausible', 'turnstile', 'cal', 'tally', 'vercelToolbar']);
+  const connectHosts = pick(['plausible', 'turnstile', 'cal', 'vercelToolbar']);
+  const frameHosts = pick(['turnstile', 'cal', 'tally', 'youtube', 'vercelToolbar']);
+  const imgHosts = pick(['osm']);
+  const script = [SELF, ...(inlineScripts ? ["'unsafe-inline'"] : []), ...scriptHosts].join(' ');
+  const style = [SELF, ...(inlineStyles ? ["'unsafe-inline'"] : [])].join(' ');
 
   const directives = [
     `default-src ${SELF}`,
     `script-src ${script}`,
     `script-src-elem ${script}`,
-    `style-src ${SELF} 'unsafe-inline'`,
-    `style-src-elem ${SELF} 'unsafe-inline'`,
-    `img-src ${SELF} data: https:`,
+    `style-src ${style}`,
+    `style-src-elem ${style}`,
+    `img-src ${[SELF, 'data:', 'https:', ...imgHosts].join(' ')}`,
     `font-src ${SELF}`,
     `connect-src ${[SELF, ...connectHosts].join(' ')}`,
     `media-src ${SELF}`,
+    `manifest-src ${SELF}`,
     "object-src 'none'",
     "base-uri 'self'",
+    "form-action 'self'",
     "frame-ancestors 'none'",
+    'upgrade-insecure-requests',
   ];
   if (frameHosts.length) directives.push(`frame-src ${frameHosts.join(' ')}`);
   return directives.join('; ');

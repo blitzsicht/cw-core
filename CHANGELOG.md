@@ -22,6 +22,36 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.86.0 (2026-07-22)
+
+**Feature (Generator auf Fleet-Ist-Stand):** Vorbereitung des Generator-Zwangs. `buildCsp()`
+erzeugt jetzt die Härtungen, die die Fleet real nutzt — `manifest-src`, `form-action 'self'`,
+`upgrade-insecure-requests` — und kennt die fehlenden Dienst-Hosts `youtube`
+(`www.youtube-nocookie.com`), `osm` (`tile.openstreetmap.org`) und `vercelToolbar`
+(`vercel.live`, in 3 Repos real im Einsatz). Neue Flags `inlineStyles` (Default `true` — der
+Perf-Standard `inlineStylesheets: 'always'` erzwingt es) und `inlineScripts` (Default `true` =
+Ist-Stand; `false` hält Script-Direktiven strikt, wenn der Build keine ausführbaren
+Inline-Scripts erzeugt — JSON-LD zählt nicht).
+
+Ohne diese Erweiterung konnte `buildCsp` die gewachsenen Kunden-CSPs nicht reproduzieren und
+taugte nicht als SSOT.
+
+**Neu: `scripts/csp-drift-report.mjs`** — misst pro Repo den Abstand zwischen handgeschriebener
+CSP und Generator-Output (leitet die Flags aus dem Ist-Stand ab). Kein Gate, kein Fehler-Exit,
+reines Messwerkzeug.
+
+Erster Lauf über die Fleet (22.07.2026): **19 Repos mit CSP, 19 mit Drift, 0 identisch** —
+fast durchweg die drei neuen Härtungen. Der Generator-Zwang (`csp_not_generated` als harter
+Check) wird deshalb **bewusst noch nicht aktiviert**: ein Gate, das am Einführungstag bei allen
+Repos rot ist, wird abgeschaltet statt befolgt (Lesson v0.31.1). Reihenfolge: erst angleichen
+(`gen-vercel-csp.mjs` pro Repo), dann hart schalten.
+
+Tests: +5 (`csp-build` 13 gesamt), darunter die Kern-Invariante „Generator-Output besteht
+`checkCspCompleteness` mit 0 Issues" über fünf Flag-Kombinationen.
+
+**Migrations-Hinweis:** Keiner (rein additiv). `buildCsp`-Aufrufer ohne neue Flags bekommen
+zusätzlich die drei Härtungs-Direktiven.
+
 ## v0.85.1 (2026-07-22)
 
 **Fix (Typen):** `csp-public.d.ts` nachgeliefert. Der neue Export `@cw/core/csp` hatte keine

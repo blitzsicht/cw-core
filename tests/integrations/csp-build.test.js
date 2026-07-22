@@ -73,3 +73,40 @@ test('fixCsp() bewahrt customer-spezifische Extra-Hosts (cal, vercel.live)', () 
   assert.ok(fixed.includes('https://vercel.live'), 'vercel.live verloren');
   assert.deepEqual(clean(fixed), []);
 });
+
+// ─── v0.86: Generator auf Fleet-Ist-Stand (Voraussetzung für Generator-Zwang) ───
+
+test('buildCsp() erzeugt die Härtungs-Direktiven, die die Fleet real nutzt', () => {
+  const csp = buildCsp(ORIGIN);
+  for (const d of ['manifest-src', "form-action 'self'", 'upgrade-insecure-requests', "object-src 'none'", "base-uri 'self'", "frame-ancestors 'none'"]) {
+    assert.ok(csp.includes(d), `${d} fehlt im Generator-Output`);
+  }
+});
+
+test('buildCsp() bleibt invariant: eigener Output besteht checkCspCompleteness mit 0 Issues', () => {
+  // Die dokumentierte Kern-Invariante — sonst wäre der Generator als SSOT wertlos.
+  for (const opts of [{}, { cal: true }, { youtube: true, osm: true }, { vercelToolbar: true }, { inlineScripts: false }]) {
+    assert.deepEqual(clean(buildCsp(ORIGIN, opts)), [], `Issues bei opts=${JSON.stringify(opts)}`);
+  }
+});
+
+test('buildCsp() inlineStyles: ohne unsafe-inline wäre die Seite ungestylt (gympanzen-Fall)', () => {
+  const mit = buildCsp(ORIGIN, { inlineStyles: true });
+  assert.ok(/style-src-elem [^;]*'unsafe-inline'/.test(mit));
+  const ohne = buildCsp(ORIGIN, { inlineStyles: false });
+  assert.ok(!/style-src-elem [^;]*'unsafe-inline'/.test(ohne));
+});
+
+test('buildCsp() inlineScripts:false hält Script-Direktiven strikt, Styles unberührt', () => {
+  const csp = buildCsp(ORIGIN, { inlineScripts: false, inlineStyles: true });
+  assert.ok(!/script-src [^;]*'unsafe-inline'/.test(csp), 'script-src darf kein unsafe-inline haben');
+  assert.ok(/style-src [^;]*'unsafe-inline'/.test(csp), 'style-src braucht es weiterhin');
+});
+
+test('buildCsp() neue Dienst-Flags landen in den richtigen Direktiven', () => {
+  const csp = buildCsp(ORIGIN, { youtube: true, osm: true, vercelToolbar: true });
+  const frame = csp.match(/frame-src ([^;]*)/)?.[1] ?? '';
+  assert.ok(frame.includes('youtube-nocookie.com'), 'youtube gehört in frame-src');
+  assert.ok(csp.match(/img-src ([^;]*)/)?.[1].includes('openstreetmap.org'), 'osm gehört in img-src');
+  assert.ok(csp.match(/script-src-elem ([^;]*)/)?.[1].includes('vercel.live'), 'vercel.live gehört in script-src-elem');
+});
