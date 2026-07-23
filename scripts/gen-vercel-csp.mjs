@@ -7,16 +7,73 @@
  * bleiben unberührt. Läuft im Repo-Root: `node node_modules/@cw/core/scripts/gen-vercel-csp.mjs`.
  *
  * Output wird committet (Vercel liest vercel.json vor dem Build → nicht im prebuild).
+ *
+ * `--service <name>[,<name>]` ergänzt zusätzlich einen bekannten Dienst-Host
+ * (`SERVICE_DIRECTIVE` unten). `fixCsp` allein repariert nur die Struktur und kann
+ * fehlende Dienste NICHT nachrüsten — ohne diese Option lief der ai-discovery-Guard
+ * bei schiller-gartenbau in eine Sackgasse: Build rot wegen blockierter Maps-iframe,
+ * aber der empfohlene Generator-Lauf änderte nichts (Vorfall 23.07.2026).
+ *
+ *   node node_modules/@cw/core/scripts/gen-vercel-csp.mjs --service googleMaps
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { fixCsp } from '../src/integrations/ai-discovery/csp-build.js';
+import { fixCsp, HOSTS } from '../src/integrations/ai-discovery/csp-build.js';
+
+// Welche Direktive der jeweilige Dienst-Host braucht. Deckungsgleich mit buildCsp.
+const SERVICE_DIRECTIVE = {
+  googleMaps: 'frame-src',
+  youtube: 'frame-src',
+  tally: 'frame-src',
+  cal: 'frame-src',
+  turnstile: 'frame-src',
+  vercelToolbar: 'frame-src',
+  osm: 'img-src',
+};
+
+/** Fügt einen Dienst-Host in die passende Direktive ein (idempotent).
+ * @param {string} csp @param {string[]} services @returns {string} */
+function addServices(csp, services) {
+  let out = csp;
+  for (const svc of services) {
+    const host = HOSTS[svc];
+    const directive = SERVICE_DIRECTIVE[svc];
+    if (!host || !directive) {
+      console.error(`gen-vercel-csp: unbekannter Dienst '${svc}' — bekannt: ${Object.keys(SERVICE_DIRECTIVE).join(', ')}`);
+      process.exit(1);
+    }
+    const re = new RegExp(`(^|;\\s*)${directive}([^;]*)`);
+    const m = out.match(re);
+    if (!m) {
+      out = `${out}; ${directive} 'self' ${host}`;
+      continue;
+    }
+    if (m[2].split(/\s+/).includes(host)) continue; // schon drin
+    out = out.replace(re, `$1${directive}$2 ${host}`);
+  }
+  return out;
+}
 import {
   checkCspCompleteness,
   extractCspValuesFromVercelJson,
 } from '../src/integrations/ai-discovery/csp-check.js';
 
-const root = process.argv[2] || process.cwd();
+const args = process.argv.slice(2);
+const svcIdx = args.findIndex((a) => a === '--service' || a.startsWith('--service='));
+/** @type {string[]} */
+let services = [];
+if (svcIdx !== -1) {
+  const a = args[svcIdx];
+  const val = a.includes('=') ? a.split('=')[1] : args[svcIdx + 1];
+  if (!val) {
+    console.error('gen-vercel-csp: --service ohne Wert.');
+    process.exit(1);
+  }
+  services = val.split(',').map((s) => s.trim()).filter(Boolean);
+  args.splice(svcIdx, a.includes('=') ? 1 : 2);
+}
+
+const root = args[0] || process.cwd();
 const vj = join(root, 'vercel.json');
 if (!existsSync(vj)) {
   console.log('gen-vercel-csp: keine vercel.json — skip.');
@@ -55,7 +112,8 @@ if (cspValues.length === 0) {
 let out = raw;
 let changed = false;
 for (const csp of cspValues) {
-  const fixed = fixCsp(csp, origin);
+  const withServices = services.length ? addServices(csp, services) : csp;
+  const fixed = fixCsp(withServices, origin);
   if (fixed !== csp) {
     out = out.split(csp).join(fixed); // alle Vorkommen (z. B. zusätzlicher Report-Only-Header)
     changed = true;

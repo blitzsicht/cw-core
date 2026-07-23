@@ -12,7 +12,7 @@
  *   script-Direktiven) — ohne customer-spezifische Dienst-Hosts zu verlieren.
  *   Idempotent. Output besteht checkCspCompleteness mit 0 Issues.
  *
- * @typedef {{ plausible?: boolean, turnstile?: boolean, cal?: boolean, tally?: boolean, youtube?: boolean, osm?: boolean, vercelToolbar?: boolean, inlineStyles?: boolean, inlineScripts?: boolean }} BuildCspOptions
+ * @typedef {{ plausible?: boolean, turnstile?: boolean, cal?: boolean, tally?: boolean, youtube?: boolean, osm?: boolean, vercelToolbar?: boolean, googleMaps?: boolean, inlineStyles?: boolean, inlineScripts?: boolean }} BuildCspOptions
  */
 
 import { parseCsp, tokenHost } from './csp-check.js';
@@ -24,7 +24,8 @@ export function normOrigin(o) {
   return s;
 }
 
-const HOSTS = {
+/** Bekannte Dienst-Hosts. Exportiert, damit gen-vercel-csp sie nachrüsten kann. */
+export const HOSTS = {
   plausible: 'https://plausible.io',
   turnstile: 'https://challenges.cloudflare.com',
   cal: 'https://app.cal.eu',
@@ -34,6 +35,11 @@ const HOSTS = {
   youtube: 'https://www.youtube-nocookie.com',
   osm: 'https://tile.openstreetmap.org',
   vercelToolbar: 'https://vercel.live',
+  // Ergänzt 23.07.2026: schiller-gartenbau.de/service/ liefert eine Maps-Embed-iframe
+  // aus, die die eigene CSP live blockt (frame-src kannte nur self + turnstile). Ohne
+  // diesen Host konnte gen-vercel-csp den Fall nicht lösen — der Build-Guard brach ab,
+  // ohne dass es eine Abhilfe gab. Nur der Embed-Host, nicht maps.googleapis.com.
+  googleMaps: 'https://www.google.com',
 };
 
 // Quellen, die in Script-Direktiven nie erlaubt sein dürfen (XSS-Vektoren).
@@ -54,6 +60,7 @@ export function buildCsp(siteOrigin, opts = {}) {
     youtube = false,
     osm = false,
     vercelToolbar = false,
+    googleMaps = false,
     // Astros `inlineStylesheets: 'always'` (Perf-Standard) erzeugt einen
     // <style>-Block — ohne 'unsafe-inline' wäre die Seite komplett ungestylt.
     // Das war der gympanzen-Vorfall. Default true, weil der Perf-Standard gilt.
@@ -65,14 +72,14 @@ export function buildCsp(siteOrigin, opts = {}) {
   } = opts;
   const O = normOrigin(siteOrigin);
   const SELF = `'self' ${O}`;
-  const flags = { plausible, turnstile, cal, tally, youtube, osm, vercelToolbar };
+  const flags = { plausible, turnstile, cal, tally, youtube, osm, vercelToolbar, googleMaps };
 
   /** @param {(keyof typeof HOSTS)[]} keys */
   const pick = (keys) => keys.filter((k) => flags[k]).map((k) => HOSTS[k]);
 
   const scriptHosts = pick(['plausible', 'turnstile', 'cal', 'tally', 'vercelToolbar']);
   const connectHosts = pick(['plausible', 'turnstile', 'cal', 'vercelToolbar']);
-  const frameHosts = pick(['turnstile', 'cal', 'tally', 'youtube', 'vercelToolbar']);
+  const frameHosts = pick(['turnstile', 'cal', 'tally', 'youtube', 'vercelToolbar', 'googleMaps']);
   const imgHosts = pick(['osm']);
   const script = [SELF, ...(inlineScripts ? ["'unsafe-inline'"] : []), ...scriptHosts].join(' ');
   const style = [SELF, ...(inlineStyles ? ["'unsafe-inline'"] : [])].join(' ');

@@ -22,6 +22,34 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.87.2 (2026-07-23)
+
+- [kunde:sichtbar] Auf Seiten mit eingebetteter Google-Maps-Karte wird die Karte wieder angezeigt — sie wurde bisher von den eigenen Sicherheitsregeln der Website blockiert.
+
+**Fix (CSP kannte Google Maps nicht):** `schiller-gartenbau.de/service/` liefert eine
+Maps-Embed-iframe aus, die die eigene CSP blockt — `frame-src` erlaubte nur `'self'` +
+Turnstile. Der Live-Zustand ist verifiziert: die iframe steht im ausgelieferten HTML, der
+Header lässt sie nicht zu. Die Karte war also für Besucher tot.
+
+Aufgefallen ist es erst durch den ai-discovery-Build-Guard beim Fleet-Bump — und der lief
+in eine **Sackgasse**: Er brach den Build ab und empfahl `gen-vercel-csp.mjs`, aber dieses
+Skript nutzt `fixCsp`, das nur die Struktur repariert und Dienst-Hosts **nicht** nachrüsten
+kann. Die empfohlene Abhilfe änderte nichts.
+
+- **`csp-build.js`**: neuer Dienst-Host `googleMaps` (`https://www.google.com`, nur der
+  Embed-Host, nicht `maps.googleapis.com`), Flag in `buildCsp` + `frame-src`. `HOSTS` wird
+  jetzt exportiert.
+- **`scripts/gen-vercel-csp.mjs`**: neue Option `--service <name>[,<name>]`, die einen
+  bekannten Dienst-Host in die passende Direktive einfügt — idempotent, mit harter
+  Fehlermeldung bei unbekanntem Namen. Damit ist die Sackgasse geschlossen:
+
+  ```bash
+  node node_modules/@cw/core/scripts/gen-vercel-csp.mjs --service googleMaps
+  ```
+
+Verifiziert an schiller-gartenbau: `frame-src` um `https://www.google.com` ergänzt, Build
+danach grün, zweiter Lauf meldet „bereits konform" (idempotent), unbekannter Dienst → exit 1.
+
 ## v0.87.1 (2026-07-23)
 
 **Fix (Preview-Builds, Regression aus v0.87.0):** Der Empfänger-Guard in
