@@ -22,6 +22,48 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.87.0 (2026-07-23)
+
+- [kunde] Anfragen über das Kontaktformular kommen jetzt zuverlässig beim richtigen Empfänger an; falsch eingestellte Empfänger-Adressen werden vor dem Veröffentlichen automatisch erkannt und gemeldet.
+
+**Fix (Lead-Fehlleitung, Vorfall zink-baeckerei 2026-07-17):** Ein Lead über baeckereizink.de
+landete nie bei der Bäckerei — `CONTACT_EMAIL` stand auf `servus@blitzsicht.com`. Ursache war
+eine Doppelbelegung: **`briefing-handler` und `contact-handler` lasen dieselbe Env-Var mit
+gegensätzlicher Bedeutung** (Briefing → Blitzsicht, Website-Lead → Kunde). Auf Sites mit
+beiden Routen (`mika-elektrotechnik`, `blumen-schmid`) war dadurch zwangsläufig eine Seite
+falsch adressiert. Verstärkt durch `cw-onboarding/docs/howto-onboard-new-customer.md`, das
+`echo "servus@blitzsicht.com" | vercel env add CONTACT_EMAIL production` vorgab — inklusive
+Trailing-`\n` im Wert.
+
+- **`api/briefing-handler.js`**: liest jetzt `BRIEFING_EMAIL` statt `CONTACT_EMAIL`
+  (Default unverändert `servus@blitzsicht.com` → **keine Migration nötig**). `CONTACT_EMAIL`
+  gehört ab sofort exklusiv dem contact-handler und muss auf die **Kunden-Adresse** zeigen.
+- **`api/contact-handler.js`**: Empfänger werden normalisiert (`trim`, Komma-Liste) — das
+  `echo`-Newline-Artefakt kann keinen Versand mehr verfälschen. Neue optionale
+  `LEAD_BCC_EMAIL` legt eine stille Blitzsicht-Kopie jedes Leads dazu; Adressen, die schon
+  im `to` stehen, werden übersprungen (keine Doppel-Mail auf blitzsicht.com selbst).
+- **`api/contact-handler.js`**: zwei Lead-Verlust-Lecks geschlossen. Lehnte Resend den
+  Versand ab (`!r.ok`, u.a. bei ungültigem Empfänger), ging der Lead **komplett verloren** —
+  kein `emitLead`, kein Alarm, nur eine Fehlermeldung im Browser des Interessenten. Jetzt
+  läuft in beiden Fehlerpfaden der Telegram-Alarm mit `deliveryError`. Zusätzlich fängt ein
+  äußerer Wrapper alles ab, was die Schichten nicht selbst behandeln (vorher: nackter
+  Vercel-500 ohne Spur).
+- **`api/error-sink.js` (neu)**: meldet Server-Fehler an das self-hosted GlitchTip
+  (`errors.blitzsicht.com`, Projekt `customer-sites`), von dort per Relay nach Telegram.
+  Bewusst ohne `@sentry/node` — plain `fetch` an die Store-API, gleiche Bauart wie
+  `lead-sink.js`, keine neue Dependency in 15 Customer-Repos. No-op ohne `GLITCHTIP_DSN`.
+- **`scripts/validate-form-backend.mjs`**: neuer Empfänger-Guard. Blockt den Build, wenn
+  `CONTACT_EMAIL` auf `@blitzsicht.com` zeigt, während die Seite eine Kunden-Domain
+  ausliefert; ebenso bei Whitespace im Wert und bei fehlender Var im Vercel-Build.
+  Auf blitzsicht.com selbst greift die Regel korrekt nicht (Host-Vergleich statt Whitelist).
+
+**Damit der Guard wirkt, muss das Skript im `prebuild` der Customer-Repos hängen** — in
+`build-check.yml` allein läuft er ohne `CONTACT_EMAIL` und überspringt den Empfänger-Teil:
+
+```jsonc
+"prebuild": "node node_modules/@cw/core/scripts/validate-form-backend.mjs && node node_modules/@cw/core/scripts/optimize-images.mjs --delete-originals"
+```
+
 ## v0.86.0 (2026-07-22)
 
 **Feature (Generator auf Fleet-Ist-Stand):** Vorbereitung des Generator-Zwangs. `buildCsp()`

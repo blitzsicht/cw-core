@@ -101,4 +101,55 @@ if (routeFile && siteHost) {
   }
 }
 
+// Empfaenger-Guard (Vorfall zink-baeckerei 2026-07-17): das Formular war technisch
+// intakt, aber CONTACT_EMAIL stand auf servus@blitzsicht.com — jeder Lead landete bei
+// Blitzsicht statt beim Kunden, ueber einen Monat lang, ohne Fehlermeldung. Ursache war
+// eine Copy-Paste-Zeile im alten Onboarding-Howto (`echo "servus@blitzsicht.com" | …`),
+// die zusaetzlich einen Trailing-Newline in den Wert schrieb.
+//
+// CONTACT_EMAIL existiert nur im Vercel-Build — GitHub-Actions kennt die Env nicht.
+// Deshalb: ohne Env lokal/in CI ueberspringen, im Vercel-Build (VERCEL=1) ist sie Pflicht.
+// Damit dieser Teil ueberhaupt greift, muss das Skript im `prebuild` der Customer-Repos
+// haengen, nicht nur in build-check.yml.
+const rawRecipient = process.env.CONTACT_EMAIL;
+const onVercel = process.env.VERCEL === '1';
+
+if (rawRecipient === undefined) {
+  if (onVercel) {
+    console.error('❌ CONTACT_EMAIL ist im Vercel-Build nicht gesetzt, obwohl ein Formular an /api/contact postet.');
+    console.error('   → Jeder Lead endet in einem 500 (nur der Telegram-Alarm rettet ihn).');
+    console.error("   Fix: printf '%s' 'info@<kunden-domain>' | vercel env add CONTACT_EMAIL production");
+    process.exit(1);
+  }
+  console.log('ℹ️  CONTACT_EMAIL nicht in der Env — Empfänger-Check übersprungen (greift im Vercel-Build).');
+} else {
+  if (rawRecipient !== rawRecipient.trim()) {
+    console.error(`❌ CONTACT_EMAIL enthält führenden/abschließenden Whitespace: ${JSON.stringify(rawRecipient)}`);
+    console.error('   → Typisches `echo`-Artefakt beim Setzen der Env-Var.');
+    console.error("   Fix: mit printf '%s' neu setzen (echo hängt ein \\n an).");
+    process.exit(1);
+  }
+
+  const recipients = rawRecipient.split(',').map((s) => s.trim()).filter(Boolean);
+  if (recipients.length === 0) {
+    console.error('❌ CONTACT_EMAIL ist leer.');
+    process.exit(1);
+  }
+
+  // Fremd-Empfaenger: eine Kundenseite darf ihre Leads nicht an Blitzsicht schicken.
+  // Auf blitzsicht.com selbst ist genau das korrekt — der Host-Vergleich regelt das
+  // ohne separate Whitelist. Ist die Domain nicht ermittelbar, fail-open.
+  if (siteHost && siteHost !== 'blitzsicht.com') {
+    const foreign = recipients.filter((a) => /@blitzsicht\.com$/i.test(a));
+    if (foreign.length > 0) {
+      console.error(`❌ CONTACT_EMAIL zeigt auf Blitzsicht (${foreign.join(', ')}), die Seite ist aber '${siteHost}'.`);
+      console.error('   → Der Kunde bekommt seine Leads nie. Genau so lief der Vorfall zink-baeckerei 2026-07-17.');
+      console.error(`   Fix: printf '%s' 'info@${siteHost}' | vercel env add CONTACT_EMAIL production`);
+      console.error('   Blitzsicht-Mitschnitt gehört stattdessen in LEAD_BCC_EMAIL (Shared Env).');
+      process.exit(1);
+    }
+  }
+  console.log(`✓ Empfänger-Check: CONTACT_EMAIL ok (${recipients.length} Adresse[n], Domain '${siteHost || 'unbekannt'}').`);
+}
+
 console.log(`✓ validate-form-backend: /api/contact-Route + allowedOrigins ok (${postsToApiContact.length} Formular-Seite[n]).`);

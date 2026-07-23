@@ -3,6 +3,7 @@ import { buildLeadEmail } from '../utils/forms/build-lead-email.js';
 import { getClientIp } from '../utils/net/get-client-ip.js';
 import { emitLead } from './lead-sink.js';
 import { recordConversion } from './conversion-store.js';
+import { captureError } from './error-sink.js';
 
 /**
  * @cw/core – createContactHandler
@@ -24,8 +25,17 @@ import { recordConversion } from './conversion-store.js';
  *   9. Resend-Versand
  *
  * Erforderliche Vercel Env-Vars (Production):
- *   - CONTACT_EMAIL            — Empfaenger-Adresse (z.B. info@kunde.de)
+ *   - CONTACT_EMAIL            — Empfaenger-Adresse (z.B. info@kunde.de). Muss die Adresse
+ *                                DES KUNDEN sein, nicht die von Blitzsicht — sonst bekommt
+ *                                der Kunde seine Leads nie (Vorfall zink-baeckerei 2026-07-17,
+ *                                Guard: scripts/validate-contact-recipient.mjs).
+ *                                Komma-Liste erlaubt; Whitespace wird getrimmt.
  *   - RESEND_API_KEY           — Resend API Key
+ *
+ * Optional (Blitzsicht-Mitschnitt — Handler funktioniert auch ohne):
+ *   - LEAD_BCC_EMAIL           — bcc-Kopie jedes Leads (z.B. servus@blitzsicht.com), sinnvoll
+ *                                als Shared Env auf Team-Ebene. Adressen, die schon im `to`
+ *                                stehen, werden automatisch uebersprungen.
  *
  * Optional (Bot-Schutz-Verstärkung — Handler funktioniert auch ohne):
  *   - TURNSTILE_SECRET_KEY     — Cloudflare Turnstile Secret (+ PUBLIC_TURNSTILE_SITE_KEY
@@ -92,6 +102,24 @@ const DEFAULT_SPAM_KEYWORDS = [
   'сотрудничество', 'продвижение', 'предложение',
   'click here now', 'limited time offer', 'act now',
 ];
+
+/**
+ * Zerlegt eine Env-Adressliste (`CONTACT_EMAIL`, `LEAD_BCC_EMAIL`) in saubere Einzeladressen.
+ *
+ * Robust gegen zwei real aufgetretene Konfig-Artefakte:
+ *   - Trailing-`\n` durch `echo "adresse@x.de" | vercel env add …` (das alte Onboarding-Howto
+ *     schrieb genau das — mehrere Projekte trugen den Newline im Wert).
+ *   - Komma-Liste, wenn ein Kunde mehrere Empfaenger will.
+ *
+ * @param {string|undefined} raw
+ * @returns {string[]}
+ */
+function parseAddressList(raw) {
+  return String(raw || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 const URL_PATTERN = /https?:\/\/[^\s<>"]+/gi;
 const BTC_PATTERN = /\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}\b/g;
@@ -206,7 +234,7 @@ export function createContactHandler(config) {
   const rateLimitWindowMs = config.rateLimitWindowMs ?? 10 * 60 * 1000;
   const extraSpamKeywords = config.extraSpamKeywords || [];
 
-  return async function handler(req, res) {
+  const inner = async function handleContact(req, res) {
     if (req.method !== 'POST') {
       res.status(405).json({ error: 'Method Not Allowed' });
       return;
@@ -328,13 +356,21 @@ export function createContactHandler(config) {
 
     // Resend-Versand. Fehlt eine Env-Var, wird der Lead trotzdem via Telegram gemeldet
     // (deliveryError) → Ops wird aktiv alarmiert UND der Lead geht nicht verloren.
-    const recipient = process.env.CONTACT_EMAIL;
-    if (!recipient) {
+    const recipients = parseAddressList(process.env.CONTACT_EMAIL);
+    if (recipients.length === 0) {
       console.error('[contact-handler] CONTACT_EMAIL missing');
       await emitLead(leadData, { ...leadCtx, deliveryError: 'CONTACT_EMAIL nicht in Vercel-Env gesetzt' });
       res.status(500).json({ ok: false, error: 'Empfänger nicht konfiguriert.' });
       return;
     }
+
+    // Optionale Blitzsicht-Kopie: `LEAD_BCC_EMAIL` (Shared Env auf Team-Ebene). Ohne die
+    // Var verhaelt sich der Handler exakt wie vorher. Adressen, die ohnehin schon im
+    // `to` stehen, werden rausgefiltert — sonst bekaeme z.B. customer-blitzsicht
+    // (CONTACT_EMAIL == LEAD_BCC_EMAIL) jeden Lead doppelt.
+    const toLower = new Set(recipients.map((a) => a.toLowerCase()));
+    const bccList = parseAddressList(process.env.LEAD_BCC_EMAIL)
+      .filter((a) => !toLower.has(a.toLowerCase()));
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       console.error('[contact-handler] RESEND_API_KEY missing');
@@ -365,7 +401,8 @@ export function createContactHandler(config) {
         },
         body: JSON.stringify({
           from: mail.fromHeader,
-          to: recipient,
+          to: recipients,
+          ...(bccList.length ? { bcc: bccList } : {}),
           reply_to: email,
           subject: mail.subject,
           html: mail.html,
@@ -375,6 +412,18 @@ export function createContactHandler(config) {
       if (!r.ok) {
         const errText = await r.text().catch(() => 'Unknown');
         console.error('[contact-handler] Resend error', r.status, errText);
+        // Bis hierher ging der Lead an dieser Stelle komplett verloren: kein emitLead,
+        // kein Alarm — nur eine Fehlermeldung im Browser des Interessenten. Resend lehnt
+        // u.a. ungueltige Empfaenger ab, also genau die Faelle, die man mitbekommen muss.
+        await emitLead(leadData, {
+          ...leadCtx,
+          deliveryError: `Resend lehnte den Versand ab (HTTP ${r.status})`,
+        });
+        await captureError(new Error(`Resend ${r.status}: ${String(errText).slice(0, 300)}`), {
+          project: leadData.project,
+          where: 'contact-handler:resend-rejected',
+          extra: { status: r.status, recipients: recipients.length },
+        });
         res.status(400).json({ ok: false, error: 'Email konnte nicht gesendet werden.' });
         return;
       }
@@ -391,7 +440,30 @@ export function createContactHandler(config) {
       res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[contact-handler] Resend fetch error:', err);
+      await emitLead(leadData, { ...leadCtx, deliveryError: 'Resend nicht erreichbar' });
+      await captureError(err, { project: leadData.project, where: 'contact-handler:resend-fetch' });
       res.status(500).json({ ok: false, error: 'Email konnte nicht gesendet werden.' });
+    }
+  };
+
+  // Aeusseres Netz: alles, was die Schichten oben NICHT selbst abfangen (Upstash-Ausfall,
+  // kaputter Body, Config-Drift), endete bisher als nackter Vercel-500 — ohne Log-Eintrag,
+  // den jemand sieht, und ohne Alarm. Der Interessent bekam eine Fehlermeldung, Blitzsicht
+  // erfuhr nie davon. Genau diese Klasse faengt GlitchTip ab.
+  return async function handler(req, res) {
+    try {
+      await inner(req, res);
+    } catch (err) {
+      console.error('[contact-handler] uncaught:', err);
+      await captureError(err, {
+        project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
+        where: 'contact-handler:uncaught',
+      });
+      try {
+        res.status(500).json({ ok: false, error: 'Interner Fehler.' });
+      } catch {
+        // Response war schon raus — nichts mehr zu tun.
+      }
     }
   };
 }

@@ -299,7 +299,7 @@ test('briefing-handler: internal+confirmation mails AWAITED, telegram DETACHED',
   const resendCalls = fx.calls.filter((c) => c.url.includes('resend.com'));
   assert.ok(resendCalls.length >= 2, `expected at least 2 resend calls, got ${resendCalls.length}`);
 
-  // Internal-Mail ist erster Resend-Call und geht an CONTACT_EMAIL
+  // Internal-Mail ist erster Resend-Call und geht an BRIEFING_EMAIL (Default Blitzsicht)
   assert.equal(resendCalls[0].body.to, 'servus@blitzsicht.com', 'first resend = internal mail');
   // Confirmation geht an Kunde
   assert.equal(resendCalls[1].body.to, 'kunde@acme.de', 'second resend = confirmation to customer');
@@ -399,4 +399,47 @@ test('briefing-handler returns 405 for non-POST methods', async (t) => {
   const res = makeRes();
   await handler(makeReq({ method: 'GET' }), res);
   assert.equal(res._captured.statusCode, 405, 'GET should 405');
+});
+
+// ===========================================================================
+// TEST 7 — Briefing-Empfaenger ist von CONTACT_EMAIL entkoppelt
+//
+// Vorfall zink-baeckerei (2026-07-17): beide Handler lasen `CONTACT_EMAIL`, mit
+// gegensaetzlicher Bedeutung — Briefing gehoert Blitzsicht, der Website-Lead dem Kunden.
+// Auf Sites mit beiden Routen (mika, blumen-schmid) war zwangsläufig eine Seite falsch
+// adressiert. Dieser Test faellt, sobald jemand die Kopplung wieder einbaut.
+// ===========================================================================
+test('briefing-handler ignoriert CONTACT_EMAIL und nutzt BRIEFING_EMAIL', async (t) => {
+  setEnv({
+    RESEND_API_KEY: 'fake',
+    CONTACT_EMAIL: 'info@kunden-domain.de',   // gehoert dem contact-handler
+    BRIEFING_EMAIL: 'briefing@blitzsicht.com',
+  });
+  const fx = installFakeFetch();
+  t.after(() => { fx.restore(); restoreEnv(); });
+
+  const handler = createBriefingHandler({
+    allowedOrigins: ['https://example.com'],
+    fromName: 'Acme',
+    customerName: 'Acme',
+    sections: fixtureSections,
+    submissionUrl: 'https://example.com/onboarding',
+  });
+
+  const res = makeRes();
+  await handler(makeReq({
+    body: {
+      firmenname_offiziell: 'Acme GmbH',
+      plz: '93055',
+      email_kontakt: 'kunde@acme.de',
+    },
+  }), res);
+
+  const resendCalls = fx.calls.filter((c) => c.url.includes('resend.com'));
+  assert.ok(resendCalls.length >= 1, 'internal mail must be sent');
+  assert.equal(
+    resendCalls[0].body.to,
+    'briefing@blitzsicht.com',
+    'Briefing darf NIE an die Kunden-Adresse aus CONTACT_EMAIL gehen',
+  );
 });

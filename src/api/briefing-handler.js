@@ -22,9 +22,13 @@ import { emitLead } from './lead-sink.js';
  *
  * Erforderliche Vercel Env-Vars (Production):
  *   - RESEND_API_KEY
- *   - CONTACT_EMAIL (Empfaenger der internen Mail — z.B. servus@blitzsicht.com)
  *
  * Optional:
+ *   - BRIEFING_EMAIL         (default: 'servus@blitzsicht.com') — Empfaenger der internen
+ *                            Briefing-Mail. NICHT `CONTACT_EMAIL` verwenden: die gehoert dem
+ *                            contact-handler und muss dort auf die KUNDEN-Adresse zeigen.
+ *                            Bis 2026-07 teilten sich beide Handler diese eine Var — auf Sites
+ *                            mit beiden Routen war dadurch immer eine Seite falsch adressiert.
  *   - ONBOARDING_FROM_EMAIL  (default: 'Onboarding <onboarding@send.blitzsicht.com>')
  *   - UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN (persistenter Rate-Limit)
  *   - KV_REST_API_URL + KV_REST_API_TOKEN (Vercel-Upstash-Marketplace)
@@ -316,7 +320,12 @@ export function createBriefingHandler(config) {
       });
       return;
     }
-    const recipient = process.env.CONTACT_EMAIL || 'servus@blitzsicht.com';
+    // BRIEFING_EMAIL statt CONTACT_EMAIL (seit dem zink-Vorfall 2026-07-17): beide Handler
+    // teilten sich `CONTACT_EMAIL`, mit gegensaetzlicher Bedeutung — das Briefing gehoert zu
+    // Blitzsicht, der Website-Lead zum Kunden. Auf Sites mit beiden Routen (mika, blumen-schmid)
+    // war zwangsläufig eine der beiden falsch adressiert. Der Default deckt den Normalfall ab,
+    // eine Migration ist deshalb nicht noetig.
+    const recipient = process.env.BRIEFING_EMAIL || 'servus@blitzsicht.com';
     const fromAddress = process.env.ONBOARDING_FROM_EMAIL || fromEmail;
     const confirmationFrom =
       process.env.ONBOARDING_FROM_EMAIL || confirmationFromEmail;
