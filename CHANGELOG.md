@@ -22,6 +22,25 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.87.1 (2026-07-23)
+
+**Fix (Preview-Builds, Regression aus v0.87.0):** Der Empfänger-Guard in
+`scripts/validate-form-backend.mjs` erzwang `CONTACT_EMAIL` bei `VERCEL === '1'` — das ist
+in **jedem** Vercel-Build gesetzt, auch im Preview. Da die Var in vielen Projekten nur auf
+dem `production`-Target liegt, hätte der Guard ab v0.87.0 jeden PR-Preview-Build gekillt.
+
+- Die „fehlt"-Regel greift jetzt nur bei `VERCEL_ENV === 'production'`. Im Preview gibt es
+  eine sichtbare Warnung (das Formular würde dort zur Laufzeit 500 liefern), aber keinen
+  Build-Abbruch — ein fehlender Preview-Wert darf keinen PR blockieren.
+- Die **inhaltlichen** Regeln (Blitzsicht-Empfänger auf Kunden-Domain, Whitespace im Wert)
+  bleiben in **allen** Umgebungen hart. Sie können nicht falsch-positiv werden, weil sie
+  einen tatsächlich gesetzten, tatsächlich falschen Wert bewerten.
+
+Aufgefallen im Plan-Review vor dem Fleet-Rollout — also bevor der Fehler von zwei auf elf
+Sites multipliziert wurde. Verifiziert über sieben Fälle: Preview ohne Var → exit 0 mit
+Warnung, Production ohne Var → exit 1, falscher Empfänger und Whitespace → exit 1 in
+**beiden** Umgebungen, korrekter Wert → exit 0.
+
 ## v0.87.0 (2026-07-23)
 
 - [kunde] Anfragen über das Kontaktformular kommen jetzt zuverlässig beim richtigen Empfänger an; falsch eingestellte Empfänger-Adressen werden vor dem Veröffentlichen automatisch erkannt und gemeldet.

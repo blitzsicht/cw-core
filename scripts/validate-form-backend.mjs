@@ -108,20 +108,34 @@ if (routeFile && siteHost) {
 // die zusaetzlich einen Trailing-Newline in den Wert schrieb.
 //
 // CONTACT_EMAIL existiert nur im Vercel-Build — GitHub-Actions kennt die Env nicht.
-// Deshalb: ohne Env lokal/in CI ueberspringen, im Vercel-Build (VERCEL=1) ist sie Pflicht.
+// Deshalb: ohne Env lokal/in CI ueberspringen, im Production-Build ist sie Pflicht.
+//
+// Warum `VERCEL_ENV === 'production'` und nicht `VERCEL === '1'`: `VERCEL` ist in JEDEM
+// Vercel-Build gesetzt, auch im Preview. `CONTACT_EMAIL` steht aber in vielen Projekten nur
+// auf dem production-Target — mit der VERCEL-Pruefung haette dieser Guard ab sofort jeden
+// PR-Preview-Build gekillt (aufgefallen im Plan-Review, bevor der Rollout das neunfach
+// multipliziert hat). Im Preview bleibt es deshalb bei einer Warnung.
 // Damit dieser Teil ueberhaupt greift, muss das Skript im `prebuild` der Customer-Repos
 // haengen, nicht nur in build-check.yml.
 const rawRecipient = process.env.CONTACT_EMAIL;
-const onVercel = process.env.VERCEL === '1';
+const onProdBuild = process.env.VERCEL_ENV === 'production';
+const onPreviewBuild = process.env.VERCEL === '1' && !onProdBuild;
 
 if (rawRecipient === undefined) {
-  if (onVercel) {
-    console.error('❌ CONTACT_EMAIL ist im Vercel-Build nicht gesetzt, obwohl ein Formular an /api/contact postet.');
+  if (onProdBuild) {
+    console.error('❌ CONTACT_EMAIL ist im Production-Build nicht gesetzt, obwohl ein Formular an /api/contact postet.');
     console.error('   → Jeder Lead endet in einem 500 (nur der Telegram-Alarm rettet ihn).');
     console.error("   Fix: printf '%s' 'info@<kunden-domain>' | vercel env add CONTACT_EMAIL production");
     process.exit(1);
   }
-  console.log('ℹ️  CONTACT_EMAIL nicht in der Env — Empfänger-Check übersprungen (greift im Vercel-Build).');
+  if (onPreviewBuild) {
+    // Kein Hard-Fail: ein fehlender Preview-Wert darf keinen PR blockieren. Das Formular
+    // wuerde in dieser Preview aber zur Laufzeit 500 liefern — deshalb sichtbar warnen.
+    console.warn('⚠️  CONTACT_EMAIL fehlt im Preview-Build — das Formular liefert in dieser Preview 500.');
+    console.warn("   Fix: printf '%s' 'info@<kunden-domain>' | vercel env add CONTACT_EMAIL preview");
+  } else {
+    console.log('ℹ️  CONTACT_EMAIL nicht in der Env — Empfänger-Check übersprungen (greift im Production-Build).');
+  }
 } else {
   if (rawRecipient !== rawRecipient.trim()) {
     console.error(`❌ CONTACT_EMAIL enthält führenden/abschließenden Whitespace: ${JSON.stringify(rawRecipient)}`);
