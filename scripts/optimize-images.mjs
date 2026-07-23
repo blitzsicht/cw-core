@@ -64,7 +64,19 @@ const SUPPORTED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.JPEG'
 // die beim WebP-Flatten ihre Animation verlören), /social/ (Facebook-Share-PNGs mit
 // spec-fixer Größe). Spiegelt die TAG_DENY_RE-Denylist in geotag-core wider
 // (Twin-Divergenz-Guard), damit `--dir=public` (Default) sicher das ganze public/ scannt.
-const DENY_PATTERNS = [/\/og\//i, /\/icons?\//i, /\/email\//i, /\/social\//i, /favicon/i];
+// Ergänzt 23.07.2026 (Fleet-Bump v0.77 -> v0.87): Logos und OG-Bilder AUSSERHALB der
+// og-/social-Ordner fielen bisher durch. Konkret verloren blitzsicht.com und
+// donau-profi.de beim Bump `public/logo.png` (+ logo-dark/-original), obwohl jede
+// Seite genau diese URL referenziert — der Deploy hätte die Logos auf 404 gesetzt.
+// Gleiches Muster bei `images/blog/og-images-og.png`: liegt nicht in einem /og/-Ordner,
+// wurde konvertiert, und der Blogartikel zeigt seitdem live auf ein totes OG-Bild.
+// Marken- und Social-Assets werden extern referenziert (Schema.org, OG-Tags,
+// E-Mail-Signaturen, fremde Seiten) und dürfen nicht unter den Füßen wegkonvertiert
+// werden — ein paar KB sind billiger als eine tote Logo-URL.
+const DENY_PATTERNS = [
+  /\/og\//i, /\/icons?\//i, /\/email\//i, /\/social\//i, /favicon/i,
+  /logo/i, /[-_]og\.(png|jpe?g)$/i,
+];
 export function isDenied(filePath) {
   const norm = String(filePath).replace(/\\/g, '/');
   return DENY_PATTERNS.some((re) => re.test(norm));

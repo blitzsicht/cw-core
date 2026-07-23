@@ -22,6 +22,31 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.87.3 (2026-07-23)
+
+- [kunde:sichtbar] Logos und Social-Media-Vorschaubilder bleiben beim Optimieren unangetastet — sie konnten bisher in eine andere Dateiform umgewandelt werden, wodurch das Logo auf der Website ins Leere zeigte.
+
+**Fix (Bild-Optimierung fraß Marken-Assets):** `optimize-images --delete-originals` schützte
+per Denylist nur `/og/`, `/icons/`, `/email/`, `/social/` und `favicon` — Logos und OG-Bilder
+**außerhalb** dieser Ordner fielen durch.
+
+Aufgefallen beim Fleet-Bump v0.77.2 → v0.87.x: bei `customer-blitzsicht` und
+`customer-donau-profi` löschte der Lauf `public/logo.png` (+ `logo-dark`, `logo-original`),
+obwohl beide Seiten **live genau diese URL** auf jeder Seite referenzieren (verifiziert:
+`https://blitzsicht.com/logo.png` und `https://donau-profi.de/logo.png` liefern 200, die
+Referenz steht im ausgelieferten HTML). Der Deploy hätte die Logos auf 404 gesetzt.
+
+Dasselbe Muster, bereits eingetreten: `customer-blitzsicht/public/images/blog/og-images-og.png`
+liegt nicht in einem `/og/`-Ordner, wurde konvertiert — der Blogartikel „Open-Graph-
+Vorschaubilder" zeigt seitdem live auf ein totes OG-Bild (404 verifiziert).
+
+- **`scripts/optimize-images.mjs`**: Denylist um `/logo/i` und `/[-_]og\.(png|jpe?g)$/i`
+  erweitert. Marken- und Social-Assets werden extern referenziert (Schema.org, OG-Tags,
+  E-Mail-Signaturen, fremde Seiten) — ein paar KB sind billiger als eine tote Logo-URL.
+
+Verifiziert über zehn Pfad-Fälle inkl. drei Gegenproben, die weiterhin optimiert werden
+müssen (`artikel-hero.png`, `teppichreinigung.jpg`, `portrait.jpg`).
+
 ## v0.87.2 (2026-07-23)
 
 - [kunde:sichtbar] Auf Seiten mit eingebetteter Google-Maps-Karte wird die Karte wieder angezeigt — sie wurde bisher von den eigenen Sicherheitsregeln der Website blockiert.
