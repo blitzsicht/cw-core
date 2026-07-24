@@ -31,7 +31,7 @@ Audit-Drift-Vermeidung: Beim ersten Deploy direkt einen cw-audit-Run gegen die L
 - [ ] `rollout-build-check.sh --only <name>` ausführen → ergänzt `.github/workflows/build-check.yml`
 - [ ] Falls Visual-Regression gewünscht: cw-visual-tests/baselines initialisieren (separates Setup, siehe `cw-visual-tests/README.md`)
 - [ ] GitHub Repo-Secrets prüfen: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (sonst Env-Drift-Check fail)
-  - **`VERCEL_TOKEN` MUSS ein Team-scoped Token sein** (Scope: Team `siluris-projects`), kein Personal-Token — ein Personal-Token gibt beim env-drift-Check „Could not retrieve Project Settings". EIN Team-Token deckt alle ~20 Projekte. Quelle: 1Password-Vault `claude` → `vercel-ci-token` (`op read op://claude/vercel-ci-token/password`). Vor dem Setzen gegen `/v9/projects/<id>?teamId=<team>` curl→200 gaten. Details: Memory `reference_vercel_token_ci`.
+  - **`VERCEL_TOKEN` MUSS ein Team-scoped Token sein**, kein Personal-Token — ein Personal-Token gibt beim env-drift-Check „Could not retrieve Project Settings". Genaue 1Password-Referenz, Team-Scope + curl→200-Gate vor dem Setzen: interne Memory `reference_vercel_token_ci`.
 
 ## 4. Astro-Site-Inhalte (cw-core-Komponenten)
 

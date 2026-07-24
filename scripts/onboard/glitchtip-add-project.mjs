@@ -23,7 +23,7 @@ import { execFileSync } from 'node:child_process';
 const BASE = 'https://errors.blitzsicht.com/api/0';
 const ORG = 'blitzsicht';
 const TEAM = 'blitzsicht';
-const OP_ITEM = 'mhafg2k5u6z6h5j4oim4rpvzsa'; // 1Password item "glitchtip-blitischt-API", vault claude
+const OP_ITEM = process.env.GLITCHTIP_OP_ITEM || 'glitchtip-blitischt-API'; // 1Password item, vault claude
 const OP_VAULT = 'claude';
 const DEFAULT_RELAY_FROM = 'siluri-de'; // bestehendes Projekt, dessen Alert-Relay-URL wir wiederverwenden
 const ALERT_NAME = 'Telegram (Blitzsicht_bot)';
