@@ -64,6 +64,7 @@ function installFakeFetch({
   resendOk = true,
   telegramOk = true,
   delayMs = 0,
+  telegramDelayMs = null,
 } = {}) {
   /** @type {Array<{ url: string, body: any, at: number }>} */
   const calls = [];
@@ -74,7 +75,19 @@ function installFakeFetch({
       body: init && init.body ? JSON.parse(init.body) : null,
       at: Date.now() - t0,
     });
-    if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));
+    // telegramDelayMs erlaubt es, Telegram absichtlich VIEL langsamer zu machen
+    // als Resend. Damit misst der Detached-Test den Architektur-Unterschied
+    // (wartet der Handler darauf?) statt der Maschinenlast — eine absolute
+    // Wanduhr-Schwelle flakte auf langsamen Volumes reproduzierbar.
+    const wait =
+      telegramDelayMs !== null && String(url).includes('telegram.org') ? telegramDelayMs : delayMs;
+    if (wait > 0) {
+      await new Promise((r) => {
+        const timer = setTimeout(r, wait);
+        // Ein noch laufender Telegram-Timer darf den Testprozess nicht offen halten.
+        timer.unref?.();
+      });
+    }
     if (String(url).includes('resend.com')) {
       return {
         ok: resendOk,
@@ -258,7 +271,7 @@ test('getClientIp prefers x-vercel-forwarded-for, falls back to XFF LAST', () =>
 // ===========================================================================
 // TEST 3 — Promise.allSettled-Ordering: Mails AWAITED, Telegram DETACHED (MAJ-12.3 / MAJ-7)
 // ===========================================================================
-test('briefing-handler: internal+confirmation mails AWAITED, telegram DETACHED', async (t) => {
+test('briefing-handler: internal+confirmation mails UND telegram AWAITED vor 200 (MAJ-7)', async (t) => {
   setEnv({
     RESEND_API_KEY: 'fake',
     CONTACT_EMAIL: 'servus@blitzsicht.com',
@@ -266,8 +279,11 @@ test('briefing-handler: internal+confirmation mails AWAITED, telegram DETACHED',
     TELEGRAM_CHAT_ID: '12345',
   });
 
-  // Telegram bekommt 100ms Delay — Response soll trotzdem schnell raus
-  const fx = installFakeFetch({ delayMs: 50 });
+  // Resend antwortet schnell (50ms), Telegram absichtlich sehr langsam (1500ms).
+  // Der Handler darf nur auf die Resend-Calls warten — dadurch liegen die beiden
+  // Ausgänge über eine Größenordnung auseinander, statt sich im Rauschen der
+  // Maschinenlast zu berühren.
+  const fx = installFakeFetch({ delayMs: 50, telegramDelayMs: 1500 });
   t.after(() => { fx.restore(); restoreEnv(); });
 
   const handler = createBriefingHandler({
@@ -304,16 +320,29 @@ test('briefing-handler: internal+confirmation mails AWAITED, telegram DETACHED',
   // Confirmation geht an Kunde
   assert.equal(resendCalls[1].body.to, 'kunde@acme.de', 'second resend = confirmation to customer');
 
-  // Telegram-Call muss EXISTIEREN aber NICHT die Response blockieren.
-  // Wir warten kurz auf den microtask
-  await new Promise((r) => setTimeout(r, 100));
+  // Telegram muss VOR der Response durch sein — ohne nachtraegliches Warten im
+  // Test. Genau das ist die Aussage des MAJ-7-Fixes (2026-05-21): das
+  // Detached-Pattern funktionierte in Vercel Serverless nicht, weil die Function
+  // nach res.status(200) gekillt wurde, bevor der Telegram-fetch resolvte.
   const tgCalls = fx.calls.filter((c) => c.url.includes('telegram.org'));
-  assert.ok(tgCalls.length >= 1, 'telegram detached call should fire after response');
+  assert.ok(
+    tgCalls.length >= 1,
+    'telegram muss vor dem Handler-Return gefeuert haben (emitLead ist awaited)',
+  );
 
-  // Heuristic: dt (handler-return) sollte < 150ms sein (delayMs=50 fuer 2 resend calls = ~100ms,
-  // telegram detached fuegt nichts hinzu). Wenn telegram blockiert haette: dt > 150ms.
-  // Conservative bound damit Tests auf langsamen CIs nicht flaken.
-  assert.ok(dt < 500, `handler should not wait for telegram (dt=${dt}ms)`);
+  // Beleg, dass wirklich gewartet wird: Telegram braucht im Fake 1500ms, der
+  // Handler kehrt erst danach zurueck. Wuerde jemand emitLead wieder detachen,
+  // faellt dt auf ~100ms und dieser Test wird rot — genau das soll er.
+  //
+  // Vorher stand hier das Gegenteil (`dt < 500`, Testname "telegram DETACHED").
+  // Der Test war nur gruen, weil Telegram und Resend dieselbe Verzoegerung
+  // hatten und der Unterschied gar nicht messbar war — er hat nie geprueft, was
+  // sein Name behauptete, und flakte stattdessen unter Last
+  // (siluri/blitzsicht-ops#606).
+  assert.ok(
+    dt >= 1500,
+    `emitLead muss awaited sein (dt=${dt}ms, erwartet >= 1500ms Telegram-Latenz)`,
+  );
 });
 
 // ===========================================================================
