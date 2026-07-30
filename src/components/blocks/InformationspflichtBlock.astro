@@ -42,6 +42,8 @@ export type DatenEmpfaenger = {
 
 export type Branche = 'druck' | 'solar' | 'web' | 'handwerk' | 'beratung' | 'ferienhaus' | 'generic';
 
+import { phoneToTelHref } from '../../utils/text/tel-href';
+
 interface Props {
   legal: LegalProps;
   /** Allgemeine Kontakt-E-Mail-Adresse (aus siteData.contact.email). Wird direkt für
@@ -178,7 +180,7 @@ const {
 const datenschutzEmail: string | undefined = datenschutzEmailProp || email || undefined;
 
 const empfaengerListe: DatenEmpfaenger[] = empfaenger ?? EMPFAENGER_DEFAULTS[branche as Branche];
-const phoneTel = l.phone.replace(/\s+/g, '');
+const phoneTel = phoneToTelHref(l.phone);
 // Embedded-Mode: Hx-Hierarchie um 1 Level absenken — die hosting Page hat schon h2s,
 // damit InformationspflichtBlock-Sections h3 werden statt mit h2 zu kollidieren.
 const HeadingTag = hideLeadIntro ? 'h3' : 'h2';

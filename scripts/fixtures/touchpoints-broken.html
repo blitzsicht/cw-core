@@ -1,0 +1,27 @@
+<!doctype html>
+<!-- Fixture: enthält exakt die drei Bug-Klassen aus dem digital-direkt-Audit 2026-07
+     + einen WhatsApp-Drift. Der Audit MUSS hier rot werden (Guard-goes-red-Beweis). -->
+<html lang="de">
+  <body>
+    <!-- Bug 1: falsche Ziffer (Durchwahl 00 statt 0) — syntaktisch kanonisch, aber nicht im SSOT -->
+    <a href="tel:+4994015395900">09401 53959-0 anrufen</a>
+    <!-- Bug 2: Bindestrich überlebt Ad-hoc-replace -->
+    <a href="tel:+49940153959-20">+49 9401 53959-20</a>
+    <!-- Bug 3: rohe Spaces (invalid URI) -->
+    <a href="tel:+49 9401 53959-44">+49 9401 53959-44</a>
+    <!-- Bug 4: mailto-Drift (Adresse existiert nicht im SSOT) -->
+    <a href="mailto:vertireb@digital-direkt.com">Tippfehler-Mail</a>
+    <!-- Bug 5: WhatsApp-Nummer nicht im SSOT -->
+    <a href="https://wa.me/4917612345678">WhatsApp</a>
+    <!-- Bug 6: tel:-Schema fehlt komplett (phoneToTelHref ohne `tel:`-Präfix) —
+         für jede tel:-Suche unsichtbar, navigiert relativ statt zu wählen -->
+    <a href="+4994015395920">Anrufen (Schema fehlt)</a>
+    <!-- Bug 7: mailto:-Schema fehlt -->
+    <a href="vertrieb@digital-direkt.com">Mail (Schema fehlt)</a>
+    <!-- Kein Bug: data-href darf NICHT als Href gewertet werden -->
+    <span data-href="tel:+49 999">Attribut-Boundary</span>
+    <!-- OK-Referenzen -->
+    <a href="tel:+4994015395920">Vertrieb</a>
+    <a href="mailto:vertrieb@digital-direkt.com">Mail</a>
+  </body>
+</html>

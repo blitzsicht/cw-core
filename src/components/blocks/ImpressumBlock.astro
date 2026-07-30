@@ -60,6 +60,8 @@ export interface LegalProps {
   vsbgPflichtig: boolean;
 }
 
+import { phoneToTelHref } from '../../utils/text/tel-href';
+
 interface Props {
   legal: LegalProps;
   /** Kontakt-E-Mail-Adresse für das Impressum (§ 5 Abs. 1 Nr. 2 DDG — schnelle elektronische
@@ -133,7 +135,7 @@ const showRepresentatives =
 
   <h2>Kontakt</h2>
   <p>
-    Telefon: <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a><br />
+    Telefon: <a href={`tel:${phoneToTelHref(l.phone)}`}>{l.phone}</a><br />
     {email && <>E-Mail: <a href={`mailto:${email}`}>{email}</a><br /></>}
     {hasContactForm && <>Kontaktformular: <a href={contactFormPath}>{contactFormPath}</a></>}
   </p>
