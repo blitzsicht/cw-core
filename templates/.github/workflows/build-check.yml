@@ -71,6 +71,18 @@ jobs:
             echo "skip: kein @cw/core installiert — Repo noch nicht auf cw-core migriert"
           fi
 
+      - name: Validate Conversion-Store (Ads-Sites — keine still verlorenen Conversions)
+        # Greift nur, wenn eine Seite adsConsent an die ContactForm übergibt.
+        # recordConversion() ist bewusst fail-open: fehlt der Neon-Treiber,
+        # schluckt der try/catch den Import-Fehler und die Conversions
+        # verschwinden lautlos (digital-direkt 2026-07-30).
+        run: |
+          if [ -f node_modules/@cw/core/scripts/validate-conversion-store.mjs ]; then
+            node node_modules/@cw/core/scripts/validate-conversion-store.mjs
+          else
+            echo "skip: kein @cw/core installiert — Repo noch nicht auf cw-core migriert"
+          fi
+
       - name: Build
         run: pnpm build
 
