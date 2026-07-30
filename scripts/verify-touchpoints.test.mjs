@@ -1,0 +1,191 @@
+#!/usr/bin/env node
+/**
+ * Tests für verify-touchpoints.mjs (Pure-Helpers + dist-Modus End-to-End).
+ *
+ * Läuft via: node --test scripts/verify-touchpoints.test.mjs
+ *
+ * Wichtigster Test: der Guard-goes-red-Beweis — das Broken-Fixture enthält die
+ * drei realen Bug-Klassen aus dem digital-direkt-Audit 2026-07 (falsche Ziffer,
+ * Bindestrich, Spaces) und MUSS den Audit auf Exit 1 bringen. Ein Check, der
+ * nie rot war, ist eine Behauptung.
+ */
+
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { writeFileSync, mkdirSync, rmSync, readFileSync, copyFileSync } from 'node:fs';
+import { resolve, join } from 'node:path';
+import { tmpdir } from 'node:os';
+
+import {
+  normalizePhone,
+  parseSsot,
+  extractHrefs,
+  extractWhatsAppHrefs,
+  auditHtml,
+  extractInternalLinks,
+} from './verify-touchpoints.mjs';
+
+const SCRIPT = resolve(import.meta.dirname, 'verify-touchpoints.mjs');
+const FIXTURES = resolve(import.meta.dirname, 'fixtures');
+
+const SITE_DATA = `
+export const siteData = {
+  contact: { email: 'vertrieb@digital-direkt.com', phone: '+49 9401 53959-20' },
+  legal: { email: 'vertrieb@digital-direkt.com', phone: '+49 9401 53959-20', fax: '+49 9401 53959-99' },
+  persons: [
+    { email: 'markus.steller@digital-direkt.com', phone: '+49 9401 53959-20' },
+    { email: 'melanie.steller@digital-direkt.com', phone: '+49 9401 53959-44' },
+  ],
+  karriere: { kontaktEmail: 'l.steller@digital-direkt.com' },
+};
+`;
+
+// ─── Pure-Helper-Tests ──────────────────────────────────────────────────────
+
+test('normalizePhone: nationale 0, +49, Ländercode ohne +, Separatoren', () => {
+  assert.equal(normalizePhone('09401 53959-0'), '+499401539590');
+  assert.equal(normalizePhone('+49 9401 53959-20'), '+4994015395920');
+  assert.equal(normalizePhone('49 9401 5395920'), '+4994015395920');
+  assert.equal(normalizePhone(''), '');
+});
+
+test('parseSsot: Telefone aus phone/fax-Keys, alle E-Mail-Literale', () => {
+  const { phones, emails } = parseSsot(SITE_DATA);
+  assert.ok(phones.has('+4994015395920'));
+  assert.ok(phones.has('+4994015395944'));
+  assert.ok(phones.has('+4994015395999')); // fax
+  assert.ok(emails.has('vertrieb@digital-direkt.com'));
+  assert.ok(emails.has('l.steller@digital-direkt.com'));
+  assert.equal(emails.size, 4);
+});
+
+test('extractHrefs: tel + mailto, single/double quotes', () => {
+  const html = `<a href="tel:+491">a</a> <a href='mailto:x@y.de?subject=Hi'>b</a>`;
+  assert.deepEqual(extractHrefs(html, 'tel'), ['tel:+491']);
+  assert.deepEqual(extractHrefs(html, 'mailto'), ['mailto:x@y.de?subject=Hi']);
+});
+
+test('extractWhatsAppHrefs: wa.me und api.whatsapp.com', () => {
+  const html = `<a href="https://wa.me/4916012345">w</a><a href="https://api.whatsapp.com/send?phone=4916012345">x</a>`;
+  assert.equal(extractWhatsAppHrefs(html).length, 2);
+});
+
+test('auditHtml: Broken-Fixture liefert exakt die 5 gepflanzten Probleme', () => {
+  const html = readFileSync(join(FIXTURES, 'touchpoints-broken.html'), 'utf-8');
+  const problems = auditHtml(html, parseSsot(SITE_DATA), {
+    allowExternalMailto: ['poststelle@lda.bayern.de'],
+  });
+  const hrefs = problems.map((p) => p.href);
+  assert.ok(hrefs.includes('tel:+4994015395900'), 'falsche Ziffer (Durchwahl 00) muss auffallen');
+  assert.ok(hrefs.includes('tel:+49940153959-20'), 'Bindestrich muss auffallen');
+  assert.ok(hrefs.includes('tel:+49 9401 53959-44'), 'Spaces müssen auffallen');
+  assert.ok(hrefs.includes('mailto:vertireb@digital-direkt.com'), 'mailto-Tippfehler muss auffallen');
+  assert.ok(hrefs.includes('https://wa.me/4917612345678'), 'fremde WhatsApp-Nummer muss auffallen');
+  assert.equal(problems.length, 5, 'die OK-Referenzen dürfen NICHT anschlagen');
+});
+
+test('auditHtml: OK-Fixture ist sauber (inkl. ?subject und Allowlist)', () => {
+  const html = readFileSync(join(FIXTURES, 'touchpoints-ok.html'), 'utf-8');
+  const problems = auditHtml(html, parseSsot(SITE_DATA), {
+    allowExternalMailto: ['poststelle@lda.bayern.de'],
+  });
+  assert.deepEqual(problems, []);
+});
+
+test('auditHtml: ohne SSOT (leere Sets) nur Syntax-Checks', () => {
+  const problems = auditHtml(
+    `<a href="tel:+4999999">x</a><a href="tel:+49 1 2">y</a>`,
+    { phones: new Set(), emails: new Set() },
+  );
+  assert.equal(problems.length, 1); // nur die Space-Variante, unbekannte Nummer ok ohne SSOT
+});
+
+test('extractInternalLinks: same-site absolut + relativ, extern/anker raus', () => {
+  const html = `
+    <a href="/kontakt/">k</a>
+    <a href="https://kunde.de/leistungen/">l</a>
+    <a href="https://extern.example/x">e</a>
+    <a href="#anker">a</a>
+    <a href="tel:+491">t</a>`;
+  const links = extractInternalLinks(html, 'https://kunde.de');
+  assert.deepEqual(links.sort(), ['https://kunde.de/kontakt/', 'https://kunde.de/leistungen/']);
+});
+
+// ─── End-to-End: dist-Modus via Subprozess ──────────────────────────────────
+
+/**
+ * @param {object} opts
+ * @param {string} opts.fixture Fixture-Dateiname der als dist/index.html landet
+ * @param {string|null} [opts.config] Inhalt von touchpoint-audit.config.json
+ * @param {Record<string,string>} [opts.env]
+ * @returns {{ code: number, out: string }}
+ */
+function runDist({ fixture, config = null, env = {} }) {
+  const cwd = join(tmpdir(), `cwcore-tp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(join(cwd, 'src', 'data'), { recursive: true });
+  mkdirSync(join(cwd, 'dist'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'data', 'site-data.ts'), SITE_DATA);
+  copyFileSync(join(FIXTURES, fixture), join(cwd, 'dist', 'index.html'));
+  if (config !== null) writeFileSync(join(cwd, 'touchpoint-audit.config.json'), config);
+
+  let code = 0;
+  let out = '';
+  try {
+    out = execFileSync(process.execPath, [SCRIPT, '--dist', 'dist'], {
+      env: { ...process.env, ...env },
+      cwd,
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+  } catch (err) {
+    code = err.status ?? 1;
+    out = (err.stdout ?? '') + (err.stderr ?? '');
+  } finally {
+    try {
+      rmSync(cwd, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  return { code, out };
+}
+
+test('E2E: Broken-Fixture → Exit 1 (Guard-goes-red-Beweis)', () => {
+  const { code, out } = runDist({ fixture: 'touchpoints-broken.html' });
+  assert.equal(code, 1, `erwartet Exit 1, out:\n${out}`);
+  assert.match(out, /tel:\+4994015395900/);
+});
+
+test('E2E: OK-Fixture + Allowlist-Config → Exit 0', () => {
+  const { code, out } = runDist({
+    fixture: 'touchpoints-ok.html',
+    config: JSON.stringify({ allowExternalMailto: ['poststelle@lda.bayern.de'] }),
+  });
+  assert.equal(code, 0, `erwartet Exit 0, out:\n${out}`);
+  assert.match(out, /Touchpoint-Audit OK/);
+});
+
+test('E2E: SKIP_TOUCHPOINTS=true → Exit 0 ohne Prüfung', () => {
+  const { code, out } = runDist({
+    fixture: 'touchpoints-broken.html',
+    env: { SKIP_TOUCHPOINTS: 'true' },
+  });
+  assert.equal(code, 0);
+  assert.match(out, /skipped/);
+});
+
+test('E2E: kaputte Config-JSON → Exit 2 (Konfig-Fehler, kein stiller Pass)', () => {
+  const { code } = runDist({ fixture: 'touchpoints-ok.html', config: '{nicht json' });
+  assert.equal(code, 2);
+});
+
+test('E2E: ohne --dist/--url → Exit 2 mit Usage', () => {
+  let code = 0;
+  try {
+    execFileSync(process.execPath, [SCRIPT], { encoding: 'utf-8', timeout: 10000 });
+  } catch (err) {
+    code = err.status;
+  }
+  assert.equal(code, 2);
+});

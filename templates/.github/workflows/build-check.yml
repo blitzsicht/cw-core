@@ -74,6 +74,21 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Touchpoint-Audit (dist — tel:/mailto:/WhatsApp gegen SSOT, kein kaputter Kontaktweg)
+        # Anlass digital-direkt 2026-07: Homepage-CTA wählte tel:+4994015395900
+        # (Durchwahl 00 statt 0) — vor Google-Ads-Spend entdeckt. Prüft jede
+        # tel:/mailto:/wa.me-Href im gebauten HTML gegen src/data/site-data.ts.
+        # Optionale Allowlist/Extras: touchpoint-audit.config.json im Repo-Root.
+        # Opt-out: Repository-Variable SKIP_TOUCHPOINTS=true.
+        run: |
+          if [ -f node_modules/@cw/core/scripts/verify-touchpoints.mjs ]; then
+            node node_modules/@cw/core/scripts/verify-touchpoints.mjs --dist dist
+          else
+            echo "skip: kein @cw/core installiert — Repo noch nicht auf cw-core migriert"
+          fi
+        env:
+          SKIP_TOUCHPOINTS: ${{ vars.SKIP_TOUCHPOINTS }}
+
       - name: CSP-Output-Check (prüft die CSP gegen das GEBAUTE dist/)
         # Der validate-csp-Schritt oben prüft den CSP-*Text* gegen bekannte
         # Fehlermuster und kann darum nur Brüche fangen, die schon einmal live
@@ -134,3 +149,17 @@ jobs:
         env:
           SITE_URL: ${{ vars.PRODUCTION_URL }}
           WAIT_MS: 0
+
+      - name: Touchpoint-Audit (live — Links/Redirects/Plausible/Form-Kette)
+        # --skip-empty-post: verify-form-health hat oben schon 1 POST auf
+        # /api/contact gemacht; das Rate-Limit ist 3 POSTs/10min pro IP.
+        # Der Audit macht so nur den Honeypot-Trip (Summe 2/3) und wertet
+        # 429 als RATE_LIMITED-Warnung statt FAIL.
+        run: |
+          if [ -f node_modules/@cw/core/scripts/verify-touchpoints.mjs ]; then
+            node node_modules/@cw/core/scripts/verify-touchpoints.mjs --url "${{ vars.PRODUCTION_URL }}" --skip-empty-post
+          else
+            echo "skip: kein @cw/core installiert — Repo noch nicht auf cw-core migriert"
+          fi
+        env:
+          SKIP_TOUCHPOINTS: ${{ vars.SKIP_TOUCHPOINTS }}

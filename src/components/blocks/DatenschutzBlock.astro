@@ -30,6 +30,8 @@
  */
 import type { LegalProps } from './ImpressumBlock.astro';
 
+import { phoneToTelHref } from '../../utils/text/tel-href';
+
 interface Props {
   legal: LegalProps;
   /** Kontakt-E-Mail-Adresse des Verantwortlichen (Art. 13 Abs. 1 lit. a DSGVO).
@@ -97,7 +99,7 @@ const showTurnstile = hasContactForm && hasTurnstile;
     {l.form}<br />
     {l.street}<br />
     {l.zip} {l.city}{l.country && l.country !== 'DE' ? <>, {l.country}</> : null}<br />
-    Telefon: <a href={`tel:${l.phone.replace(/\s+/g, '')}`}>{l.phone}</a><br />
+    Telefon: <a href={phoneToTelHref(l.phone)}>{l.phone}</a><br />
     {email && <>E-Mail: <a href={`mailto:${email}`}>{email}</a></>}
   </p>
 
