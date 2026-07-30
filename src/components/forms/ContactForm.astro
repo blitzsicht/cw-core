@@ -52,6 +52,13 @@ interface Props {
   adsConsentVersion?: string;
   /** Optionaler Override des Consent-Labels (Default: DSGVO-konformer Standardtext). */
   adsConsentText?: string;
+  /**
+   * Optionaler Zweitext hinter einem `<details>`-Aufklapper unter dem Label. Gedacht für
+   * Sites, die das Label kurz halten wollen: Kurzsatz sichtbar, Pflichtangaben nach
+   * Art. 13 DSGVO (Empfänger, Drittland, Widerruf) eine Klick-Ebene tiefer. Ohne den Prop
+   * rendert der Consent-Block exakt wie bisher — die Nicht-Ads-Sites bleiben unberührt.
+   */
+  adsConsentDetails?: string;
 }
 
 const {
@@ -68,6 +75,7 @@ const {
   adsConsent = false,
   adsConsentVersion = 'ads-consent-v1',
   adsConsentText = 'Ich willige ein, dass zur Messung des Werbeerfolgs meine Google-Klick-Kennung an Google (Google Ireland Ltd. / Google LLC, USA) übermittelt wird. Freiwillig und jederzeit mit Wirkung für die Zukunft widerrufbar.',
+  adsConsentDetails,
 } = Astro.props;
 
 // Build-Time-Warning wenn Form ohne Bot-Schutz produziert wird.
@@ -179,9 +187,15 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       )}
 
       {adsConsent && (
-        <div class="form-consent">
+        <div class:list={['form-consent', adsConsentDetails && 'has-details']}>
           <input type="checkbox" id="cf-ads-consent" name="marketing_consent" value="true" />
           <label for="cf-ads-consent">{adsConsentText}</label>
+          {adsConsentDetails && (
+            <details class="consent-details">
+              <summary>Details</summary>
+              <p>{adsConsentDetails}</p>
+            </details>
+          )}
           <input type="hidden" name="marketing_consent_version" value={adsConsentVersion} />
         </div>
       )}
@@ -439,6 +453,31 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
     font-size: 0.8125rem;
     color: var(--color-muted);
     cursor: pointer;
+  }
+
+  /* Nur wenn adsConsentDetails gesetzt ist: Grid statt Flex, damit der Aufklapper
+     unter dem Label in derselben Spalte sitzt. Sites ohne den Prop behalten den
+     unveränderten Flex-Block darüber. */
+  .form-consent.has-details {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    row-gap: 0.25rem;
+  }
+  .form-consent .consent-details {
+    grid-column: 2;
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+  }
+  .form-consent .consent-details summary {
+    cursor: pointer;
+    width: fit-content;
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+  .form-consent .consent-details p {
+    margin: 0.375rem 0 0;
+    line-height: 1.5;
   }
 
   .form-submit { margin-top: 0.5rem; }

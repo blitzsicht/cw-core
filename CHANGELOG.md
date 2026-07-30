@@ -22,6 +22,30 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.89.0 (2026-07-30)
+
+- [kunde:sichtbar] Die Einwilligungs-Checkbox unter dem Kontaktformular (nur auf Seiten mit Google-Ads-Messung) kann ihren Rechtstext jetzt hinter einem „Details"-Aufklapper verstecken. Sichtbar bleibt ein kurzer Satz, die Pflichtangaben stehen eine Klick-Ebene tiefer. Wer den Aufklapper nicht einrichtet, sieht seine Seite unverändert.
+
+**Feature:** Neuer optionaler Prop `adsConsentDetails` an `ContactForm.astro`.
+
+Ist er gesetzt, rendert unter dem Consent-Label ein `<details><summary>Details</summary>`
+mit dem übergebenen Text, und der Container bekommt zusätzlich die Klasse `has-details`
+(Grid statt Flex, damit der Aufklapper in der Label-Spalte sitzt). Ohne den Prop bleibt der
+Block DOM- und CSS-seitig exakt wie in v0.88.0 — verifiziert: `display:flex`,
+`align-items:flex-start`, `gap:8px` unverändert.
+
+Hintergrund: Der Default-Consent-Text nennt Empfänger und Drittlandtransfer und ist damit
+zwangsläufig lang. Direkt über dem Absenden-Button kostet das Conversions. Der Aufklapper
+löst den Zielkonflikt, ohne die Pflichtangaben nach Art. 13 DSGVO wegzulassen.
+
+Wer den Prop nutzt und dabei den `adsConsentText` kürzt, muss `adsConsentVersion` mit
+hochziehen — die Version wird zusammen mit dem Zeitstempel in der `conversion_queue`
+protokolliert und ist sonst als Einwilligungsnachweis (Art. 7 Abs. 1 DSGVO) wertlos.
+
+Erste Nutzung: `customer-digital-direkt` (`ads-consent-v2`).
+
+---
+
 ## v0.88.0 (2026-07-30)
 
 - [kunde] Die Telefonnummern auf Impressum und Datenschutzerklärung lassen sich jetzt auf allen Geräten zuverlässig antippen — bisher enthielten diese Links einen Bindestrich, den nicht jedes Telefon korrekt verarbeitet.
