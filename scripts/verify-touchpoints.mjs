@@ -46,9 +46,9 @@
  * Exit-Codes: 0 ok · 1 mindestens ein FAIL · 2 Konfig-Fehler
  */
 
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, realpathSync } from 'node:fs';
 import { join, extname, relative } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 // ─── Pure Helpers (exportiert für node --test) ──────────────────────────────
 
@@ -92,14 +92,44 @@ export function parseSsot(src) {
  * @param {string} html @param {'tel'|'mailto'} scheme @returns {string[]} rohe Href-Werte inkl. Schema
  */
 export function extractHrefs(html, scheme) {
-  return [...html.matchAll(new RegExp(`href=["'](${scheme}:[^"']*)["']`, 'gi'))].map((m) => m[1]);
+  // (?:^|[\s"']) verhindert Treffer auf data-href / xlink:href.
+  return [...html.matchAll(new RegExp(`(?:^|[\\s"'])href=["'](${scheme}:[^"']*)["']`, 'gi'))].map(
+    (m) => m[1],
+  );
 }
 
 /** @param {string} html @returns {string[]} wa.me / api.whatsapp.com Hrefs */
 export function extractWhatsAppHrefs(html) {
-  return [...html.matchAll(/href=["'](https?:\/\/(?:wa\.me|api\.whatsapp\.com)\/[^"']*)["']/gi)].map(
-    (m) => m[1],
-  );
+  return [
+    ...html.matchAll(/(?:^|[\s"'])href=["'](https?:\/\/(?:wa\.me|api\.whatsapp\.com)\/[^"']*)["']/gi),
+  ].map((m) => m[1]);
+}
+
+/**
+ * Hrefs, die wie ein Kontaktweg aussehen, aber KEIN Schema tragen —
+ * `<a href="+4994015395920">` statt `href="tel:+…"`, `<a href="x@y.de">` statt `mailto:`.
+ * Solche Links navigieren relativ (404) statt zu wählen/mailen.
+ *
+ * Diese Prüfung existiert, weil eine schemenlose Href für jede tel:/mailto:-Suche
+ * unsichtbar ist: der Audit hätte „keine Probleme" gemeldet, während der Anruf-Link
+ * tot war. Genau so ist es beim Bau dieses Scripts passiert (phoneToTelHref liefert
+ * nur die Ziffern, das `tel:` muss der Aufrufer setzen) — der Fehler blieb im
+ * Selbst-Review hängen, nicht im Test.
+ *
+ * @param {string} html
+ * @returns {{ href: string, problem: string }[]}
+ */
+export function findSchemelessContactHrefs(html) {
+  const out = [];
+  for (const m of html.matchAll(/(?:^|[\s"'])href=["']([^"']+)["']/gi)) {
+    const v = m[1].trim();
+    if (/^\+\d[\d\s\-()]*$/.test(v) || /^0\d[\d\s\-()]{5,}$/.test(v)) {
+      out.push({ href: v, problem: 'sieht aus wie eine Telefonnummer, aber `tel:`-Schema fehlt' });
+    } else if (/^[^\s@/:]+@[^\s@/:]+\.[A-Za-z]{2,}$/.test(v)) {
+      out.push({ href: v, problem: 'sieht aus wie eine E-Mail-Adresse, aber `mailto:`-Schema fehlt' });
+    }
+  }
+  return out;
 }
 
 /**
@@ -110,7 +140,7 @@ export function extractWhatsAppHrefs(html) {
  * @returns {{ href: string, problem: string }[]}
  */
 export function auditHtml(html, ssot, cfg = {}) {
-  const problems = [];
+  const problems = [...findSchemelessContactHrefs(html)];
   const allowMail = new Set((cfg.allowExternalMailto ?? []).map((e) => e.toLowerCase()));
 
   for (const href of extractHrefs(html, 'tel')) {
@@ -245,7 +275,7 @@ async function main() {
   const pages = [];
 
   if (distDir) {
-    const absDist = join(root, distDir) === distDir || distDir.startsWith('/') ? distDir : join(root, distDir);
+    const absDist = distDir.startsWith('/') ? distDir : join(root, distDir);
     if (!existsSync(absDist)) {
       console.error(`FATAL: dist-Verzeichnis ${absDist} existiert nicht — erst bauen.`);
       return 2;
@@ -440,7 +470,28 @@ async function main() {
   return 0;
 }
 
-// Nur ausführen, wenn direkt aufgerufen (Tests importieren die Pure-Helpers).
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+/**
+ * Direkt-Aufruf erkennen — beide Seiten über realpath vergleichen.
+ *
+ * Naiver `import.meta.url === pathToFileURL(process.argv[1]).href` ist FALSCH,
+ * sobald das Script über einen Symlink läuft: pnpm verlinkt
+ * `node_modules/@cw/core` → `node_modules/.pnpm/…`, `import.meta.url` trägt den
+ * aufgelösten Pfad, `process.argv[1]` den Symlink-Pfad. Der Vergleich schlug fehl,
+ * `main()` lief nie, und der CI-Aufruf `node node_modules/@cw/core/scripts/…`
+ * meldete still Exit 0 — ein Guard, der nie rot werden kann. Genau so beim Bau
+ * dieses Scripts passiert; `scripts/verify-touchpoints.test.mjs` deckt es jetzt
+ * mit einem Symlink-Aufruf ab.
+ */
+function isDirectRun() {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entry);
+  } catch {
+    return false;
+  }
+}
+
+if (isDirectRun()) {
   process.exit(await main());
 }

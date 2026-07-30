@@ -13,7 +13,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { writeFileSync, mkdirSync, rmSync, readFileSync, copyFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync, rmSync, readFileSync, copyFileSync, symlinkSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -22,6 +22,7 @@ import {
   parseSsot,
   extractHrefs,
   extractWhatsAppHrefs,
+  findSchemelessContactHrefs,
   auditHtml,
   extractInternalLinks,
 } from './verify-touchpoints.mjs';
@@ -71,7 +72,22 @@ test('extractWhatsAppHrefs: wa.me und api.whatsapp.com', () => {
   assert.equal(extractWhatsAppHrefs(html).length, 2);
 });
 
-test('auditHtml: Broken-Fixture liefert exakt die 5 gepflanzten Probleme', () => {
+test('findSchemelessContactHrefs: fehlendes tel:/mailto:-Schema, ohne Fehlalarm auf Pfaden', () => {
+  const found = findSchemelessContactHrefs(`
+    <a href="+4994015395920">tel fehlt</a>
+    <a href="09401 53959-20">tel fehlt (national)</a>
+    <a href="vertrieb@x.de">mailto fehlt</a>
+    <a href="/leistungen/2026/07/">Pfad — kein Treffer</a>
+    <a href="tel:+4994015395920">korrekt</a>
+    <a href="mailto:vertrieb@x.de">korrekt</a>
+    <span data-href="+49999999">data-Attribut — kein Treffer</span>`);
+  assert.deepEqual(
+    found.map((f) => f.href).sort(),
+    ['+4994015395920', '09401 53959-20', 'vertrieb@x.de'],
+  );
+});
+
+test('auditHtml: Broken-Fixture liefert exakt die 7 gepflanzten Probleme', () => {
   const html = readFileSync(join(FIXTURES, 'touchpoints-broken.html'), 'utf-8');
   const problems = auditHtml(html, parseSsot(SITE_DATA), {
     allowExternalMailto: ['poststelle@lda.bayern.de'],
@@ -82,7 +98,9 @@ test('auditHtml: Broken-Fixture liefert exakt die 5 gepflanzten Probleme', () =>
   assert.ok(hrefs.includes('tel:+49 9401 53959-44'), 'Spaces müssen auffallen');
   assert.ok(hrefs.includes('mailto:vertireb@digital-direkt.com'), 'mailto-Tippfehler muss auffallen');
   assert.ok(hrefs.includes('https://wa.me/4917612345678'), 'fremde WhatsApp-Nummer muss auffallen');
-  assert.equal(problems.length, 5, 'die OK-Referenzen dürfen NICHT anschlagen');
+  assert.ok(hrefs.includes('+4994015395920'), 'fehlendes tel:-Schema muss auffallen');
+  assert.ok(hrefs.includes('vertrieb@digital-direkt.com'), 'fehlendes mailto:-Schema muss auffallen');
+  assert.equal(problems.length, 7, 'OK-Referenzen und data-href dürfen NICHT anschlagen');
 });
 
 test('auditHtml: OK-Fixture ist sauber (inkl. ?subject und Allowlist)', () => {
@@ -178,6 +196,43 @@ test('E2E: SKIP_TOUCHPOINTS=true → Exit 0 ohne Prüfung', () => {
 test('E2E: kaputte Config-JSON → Exit 2 (Konfig-Fehler, kein stiller Pass)', () => {
   const { code } = runDist({ fixture: 'touchpoints-ok.html', config: '{nicht json' });
   assert.equal(code, 2);
+});
+
+test('E2E: Aufruf über Symlink führt main() aus (kein stiller Exit 0)', () => {
+  // Regression: pnpm verlinkt node_modules/@cw/core → node_modules/.pnpm/…, d. h. der
+  // CI-Aufruf `node node_modules/@cw/core/scripts/verify-touchpoints.mjs` läuft IMMER
+  // über einen Symlink. Mit dem naiven argv-Vergleich lief main() dort nie und der
+  // Check meldete Exit 0 ohne eine einzige Prüfung. Dieser Test bricht ohne den
+  // realpath-Vergleich in isDirectRun().
+  const cwd = join(tmpdir(), `cwcore-tp-link-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(join(cwd, 'src', 'data'), { recursive: true });
+  mkdirSync(join(cwd, 'dist'), { recursive: true });
+  mkdirSync(join(cwd, 'link'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'data', 'site-data.ts'), SITE_DATA);
+  copyFileSync(join(FIXTURES, 'touchpoints-broken.html'), join(cwd, 'dist', 'index.html'));
+  const linked = join(cwd, 'link', 'verify-touchpoints.mjs');
+  symlinkSync(SCRIPT, linked);
+
+  let code = 0;
+  let out = '';
+  try {
+    out = execFileSync(process.execPath, [linked, '--dist', 'dist'], {
+      cwd,
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+  } catch (err) {
+    code = err.status ?? 1;
+    out = (err.stdout ?? '') + (err.stderr ?? '');
+  } finally {
+    try {
+      rmSync(cwd, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  assert.equal(code, 1, `main() muss über den Symlink laufen und rot werden, out:\n${out}`);
+  assert.match(out, /Touchpoint-Audit/, 'Ausgabe muss vom Audit stammen, nicht leer sein');
 });
 
 test('E2E: ohne --dist/--url → Exit 2 mit Usage', () => {
