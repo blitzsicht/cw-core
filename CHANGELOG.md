@@ -22,6 +22,50 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.88.0 (2026-07-30)
+
+- [kunde] Die Telefonnummern auf Impressum und Datenschutzerklärung lassen sich jetzt auf allen Geräten zuverlässig antippen — bisher enthielten diese Links einen Bindestrich, den nicht jedes Telefon korrekt verarbeitet.
+
+**Feature (Touchpoint-Audit vor Ad-Spend):** Neues Prüfskript
+`scripts/verify-touchpoints.mjs`, das jeden Kontaktweg einer Kundenseite automatisch
+gegen die Stammdaten prüft — als PR-Gate gegen das gebaute `dist/` und live gegen
+eine Deployment-URL.
+
+Kontext: Auf digital-direkt.com wählte der Anruf-Button der Startseite
+`tel:+4994015395900` — Durchwahl `00` statt `0`. Der Fehler war seit Monaten live und
+wäre erst durch bezahlte Anzeigenklicks teuer aufgefallen. Ein Tippfehler in einer
+Telefonnummer ist unsichtbar: Der Link sieht korrekt aus, die Seite baut grün, nur der
+Anruf kommt nie an.
+
+Was geprüft wird:
+
+- jede `tel:`/`mailto:`/WhatsApp-Adresse kanonisch **und** in `src/data/site-data.ts` vorhanden
+- Kontakt-Links ohne Schema (`<a href="+49…">` statt `tel:+49…`) — navigieren relativ statt zu wählen
+- interne Links und Anzeigen-Ziel-URLs ohne Umleitungs-Hops (live-Modus)
+- Analytics-Proxy-Kette und `/api/contact` per Honeypot-Submit, der keine echte Anfrage erzeugt
+
+Aufruf: `node node_modules/@cw/core/scripts/verify-touchpoints.mjs --dist dist`
+bzw. `--url https://kunde.de`. Optionale Konfiguration je Kunde in
+`touchpoint-audit.config.json` (zusätzliche Nummern, erlaubte Fremd-Adressen,
+Anzeigen-Ziel-URLs). Opt-out per Repository-Variable `SKIP_TOUCHPOINTS=true`.
+
+**Fix (tel:-Hrefs in den Rechts-Bausteinen):** `ImpressumBlock`, `DatenschutzBlock` und
+`InformationspflichtBlock` normalisierten die Nummer per Ad-hoc-`replace(/\s+/g, '')`,
+wodurch Bindestriche im `href` überlebten (`tel:+49940153959-20`). Jetzt über
+`phoneToTelHref()` wie im Footer.
+
+**Migrations-Hinweis:** Keiner — beides ist additiv. Der neue CI-Step im
+Workflow-Template (`templates/.github/workflows/build-check.yml`) ist dateigeguarded
+und überspringt sich in Repos, deren Pin das Skript noch nicht enthält.
+
+**Achtung bei eigener Verwendung von `phoneToTelHref()`:** Die Funktion liefert nur die
+Ziffernfolge (`+4994015395920`) — das `tel:`-Präfix setzt der Aufrufer:
+``href={`tel:${phoneToTelHref(x)}`}``. Ohne Präfix entsteht ein relativer Link statt
+eines Anrufs; genau diese Falle trat beim Bau dieses Releases zweimal auf und wird
+jetzt vom Audit erkannt.
+
+---
+
 ## v0.87.3 (2026-07-23)
 
 - [kunde:sichtbar] Logos und Social-Media-Vorschaubilder bleiben beim Optimieren unangetastet — sie konnten bisher in eine andere Dateiform umgewandelt werden, wodurch das Logo auf der Website ins Leere zeigte.
