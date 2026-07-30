@@ -15,6 +15,21 @@ Verwandte Tracker:
 
 ## Low-Prio Cleanup
 
+### tel:-Hrefs im E-Mail-Signatur-Generator nicht kanonisch
+
+- **Status:** kein Issue — bewusst nicht priorisiert (Operator-Entscheidung 2026-07-30)
+- **Symptom:** `templates/email-signature/` erzeugt `href="tel:+49 9401 53959-28"`
+  mit Leerzeichen und Bindestrich. v0.88.0 hat die Normalisierung nur für die
+  Website-Templates eingeführt, der Signatur-Generator zog nicht mit. Fällt im
+  Touchpoint-Audit im `--dist`-Modus als Warnung auf, live nicht (die Signatur-
+  HTMLs sind keine gecrawlten Seiten).
+- **Betroffen:** alle generierten Signaturen aller Customer, nicht nur digital-direkt
+- **Risiko:** minimal — betrifft nur die Signatur-Datei, nicht die Website. Wer die
+  Nummer in seiner Signatur anpassen will, macht das ohnehin selbst im Mail-Client.
+- **Trigger:** wenn ohnehin am Signatur-Generator gearbeitet wird. Kein eigener Anlass.
+- **Aufwand:** `phoneToTelHref` in `templates/email-signature/generate.sh` einziehen
+  + `pnpm sig:regenerate` über alle Customer + Signatur-Artefakte committen
+
 ### dev/preview MEMORY.md commits aufräumen
 
 - **Status:** Issue-Referenz TBD (#12 — Repo beim ersten Touch klären)
