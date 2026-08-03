@@ -33,6 +33,7 @@ import {
   checkImageBudget,
   extractInlineStyles,
 } from './perf-check.js';
+import { checkEmbedConsent } from './embed-consent-check.js';
 import { geotagDist } from './geotag.js';
 import { walkImages } from './geotag-core.js';
 
@@ -242,6 +243,30 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * erst nach Fleet-Lauf ohne False-Positives (blitzsicht-ops#541).
    */
   strictImageBudget?: boolean;
+
+  /**
+   * Default true. Embed-Consent-Guard: meldet Buchungs-Embeds, die schon beim
+   * Parsen der Seite laden statt erst nach einem Klick. Opt-out pro Site: `false`.
+   *
+   * Hintergrund (Vorfall 2026-08-03): `steller-sanierungen.com/kontakt` lieferte live
+   * den Eager-Zweig von `CalEmbed.astro` aus — `app.cal.eu/embed/embed.js` wurde beim
+   * Parsen injiziert, die Besucher-IP floss vor jeder Nutzeraktion an Cal.com Inc.
+   * Ursache war der Default `lazy = false`, den die Seite geerbt hat. Blitzsicht war
+   * sauber, weil es `lazy={true}` explizit setzte. Der Default steht seit demselben
+   * Tag auf `true`; dieser Guard ist der Regressions-Wächter dazu.
+   *
+   * Bewusst eng auf die Cal-Signatur geschnitten: eine generische Regel
+   * „Drittanbieter-Host ohne click-Gate" würde `TurnstilePreClearance.astro`
+   * (lädt via `load` + `requestIdleCallback` auf JEDER Seite JEDES Kunden)
+   * fleet-weit flaggen. Verallgemeinerung erst mit expliziter Allowlist.
+   */
+  checkEmbedConsent?: boolean;
+  /**
+   * Default FALSE (Soft-Warn-Start, opt-IN — wie strictImageBudget): `true` setzen
+   * → Build-Fail (throw) bei eager geladenem Buchungs-Embed. Strict-Flip erst nach
+   * einem Fleet-Lauf ohne False-Positives.
+   */
+  strictEmbedConsent?: boolean;
 
   /**
    * Default TRUE seit v0.75.0 (strict-Flip, Fleet clean nach v0.74.0-a11y-Fix) → Build-Fail
@@ -1553,6 +1578,39 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 );
               }
             }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Embed-Consent-Guard: Buchungs-Embeds, die ohne Nutzeraktion laden
+        // -------------------------------------------------------------------
+        // Auslöser 2026-08-03: steller-sanierungen.com/kontakt lieferte live den
+        // Eager-Zweig von CalEmbed.astro — Besucher-IP floss an Cal.com, bevor
+        // irgendwer geklickt hatte. Ursache war der Default `lazy = false`.
+        if (options.checkEmbedConsent !== false) {
+          const embedIssues: { type: string; details: string }[] = [];
+          for (const file of walkHtml(distDir)) {
+            const html = readFileSync(file, 'utf-8');
+            const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+            embedIssues.push(...checkEmbedConsent(html, rel));
+          }
+          if (embedIssues.length > 0) {
+            logger.warn(
+              `Embed-Consent-Guard: ${embedIssues.length} Seite(n) laden ein Buchungs-Embed ohne Nutzeraktion:`,
+            );
+            for (const ei of embedIssues.slice(0, 5)) {
+              logger.warn(`  [${ei.type}] ${ei.details}`);
+            }
+            if (embedIssues.length > 5) {
+              logger.warn(`  … und ${embedIssues.length - 5} weitere Seite(n).`);
+            }
+            if (options.strictEmbedConsent === true) {
+              throw new Error(
+                `[ai-discovery] strictEmbedConsent=true: Build abgebrochen — ${embedIssues.length} Seite(n) mit eager geladenem Buchungs-Embed.`,
+              );
+            }
+          } else {
+            logger.info('Embed-Consent-Guard: ✓ kein eager geladenes Buchungs-Embed.');
           }
         }
 

@@ -22,6 +22,50 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.90.0 (2026-08-03)
+
+- [kunde] Wo ein Buchungskalender auf der Website eingebunden ist, lädt er jetzt erst nach einem Klick. Ohne diesen Klick werden keine Daten an den Terminanbieter übertragen.
+
+**Fix + Feature:** `CalEmbed` lädt standardmäßig lazy; neuer Embed-Consent-Guard als Regressions-Wächter.
+
+Kontext: Ein Live-Audit am 2026-08-03 zeigte, dass `steller-sanierungen.com/kontakt`
+`app.cal.eu/embed/embed.js` **beim Seitenaufruf** injizierte. Jeder Besucher übertrug
+damit seine IP an Cal.com Inc., bevor er irgendetwas getan hatte. Art. 6 Abs. 1 lit. b
+DSGVO setzt eine aktive Anfrage voraus — ein reiner Seitenaufruf ist keine; dazu
+§ 25 TDDDG.
+
+Ursache war der Default `lazy = false` in `CalEmbed.astro`. Die Seite setzte den Prop
+nicht und erbte den Eager-Zweig. blitzsicht setzte `lazy={true}` explizit und war sauber
+— der sichere Weg existierte im selben Repo, wurde aber nicht vererbt. Genau das ist der
+Fehlertyp, den die #1-Regel adressiert: nicht patchen, sondern den Default sicher machen
+und einen Guard bauen.
+
+Änderungen:
+
+- `CalEmbed.astro`: Default `lazy` von `false` auf `true`. Wer `false` setzt, braucht
+  dafür eine dokumentierte Rechtsgrundlage — steht als Begründung am Prop.
+- Neu `integrations/ai-discovery/embed-consent-check.js` + `.d.ts`: meldet Buchungs-Embeds,
+  die ohne Nutzeraktion laden. Soft-warn, Strict per Opt-in `strictEmbedConsent`.
+- Neue Optionen: `checkEmbedConsent` (Default `true`), `strictEmbedConsent` (Default `false`).
+
+Der Guard ist **bewusst eng** auf die Cal-Signatur geschnitten. Eine generische Regel
+„Drittanbieter-Host ohne click-Gate" hätte `TurnstilePreClearance.astro` getroffen, das
+über `addEventListener('load', …)` + `requestIdleCallback` auf jeder Seite jedes Kunden
+lädt — der Guard hätte ab Tag 1 fleet-weit Alarm geschlagen, und ein Guard im Dauer-Alarm
+wird ignoriert. Die Gate-Taxonomie für eine spätere Verallgemeinerung (`click`/`pointerup`/
+`touchend` = Einwilligung, `load`/`idle`/`setTimeout` = nur Deferral) steht im Modulkopf.
+
+Verifikation: 10 Guard-Tests inkl. drei Fixtures aus echtem HTML (Steller-Eager muss
+warnen, Blitzsicht-Lazy und TurnstilePreClearance dürfen nicht). Fleet-Trockenlauf gegen
+31 echte Produktionsseiten: genau 1 Warnung — der bekannte Steller-Fall, null False
+Positives.
+
+**Migrations-Hinweis:** Keiner. Beide `<CalEmbed>`-Consumer im Fleet setzen den Prop nach
+diesem Release explizit, der Default-Flip wirkt also nur für Neukunden. Wer den Eager-Modus
+bewusst braucht, setzt `lazy={false}` — und dokumentiert die Rechtsgrundlage dafür.
+
+---
+
 ## v0.89.0 (2026-07-30)
 
 - [kunde:sichtbar] Die Einwilligungs-Checkbox unter dem Kontaktformular (nur auf Seiten mit Google-Ads-Messung) kann ihren Rechtstext jetzt hinter einem „Details"-Aufklapper verstecken. Sichtbar bleibt ein kurzer Satz, die Pflichtangaben stehen eine Klick-Ebene tiefer. Wer den Aufklapper nicht einrichtet, sieht seine Seite unverändert.

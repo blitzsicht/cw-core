@@ -60,7 +60,20 @@ interface Props {
   minHeight?: string;
   /** Element ID for the embed container. */
   elementId?: string;
-  /** Lazy-load the Cal embed behind a button click. Prevents LCP impact; container pre-reserves height (no CLS). */
+  /**
+   * Lazy-load the Cal embed behind a button click. Prevents LCP impact; container
+   * pre-reserves height (no CLS).
+   *
+   * **Default `true` seit 03.08.2026 — bewusst, nicht aus Performance-Gründen.**
+   * Mit `lazy={false}` injiziert die Komponente `app.cal.eu/embed/embed.js` schon beim
+   * Parsen der Seite. Damit fließt die IP jedes Besuchers an Cal.com Inc., bevor er
+   * irgendetwas getan hat — Art. 6 Abs. 1 lit. b DSGVO (Vertragsanbahnung) trägt für
+   * einen reinen Seitenaufruf nicht, und § 25 TDDDG kommt hinzu.
+   *
+   * Auslöser: `steller-sanierungen.com/kontakt` lief live im Eager-Modus, weil der Prop
+   * nicht gesetzt war und der Default `false` lautete. Wer `false` setzt, braucht dafür
+   * eine dokumentierte Rechtsgrundlage.
+   */
   lazy?: boolean;
   /** Label for the lazy-load trigger button. */
   lazyLabel?: string;
@@ -75,7 +88,7 @@ const {
   layout = 'month_view',
   minHeight = '600px',
   elementId = 'cal-embed',
-  lazy = false,
+  lazy = true,
   lazyLabel = 'Termin direkt buchen',
   lazySubtext = '30 Minuten · kostenlos · sofort bestätigt',
 } = Astro.props;
