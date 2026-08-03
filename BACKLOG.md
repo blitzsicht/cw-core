@@ -15,6 +15,34 @@ Verwandte Tracker:
 
 ## Low-Prio Cleanup
 
+### Turnstile-Pre-Clearance läuft ins Leere (Cloudflare DNS-only)
+
+- **Status:** kein Issue — Nebenbefund aus der Cal-Embed-Verifikation (2026-08-03)
+- **Symptom:** Live-Konsole auf `steller-sanierungen.com/kontakt` meldet
+  `[Cloudflare Turnstile] Cannot determine Turnstile's embedded location, aborting
+  clearance redemption, are you running Turnstile on a Cloudflare Zone?`
+  Die Pre-Clearance kann das `cf_clearance`-Cookie nicht einlösen, weil die Site
+  nicht hinter einem Cloudflare-Proxy hängt.
+- **Ursache:** kein Bug, sondern die Folge einer bewussten Architekturentscheidung —
+  Vercel ist das CDN, Cloudflare bleibt DNS-only (orange cloud verboten, siehe
+  Performance-Standard in `customer-websites/CLAUDE.md`). `TurnstilePreClearance.astro`
+  lädt `api.js` also für einen Vorteil, den es hier gar nicht geben kann.
+- **Betroffen:** vermutlich der gesamte Fleet — die Komponente wird aus beiden Layouts
+  gerendert (`LandingPage.astro`, `ContentPage.astro`). Nur auf Steller live geprüft.
+- **Risiko:** keins für die Funktion. Turnstile selbst schützt das Kontaktformular
+  weiterhin normal; es entfällt nur der Vorab-Clearance-Vorteil. Kosten: ein
+  ~100–200 KB Script, das nach `load`+idle lädt, ohne Nutzen.
+- **Trigger:** wenn ohnehin an Turnstile oder am Kontaktformular gearbeitet wird.
+  Kein eigener Anlass.
+- **Aufwand:** klären, ob die Pre-Clearance ohne Cloudflare-Zone überhaupt etwas
+  bringt. Wenn nein: `TurnstilePreClearance` entfernen und Turnstile erst beim
+  Formular-Fokus laden (spart Bandbreite auf jeder Seite jedes Kunden). Wenn doch:
+  Warnung dokumentieren, damit sie niemanden erneut aufhält.
+- **Nebenaspekt:** Der neue Embed-Consent-Guard (v0.90.0) ist bewusst eng auf die
+  Cal-Signatur geschnitten, weil eine generische „Drittanbieter ohne click-Gate"-Regel
+  genau dieses Turnstile-Script fleet-weit geflaggt hätte. Fällt Turnstile hier weg,
+  wird die Verallgemeinerung des Guards deutlich einfacher.
+
 ### tel:-Hrefs im E-Mail-Signatur-Generator nicht kanonisch
 
 - **Status:** kein Issue — bewusst nicht priorisiert (Operator-Entscheidung 2026-07-30)
