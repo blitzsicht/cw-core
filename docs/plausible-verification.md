@@ -135,13 +135,27 @@ Funktion) und **initialisiert sich selbst** (ein manueller `init()` nach dem Lad
 `„already initialized, skipping init"`). Custom-Events und History-Pageviews gehen durch.
 Nur der Pageview beim initialen Laden entsteht nicht.
 
-**Nächster Schritt für die Diagnose:** die `fetch`-Interzeption aus Abschnitt „Wenn es
-wirklich klemmt" so früh setzen, dass sie den Ladevorgang selbst sieht (Interceptor vor dem
-Tracker-Script ins HTML, temporär) und prüfen, ob beim Load überhaupt ein `pageview`-Request
-entsteht oder ob er gar nicht erst abgeschickt wird. Erst danach über eine Änderung an der
-Shim-/`init()`-Konstruktion in `BaseLayout.astro` nachdenken — sie ist der einzige
-verbliebene Unterschied zu einer Standard-Plausible-Installation, aber die Fleet läuft mit
-demselben Code fehlerfrei, also ist die Konstruktion allein nicht die Erklärung.
+**Zusätzlich ausgeschlossen (05.08.2026, zweite Runde):**
+
+- **Kein Fleet-Problem.** `hausammincio.com` liefert über 14 Tage lückenlos Pageviews +
+  engagement, auch am selben Tag. Es gibt keine schleichende Regression.
+- **Identische Auslieferung.** Das gerenderte Plausible-Snippet ist zwischen platzfrei und
+  einer funktionierenden Site zeichengleich (Shim, `async`-Script, `init()`-Optionen). Die
+  ausgelieferten Tracker-Scripts unterscheiden sich nur um die Länge des Domain-Strings.
+- **`autoCapturePageviews`.** Naheliegender Verdacht, weil im minifizierten Tracker
+  `i.autoCapturePageviews && (…pageview-Logik…)` steht und cw-core den Schlüssel nicht
+  übergibt. **Trotzdem nicht die Ursache** — die Fleet übergibt ihn genauso wenig und zählt
+  sauber. Nicht erneut darauf ansetzen, ohne diesen Widerspruch vorher aufzulösen.
+
+**Was NICHT weiterhilft:** die Ladesequenz per `javascript_tool` in der Seite nachspielen
+(Shim neu setzen, Script-Tag neu anhängen). Der Tracker hat interne Guards (`plausible.l`,
+`„already initialized"`), dadurch verhält sich der Replay anders als ein echter Ladevorgang
+und liefert falsch-negative „kein Request"-Ergebnisse. Zwei Runden daran verloren.
+
+**Einzig verlässlicher nächster Schritt:** ein *deployter* Test. Interceptor bzw.
+Debug-Logging fest ins HTML (vor dem Tracker-Script), einmal deployen, normalen Aufruf
+machen, 4 Minuten warten, ClickHouse lesen. Erst damit ist belegbar, ob beim Load überhaupt
+ein `pageview`-Request entsteht.
 
 **Auswirkung:** Besucherzahlen für platzfrei.club sind unvollständig (Sessions ohne
 Folge-Navigation fehlen ganz). Custom-Events und damit die CTA-/Formular-Messung sind
