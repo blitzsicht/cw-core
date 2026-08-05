@@ -177,3 +177,81 @@ test('CONTACT_EMAIL nur Whitespace → 500 + Telegram-Alarm statt stillem Lead-V
   assert.ok(tg, 'Telegram-Alarm muss trotzdem raus');
   assert.match(tg.body.text, /ZUSTELLUNG FEHLGESCHLAGEN/);
 });
+
+// ===========================================================================
+// Waitlist (kind: 'waitlist', v0.91.0) — Studio-Feld + Telegram-Label.
+// Hintergrund: customer-platzfrei (Produktseite mit Warteliste statt Kontaktformular).
+// Vor v0.91.0 wurde ein `studio`-Feld vom Handler still verschluckt.
+// ===========================================================================
+
+const waitlistHandler = createContactHandler({
+  allowedOrigins: ['https://example.com'],
+  fromName: 'platzfrei',
+  subject: 'Neuer Wartelisten-Eintrag über platzfrei.club',
+  kind: 'waitlist',
+});
+
+const validWaitlistLead = {
+  name: 'Michaela Test',
+  studio: 'Victory Gym Neutraubling',
+  email: 'studio@example.org',
+  message: 'Wir wollen im Herbst starten.',
+};
+
+async function runWaitlist(env, body = validWaitlistLead, fetchOpts = {}) {
+  setEnv({ RESEND_API_KEY: 'fake', TURNSTILE_SECRET_KEY: undefined, LEAD_BCC_EMAIL: undefined, ...env });
+  const fx = installFakeFetch(fetchOpts);
+  const res = makeRes();
+  try {
+    await waitlistHandler(makeReq(body), res);
+    return { resend: fx.resendBody(), res: res._captured, calls: fx.calls };
+  } finally {
+    fx.restore();
+    restoreEnv();
+  }
+}
+
+test('waitlist: studio landet in Resend-Mail (HTML + Text)', async () => {
+  const { resend, res } = await runWaitlist({ CONTACT_EMAIL: 'servus@blitzsicht.com' });
+  assert.equal(res.statusCode, 200);
+  assert.ok(resend, 'Resend-Call muss stattfinden');
+  assert.ok(resend.html.includes('Victory Gym Neutraubling'), 'Studio muss im HTML stehen');
+  assert.ok(resend.html.includes('Studio'), 'Studio-Label muss im HTML stehen');
+  assert.ok(resend.text.includes('Studio:'), 'Studio-Zeile muss im Plain-Text stehen');
+  assert.ok(resend.text.includes('Victory Gym Neutraubling'), 'Studio-Wert muss im Plain-Text stehen');
+});
+
+test('waitlist: Telegram-Push trägt 📋-Warteliste-Header + Studio-Zeile', async () => {
+  const { calls } = await runWaitlist({
+    CONTACT_EMAIL: 'servus@blitzsicht.com',
+    TELEGRAM_BOT_TOKEN: 'fake-token',
+    TELEGRAM_CHAT_ID: '123',
+  });
+  const tg = calls.find((c) => c.url.includes('telegram.org'));
+  assert.ok(tg, 'Telegram-Push muss raus');
+  assert.ok(tg.body.text.includes('📋'), 'Warteliste-Emoji im Header');
+  assert.ok(tg.body.text.includes('Warteliste'), 'Warteliste-Label im Header');
+  assert.ok(tg.body.text.includes('Victory Gym Neutraubling'), 'Studio-Zeile enthalten');
+  assert.ok(!tg.body.text.includes('🆕'), 'kein Standard-Lead-Header');
+});
+
+test('waitlist: Spam im Studio-Feld triggert Content-Filter (silent drop, kein Resend)', async () => {
+  const { resend, res } = await runWaitlist(
+    { CONTACT_EMAIL: 'servus@blitzsicht.com' },
+    { ...validWaitlistLead, studio: 'best casino backlink service' },
+  );
+  assert.equal(res.statusCode, 200, 'Spam wird still geschluckt (200 ok)');
+  assert.equal(resend, null, 'kein Resend-Call bei Spam im Studio-Feld');
+});
+
+test('kind nicht gesetzt → Default contact-form bleibt (🆕-Header, abwärtskompatibel)', async () => {
+  const { calls } = await run({
+    CONTACT_EMAIL: 'info@testkunde.de',
+    TELEGRAM_BOT_TOKEN: 'fake-token',
+    TELEGRAM_CHAT_ID: '123',
+  });
+  const tg = calls.find((c) => c.url.includes('telegram.org'));
+  assert.ok(tg, 'Telegram-Push muss raus');
+  assert.ok(tg.body.text.includes('🆕'), 'Standard-Header unverändert');
+  assert.ok(!tg.body.text.includes('Warteliste'), 'kein Warteliste-Label ohne kind waitlist');
+});

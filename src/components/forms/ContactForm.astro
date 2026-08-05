@@ -34,14 +34,23 @@ interface Props {
   subject?: string;
   /** Site name used for default subject + `from_name` (Web3Forms only). */
   siteName?: string;
-  /** Form variant — determines which fields are rendered. */
-  formType?: 'contact' | 'audit' | 'bewerbung';
+  /**
+   * Form variant — determines which fields are rendered.
+   * `waitlist`: Warteliste für Produkt-Sites (Felder: name, studio, email,
+   * message optional) — Texte bewusst per Du (Produkt-Tonalität, z. B. platzfrei).
+   */
+  formType?: 'contact' | 'audit' | 'bewerbung' | 'waitlist';
   /** Email address shown in the no-JS / error fallback. */
   fallbackEmail?: string;
   /** Custom submit endpoint. When set, Web3Forms is bypassed. */
   actionUrl?: string;
   /** Cloudflare Turnstile site key. When set, renders the CAPTCHA widget. */
   turnstileSiteKey?: string;
+  /**
+   * Farbschema des Turnstile-Widgets. Default 'light' (bisheriges Verhalten,
+   * alle bestehenden Sites unverändert). Dunkle Sites setzen 'dark' oder 'auto'.
+   */
+  turnstileTheme?: 'light' | 'dark' | 'auto';
   /**
    * Opt-in: rendert eine Marketing-Consent-Checkbox, die die Offline-Conversion-
    * Messung (gclid-Upload zu Google Ads) freischaltet. NUR für Ads-Sites — Default
@@ -72,6 +81,7 @@ const {
   // wenn Prop nicht übergeben — verhindert silent-fail wenn Customer-Page
   // den Prop vergessen hat (siehe v0.9.6 Form-Reliability-Plan).
   turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY,
+  turnstileTheme = 'light',
   adsConsent = false,
   adsConsentVersion = 'ads-consent-v1',
   adsConsentText = 'Ich willige ein, dass zur Messung des Werbeerfolgs meine Google-Klick-Kennung an Google (Google Ireland Ltd. / Google LLC, USA) übermittelt wird. Freiwillig und jederzeit mit Wirkung für die Zukunft widerrufbar.',
@@ -186,6 +196,27 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         </>
       )}
 
+      {formType === 'waitlist' && (
+        <>
+          <div class="form-row">
+            <label for="cf-name">Dein Name <span aria-hidden="true">*</span></label>
+            <input type="text" id="cf-name" name="name" required autocomplete="name" />
+          </div>
+          <div class="form-row">
+            <label for="cf-studio">Dein Studio <span aria-hidden="true">*</span></label>
+            <input type="text" id="cf-studio" name="studio" required autocomplete="organization" />
+          </div>
+          <div class="form-row">
+            <label for="cf-email">Deine E-Mail <span aria-hidden="true">*</span></label>
+            <input type="email" id="cf-email" name="email" required autocomplete="email" />
+          </div>
+          <div class="form-row">
+            <label for="cf-message">Nachricht <span class="optional">(optional)</span></label>
+            <textarea id="cf-message" name="message" rows="3"></textarea>
+          </div>
+        </>
+      )}
+
       {adsConsent && (
         <div class:list={['form-consent', adsConsentDetails && 'has-details']}>
           <input type="checkbox" id="cf-ads-consent" name="marketing_consent" value="true" />
@@ -201,7 +232,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       )}
 
       {turnstileSiteKey && (
-        <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme="light"></div>
+        <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme={turnstileTheme}></div>
       )}
 
       <div class="form-submit">
@@ -217,16 +248,19 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
 
     <div class="form-success" hidden>
       <div class="success-icon" aria-hidden="true">✓</div>
-      <h3>Vielen Dank!</h3>
+      <h3>{formType === 'waitlist' ? 'Du stehst auf der Liste!' : 'Vielen Dank!'}</h3>
       {formType === 'audit' && <p>Wir analysieren Ihre Website und melden uns innerhalb von 48 Stunden.</p>}
       {formType === 'bewerbung' && <p>Wir haben Ihre Bewerbung erhalten und melden uns innerhalb von 48 Stunden.</p>}
       {formType === 'contact' && <p>Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>}
+      {formType === 'waitlist' && <p>Wir melden uns, sobald es für dein Studio losgehen kann.</p>}
     </div>
 
     <div class="form-error" hidden>
       <p>
         Etwas ist schiefgelaufen.{fallbackEmail && (
-          <> Bitte schreiben Sie uns direkt an <a href={`mailto:${fallbackEmail}`}>{fallbackEmail}</a>.</>
+          formType === 'waitlist'
+            ? <> Bitte schreib uns direkt an <a href={`mailto:${fallbackEmail}`}>{fallbackEmail}</a>.</>
+            : <> Bitte schreiben Sie uns direkt an <a href={`mailto:${fallbackEmail}`}>{fallbackEmail}</a>.</>
         )}
       </p>
     </div>

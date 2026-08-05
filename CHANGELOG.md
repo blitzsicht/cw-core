@@ -22,6 +22,42 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.91.0 (2026-08-05)
+
+- [kunde] Das Kontaktformular kann jetzt auch als Warteliste eingesetzt werden — Interessenten tragen sich mit Name, Betrieb und E-Mail ein, ohne dass ein klassisches Kontaktformular nötig ist.
+
+**Feature:** Wartelisten-Formular als vierter `formType` — additiv, alle bestehenden Sites unverändert.
+
+Anlass: `customer-platzfrei` (Produktseite platzfrei.club) braucht eine Warteliste für
+interessierte Studios statt eines Kontaktformulars. Der bisherige Handler extrahierte nur
+`name/email/company/phone/message/website` — ein `studio`-Feld wäre still verschluckt
+worden. Gemäß #1-Regel generisch in cw-core gelöst statt customer-spezifisch.
+
+Änderungen:
+
+- `ContactForm.astro`: `formType="waitlist"` (Felder `name`*, `studio`*, `email`*,
+  `message` optional; Texte per Du — Produkt-Tonalität). Neuer Prop
+  `turnstileTheme?: 'light'|'dark'|'auto'` (Default `'light'`, war vorher hardcodiert —
+  dunkle Sites setzen `'dark'`).
+- `contact-handler.js`: Config-Option `kind?: 'contact-form'|'waitlist'` (Default
+  unverändert); `studio` wird extrahiert, im Spam-Content-Filter mitgeprüft und an
+  Mail + Lead-Sink durchgereicht.
+- `build-lead-email.js`: `leadStudio` → „Studio“-Zeile in HTML- und Text-Fassung.
+- `lead-sink.js`: `Lead.kind` + `'waitlist'`, `Lead.studio`; Telegram-Push trägt
+  `📋 Warteliste`-Header statt `🆕 Lead`.
+- `verify-form-health.mjs`: neue Env `FORM_PAGE_PATH` (Default `/kontakt/`) — One-Pager
+  mit Formular auf der Startseite setzen `FORM_PAGE_PATH=/` statt `SKIP_FORM_HEALTH`.
+
+Verifikation: 8 neue Tests (Studio in Resend-HTML/-Text, Warteliste-Header im
+Telegram-Payload, MarkdownV2-Escaping, Spam-Filter aufs Studio-Feld,
+Abwärtskompatibilitäts-Checks, FORM_PAGE_PATH mit echtem HTTP-Server). Rot-Beweis:
+gegen die v0.90.0-Implementierung failen 7 davon, mit v0.91.0 sind alle 25 grün.
+
+**Migrations-Hinweis:** Keiner. Alle Defaults unverändert (`kind` → `'contact-form'`,
+`turnstileTheme` → `'light'`); bestehende Formulare rendern byte-identisch.
+
+---
+
 ## v0.90.0 (2026-08-03)
 
 - [kunde] Wo ein Buchungskalender auf der Website eingebunden ist, lädt er jetzt erst nach einem Klick. Ohne diesen Klick werden keine Daten an den Terminanbieter übertragen.

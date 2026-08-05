@@ -6,6 +6,8 @@ export interface BuildLeadEmailInput {
   leadName?: string;
   leadEmail: string;
   leadCompany?: string;
+  /** Studio-/Betriebsname (Wartelisten-Formular) */
+  leadStudio?: string;
   leadPhone?: string;
   leadWebsite?: string;
   leadMessage?: string;

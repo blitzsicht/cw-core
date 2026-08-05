@@ -25,6 +25,7 @@ const FOOTER_LINK = 'https://blitzsicht.com';
  * @property {string} [leadName]
  * @property {string}  leadEmail
  * @property {string} [leadCompany]
+ * @property {string} [leadStudio]  – Studio-/Betriebsname (Wartelisten-Formular)
  * @property {string} [leadPhone]
  * @property {string} [leadWebsite]
  * @property {string} [leadMessage]
@@ -90,6 +91,7 @@ export function buildLeadEmail(input) {
     leadName = '',
     leadEmail,
     leadCompany = '',
+    leadStudio = '',
     leadPhone = '',
     leadWebsite = '',
     leadMessage = '',
@@ -130,6 +132,7 @@ export function buildLeadEmail(input) {
   textLines.push(`E-Mail:  ${leadEmail}`);
   if (leadPhone) textLines.push(`Telefon: ${leadPhone}`);
   if (leadCompany) textLines.push(`Firma:   ${leadCompany}`);
+  if (leadStudio) textLines.push(`Studio:  ${leadStudio}`);
   if (leadWebsite) textLines.push(`Website: ${leadWebsite}`);
   if (leadMessage) {
     textLines.push('');
@@ -156,6 +159,7 @@ export function buildLeadEmail(input) {
   const safeLeadName = leadName ? escapeHtml(leadName) : '';
   const safeLeadEmail = escapeHtml(leadEmail);
   const safeLeadCompany = leadCompany ? escapeHtml(leadCompany) : '';
+  const safeLeadStudio = leadStudio ? escapeHtml(leadStudio) : '';
   const safeLeadPhone = leadPhone ? escapeHtml(leadPhone) : '';
   const safeLeadWebsite = leadWebsite ? escapeHtml(leadWebsite) : '';
   const safeLeadMessage = leadMessage ? escapeHtml(leadMessage) : '';
@@ -169,6 +173,7 @@ export function buildLeadEmail(input) {
   rows.push(detailRow('E-Mail', `<a href="mailto:${safeLeadEmail}" style="color:${BRAND_PRIMARY};text-decoration:underline;">${safeLeadEmail}</a>`));
   if (safeLeadPhone) rows.push(detailRow('Telefon', `<a href="tel:${safeLeadPhone}" style="color:${BRAND_PRIMARY};text-decoration:underline;">${safeLeadPhone}</a>`));
   if (safeLeadCompany) rows.push(detailRow('Firma', safeLeadCompany));
+  if (safeLeadStudio) rows.push(detailRow('Studio', safeLeadStudio));
   if (safeLeadWebsite) rows.push(detailRow('Website', safeLeadWebsite));
 
   const messageBlock = safeLeadMessage

@@ -73,3 +73,26 @@ test('5. ohne Attribution → keine 📣-Zeile (abwärtskompatibel)', async () =
   const text = await captureTelegram(baseLead, { origin: 'https://test.de' });
   assert.ok(!text.includes('📣'), 'keine Herkunfts-Zeile ohne Attribution');
 });
+
+test('6. waitlist-Lead → 📋-Warteliste-Header + Studio-Zeile', async () => {
+  const lead = { ...baseLead, kind: 'waitlist', studio: 'Victory Gym Neutraubling' };
+  const text = await captureTelegram(lead, { origin: 'https://platzfrei.club' });
+  assert.ok(text.includes('📋'), 'Warteliste-Emoji');
+  assert.ok(text.includes('Warteliste'), 'Warteliste-Label');
+  assert.ok(text.includes('Victory Gym Neutraubling'), 'Studio-Zeile enthalten');
+  assert.ok(!text.includes('🆕'), 'kein Standard-Lead-Header');
+});
+
+test('7. Studio mit MarkdownV2-Sonderzeichen wird escaped', async () => {
+  const lead = { ...baseLead, kind: 'waitlist', studio: 'Gym-Mitte (Neu!)' };
+  const text = await captureTelegram(lead, { origin: 'https://platzfrei.club' });
+  assert.ok(text.includes('Gym\\-Mitte'), 'Bindestrich escaped');
+  assert.ok(text.includes('\\(Neu\\!\\)'), 'Klammern + Ausrufezeichen escaped');
+});
+
+test('8. studio ohne kind waitlist → Studio-Zeile trotzdem, Header bleibt 🆕', async () => {
+  const lead = { ...baseLead, studio: 'Testtempel' };
+  const text = await captureTelegram(lead, { origin: 'https://test.de' });
+  assert.ok(text.includes('🆕'), 'Standard-Header');
+  assert.ok(text.includes('Testtempel'), 'Studio-Zeile generisch verfügbar');
+});

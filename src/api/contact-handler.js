@@ -65,6 +65,10 @@ import { captureError } from './error-sink.js';
  * @property {number} [rateLimitMax]
  * @property {number} [rateLimitWindowMs]
  * @property {string[]} [extraSpamKeywords]
+ * @property {'contact-form'|'waitlist'} [kind] – Lead-Art des Endpoints. Default
+ *   'contact-form' (bisheriges Verhalten). 'waitlist' für Wartelisten-Formulare
+ *   (ContactForm formType="waitlist"): extrahiert zusätzlich `studio` und labelt
+ *   den Telegram-Push als Warteliste.
  */
 
 /**
@@ -75,6 +79,7 @@ import { captureError } from './error-sink.js';
  * @property {string} [phone]
  * @property {string} [message]
  * @property {string} [website]
+ * @property {string} [studio]  – Studio-/Betriebsname (formType="waitlist")
  * @property {string|boolean} [botcheck]
  * @property {string} [url_honey]
  * @property {string} [cf-turnstile-response]
@@ -233,6 +238,7 @@ export function createContactHandler(config) {
   const rateLimitMax = config.rateLimitMax ?? 3;
   const rateLimitWindowMs = config.rateLimitWindowMs ?? 10 * 60 * 1000;
   const extraSpamKeywords = config.extraSpamKeywords || [];
+  const kind = config.kind || 'contact-form';
 
   const inner = async function handleContact(req, res) {
     if (req.method !== 'POST') {
@@ -321,6 +327,7 @@ export function createContactHandler(config) {
     const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const website = typeof body.website === 'string' ? body.website.trim() : '';
+    const studio = typeof body.studio === 'string' ? body.studio.trim() : '';
     // Ad-Attribution (gclid + utm_*) cookielos aus Hidden-Feldern durchreichen.
     const attribution = collectAttribution(/** @type {Record<string, unknown>} */ (body));
     // Marketing-Consent-Signal (WS-E liefert die Checkbox/Consent-Mode-Flag). Gatet NUR
@@ -334,7 +341,7 @@ export function createContactHandler(config) {
       : undefined;
 
     // Content-Filter — silent drop
-    const haystack = [name, company, message, website].filter(Boolean).join(' ');
+    const haystack = [name, company, studio, message, website].filter(Boolean).join(' ');
     if (isSpamContent(haystack, extraSpamKeywords)) {
       console.log('[contact-handler] spam pattern matched, ip=', ip, 'preview=', haystack.slice(0, 80));
       res.status(200).json({ ok: true });
@@ -345,7 +352,8 @@ export function createContactHandler(config) {
     const leadData = {
       project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
       fromName, name, email, company, phone, website, message,
-      kind: /** @type {const} */ ('contact-form'),
+      kind,
+      ...(studio ? { studio } : {}),
       ...(attribution ? { attribution } : {}),
     };
     const leadCtx = {
@@ -385,6 +393,7 @@ export function createContactHandler(config) {
       leadName: name,
       leadEmail: email,
       leadCompany: company,
+      leadStudio: studio,
       leadPhone: phone,
       leadWebsite: website,
       leadMessage: message,

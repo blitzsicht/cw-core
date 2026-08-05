@@ -3,11 +3,14 @@
  * cw-core: Post-Deploy Form-Health Smoke-Test
  *
  * Curl-basierter Live-Check für Customer-Kontaktformular. Soll catchen wenn:
- *   - /kontakt/ nicht 200 liefert
+ *   - die Formular-Seite (FORM_PAGE_PATH, Default /kontakt/) nicht 200 liefert
  *   - <form> nicht im HTML
  *   - Turnstile-Widget (data-sitekey) nicht gerendert
  *   - Turnstile-Script nicht geladen
  *   - /api/contact crasht (5xx) statt sauber 4xx
+ *
+ * Optional: FORM_PAGE_PATH — Pfad der Seite mit dem Formular (Default '/kontakt/').
+ * One-Pager mit Formular auf der Startseite setzen FORM_PAGE_PATH=/ (z.B. platzfrei).
  *
  * Usage (lokal):
  *   SITE_URL=https://soleno-energie.com node scripts/verify-form-health.mjs
@@ -74,18 +77,19 @@ async function probe(path, opts = {}) {
   return { status: r.status, body, headers: Object.fromEntries(r.headers) };
 }
 
-// Kontakt-Page abrufen
+// Formular-Seite abrufen (Default /kontakt/; One-Pager setzen FORM_PAGE_PATH=/)
+const formPagePath = process.env.FORM_PAGE_PATH || '/kontakt/';
 let contact;
 try {
-  contact = await probe('/kontakt/');
+  contact = await probe(formPagePath);
 } catch (err) {
-  console.error('FATAL: /kontakt/ unreachable:', err.message);
+  console.error(`FATAL: ${formPagePath} unreachable:`, err.message);
   process.exit(1);
 }
 
-// /kontakt/ muss zumindest 200 liefern — ohne erreichbare Seite kein Form-Check sinnvoll
+// Die Formular-Seite muss zumindest 200 liefern — ohne erreichbare Seite kein Form-Check sinnvoll
 if (contact.status !== 200) {
-  console.error(`FATAL: /kontakt/ status=${contact.status} (erwartet 200)`);
+  console.error(`FATAL: ${formPagePath} status=${contact.status} (erwartet 200)`);
   process.exit(1);
 }
 
@@ -95,7 +99,7 @@ if (contact.status !== 200) {
 // Override per SITE_URL trotzdem testen via FORCE_FORM_CHECK=1.
 const hasFormElement = /<form\b/i.test(contact.body);
 if (!hasFormElement && process.env.FORCE_FORM_CHECK !== '1') {
-  console.log(`ℹ️  /kontakt/ enthält kein <form>-Element auf ${url}`);
+  console.log(`ℹ️  ${formPagePath} enthält kein <form>-Element auf ${url}`);
   console.log('   → Form-Health-Check übersprungen (Customer hat vermutlich phone-/whatsapp-only Setup).');
   console.log('   → Override via FORCE_FORM_CHECK=1 wenn das ein Bug ist.');
   console.log('');
@@ -104,7 +108,7 @@ if (!hasFormElement && process.env.FORCE_FORM_CHECK !== '1') {
 }
 
 checks.push({
-  name: '/kontakt/ liefert 200',
+  name: `${formPagePath} liefert 200`,
   ok: contact.status === 200,
   detail: `status=${contact.status}`,
 });

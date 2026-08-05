@@ -132,3 +132,61 @@ export const siteData = {
   });
   assert.equal(code, 2, 'contactForm: true darf kein Skip auslösen, Exit 2 erwartet');
 });
+
+// --- Test (f): FORM_PAGE_PATH — One-Pager prüfen die Startseite statt /kontakt/ ---
+// WICHTIG: async + execFile (nicht execFileSync) — der Test-Server läuft im selben
+// Prozess; ein synchroner Child-Aufruf würde den Event-Loop blockieren und der
+// Server könnte nie antworten (Deadlock bis Timeout).
+import { createServer } from 'node:http';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+const execFileAsync = promisify(execFile);
+
+/** Wie runScript, aber asynchron (für Tests mit lokalem HTTP-Server). */
+async function runScriptAsync({ env = {} } = {}) {
+  const cwd = join(tmpdir(), `cwcore-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(join(cwd, 'src', 'data'), { recursive: true });
+  try {
+    const { stdout } = await execFileAsync(process.execPath, [SCRIPT], {
+      env: { ...process.env, ...env },
+      cwd,
+      encoding: 'utf-8',
+      timeout: 10000,
+    });
+    return { code: 0, stdout, stderr: '' };
+  } catch (err) {
+    return { code: err.code ?? 1, stdout: err.stdout ?? '', stderr: err.stderr ?? '' };
+  } finally {
+    try { rmSync(cwd, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
+}
+
+test('FORM_PAGE_PATH steuert die geprüfte Seite (One-Pager-Support)', async () => {
+  // Server: / liefert 200 ohne <form>, alles andere 404.
+  const server = createServer((req, res) => {
+    if (req.url === '/') {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end('<html><body><h1>One-Pager ohne Formular</h1></body></html>');
+    } else {
+      res.writeHead(404, { 'content-type': 'text/plain' });
+      res.end('not found');
+    }
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = /** @type {import('node:net').AddressInfo} */ (server.address()).port;
+  const SITE_URL = `http://127.0.0.1:${port}`;
+
+  try {
+    // Default (/kontakt/ → 404) → FATAL Exit 1, Meldung nennt /kontakt/
+    const def = await runScriptAsync({ env: { SITE_URL, SKIP_FORM_HEALTH: '', FORM_PAGE_PATH: '' } });
+    assert.equal(def.code, 1, 'ohne FORM_PAGE_PATH muss /kontakt/ geprüft werden (hier 404 → Exit 1)');
+    assert.ok(def.stderr.includes('/kontakt/'), 'FATAL-Meldung muss /kontakt/ nennen');
+
+    // FORM_PAGE_PATH=/ → Startseite 200, kein <form> → Auto-Skip Exit 0
+    const rooted = await runScriptAsync({ env: { SITE_URL, SKIP_FORM_HEALTH: '', FORM_PAGE_PATH: '/' } });
+    assert.equal(rooted.code, 0, 'FORM_PAGE_PATH=/ muss die Startseite prüfen (200, kein Form → Skip)');
+    assert.ok(rooted.stdout.includes('skipped (no form on page)'), 'Auto-Skip-Meldung erwartet');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});

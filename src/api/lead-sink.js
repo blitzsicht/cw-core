@@ -23,10 +23,11 @@
  * @property {string} [name]
  * @property {string} email
  * @property {string} [company]
+ * @property {string} [studio]  – Studio-/Betriebsname (Wartelisten-Formular)
  * @property {string} [phone]
  * @property {string} [website]
  * @property {string} [message]
- * @property {'contact-form'|'audit'|'bewerbung'|'briefing-form'} [kind]
+ * @property {'contact-form'|'audit'|'bewerbung'|'briefing-form'|'waitlist'} [kind]
  * @property {Record<string,string>} [attribution] – gclid + utm_* (Ad-Herkunft), cookielos durchgereicht.
  * @property {string} [customerName]              – Briefing-only: Anzeigename des Kunden.
  * @property {number} [requiredFilled]            – Briefing-only: ausgefuellte Pflichtfelder.
@@ -122,9 +123,13 @@ function formatTelegramMessage(lead, ctx) {
     return lines.join('\n').slice(0, 200);
   }
 
-  // Default: Contact-Form / audit / bewerbung — bisheriger Renderer.
+  // Default: Contact-Form / audit / bewerbung / waitlist — bisheriger Renderer;
+  // waitlist bekommt nur einen eigenen Header + Studio-Zeile.
   // Bei deliveryError (z.B. RESEND_API_KEY/CONTACT_EMAIL fehlt) wird der Lead trotzdem
   // gesendet, mit Warn-Header — Ops wird alarmiert UND der Lead geht nicht verloren.
+  const header = lead.kind === 'waitlist'
+    ? `📋 *Warteliste* · ${project}`
+    : `🆕 *Lead* · ${project}`;
   const lines = ctx.deliveryError
     ? [
         `⚠️ *ZUSTELLUNG FEHLGESCHLAGEN* · ${project}`,
@@ -134,11 +139,12 @@ function formatTelegramMessage(lead, ctx) {
         `*Email:* ${esc(lead.email)}`,
       ]
     : [
-        `🆕 *Lead* · ${project}`,
+        header,
         '',
         `*Name:*  ${esc(lead.name || '—')}`,
         `*Email:* ${esc(lead.email)}`,
       ];
+  if (lead.studio)  lines.push(`*Studio:* ${esc(lead.studio)}`);
   if (lead.company) lines.push(`*Co\\.:*   ${esc(lead.company)}`);
   if (lead.phone)   lines.push(`*Tel:*   ${esc(lead.phone)}`);
   if (lead.message) {

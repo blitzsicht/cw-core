@@ -13,6 +13,12 @@ export interface ContactHandlerConfig {
   rateLimitWindowMs?: number;
   /** Eigene Spam-Keywords zusätzlich zur Default-Liste */
   extraSpamKeywords?: string[];
+  /**
+   * Lead-Art des Endpoints. Default 'contact-form' (bisheriges Verhalten).
+   * 'waitlist' für Wartelisten-Formulare (ContactForm formType="waitlist"):
+   * extrahiert zusätzlich `studio` und labelt den Telegram-Push als Warteliste.
+   */
+  kind?: 'contact-form' | 'waitlist';
 }
 
 type ContactHandler = (req: any, res: any) => Promise<void>;

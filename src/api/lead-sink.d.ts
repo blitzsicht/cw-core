@@ -7,10 +7,12 @@ export interface Lead {
   /** Bei `kind: 'briefing-form'` darf email leer sein (Briefing kann ohne Mail-Adresse abgegeben werden). */
   email: string;
   company?: string;
+  /** Studio-/Betriebsname (Wartelisten-Formular). */
+  studio?: string;
   phone?: string;
   website?: string;
   message?: string;
-  kind?: 'contact-form' | 'audit' | 'bewerbung' | 'briefing-form';
+  kind?: 'contact-form' | 'audit' | 'bewerbung' | 'briefing-form' | 'waitlist';
 
   /** Ad-Herkunft (gclid + utm_*), cookielos aus Hidden-Feldern durchgereicht. */
   attribution?: Record<string, string>;
