@@ -6,17 +6,23 @@
  * `ContactForm actionUrl="/api/contact"`, aber `src/pages/api/contact.ts` fehlt im
  * Customer-Repo → Vercel liefert 404 → Formular still tot (keine Leads, keine Exception).
  *
- * Dieser Guard scannt src/pages/ nach einem Formular, das an `/api/contact` postet,
+ * Dieser Guard scannt src/ nach einem Formular, das an `/api/contact` postet,
  * und verlangt dann eine vorhandene API-Route-Datei. Fehlt sie → **exit 1** (CI rot
  * VOR Deploy). Läuft als build-check.yml-Step: `node node_modules/@cw/core/scripts/validate-form-backend.mjs`.
+ *
+ * Scan-Scope ist bewusst GANZ src/ (nicht nur src/pages/): customer-platzfrei
+ * (2026-08-05) kapselte das ContactForm in src/components/WaitlistSection.astro —
+ * der Guard meldete „kein Formular — skip" und war inert. Ein Formular in einer
+ * (theoretisch ungenutzten) Komponente erzwingt damit ebenfalls die Route —
+ * der Guard irrt lieber in Richtung Sicherheit als still zu schweigen.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
 
 const root = process.argv[2] || process.cwd();
-const pagesDir = join(root, 'src', 'pages');
+const pagesDir = join(root, 'src');
 if (!existsSync(pagesDir)) {
-  console.log('validate-form-backend: kein src/pages — skip.');
+  console.log('validate-form-backend: kein src/ — skip.');
   process.exit(0);
 }
 
