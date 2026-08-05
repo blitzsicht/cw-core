@@ -22,6 +22,38 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.92.0 (2026-08-05)
+
+- [kunde] Der Blitzsicht-Link im Fußbereich gibt jetzt mit an, von welcher Website ein Besucher gekommen ist. Am Erscheinungsbild der Seite ändert sich nichts.
+
+**Fix:** Footer-Backlink trägt `utm_source` serverseitig statt nur per Client-Script.
+
+`Footer.astro` rendert den Eigen-Marken-Backlink seit jeher als
+`https://blitzsicht.com/?utm_medium=footer` — ohne Quelle. Die fehlende
+`utm_source` ergänzte bisher ausschließlich `PlausibleEvents.astro` per JS
+(`a[data-brand-backlink]`, seit v0.63.0). Diese Komponente ist aber **optional**
+und nur bei `trackingMode: 'full'` gemountet. Auf Sites ohne Analytics-Mount
+kam jeder Klick ununterscheidbar als bloßes „footer" an — aufgefallen am
+2026-08-05 auf platzfrei.club, das vor dem onboard-site-Lauf kein Plausible hat.
+
+Der Link trägt seine Herkunft jetzt selbst: `utm_source` = `Astro.site.hostname`,
+serverseitig ins `href` gerendert. Bewusst der Hostname und nicht der
+Customer-Slug — identisch zu dem, was das Client-Script schon immer schrieb,
+sonst zersplittert dieselbe Kundenseite in der Auswertung auf zwei Quellen.
+
+Das Client-Script bleibt als Fallback für Sites ohne konfigurierte `site`-URL
+und überschreibt den Wert nicht (es setzt `utm_source` nur, wenn der Parameter
+fehlt) — server-gerendert ist ab jetzt der Primärpfad, JS nur noch die Sicherung.
+
+Verifikation: Build von `customer-platzfrei` gegen diese Fassung — im dist-HTML
+steht `?utm_source=platzfrei.club&utm_medium=footer`.
+
+**Migrations-Hinweis:** Keiner. Sites mit `PlausibleEvents` verhalten sich
+unverändert (gleicher Wert, nur früher gesetzt); Sites ohne bekommen die
+Attribution neu dazu.
+
+---
+
 ## v0.91.0 (2026-08-05)
 
 - [kunde] Das Kontaktformular kann jetzt auch als Warteliste eingesetzt werden — Interessenten tragen sich mit Name, Betrieb und E-Mail ein, ohne dass ein klassisches Kontaktformular nötig ist.

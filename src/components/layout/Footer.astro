@@ -179,6 +179,31 @@ const badgeUrl = effectiveSlug
   : null;
 const badgeAlt = statusBadge?.alt ?? 'Systemstatus';
 
+/**
+ * Eigen-Marken-Backlink im Footer („Erstellt von Blitzsicht") mit Attribution.
+ *
+ * `utm_source` = die servende Kunden-Domain, damit auf blitzsicht.com sichtbar
+ * ist, VON WELCHER Kundenseite ein Klick kam. Ohne die Angabe landet alles
+ * ununterscheidbar unter `utm_medium=footer` (Operator-Fund 2026-08-05).
+ *
+ * Warum hier serverseitig und nicht (nur) im Client-Script: `PlausibleEvents.astro`
+ * ergänzt `utm_source` bereits per JS — aber diese Komponente ist optional und
+ * wird nur bei `trackingMode: 'full'` gemountet. Auf Sites ohne Analytics-Mount
+ * (z.B. vor dem onboard-site-Lauf, wie platzfrei.club) fehlte die Attribution
+ * daher komplett, obwohl der Link immer ausgeliefert wird. Der Link trägt seine
+ * Herkunft jetzt selbst; das Client-Script bleibt als Fallback für Sites ohne
+ * konfigurierte `site`-URL und überschreibt diesen Wert nicht (es setzt
+ * `utm_source` nur, wenn der Parameter fehlt).
+ *
+ * Wert bewusst der Hostname (nicht der Customer-Slug): identisch zu dem, was
+ * das Client-Script schon immer geschrieben hat — sonst zersplittert dieselbe
+ * Kundenseite in der Auswertung auf zwei verschiedene Quellen.
+ */
+const brandBacklinkSource = Astro.site?.hostname;
+const brandBacklinkHref = brandBacklinkSource
+  ? `https://blitzsicht.com/?utm_source=${encodeURIComponent(brandBacklinkSource)}&utm_medium=footer`
+  : 'https://blitzsicht.com/?utm_medium=footer';
+
 const psiBadgeUrl = psiBadge && effectiveSlug
   ? `https://status.blitzsicht.com/badge/${effectiveSlug}/psi.svg`
   : null;
@@ -263,7 +288,7 @@ const psiDetailUrl = effectiveSlug
 
     <div class="footer-bottom">
       <p>© {year} {copyrightOwner}{legalForm ? ` · ${legalForm}` : ''}{city ? ` · ${city}` : ''}</p>
-      <p class="footer-credit">{tagline && <span class="footer-tagline">{tagline} · </span>}Erstellt von <a href="https://blitzsicht.com/?utm_medium=footer" target="_blank" rel="noopener" data-brand-backlink>Blitzsicht</a></p>
+      <p class="footer-credit">{tagline && <span class="footer-tagline">{tagline} · </span>}Erstellt von <a href={brandBacklinkHref} target="_blank" rel="noopener" data-brand-backlink>Blitzsicht</a></p>
     </div>
 
     {(badgeUrl || psiBadgeUrl) && (
