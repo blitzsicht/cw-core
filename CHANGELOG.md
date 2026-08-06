@@ -69,9 +69,16 @@ Betroffen: `Hero.astro`, `CTABlock.astro` (Reihenfolge im Paar; die Gruppen beha
 Ausrichtung — eine rechtsbündige Buttonzeile unter linksbündigem Text wirkt abgerissen) und
 `ContactForm.astro` (Absenden rechtsbündig).
 
-Unter 641 px stapeln die Buttons: dort steht die Primäraktion oben und über die volle Breite,
-weil es auf schmalen Viewports kein „rechts" gibt. Deshalb greift die Umsortierung per
-`order` nur im Desktop-Breakpoint, die DOM-Reihenfolge bleibt primary-first.
+Unter 641 px stapeln die Buttons per `flex-wrap`: dort steht die Primäraktion oben, weil es
+auf schmalen Viewports kein „rechts" gibt. Deshalb greift die Umsortierung per `order` nur im
+Desktop-Breakpoint, die DOM-Reihenfolge bleibt primary-first.
+
+> **Korrektur 2026-08-06:** Dieser Absatz behauptete ursprünglich, die Primäraktion stehe
+> mobil „über die volle Breite". Das tut sie nicht und tat sie nie — die Buttons brechen
+> inhaltsbreit um und bleiben in ihrer Gruppen-Ausrichtung (bei `CTABlock` zentriert). Am
+> Canary gemessen (blitzsicht, 375 px): Container 301 px, Buttons 179 px und 224 px,
+> `order: 0` bei beiden. Kein Code-Defekt, nur ein falscher Satz — korrigiert, damit niemand
+> einen Bug sucht, den es nicht gibt.
 
 **Migrations-Hinweis:** Keiner — reine CSS-Änderung, keine API. Aber sichtbar bei jedem
 Kunden: Pin-Bump gehört über den Release-Train mit Canary-Check (eine Seite mit Hero,
