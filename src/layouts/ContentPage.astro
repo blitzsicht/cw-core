@@ -220,6 +220,12 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
   .content-page :global(h3) { font-size: 1.125rem; margin: 1.5rem 0 0.5rem; }
   .content-page :global(p) { margin-bottom: 1rem; line-height: 1.75; }
   .content-page :global(a) { color: var(--color-accent-text); }
+  /* list-style NICHT entfernen: Tailwinds Preflight setzt `ol, ul { list-style: none }`
+     (preflight.css:205). Ohne diese beiden Regeln standen Aufzählungen auf JEDER
+     Content-Seite eingerückt, aber ohne Punkte und Nummern da — Impressum, Datenschutz,
+     AGB inklusive. `outside` platziert die Marker in das vorhandene padding-left. */
   .content-page :global(ul), .content-page :global(ol) { padding-left: 1.5rem; margin-bottom: 1rem; }
+  .content-page :global(ul) { list-style: disc outside; }
+  .content-page :global(ol) { list-style: decimal outside; }
   .content-page :global(li) { margin-bottom: 0.375rem; }
 </style>

@@ -22,6 +22,32 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.95.0 (2026-08-06)
+
+- [kunde:sichtbar] Aufzaehlungen auf den Textseiten haben wieder Punkte und Nummern.
+
+**Fix:** Listen ohne Marker auf allen Content-Seiten
+
+Kontext: Tailwinds Preflight setzt `ol, ul { list-style: none }` (preflight.css:205).
+`ContentPage.astro` stellte davon nur das `padding-left` wieder her, nicht die Marker.
+Ergebnis: Aufzaehlungen standen eingerueckt, aber ohne Punkte und Nummern — auf **jeder**
+Content-Seite der Fleet, also auch in Impressum, Datenschutz und AGB. Aufgefallen ist es
+am 06.08.2026 auf einer Studio-Seite von platzfrei; dort war eine nummerierte Anleitung
+nicht als solche erkennbar.
+
+`.content-page ul` bekommt `list-style: disc outside`, `ol` entsprechend `decimal outside`.
+`outside` platziert die Marker in das bereits vorhandene `padding-left` — die Einrueckung
+aendert sich also nicht, nur die Marker kommen zurueck.
+
+Merksatz jetzt in `docs/ux-conventions.md`: Wer ausserhalb von ContentPage eine Prosa-Liste
+baut, stellt die Marker selbst wieder her. Fuer Layout-Listen (Karten-Grids, Navigation,
+Chip-Reihen) bleibt `list-style: none` richtig.
+
+**Migrations-Hinweis:** Keiner — reine CSS-Aenderung. Sichtbar auf jeder Textseite, deshalb
+Pin-Bump ueber den Release-Train mit Canary-Check.
+
+---
+
 ## v0.94.0 (2026-08-06)
 
 - [kunde:sichtbar] Auf der Website steht die wichtigste Schaltfläche jetzt überall an derselben Stelle — rechts. Zurück-Verweise bleiben links.

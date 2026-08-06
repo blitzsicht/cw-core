@@ -3,6 +3,20 @@
 Verbindlich für alle cw-core-Komponenten und alle Customer-Repos. Wer eine Aktion platziert,
 schlägt hier nach, statt pro Seite neu zu entscheiden.
 
+## Listen behalten ihre Marker
+
+Tailwinds Preflight setzt `ol, ul { list-style: none }`. Wer eine Prosa-Liste rendert, muss die
+Marker also **aktiv wieder herstellen** — sonst steht die Liste eingerückt, aber ohne Punkte und
+Nummern da, und niemand sieht auf Anhieb, dass es eine Liste ist.
+
+In `ContentPage.astro` ist das ab v0.95.0 erledigt (`list-style: disc outside` bzw.
+`decimal outside`). Wer außerhalb dieses Layouts eine Prosa-Liste baut — eigene Komponenten,
+Sektionen auf der Startseite — setzt es selbst. Aufgefallen 06.08.2026 an
+`/studios/<slug>`; der Defekt lag da unbemerkt auf jeder Content-Seite der Fleet.
+
+Ausgenommen sind Layout-Listen (Karten-Grids, Navigation, Chip-Reihen): dort ist `list-style: none`
+richtig, die Semantik `<ul>` bleibt trotzdem korrekt.
+
 ## Richtung: Vorwärts gehört nach rechts
 
 Operator-Vorgabe vom 06.08.2026. Sie folgt der Leserichtung: was weiterführt, liegt in
