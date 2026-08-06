@@ -1,14 +1,18 @@
 # Plausible verifizieren — wie man belegt, dass eine neue Site wirklich misst
 
 **Zweck:** Nach `onboard-site` (bzw. `scripts/onboard/plausible-add-site.mjs`) sicher
-feststellen, ob eine Site Daten sammelt — ohne zu raten und ohne sich von den drei
-Fallen unten in die Irre führen zu lassen. Geschrieben am 05.08.2026, nachdem genau
-diese Fallen bei `platzfrei.club` mehrere Diagnose-Runden gekostet haben.
+feststellen, ob eine Site Daten sammelt — ohne zu raten und ohne sich von den vier
+Fallen unten in die Irre führen zu lassen. Geschrieben am 05./06.08.2026, nachdem genau
+diese Fallen bei `platzfrei.club` rund ein Dutzend Diagnose-Runden gekostet haben — für
+einen Fehler, den es nicht gab (siehe Fallstudie am Ende).
 
 **SSOT für Box-Zugriff:** `scripts/onboard/plausible-box.mjs` (Host, Container, DB).
 Diese Doku beschreibt nur die Verifikation, nicht das Anlegen.
 
-## Die drei Fallen — in dieser Reihenfolge prüfen
+## Die vier Fallen — in dieser Reihenfolge prüfen
+
+**Falle 3 zuerst prüfen, wenn du automatisiert misst.** Sie ist die häufigste und die
+teuerste.
 
 ### 1. ClickHouse hinkt 2–4 Minuten hinterher
 
@@ -28,7 +32,38 @@ Der Event-Endpunkt quittiert **jedes** wohlgeformte Event mit `202`, auch für u
 Domains — und verwirft es danach. Ein 202 im Netzwerk-Tab beweist nur, dass der Request
 rausging, nicht dass er gezählt wurde. Beweis ist ausschließlich die Zeile in ClickHouse.
 
-### 3. Der Stats-API-Key taugt nicht zur Verifikation
+### 3. Ein versteckter Browser-Tab erzeugt KEINEN Pageview
+
+**Die teuerste Falle — sie kostete am 05./06.08.2026 rund ein Dutzend Diagnose-Runden.**
+
+Der Plausible-Tracker hält den initialen Pageview bewusst zurück, wenn die Seite beim Laden
+nicht sichtbar ist, und schickt ihn erst beim Sichtbarwerden:
+
+```js
+"hidden" === document.visibilityState || "prerender" === document.visibilityState
+  ? document.addEventListener("visibilitychange", …)   // warten
+  : t()                                                // sofort senden
+```
+
+Browser-Automatisierung (Claude in Chrome, Playwright headless, Hintergrund-Tabs) lädt Seiten
+typischerweise mit `visibilityState = "hidden"`. Ergebnis: **kein Pageview, obwohl alles
+korrekt konfiguriert ist.** Custom-Events aus cw-core haben diesen Guard nicht und landen
+trotzdem — genau dieses Muster („Custom-Events ja, Pageviews nein") sieht wie ein
+systematischer Fehler aus und ist keiner.
+
+**Regel: vor jeder Pageview-Messung `document.visibilityState` prüfen.** Ist es `hidden`, ist
+das Ergebnis wertlos. Tab in den Vordergrund holen (andere Tabs der Gruppe schließen), erneut
+laden, dann messen:
+
+```js
+document.visibilityState   // muss "visible" sein
+```
+
+Dasselbe gilt für `prerender`: mit `prefetch: { prefetchAll: true }` (cw-core-Standard)
+prerendert Chrome verlinkte Seiten — deren Pageview entsteht erst beim tatsächlichen Aufruf.
+Das ist gewollt und korrekt, verfälscht aber jede naive Messung.
+
+### 4. Der Stats-API-Key taugt nicht zur Verifikation
 
 `https://stats.blitzsicht.com/api/v1/stats/...` antwortet mit
 `"Invalid API key or site ID"` — auch für seit Monaten laufende Sites. Der hinterlegte Key
@@ -119,47 +154,36 @@ In dieser Reihenfolge, weil aufsteigend teuer:
 - **Fehlender `site_memberships`-Eintrag.** Die Box läuft im Teams-Modell
   (`plausible-box.mjs`: `TEAM_ID = 1`), `site_memberships` ist ungenutzt.
 
-## 🚩 OFFEN: initialer Pageview fehlt bei platzfrei.club
+## Fallstudie: der „fehlende Pageview" bei platzfrei.club (aufgeklärt)
 
-**Belegt** (05.08.2026, mehrfach reproduziert, jeweils nach voller Flush-Wartezeit):
+**Symptom:** Normale Seitenaufrufe erzeugten keinen `pageview`, während Custom-Events
+derselben Seite zuverlässig landeten. Alle 13 anderen Fleet-Sites zählten sauber.
 
-| Auslöser | Ergebnis in ClickHouse |
-| --- | --- |
-| Normaler Seitenaufruf `/impressum` | `Time on Page` ✓, **`pageview` ✗** |
-| `history.pushState` (SPA-Navigation) | `pageview` ✓ |
-| Manuell `window.plausible('pageview')` | `pageview` ✓ |
-| Alle 13 anderen Sites der Fleet | `pageview` + `engagement` ✓ |
+**Ursache:** Falle 3 — sämtliche Messungen liefen in einem versteckten Automations-Tab
+(`visibilityState = "hidden"`). Der Tracker hielt den initialen Pageview korrekt zurück.
+**Es gab keinen Fehler an der Site.** Beweis: derselbe Aufruf im sichtbaren Tab schickt
+sofort `{"n":"pageview",…}` — verifiziert mit deploytem Interceptor am 06.08.2026.
 
-Der Tracker **lädt** (ersetzt den Shim, `window.plausible` ist die echte 1107-Zeichen-
-Funktion) und **initialisiert sich selbst** (ein manueller `init()` nach dem Laden meldet
-`„already initialized, skipping init"`). Custom-Events und History-Pageviews gehen durch.
-Nur der Pageview beim initialen Laden entsteht nicht.
+**Warum die Fleet gesund aussah:** Ihre Zahlen stammen von echten Besuchern mit sichtbaren
+Tabs. platzfrei war zu dem Zeitpunkt einen Tag alt und hatte außer meinen
+Automatisierungs-Aufrufen keinen Traffic — dadurch bestand die gesamte Stichprobe aus
+Hidden-Tab-Ladevorgängen.
 
-**Zusätzlich ausgeschlossen (05.08.2026, zweite Runde):**
+**Was die Diagnose so lange verschleppt hat**, in absteigender Kostenreihenfolge:
 
-- **Kein Fleet-Problem.** `hausammincio.com` liefert über 14 Tage lückenlos Pageviews +
-  engagement, auch am selben Tag. Es gibt keine schleichende Regression.
-- **Identische Auslieferung.** Das gerenderte Plausible-Snippet ist zwischen platzfrei und
-  einer funktionierenden Site zeichengleich (Shim, `async`-Script, `init()`-Optionen). Die
-  ausgelieferten Tracker-Scripts unterscheiden sich nur um die Länge des Domain-Strings.
-- **`autoCapturePageviews`.** Naheliegender Verdacht, weil im minifizierten Tracker
-  `i.autoCapturePageviews && (…pageview-Logik…)` steht und cw-core den Schlüssel nicht
-  übergibt. **Trotzdem nicht die Ursache** — die Fleet übergibt ihn genauso wenig und zählt
-  sauber. Nicht erneut darauf ansetzen, ohne diesen Widerspruch vorher aufzulösen.
+1. Nicht geprüft, ob die Messumgebung selbst valide ist. Der billigste Check
+   (`document.visibilityState`) kam als letzter statt als erster.
+2. Zu früh gemessen (Falle 1) — erzeugte zwischendurch die falsche Meldung, gar nichts käme an.
+3. In-Page-Replays der Ladesequenz. Falsch-negativ wegen Tracker-Guards (`plausible.l`,
+   „already initialized"), zwei Runden verloren.
+4. Plausible klingende Hypothesen ohne Gegenprobe: CSP-Blockade, `autoCapturePageviews`
+   fehlt in den cw-core-Optionen, cw-core-Versionsregression. Alle drei falsch — jede kostete
+   eine Runde. **Wenn eine Fleet mit identischem Code gesund ist, ist die Hypothese
+   „der Code ist kaputt" widerlegt, bevor man sie prüft.**
 
-**Was NICHT weiterhilft:** die Ladesequenz per `javascript_tool` in der Seite nachspielen
-(Shim neu setzen, Script-Tag neu anhängen). Der Tracker hat interne Guards (`plausible.l`,
-`„already initialized"`), dadurch verhält sich der Replay anders als ein echter Ladevorgang
-und liefert falsch-negative „kein Request"-Ergebnisse. Zwei Runden daran verloren.
-
-**Einzig verlässlicher nächster Schritt:** ein *deployter* Test. Interceptor bzw.
-Debug-Logging fest ins HTML (vor dem Tracker-Script), einmal deployen, normalen Aufruf
-machen, 4 Minuten warten, ClickHouse lesen. Erst damit ist belegbar, ob beim Load überhaupt
-ein `pageview`-Request entsteht.
-
-**Auswirkung:** Besucherzahlen für platzfrei.club sind unvollständig (Sessions ohne
-Folge-Navigation fehlen ganz). Custom-Events und damit die CTA-/Formular-Messung sind
-korrekt. Vor dem nächsten Site-Onboarding klären — sonst erbt die nächste Site das Problem.
+**Merksatz:** Erst die Messung validieren, dann das Gemessene. Ein Widerspruch zwischen
+Befund und gesunder Vergleichsgruppe ist ein Hinweis auf die Messmethode, nicht auf das
+Messobjekt.
 
 ## Checkliste für neue Sites
 
