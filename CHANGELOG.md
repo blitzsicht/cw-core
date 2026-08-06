@@ -22,6 +22,33 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.96.0 (2026-08-06)
+
+**Fix:** CountUp blieb bei einem Tab-Wechsel auf einem Zwischenwert stehen
+
+Kontext: `CountUp` zaehlt per `requestAnimationFrame` auf seinen Zielwert hoch. Der
+Browser haelt rAF an, sobald der Tab in den Hintergrund geht — der Zaehler fror auf dem
+gerade erreichten Zwischenwert ein und blieb dort stehen. Im Browser belegt am
+06.08.2026 an der blitzsicht-StatsBar: **„91" statt „95"**. Auf Seiten, die mit
+gemessenen Zahlen argumentieren, ist das keine Kosmetik, sondern eine Zahl, die so nie
+gemessen wurde.
+
+Der Zaehler setzt sich jetzt bei `visibilitychange` sofort auf den Endwert, und jeder
+Tick prueft zusaetzlich `document.hidden`. Startet die Animation, waehrend der Tab schon
+versteckt ist, wird gar nicht erst gezaehlt.
+
+Gegenprobe mit demselben Ausloeser: vorher 91, nachher exakt 95.
+
+Keine `[kunde]`-Zeile: `CountUp` wird fleetweit nur von der Eigen-Site blitzsicht genutzt,
+und die bekommt keinen Kundenreport.
+
+**Merksatz:** Jede rAF-Animation, die eine Zahl oder einen Messwert darstellt, braucht
+einen Endwert-Anker. Ein Zwischenwert, der stehen bleibt, behauptet etwas.
+
+**Migrations-Hinweis:** Keiner — keine neuen Props, kein geaendertes Markup.
+
+---
+
 ## v0.95.0 (2026-08-06)
 
 - [kunde:sichtbar] Aufzaehlungen auf den Textseiten haben wieder Punkte und Nummern.

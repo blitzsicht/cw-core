@@ -101,18 +101,28 @@ const final = fmt(value);
       return fixed.replace(/\B(?=(\d{3})+(?!\d))/g, separator);
     };
 
+    /* Der Browser hält requestAnimationFrame an, sobald der Tab in den
+       Hintergrund geht. Ohne Sicherung bleibt der Zähler dann auf einem
+       Zwischenwert stehen und behauptet eine Zahl, die nie gemessen wurde
+       (im Browser belegt: „91" statt „95", blitzsicht StatsBar 06.08.2026).
+       Deshalb: beim Verstecken sofort auf den Endwert. */
+    const settle = () => { numEl.textContent = format(value); };
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) settle();
+    });
+
     const play = () => {
-      if (reduced || !('requestAnimationFrame' in window)) {
-        numEl.textContent = format(value);
+      if (reduced || document.hidden || !('requestAnimationFrame' in window)) {
+        settle();
         return;
       }
       const start = performance.now();
       const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
       const tick = (now) => {
         const t = Math.min(1, (now - start) / duration);
-        const current = from + (value - from) * ease(t);
-        numEl.textContent = format(current);
-        if (t < 1) requestAnimationFrame(tick);
+        if (t >= 1 || document.hidden) { settle(); return; }
+        numEl.textContent = format(from + (value - from) * ease(t));
+        requestAnimationFrame(tick);
       };
       requestAnimationFrame(tick);
     };
