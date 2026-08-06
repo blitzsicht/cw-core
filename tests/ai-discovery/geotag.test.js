@@ -36,6 +36,8 @@ import {
   resolveCopyrightHolder,
   isDenied,
   MAX_KEYWORDS,
+  withImageRights,
+  resolveImageCopyrightHolder,
 } from '../../src/integrations/ai-discovery/geotag-core.js';
 
 test('1. Voll befülltes site-data → Meta + GPS + Ortsnamen + Keywords', () => {
@@ -213,4 +215,72 @@ test('11. Denylist: OG/Icons/Favicons/Email/Social werden NICHT getaggt', () => 
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ── imageRights: Fremdmaterial behält seinen Urheber ────────────────────────────
+// Auslöser (2026-08-06, customer-platzfrei): Studio-Fotos eines Partners sollten auf
+// die Seite. Die Pipeline stempelt aber unbedingt `© <eigene Entität>` in JEDES Bild
+// und überschreibt vorhandene Angaben — bei Fremdmaterial eine falsche Urheber-
+// behauptung, die wir selbst ausliefern. Nutzungserlaubnis ≠ Urheberschaft.
+test('resolveImageCopyrightHolder: ohne imageRights unverändert (Fleet-neutral)', () => {
+  const data = { legal: { owner: 'Max Muster' } };
+  assert.equal(resolveImageCopyrightHolder(data, 'images/hero/foo.webp'), 'Max Muster');
+  assert.equal(resolveImageCopyrightHolder(data, ''), 'Max Muster');
+});
+
+test('resolveImageCopyrightHolder: Präfix-Treffer gewinnt gegen Default', () => {
+  const data = {
+    legal: { owner: 'Max Muster' },
+    imageRights: [{ pathPrefix: 'images/studios/', holder: 'Victory Gym' }],
+  };
+  assert.equal(resolveImageCopyrightHolder(data, 'images/studios/halle.webp'), 'Victory Gym');
+  assert.equal(resolveImageCopyrightHolder(data, '/images/studios/halle.webp'), 'Victory Gym');
+  assert.equal(resolveImageCopyrightHolder(data, 'images\\studios\\halle.webp'), 'Victory Gym');
+  // außerhalb des Präfix bleibt es beim Customer
+  assert.equal(resolveImageCopyrightHolder(data, 'images/hero/eigenes.webp'), 'Max Muster');
+});
+
+test('resolveImageCopyrightHolder: längstes Präfix gewinnt (Ausnahme im Ordner)', () => {
+  const data = {
+    legal: { owner: 'Max Muster' },
+    imageRights: [
+      { pathPrefix: 'images/studios/', holder: 'Victory Gym' },
+      { pathPrefix: 'images/studios/eigen/', holder: 'Max Muster' },
+    ],
+  };
+  assert.equal(resolveImageCopyrightHolder(data, 'images/studios/a.webp'), 'Victory Gym');
+  assert.equal(resolveImageCopyrightHolder(data, 'images/studios/eigen/b.webp'), 'Max Muster');
+});
+
+test('resolveImageCopyrightHolder: kaputte Regeln werden ignoriert, nicht übernommen', () => {
+  const data = {
+    legal: { owner: 'Max Muster' },
+    imageRights: [
+      { pathPrefix: 'images/', holder: '   ' },
+      { pathPrefix: 'images/', holder: 'TODO Rechteinhaber' },
+      { pathPrefix: 42, holder: 'Quatsch' },
+      null,
+    ],
+  };
+  assert.equal(resolveImageCopyrightHolder(data, 'images/x.webp'), 'Max Muster');
+});
+
+test('withImageRights: setzt Copyright UND Artist konsistent um', () => {
+  const data = {
+    legal: { owner: 'Max Muster' },
+    imageRights: [{ pathPrefix: 'images/studios/', holder: 'Victory Gym' }],
+  };
+  const common = buildCommonTags(data);
+  assert.equal(common.Copyright, '© Max Muster');
+
+  const fremd = withImageRights(common, data, 'images/studios/halle.webp');
+  assert.equal(fremd.Copyright, '© Victory Gym');
+  assert.equal(fremd.Artist, 'Victory Gym');
+
+  const eigen = withImageRights(common, data, 'images/hero/eigenes.webp');
+  assert.equal(eigen.Copyright, '© Max Muster');
+  assert.equal(eigen.Artist, 'Max Muster');
+
+  // common darf nicht mutiert werden — sonst faerbt das erste Fremdbild alle folgenden ein
+  assert.equal(common.Copyright, '© Max Muster');
 });

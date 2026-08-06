@@ -22,6 +22,44 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.93.0 (2026-08-06)
+
+**Feature:** `siteData.imageRights` — Fremdmaterial behält seinen Urheber
+
+Kontext: Die Geotag-Stufe stempelte `© <eigene Entität>` als `Copyright` **und** `Artist`
+in **jedes** taggbare Bild und überschrieb dabei vorhandene Angaben. Für eigene Bilder ist
+das richtig. Sobald aber Partner-, Lieferanten- oder Herstellerfotos auf einer Seite liegen,
+behaupten wir damit eine Urheberschaft, die uns nicht zusteht — und liefern diese Behauptung
+in den Metadaten selbst aus. Nutzungserlaubnis ist keine Urheberschaft. Aufgefallen bei
+customer-platzfrei: Studio-Fotos des Partners sollten auf die Studio-Seite.
+
+Neue API:
+
+- `siteData.imageRights?: { pathPrefix: string; holder: string }[]` — ordnet Pfad-Präfixen
+  einen abweichenden Rechteinhaber zu. Beispiel:
+
+  ```ts
+  imageRights: [{ pathPrefix: 'images/studios/', holder: 'Victory Gym Neutraubling' }],
+  ```
+
+- `resolveImageCopyrightHolder(data, relPath)` in `@cw/core/utils/copyright`
+- `withImageRights(common, data, relPath)` in `ai-discovery/geotag-core`
+
+Verhalten: Präfixe matchen auf den dist-relativen Pfad (Backslashes und führende Slashes
+normalisiert), **längstes Präfix gewinnt** — damit sind Ausnahmen innerhalb eines Ordners
+möglich. Leere, fehlende oder `TODO`-Werte werden ignoriert und fallen auf den Customer
+zurück, statt Unsinn ins Bild zu schreiben. **Ohne `imageRights` ändert sich nichts** —
+Fleet-neutral.
+
+Beide Geotag-Twins nutzen dieselbe Funktion (`ai-discovery/geotag.js` +
+`scripts/geotag-dist.mjs`), damit die Tag-Logik nicht divergiert. 5 neue Tests, u. a. dass
+der gemeinsame Tag-Satz nicht mutiert wird — sonst färbte das erste Fremdbild alle
+folgenden ein.
+
+**Migrations-Hinweis:** Keiner. Rein additiv.
+
+---
+
 ## v0.92.0 (2026-08-05)
 
 - [kunde] Der Blitzsicht-Link im Fußbereich gibt jetzt mit an, von welcher Website ein Besucher gekommen ist. Am Erscheinungsbild der Seite ändert sich nichts.

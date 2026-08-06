@@ -37,3 +37,40 @@ export function resolveCopyrightHolder(data) {
   const holder = data?.legal?.company || data?.legal?.owner || data?.name || null;
   return holder && !isTodo(holder) ? holder : null;
 }
+
+/**
+ * Rechteinhaber für EIN konkretes Bild.
+ *
+ * Nicht jedes Bild auf einer Kundenseite stammt vom Kunden: Partner-, Lieferanten-
+ * oder Herstellerfotos gehören jemand anderem. Der Default stempelt aber
+ * `© <eigene Entität>` in JEDES taggbare Bild und überschreibt vorhandene Angaben —
+ * bei Fremdmaterial ist das eine sachlich falsche Urheberbehauptung, die wir dann
+ * auch noch selbst ausliefern. Nutzungserlaubnis ≠ Urheberschaft.
+ *
+ * Deshalb kann `siteData.imageRights` Pfad-Präfixe einer abweichenden Entität zuordnen:
+ *
+ *   imageRights: [
+ *     { pathPrefix: 'images/studios/', holder: 'Victory Gym Neutraubling' },
+ *   ]
+ *
+ * Ohne `imageRights` ändert sich nichts (Fleet-neutral). Präfixe matchen auf den
+ * dist-relativen Pfad ohne führenden Slash; der längste Treffer gewinnt, damit
+ * Ausnahmen innerhalb eines Ordners möglich sind.
+ *
+ * @param {any} data     aufgelöstes siteData
+ * @param {string} relPath  dist-relativer Bildpfad, z. B. 'images/studios/foo.webp'
+ * @returns {string|null}
+ */
+export function resolveImageCopyrightHolder(data, relPath) {
+  const regeln = Array.isArray(data?.imageRights) ? data.imageRights : [];
+  const pfad = String(relPath ?? '').replace(/\\/g, '/').replace(/^\/+/, '');
+  let treffer = null;
+  for (const r of regeln) {
+    if (!r || typeof r.pathPrefix !== 'string' || typeof r.holder !== 'string') continue;
+    if (isTodo(r.holder) || !r.holder.trim()) continue;
+    const praefix = r.pathPrefix.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!praefix || !pfad.startsWith(praefix)) continue;
+    if (!treffer || praefix.length > treffer.praefix.length) treffer = { praefix, holder: r.holder };
+  }
+  return treffer ? treffer.holder : resolveCopyrightHolder(data);
+}

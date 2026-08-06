@@ -18,11 +18,12 @@
  */
 
 import { realpathSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, relative } from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   buildCommonTags,
+  withImageRights,
   buildDescByStem,
   descForFile,
   walkImages,
@@ -77,7 +78,9 @@ export async function geotagDist(distDir, data, logger) {
   try {
     for (const file of files) {
       const desc = descForFile(basename(file), descByStem);
-      const tags = { ...common };
+      // Fremdmaterial (Partner-/Lieferantenfotos) bekommt den richtigen Rechteinhaber
+      // statt unseres Default-Stempels — Nutzungserlaubnis ist keine Urheberschaft.
+      const tags = withImageRights(common, data, relative(distDir, file));
       if (desc) {
         tags.ImageDescription = desc;
         tags['XMP:Description'] = desc;

@@ -25,6 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   buildCommonTags,
+  withImageRights,
   buildDescByStem,
   descForFile,
   walkImages,
@@ -106,7 +107,9 @@ try {
   let failed = 0;
   try {
     for (const file of files) {
-      const tags = { ...common };
+      // Fremdmaterial bekommt den richtigen Rechteinhaber (siteData.imageRights) —
+      // identisch zum astro:build:done-Twin in geotag.js.
+      const tags = withImageRights(common, data, path.relative(DIST, file));
       const d = descForFile(path.basename(file), descByStem);
       if (d) {
         tags.ImageDescription = d;

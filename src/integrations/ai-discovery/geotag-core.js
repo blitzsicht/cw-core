@@ -17,11 +17,28 @@ import { join } from 'node:path';
 // Kanonischer Copyright-/Urheber-Name + TODO-Guard leben in einem reinen `.js`-Util,
 // damit EXIF (hier) und JSON-LD (SchemaOrg) dieselbe Logik nutzen (Single Source of
 // Truth). Import bleibt plain-node-tauglich (kein `.ts`) für den CLI-Twin geotag-dist.mjs.
-import { isTodo, resolveCopyrightHolder } from '../../utils/copyright.js';
+import { isTodo, resolveCopyrightHolder, resolveImageCopyrightHolder } from '../../utils/copyright.js';
 
 // Öffentliche API stabil halten: bestehende Importer (geotag.js, Tests) beziehen
 // resolveCopyrightHolder weiterhin aus geotag-core.
-export { resolveCopyrightHolder };
+export { resolveCopyrightHolder, resolveImageCopyrightHolder };
+
+/**
+ * Copyright/Artist eines Tag-Satzes auf den Rechteinhaber DIESES Bildes umstellen.
+ * Ohne passende `imageRights`-Regel unverändert — dann bleibt es beim Customer-Default.
+ * Genutzt von beiden Twins (geotag.js + scripts/geotag-dist.mjs), damit die Tag-Logik
+ * nicht divergiert.
+ *
+ * @param {Record<string, any>} common  Tags aus buildCommonTags()
+ * @param {any} data                    aufgelöstes siteData
+ * @param {string} relPath              dist-relativer Bildpfad
+ * @returns {Record<string, any>}
+ */
+export function withImageRights(common, data, relPath) {
+  const holder = resolveImageCopyrightHolder(data, relPath);
+  if (!holder) return common;
+  return { ...common, Copyright: `© ${holder}`, Artist: holder };
+}
 
 /** Endungen, die exiftool taggen kann (WebP + PNG + JPEG unterstützen EXIF/XMP). */
 export const TAGGABLE_EXT = ['.webp', '.png', '.jpg', '.jpeg'];
