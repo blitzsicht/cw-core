@@ -17,6 +17,12 @@ Sektionen auf der Startseite — setzt es selbst. Aufgefallen 06.08.2026 an
 Ausgenommen sind Layout-Listen (Karten-Grids, Navigation, Chip-Reihen): dort ist `list-style: none`
 richtig, die Semantik `<ul>` bleibt trotzdem korrekt.
 
+**Spezifitäts-Falle dabei:** Die Regel kompiliert zu `.content-page[data-astro-cid-…] ul` (0,2,1)
+und schlägt eine gescopte Klassenregel im Customer-Repo (`.meine-liste[data-astro-cid-…]`, 0,2,0).
+Wer in einer Content-Seite eine Layout-Liste baut, braucht deshalb `list-style: none !important`
+oder ein Element ohne Listen-Semantik. Aufgefallen 06.08.2026 an der Chip-Reihe von platzfrei:
+vor jedem Chip stand plötzlich ein Aufzählungspunkt.
+
 ## Richtung: Vorwärts gehört nach rechts
 
 Operator-Vorgabe vom 06.08.2026. Sie folgt der Leserichtung: was weiterführt, liegt in
