@@ -514,7 +514,19 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
     line-height: 1.5;
   }
 
-  .form-submit { margin-top: 0.5rem; }
+  /* Konvention „Vorwärts gehört nach rechts" (docs/ux-conventions.md): Absenden
+     ist die Vorwärts-Aktion des Formulars und steht rechts. Auf schmalen
+     Viewports volle Breite — dort gibt es kein „rechts". */
+  .form-submit {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- konsistent zum Desktop-First-Rest dieser Datei */
+  @media (max-width: 640px) {
+    .form-submit { display: block; }
+    .form-submit button { width: 100%; justify-content: center; }
+  }
 
   /* Spinner */
   .spinner {

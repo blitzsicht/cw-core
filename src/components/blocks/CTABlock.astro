@@ -67,4 +67,10 @@ const {
   .cta-inner h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); color: white; margin-bottom: 1rem; }
   .cta-inner p { font-size: 1.0625rem; color: rgba(255,255,255,0.8); line-height: 1.7; margin-bottom: 2rem; }
   .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+  /* Konvention „Vorwärts gehört nach rechts" (docs/ux-conventions.md): Primär
+     rechts im Paar. Die Gruppe bleibt zentriert — die Sektion ist zentriert
+     aufgebaut. Ab Tablet, darunter stapeln die Buttons mit Primär oben. */
+  @media (min-width: 641px) {
+    .cta-buttons .btn-outline { order: -1; }
+  }
 </style>

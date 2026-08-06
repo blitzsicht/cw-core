@@ -485,6 +485,14 @@ const motionCfg: HeroMotionConfig =
     flex-wrap: wrap;
     margin-bottom: 3rem;
   }
+  /* Konvention „Vorwärts gehört nach rechts" (docs/ux-conventions.md):
+     im Paar steht die Primäraktion rechts. Die Gruppe bleibt linksbündig — sie
+     gehört zur linksbündigen Textspalte, rechtsbündig wirkte sie abgerissen.
+     Nur ab Tablet: darunter stapeln die Buttons, dort steht Primär oben
+     (Daumenreichweite), deshalb bleibt die DOM-Reihenfolge primary-first. */
+  @media (min-width: 641px) {
+    .hero-cta .btn-outline { order: -1; }
+  }
   .hero-usps {
     display: flex;
     flex-wrap: wrap;

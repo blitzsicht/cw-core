@@ -22,6 +22,37 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.94.0 (2026-08-06)
+
+- [kunde:sichtbar] Auf der Website steht die wichtigste Schaltfläche jetzt überall an derselben Stelle — rechts. Zurück-Verweise bleiben links.
+
+**Tweak:** UX-Konvention „Vorwärts gehört nach rechts"
+
+Kontext: Bisher entschied jede Komponente für sich, wo die Hauptaktion sitzt — mal links
+neben der Zweitaktion, mal linksbündig unter einem Formular. Für Besucher heißt das: die
+Schaltfläche, die weiterführt, steht auf jeder Sektion woanders. Operator-Vorgabe vom
+06.08.2026: Was weiterführt, gehört nach rechts; was zurückführt, bleibt links.
+
+Die Regel in drei anwendbaren Sätzen (Details + Begründung in `docs/ux-conventions.md`):
+
+- Im Button-Paar ist die Vorwärts-/Primäraktion das rechteste Element.
+- Eine alleinstehende Vorwärts-CTA in einer Inhaltsspalte steht rechtsbündig.
+- Zurück-Navigation bleibt links, als `.btn-outline` statt als nackter Textlink.
+
+Betroffen: `Hero.astro`, `CTABlock.astro` (Reihenfolge im Paar; die Gruppen behalten ihre
+Ausrichtung — eine rechtsbündige Buttonzeile unter linksbündigem Text wirkt abgerissen) und
+`ContactForm.astro` (Absenden rechtsbündig).
+
+Unter 641 px stapeln die Buttons: dort steht die Primäraktion oben und über die volle Breite,
+weil es auf schmalen Viewports kein „rechts" gibt. Deshalb greift die Umsortierung per
+`order` nur im Desktop-Breakpoint, die DOM-Reihenfolge bleibt primary-first.
+
+**Migrations-Hinweis:** Keiner — reine CSS-Änderung, keine API. Aber sichtbar bei jedem
+Kunden: Pin-Bump gehört über den Release-Train mit Canary-Check (eine Seite mit Hero,
+CTABlock und Formular im Browser prüfen), nicht nebenbei.
+
+---
+
 ## v0.93.0 (2026-08-06)
 
 **Feature:** `siteData.imageRights` — Fremdmaterial behält seinen Urheber
