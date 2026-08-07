@@ -222,7 +222,13 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
   .content-page :global(h2) { font-size: 1.375rem; margin: 2rem 0 0.75rem; }
   .content-page :global(h3) { font-size: 1.125rem; margin: 1.5rem 0 0.5rem; }
   .content-page :global(p) { margin-bottom: 1rem; line-height: 1.75; }
-  .content-page :global(a) { color: var(--color-accent-text); }
+  /* Prosa-Links einfärben — aber KEINE Buttons. `.content-page :global(a)` hat
+     Spezifität (0,2,1) und schlägt damit jede Button-Klasse (`.btn-outline` = (0,1,0)).
+     Wer einen cw-core-Block mit Buttons in den Slot legt (CTABlock, CTAHeroBlock,
+     StickyContact …), bekam sonst `--color-accent-text` in den Button gemalt: am
+     07.08.2026 an Zink gemessen — Buttontext #9c0359 auf Button-Magenta #ed0677,
+     Kontrast 1.9:1, praktisch unlesbar. */
+  .content-page :global(a:not([class*="btn"]):not([class*="button"])) { color: var(--color-accent-text); }
   /* list-style NICHT entfernen: Tailwinds Preflight setzt `ol, ul { list-style: none }`
      (preflight.css:205). Ohne diese beiden Regeln standen Aufzählungen auf JEDER
      Content-Seite eingerückt, aber ohne Punkte und Nummern da — Impressum, Datenschutz,

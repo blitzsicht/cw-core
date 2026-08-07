@@ -22,6 +22,37 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.97.2 (2026-08-07)
+
+- [kunde:sichtbar] Buttons auf Inhaltsseiten hatten teils dieselbe Textfarbe wie ihr eigener Hintergrund und waren dadurch kaum lesbar. Behoben.
+
+**Fix:** `ContentPage` faerbte Buttons im Slot mit der Prosa-Linkfarbe ein
+
+`.content-page :global(a) { color: var(--color-accent-text) }` galt fuer **jeden**
+Anchor im Slot. Die Regel hat Spezifitaet (0,2,1) und schlaegt damit jede
+Button-Klasse — `.btn-outline` und `.btn-accent` liegen bei (0,1,0). Wer einen
+cw-core-Block mit Buttons in eine `ContentPage` legt (CTABlock, CTAHeroBlock,
+StickyContact), bekam die Button-Beschriftung in `--color-accent-text` gemalt,
+statt in Weiss.
+
+Am 07.08.2026 an Zink im Browser gemessen: Buttontext `#9c0359` auf Button-Magenta
+`#ed0677` — **Kontrast 1.9:1**. WCAG AA verlangt 4.5:1; der Text war praktisch
+unsichtbar. Betroffen war jede Seite, die `ContentPage` **und** einen Button-Block
+kombiniert; reine Prosa-Seiten (Impressum, Datenschutz) waren nie betroffen.
+`LandingPage` hat die Regel nicht und war nie betroffen.
+
+Die Regel klammert Buttons jetzt aus:
+
+```css
+.content-page :global(a:not([class*="btn"]):not([class*="button"])) { … }
+```
+
+Prosa-Links behalten `--color-accent-text` unveraendert.
+
+**Keine Breaking Changes.**
+
+---
+
 ## v0.97.1 (2026-08-07)
 
 - [kunde:sichtbar] Der Markenname im Fussbereich laesst sich jetzt tatsaechlich ausblenden — in v0.97.0 kam die Einstellung nicht an.
