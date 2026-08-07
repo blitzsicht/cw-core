@@ -56,6 +56,13 @@ interface Props {
   logoWidth?: number;
   /** Logo height in px. */
   logoHeight?: number;
+  /**
+   * When true, suppresses the brand-name link below the logo image.
+   * Use this when the logo SVG already contains the brand name as text
+   * (text-logo), to avoid "Brand Name Brand Name" in the footer.
+   * Gegenstück zu `Header.hideBrandName`. Defaults to `false`.
+   */
+  hideBrandName?: boolean;
   /** Legal owner for copyright line. Falls back to `siteName`. */
   owner?: string;
   /** Legal form, e.g. "Einzelunternehmen". */
@@ -134,6 +141,7 @@ const {
   logoSrcDark,
   logoWidth = 50,
   logoHeight = 24,
+  hideBrandName = false,
   owner,
   legalForm = 'Einzelunternehmen',
   city,
@@ -218,9 +226,11 @@ const psiDetailUrl = effectiveSlug
         <a href="/" class="logo-img">
           <img src={logoSrcDark ?? logoSrc} alt={siteName} width={logoWidth} height={logoHeight} loading="lazy" />
         </a>
-        <a href="/" class="logo-name">
-          {siteName}
-        </a>
+        {!hideBrandName && (
+          <a href="/" class="logo-name">
+            {siteName}
+          </a>
+        )}
         {description && <p>{description}</p>}
         {email && (
           <a href={`mailto:${email}`} class="contact-link">

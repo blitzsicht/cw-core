@@ -22,6 +22,57 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.97.0 (2026-08-07)
+
+- [kunde:sichtbar] Der Kopfbereich der Website kann jetzt eine eigene Hintergrundfarbe bekommen, unabhaengig von der Hauptfarbe der Marke.
+- [kunde:sichtbar] Steht der Markenname schon als Schrift im Logo, laesst er sich im Fussbereich ausblenden — er stand dort bisher zwangslaeufig doppelt.
+
+**Feature:** `--color-header-bg` — Header-Hintergrund unabhaengig von `--color-primary`
+
+`Header.astro` hat seinen Hintergrund bisher fest aus `var(--color-primary)` gezogen.
+Fuer Sites, deren CI die Primaerfarbe als *Akzent* fuehrt und nicht als flaechigen
+Grund, gab es keinen Weg, den Header umzufaerben, ohne die Primaerfarbe global zu
+kippen — und damit Buttons, CTA-Bloecke und Sections gleich mit.
+
+Ausloeser: Zink Baeckerei. Offizieller Styleguide (Adobe-Export, geprueft am
+07.08.2026) fuehrt Magenta `#ed0677` als Akzent auf weissem, beigem oder
+dunkelbraunem Grund — einen magentafarbenen Vollflaechen-Hintergrund gibt es im
+Styleguide nicht.
+
+Neu, analog zum bereits existierenden `--color-footer-bg`:
+
+```css
+/* customer-x/src/styles/tokens.css */
+@theme {
+  --color-header-bg: #352408;   /* Header-Grund */
+  /* optional, sonst erbt der Mobile-Nav --color-header-bg: */
+  --color-header-bg-mobile: #4A3410;
+}
+```
+
+Ohne Token rendert der Header **byte-identisch wie vorher** — die Fallback-Kette
+endet in `var(--color-primary)`. Keine Migration noetig.
+
+**Feature:** `Footer.hideBrandName` — Gegenstueck zu `Header.hideBrandName`
+
+Der Footer rendert Logo-Bild **und** `siteName` als Textzeile. Bei einer Wortmarke,
+die den Markennamen bereits als Schrift enthaelt, steht der Name damit zweimal
+untereinander. `Header.astro` konnte das seit v0.63.0 per `hideBrandName`
+unterdruecken, `Footer.astro` nicht — dieselbe Doppelung blieb unten stehen.
+
+Belegt durch Kunden-Rueckmeldung Zink Baeckerei (07.08.2026): „Zink doppelt im
+Header — das Image und den Header-Titel". Derselbe Befund gilt fuer den Footer.
+
+```astro
+<Footer siteName={siteData.name} logoSrc="/logo.svg" hideBrandName />
+```
+
+Default `false` — bestehende Sites rendern unveraendert.
+
+**Keine Breaking Changes.** Beide Aenderungen sind additiv.
+
+---
+
 ## v0.96.0 (2026-08-06)
 
 **Fix:** CountUp blieb bei einem Tab-Wechsel auf einem Zwischenwert stehen

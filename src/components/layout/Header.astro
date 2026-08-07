@@ -95,7 +95,10 @@ const {
     position: sticky;
     top: 0;
     z-index: 50;
-    background: var(--color-primary);
+    /* Gegenstück zu --color-footer-bg: Sites, deren CI den Header nicht in der
+       Primärfarbe will (z.B. dunkles Braun bei Magenta-Primary), setzen den Token
+       in ihrer tokens.css. Ohne Token bleibt es exakt wie bisher. */
+    background: var(--color-header-bg, var(--color-primary));
     color: white;
     box-shadow: 0 1px 8px rgba(0,0,0,0.3);
     /* Containing block für den absolut positionierten Mobile-Nav */
@@ -183,7 +186,7 @@ const {
       top: 100%;
       left: 0;
       right: 0;
-      background: var(--color-primary-light, var(--color-primary, #1D1E3B));
+      background: var(--color-header-bg-mobile, var(--color-header-bg, var(--color-primary-light, var(--color-primary, #1D1E3B))));
       flex-direction: column;
       align-items: stretch;
       padding: 1rem 1.5rem 1.5rem;
