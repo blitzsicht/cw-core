@@ -51,6 +51,8 @@ export interface FooterConfig {
   logoSrcDark?: string;
   logoWidth?: number;
   logoHeight?: number;
+  /** Suppress the brand-name line below the footer logo (text-logo case). */
+  hideBrandName?: boolean;
   owner?: string;
   legalForm?: string;
   city?: string;
@@ -183,6 +185,7 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
     logoSrcDark={footer.logoSrcDark}
     logoWidth={footer.logoWidth}
     logoHeight={footer.logoHeight}
+    hideBrandName={footer.hideBrandName}
     owner={footer.owner}
     legalForm={footer.legalForm}
     city={footer.city}

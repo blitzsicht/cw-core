@@ -22,6 +22,28 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.97.1 (2026-08-07)
+
+- [kunde:sichtbar] Der Markenname im Fussbereich laesst sich jetzt tatsaechlich ausblenden — in v0.97.0 kam die Einstellung nicht an.
+
+**Fix:** `footer.hideBrandName` erreichte den Footer nicht
+
+v0.97.0 hat den Prop an `Footer.astro` gebaut, aber `LandingPage.astro` und
+`ContentPage.astro` reichen die Footer-Konfiguration **feldweise** durch statt per
+Spread — `hideBrandName` stand nicht in der Liste und fiel still auf `false` zurueck.
+Der Prop war damit ueber die Layouts nicht erreichbar; nur ein direkter
+`<Footer hideBrandName />`-Aufruf haette funktioniert.
+
+Gefunden beim Gegencheck am Kunden: Header-Markup nach dem v0.97.0-Upgrade sauber,
+im Footer stand `<a class="logo-name">Zink Baeckerei &amp; Konditorei</a>` unveraendert
+weiter unter dem Logo.
+
+Beide Layouts reichen den Prop jetzt durch, `FooterConfig` kennt ihn in beiden.
+
+**Keine Breaking Changes.**
+
+---
+
 ## v0.97.0 (2026-08-07)
 
 - [kunde:sichtbar] Der Kopfbereich der Website kann jetzt eine eigene Hintergrundfarbe bekommen, unabhaengig von der Hauptfarbe der Marke.

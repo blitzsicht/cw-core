@@ -90,6 +90,8 @@ export interface FooterConfig {
   logoSrc?: string;
   /** Inverted logo for the dark Footer background. See CI branding guide. */
   logoSrcDark?: string;
+  /** Suppress the brand-name line below the footer logo (text-logo case). */
+  hideBrandName?: boolean;
   logoWidth?: number;
   logoHeight?: number;
   owner?: string;
@@ -266,6 +268,7 @@ const {
     logoSrcDark={footer.logoSrcDark}
     logoWidth={footer.logoWidth}
     logoHeight={footer.logoHeight}
+    hideBrandName={footer.hideBrandName}
     owner={footer.owner}
     legalForm={footer.legalForm}
     city={footer.city}
