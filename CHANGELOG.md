@@ -22,6 +22,39 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.97.3 (2026-08-08)
+
+- [kunde:sichtbar] Kurze Textstellen in Schreibmaschinenschrift (Jahreszahlen, Domainnamen, technische Angaben) wurden auf Android- und Linux-Geraeten in einer zufaelligen Schriftart angezeigt, teils sogar in einer fuer asiatische Schriftzeichen gedachten. Sie nutzen jetzt ueberall dieselbe, festgelegte Schrift.
+
+**Fix:** monospace-Stacks nannten nur Apple-Schriften
+
+`CaseStudyBlock`, `FAQHonest`, `LocalProofMap` und `TechExcellence` fuehrten
+`font-family: ui-monospace, monospace` bzw. `ui-monospace, 'SF Mono', Menlo,
+monospace`. Ausserhalb der Apple-Welt existiert keiner dieser Namen, also
+entscheidet das generische `monospace` — und was es liefert, ist nicht
+festgelegt.
+
+Am 08.08.2026 im Linux-Testrunner gemessen (`playwright:v1.52.0-jammy`), an
+`span.report-domain` mit dem Text `blitzsicht.com`: Chrome loeste `monospace`
+beim ersten Layout als **`WenQuanYi Zen Hei Mono`** auf — eine Schrift fuer
+chinesische Zeichen — und nach einem Re-Layout als `Liberation Mono`. Damit
+aenderte sich die Textbreite von 112 px auf 134 px, ohne dass sich am Inhalt
+etwas geaendert haette.
+
+Alle vier Stacks nutzen jetzt `var(--font-mono)`. Das Token kommt aus dem
+Tailwind-v4-Default und fuehrt fuer jede Plattform konkrete Namen
+(`ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+"Courier New", monospace`). Kunden, die eine eigene Schreibmaschinenschrift
+setzen wollen, ueberschreiben `--font-mono` im `@theme` — vorher war das gar
+nicht moeglich.
+
+Nebenwirkung fuers Visual-Gate: die schwankende Textbreite war eine der beiden
+Ursachen fuer wechselnde Bildmasse im woechentlichen A/B-Lauf.
+
+**Keine Breaking Changes.**
+
+---
+
 ## v0.97.2 (2026-08-07)
 
 - [kunde:sichtbar] Buttons auf Inhaltsseiten hatten teils dieselbe Textfarbe wie ihr eigener Hintergrund und waren dadurch kaum lesbar. Behoben.
