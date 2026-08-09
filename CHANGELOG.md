@@ -22,6 +22,33 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.99.1 (2026-08-09)
+
+- [kunde:sichtbar] Die Rueckmeldung beim Antippen von Schaltflaechen wirkt jetzt auf allen Buttons der Website, nicht nur auf einzelnen. Auf Mobilgeraeten passierte beim Druecken bisher nichts Sichtbares.
+
+**Fix:** Druckpunkt lag an der falschen Stelle
+
+v0.99.0 hat den Druckpunkt in die Komponente `CTAPrimary` gelegt. Nachgemessen
+am ausgelieferten HTML: **kein einziger Live-Kunde importiert diese
+Komponente.** Alle nutzen die Utility-Klassen `.btn-accent` und `.btn-outline`
+aus dieser Datei — die hatten `:hover`, aber kein `:active`.
+
+Der Fix wandert damit dorthin, wo er ankommt. `.btn-accent` und `.btn-outline`
+sinken jetzt beim Druecken unter ihre Ruhelage (70 ms rein, 200 ms raus) statt
+lediglich den Hover-Versatz aufzuheben — was ohne Hover, also auf jedem
+Telefon, exakt keine sichtbare Aenderung war.
+
+`:not(:disabled)` verhindert, dass deaktivierte Schaltflaechen auf Druck
+reagieren und damit Bedienbarkeit vortaeuschen.
+
+Unter `prefers-reduced-motion` bleibt das Einsinken erhalten, die Stauchung
+faellt weg und die Dauer kollabiert auf 0,01 ms: Bewegung aus, Antwort an.
+
+**Migrations-Hinweis:** Keiner. Wer eigene Button-Klassen mitbringt, ist nicht
+betroffen; die Tokens tragen Fallback-Werte.
+
+---
+
 ## v0.99.0 (2026-08-09)
 
 - [kunde:sichtbar] Schaltflaechen reagieren jetzt spuerbar auf Beruehrung: sie sinken beim Antippen kurz ein und federn zurueck. Auf Mobilgeraeten passierte dabei bisher gar nichts. Nach dem Absenden eines Formulars springt die Bestaetigung sichtbar auf.
