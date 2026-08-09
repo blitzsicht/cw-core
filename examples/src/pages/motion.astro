@@ -1,0 +1,286 @@
+---
+/**
+ * Motion-Referenzseite — alle zwölf Komponenten aus components/motion/.
+ *
+ * Zweck (drei auf einmal):
+ *   1. Anschauungsobjekt — der Layer wurde bisher kaum genutzt, weil ihn niemand
+ *      in Aktion gesehen hat.
+ *   2. Prüfvehikel — liefert ein `dist/`, gegen das CSP, CLS und das Verhalten
+ *      ohne JavaScript geprüft werden können, ohne eine Kundenseite anzufassen.
+ *   3. Gegenbeweis — die Seite macht Defekt D1 (siehe unten) sichtbar, statt
+ *      ihn zu beschreiben.
+ *
+ * Bedienung:
+ *   cd examples && pnpm dev     → http://localhost:4322/motion
+ *   cd examples && pnpm build   → dist/motion/index.html
+ *
+ * D1-Test: Seite laden, dann JS in den DevTools deaktivieren und neu laden.
+ * Solange der Defekt besteht, verschwinden alle Reveal-Abschnitte dauerhaft.
+ */
+import AnimatedBlob from '@cw/core/components/motion/AnimatedBlob.astro';
+import CountUp from '@cw/core/components/motion/CountUp.astro';
+import CustomCursor from '@cw/core/components/motion/CustomCursor.astro';
+import FullBleed from '@cw/core/components/motion/FullBleed.astro';
+import MagneticButton from '@cw/core/components/motion/MagneticButton.astro';
+import ParallaxImage from '@cw/core/components/motion/ParallaxImage.astro';
+import ScrollProgress from '@cw/core/components/motion/ScrollProgress.astro';
+import ScrollReveal from '@cw/core/components/motion/ScrollReveal.astro';
+import StaggerGroup from '@cw/core/components/motion/StaggerGroup.astro';
+import TextReveal from '@cw/core/components/motion/TextReveal.astro';
+import TiltCard from '@cw/core/components/motion/TiltCard.astro';
+
+const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as const;
+---
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width" />
+  <title>Motion — cw-core Examples</title>
+  <meta name="description" content="Referenzseite für alle zwölf Motion-Komponenten aus cw-core." />
+  <style is:global>
+    @import "@cw/core/styles/tokens-base.css";
+
+    :root {
+      --color-primary: #1D1E3B;
+      --color-primary-dark: #15162e;
+      --color-accent: #EF7612;
+      --color-accent-dark: #d6610a;
+      --color-surface: #f8fafc;
+      --color-border: #e2e8f0;
+      --color-text: #1e293b;
+      --color-muted: #64748b;
+      --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+        'Liberation Mono', 'Courier New', monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-sans);
+      color: var(--color-text);
+      background: #fff;
+      line-height: 1.55;
+    }
+    .shell { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem 6rem; }
+    .back { display: inline-block; margin-bottom: 1.5rem; color: var(--color-muted);
+            font-size: 0.875rem; text-decoration: none; }
+    h1 { font-size: 2rem; color: var(--color-primary); margin: 0 0 0.5rem; }
+    .lead { color: var(--color-muted); margin: 0 0 2rem; padding-bottom: 1rem;
+            border-bottom: 1px solid var(--color-border); }
+
+    /* Jeder Demo-Block. Grosszuegige Hoehe, damit beim Scrollen wirklich
+       ein Viewport-Eintritt stattfindet und die Observer feuern. */
+    .demo {
+      margin: 4rem 0;
+      padding: 1.5rem;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      min-height: 40vh;
+    }
+    .demo > h2 {
+      font-family: var(--font-mono);
+      font-size: 1rem;
+      color: var(--color-primary);
+      margin: 0 0 0.25rem;
+    }
+    .demo > .was { font-size: 0.875rem; color: var(--color-muted); margin: 0 0 1.25rem; }
+
+    .karten { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+    .karte {
+      padding: 1.25rem; background: var(--color-surface);
+      border-radius: 8px; border-left: 4px solid var(--color-accent);
+    }
+    .zahl { font-size: 2rem; font-weight: 700; color: var(--color-accent); }
+    .platzhalter {
+      height: 220px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+    }
+    .blob-buehne { position: relative; height: 220px; border-radius: 8px; overflow: hidden; }
+
+    /* Statuszeile: belegt sichtbar, ob JS lief. Ohne JS bleibt der rote Text
+       stehen — zusammen mit dem noscript-Kasten ist das der D1-Nachweis. */
+    .js-status {
+      font-family: var(--font-mono); font-size: 0.8125rem;
+      padding: 0.75rem 1rem; border-radius: 6px;
+      background: #fee2e2; color: #991b1b;
+    }
+    .warnung {
+      border-left: 4px solid #dc2626; background: #fef2f2;
+      padding: 1rem 1.25rem; border-radius: 6px; margin: 1.5rem 0;
+      font-size: 0.9375rem;
+    }
+    .warnung strong { color: #991b1b; }
+    @media (prefers-reduced-motion: reduce) {
+      .rm-hinweis::after { content: ' — gerade aktiv: Animationen sind abgeschaltet.'; font-weight: 700; }
+    }
+  </style>
+</head>
+<body>
+  <ScrollProgress />
+  <CustomCursor />
+
+  <main class="shell">
+    <a href="/" class="back">← Übersicht</a>
+    <h1>Motion-Komponenten</h1>
+    <p class="lead">
+      Alle zwölf Komponenten aus <code>components/motion/</code>. Scrolle langsam —
+      die meisten Effekte lösen erst beim Eintritt in den Viewport aus.
+    </p>
+
+    <p class="js-status" id="js-status">
+      JavaScript ist <strong>nicht</strong> gelaufen. Alle Reveal-Abschnitte unten sind
+      dadurch dauerhaft unsichtbar — das ist Defekt D1.
+    </p>
+
+    <noscript>
+      <div class="warnung">
+        <strong>D1 belegt.</strong> Ohne JavaScript setzt niemand die Klasse
+        <code>.is-visible</code>. Alles unter <code>[data-motion-reveal]</code> steht auf
+        <code>opacity: 0</code> und bleibt es — auch für Crawler, die kein JS ausführen.
+        Genau deshalb gilt: Reparatur vor Rollout.
+      </div>
+    </noscript>
+
+    <p class="rm-hinweis" style="font-size:0.875rem;color:var(--color-muted)">
+      Diese Seite respektiert <code>prefers-reduced-motion</code>.
+    </p>
+
+    <!-- 1 ScrollReveal — alle sechs Richtungen -->
+    <section class="demo">
+      <h2>ScrollReveal</h2>
+      <p class="was">Blendet Inhalt beim Viewport-Eintritt ein. Sechs Richtungen.</p>
+      {revealRichtungen.map((r) => (
+        <ScrollReveal direction={r}>
+          <div class="karte" style="margin-bottom:0.75rem">Richtung <code>{r}</code></div>
+        </ScrollReveal>
+      ))}
+    </section>
+
+    <!-- 2 StaggerGroup -->
+    <section class="demo">
+      <h2>StaggerGroup</h2>
+      <p class="was">Wie ScrollReveal, aber die Kinder kommen zeitversetzt nacheinander.</p>
+      <StaggerGroup class="karten" gap={0.1}>
+        <div class="karte">Erstes</div>
+        <div class="karte">Zweites</div>
+        <div class="karte">Drittes</div>
+        <div class="karte">Viertes</div>
+      </StaggerGroup>
+    </section>
+
+    <!-- 3 TextReveal — Achtung: animiert erst ab 901px Breite -->
+    <section class="demo">
+      <h2>TextReveal</h2>
+      <p class="was">
+        Zerlegt Text und blendet ihn wortweise ein. <strong>Ab 901 px Breite</strong> —
+        auf dem Telefon passiert nichts.
+      </p>
+      <h3 style="font-size:1.75rem;color:var(--color-primary)">
+        <TextReveal>Sichtbar werden, wo Menschen suchen.</TextReveal>
+      </h3>
+    </section>
+
+    <!-- 4 CountUp — zeigt den Rohtext-Mangel -->
+    <section class="demo">
+      <h2>CountUp</h2>
+      <p class="was">
+        Zählt eine Zahl hoch. <strong>Bekannter Mangel:</strong> sichtbar gerendert wird der
+        Startwert — im Rohtext steht „0“, nicht das Ergebnis. Für Kennzahlen, die zitiert
+        werden sollen, derzeit ungeeignet.
+      </p>
+      <div class="karten">
+        <div class="karte"><span class="zahl"><CountUp value={127} suffix="+" /></span><br />Projekte</div>
+        <div class="karte"><span class="zahl"><CountUp value={98} suffix=" %" /></span><br />Zufriedenheit</div>
+        <div class="karte"><span class="zahl"><CountUp value={14} prefix="seit " /></span><br />Jahren</div>
+      </div>
+    </section>
+
+    <!-- 5 TiltCard — Default-an in PaketeSection und Hero -->
+    <section class="demo">
+      <h2>TiltCard</h2>
+      <p class="was">
+        Neigt die Karte zum Zeiger. <strong>Nur mit Maus</strong> — auf Touch wirkungslos.
+        Läuft in <code>PaketeSection</code> per Voreinstellung mit und im Hero, sobald
+        <code>images</code> gesetzt ist.
+      </p>
+      <div class="karten">
+        <TiltCard><div class="karte">Standard (10°)</div></TiltCard>
+        <TiltCard maxTilt={4} scale={1.02}><div class="karte">Dezent (4°) — wie im Hero</div></TiltCard>
+      </div>
+    </section>
+
+    <!-- 6 MagneticButton -->
+    <section class="demo">
+      <h2>MagneticButton</h2>
+      <p class="was">Der Knopf wandert dem Zeiger entgegen. Nur mit Maus.</p>
+      <MagneticButton>
+        <a href="#" class="btn-accent" style="display:inline-block;padding:0.75rem 1.5rem;
+           background:var(--color-accent);color:#fff;border-radius:6px;text-decoration:none">
+          Termin vereinbaren
+        </a>
+      </MagneticButton>
+    </section>
+
+    <!-- 7 ParallaxImage -->
+    <section class="demo">
+      <h2>ParallaxImage</h2>
+      <p class="was">Bewegt den Inhalt langsamer als den Scroll.</p>
+      <ParallaxImage speed={0.3}><div class="platzhalter"></div></ParallaxImage>
+    </section>
+
+    <!-- 8 AnimatedBlob -->
+    <section class="demo">
+      <h2>AnimatedBlob</h2>
+      <p class="was">Weiche, driftende Farbflächen als Hintergrund. Reines CSS, kein JS.</p>
+      <div class="blob-buehne"><AnimatedBlob /></div>
+    </section>
+
+    <!-- 9 ScrollProgress (oben aktiv) -->
+    <section class="demo">
+      <h2>ScrollProgress</h2>
+      <p class="was">Fortschrittsbalken am oberen Rand — auf dieser Seite aktiv.</p>
+    </section>
+
+    <!-- 10 CustomCursor (global aktiv) -->
+    <section class="demo">
+      <h2>CustomCursor</h2>
+      <p class="was">Ersetzt den Mauszeiger. Auf dieser Seite aktiv, nur mit Maus sichtbar.</p>
+    </section>
+
+    <!-- 11 FullBleed — Waisenkind, wird sonst nirgends genutzt -->
+    <section class="demo">
+      <h2>FullBleed</h2>
+      <p class="was">
+        Bricht aus der Inhaltsbreite auf volle Fensterbreite aus.
+        <strong>Wird derzeit von keinem Block und keinem Kunden genutzt</strong> — Kandidat
+        zum Streichen.
+      </p>
+    </section>
+    <FullBleed reveal="fade">
+      <div class="platzhalter" style="border-radius:0"></div>
+    </FullBleed>
+
+    <!-- 12 SmoothScroll — bewusst nicht eingebunden -->
+    <section class="demo">
+      <h2>SmoothScroll</h2>
+      <p class="was">
+        Weiches Scrollen über <code>lenis</code>. Hier <strong>bewusst nicht eingebunden</strong>:
+        Es ist die einzige Komponente mit externer Abhängigkeit (optionale Peer-Dependency,
+        dynamisch geladen). Wer sie nutzt, holt Fremdcode ins Bundle.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    // Belegt, dass JS lief. Ohne JS bleibt die rote Meldung stehen — der D1-Nachweis.
+    const el = document.getElementById('js-status');
+    if (el) {
+      el.style.background = '#dcfce7';
+      el.style.color = '#166534';
+      el.textContent =
+        'JavaScript läuft — die Reveal-Abschnitte werden beim Scrollen eingeblendet.';
+    }
+  </script>
+</body>
+</html>
