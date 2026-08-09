@@ -69,13 +69,29 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
   text-decoration: none;
-  transition: background 0.2s, transform 0.1s;
+  /* transform traegt hier die Rueckkehr in die Ruhelage (raus, langsamer);
+     das Eindruecken ueberschreibt die Dauer in :active (rein, schneller). */
+  transition: background 0.2s,
+              transform var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)),
+              filter var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1));
   /* Subtle shadow ensures WCAG AA contrast even on lighter accent backgrounds */
   text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 .btn-accent:hover {
   background: var(--color-accent-hover);
   transform: translateY(-1px);
+}
+/* Druckpunkt. Muss UNTER die Ruhelage gehen, nicht auf sie zurueck:
+ * ein `translateY(0)` hier wuerde lediglich den Hover-Versatz aufheben, und
+ * ohne Hover — also auf jedem Telefon — ist der Ausgangswert bereits 0.
+ * Das Ergebnis waere exakt keine sichtbare Rueckmeldung, ausgerechnet auf
+ * dem Kanal, ueber den die meisten Besucher kommen.
+ * Rein schnell, raus langsamer: die Asymmetrie ist der Grund, warum sich das
+ * nach Antwort anfuehlt statt nach Nachlauf. */
+.btn-accent:active:not(:disabled) {
+  transform: translateY(var(--motion-press-offset, 2px)) scale(var(--motion-press-scale, 0.97));
+  filter: brightness(0.94);
+  transition-duration: var(--motion-press-in, 70ms);
 }
 .btn-accent:disabled {
   background: #9ca3af;
@@ -97,11 +113,20 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 0.5rem;
   border: 2px solid rgba(255,255,255,0.7);
   text-decoration: none;
-  transition: border-color 0.2s, background 0.2s;
+  /* transform/filter ergaenzt, damit der Druckpunkt unten ueberhaupt
+     animiert werden kann — vorher standen hier nur Farbuebergaenge. */
+  transition: border-color 0.2s, background 0.2s,
+              transform var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)),
+              filter var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1));
 }
 .btn-outline:hover {
   border-color: white;
   background: rgba(255,255,255,0.1);
+}
+.btn-outline:active:not(:disabled) {
+  transform: translateY(var(--motion-press-offset, 2px)) scale(var(--motion-press-scale, 0.97));
+  filter: brightness(0.94);
+  transition-duration: 0.2s, 0.2s, var(--motion-press-in, 70ms), var(--motion-press-in, 70ms);
 }
 
 /* Typography */
@@ -226,6 +251,19 @@ h1, h2, h3, h4, h5, h6 {
   .motion-cursor { display: none; }
   [data-motion-parallax] { transform: none !important; }
   [data-motion-blob] { animation: none !important; }
+
+  /* Bewegung aus, Antwort an.
+   * Der Druckpunkt bleibt sichtbar, er passiert nur sofort statt ueber Zeit.
+   * Wer weniger Bewegung einstellt, will keine Rueckmeldung verlieren — ein
+   * `transform: none` an dieser Stelle wuerde genau das tun.
+   * Die Stauchung faellt weg (sie ist die eigentliche "Bewegung"), das
+   * Einsinken bleibt (es ist die Aussage). */
+  .btn-accent, .btn-outline { transition-duration: 0.01ms; }
+  .btn-accent:active:not(:disabled),
+  .btn-outline:active:not(:disabled) {
+    transform: translateY(var(--motion-press-offset, 2px));
+    transition-duration: 0.01ms;
+  }
 }
 
 /* ---------------------------------------------------------------------------
