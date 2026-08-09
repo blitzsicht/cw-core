@@ -22,6 +22,58 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.99.0 (2026-08-09)
+
+- [kunde:sichtbar] Schaltflaechen reagieren jetzt spuerbar auf Beruehrung: sie sinken beim Antippen kurz ein und federn zurueck. Auf Mobilgeraeten passierte dabei bisher gar nichts. Nach dem Absenden eines Formulars springt die Bestaetigung sichtbar auf.
+
+**Feature:** Interaktions-Rueckmeldung — Druckpunkt und Erfolgs-Quittung
+
+Die bisherigen Motion-Dauern (0,25–1,1 s) beschreiben, wie etwas *auftaucht*.
+Eine Antwort auf eine Eingabe braucht eine andere Groessenordnung: sie muss der
+Eingabe folgen, nicht ihr hinterherlaufen. Dafuer gibt es jetzt eine eigene
+Skala in `tokens-base.css`:
+
+| Token | Wert | Zweck |
+| --- | --- | --- |
+| `--motion-press-in` | 70ms | Eingabe → gedrueckt |
+| `--motion-press-out` | 200ms | losgelassen → Ruhelage |
+| `--motion-press-offset` | 2px | Einsinktiefe |
+| `--motion-press-scale` | 0.97 | Stauchung |
+| `--motion-ack` | 420ms | Dauer der Erfolgs-Quittung |
+| `--motion-ack-delay` | 90ms | Taktschlag davor |
+
+Die Asymmetrie zwischen `in` und `out` ist der Kern. Gleiche Dauern in beide
+Richtungen sind der Hauptgrund, warum Web-Oberflaechen sich zaeh anfuehlen,
+waehrend dieselbe Bewegung in Software wertig wirkt. Der Taktschlag vor der
+Quittung laesst die Rueckmeldung wie eine Antwort wirken statt wie einen Reflex.
+
+**Fix:** `CTAPrimary` hatte auf Mobilgeraeten keinen Druckpunkt
+
+Bisher stand dort `:hover { translateY(-1px) }` und `:active { translateY(0) }`.
+Der Druckpunkt hob also nur den Hover-Versatz auf. Ohne Hover — also auf jedem
+Telefon — ist der Ausgangswert bereits `0`: Druecken bewirkte exakt keine
+sichtbare Aenderung, und zwar auf dem Kanal, ueber den die meisten Besucher
+kommen. Der Knopf sinkt jetzt unter seine Ruhelage.
+
+**Fix:** Erfolgsmeldung in `ContactForm` war fuer Screenreader stumm
+
+Der Block trug weder `role="status"` noch `aria-live`. Das Formular verschwand,
+ein Bestaetigungstext erschien — beides ohne Ansage; das Haekchen ist
+`aria-hidden` (korrekt, es ist Dekoration), die Ueberschrift wurde nie
+vorgelesen. Jetzt `role="status" aria-live="polite"`.
+
+**Barrierefreiheit:** Unter `prefers-reduced-motion` faellt die *Bewegung* weg,
+die *Antwort* bleibt. Dauern kollabieren auf 0,01 ms statt auf `none` — so
+erreicht jede Animation ihren Endzustand. Ein hartes `animation: none` haette
+das Haekchen auf seinem Startbild eingefroren, also unsichtbar gemacht.
+
+**Migrations-Hinweis:** Keiner. Alle Tokens haben Fallback-Werte; wer
+`tokens-base.css` nicht einbindet, bekommt dieselben Zahlen ueber `var(…, …)`.
+Der Quittungs-Keyframe wohnt bewusst in der Komponente, damit die Sichtbarkeit
+des Haekchens nicht daran haengt, ob die Token-Datei geladen wurde.
+
+---
+
 ## v0.98.0 (2026-08-09)
 
 **Feature:** `ContentPage` kann den Titel weglassen — `showTitle`

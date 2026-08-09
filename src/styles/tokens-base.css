@@ -128,7 +128,31 @@ h1, h2, h3, h4, h5, h6 {
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);       /* "expo-out" feel */
   --motion-ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
   --motion-stagger: 0.08s;
+
+  /* Interaktions-Rückmeldung — bewusst eine EIGENE Skala, nicht die obige.
+   *
+   * Die Reveal-Dauern (0,25–1,1 s) beschreiben, wie etwas auftaucht. Eine
+   * Antwort auf eine Eingabe braucht eine andere Größenordnung: sie muss der
+   * Eingabe folgen, nicht ihr hinterherlaufen. Ein Knopf mit 0,6 s wirkt träge
+   * neben einer Bestätigung, die in 70 ms kommt.
+   *
+   * Die Asymmetrie ist der Kern: rein schnell, raus langsamer. Gleiche Dauern
+   * in beide Richtungen sind der Hauptgrund, warum Web-UI sich zäh anfühlt,
+   * während dieselbe Bewegung in Software wertig wirkt.
+   *
+   * --motion-ack-delay ist kein Versehen: der Taktschlag zwischen Handlung und
+   * Bestätigung lässt die Rückmeldung wie eine Antwort wirken statt wie ein
+   * Reflex. Ohne ihn wirkt eine Erfolgsmeldung hektisch.
+   */
+  --motion-press-in: 70ms;      /* Eingabe → gedrückt */
+  --motion-press-out: 200ms;    /* losgelassen → Ruhelage */
+  --motion-press-offset: 2px;   /* wie tief der Knopf einsinkt */
+  --motion-press-scale: 0.97;
+  --motion-ack: 420ms;          /* Dauer der Erfolgs-Quittung */
+  --motion-ack-delay: 90ms;     /* Taktschlag davor */
+  --motion-ease-press: cubic-bezier(0.16, 1, 0.3, 1);      /* expo-out */
 }
+
 
 /* Pre-reveal state for ScrollReveal / StaggerGroup children.
  * Initial state is set via [data-motion-reveal]; the `.is-visible` class
