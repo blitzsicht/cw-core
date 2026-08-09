@@ -246,7 +246,13 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       </div>
     </form>
 
-    <div class="form-success" hidden>
+    <!-- aria-live: ohne das erfährt ein Screenreader-Nutzer vom Erfolg nichts.
+         Das Formular verschwindet, ein Block erscheint — beides still. Das
+         Häkchen ist aria-hidden (richtig: es ist Dekoration), die Überschrift
+         trägt die Aussage, wird ohne Live-Region aber nie angesagt.
+         `polite` statt `assertive`: der Erfolg ist wichtig, aber nicht so
+         dringend, dass er laufende Ausgabe unterbrechen müsste. -->
+    <div class="form-success" hidden role="status" aria-live="polite">
       <div class="success-icon" aria-hidden="true">✓</div>
       <h3>{formType === 'waitlist' ? 'Du stehst auf der Liste!' : 'Vielen Dank!'}</h3>
       {formType === 'audit' && <p>Wir analysieren Ihre Website und melden uns innerhalb von 48 Stunden.</p>}
@@ -565,6 +571,31 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
     border-radius: 50%;
     font-size: 1.75rem;
     margin-bottom: 1.25rem;
+    /* Die Quittung: der einzige Moment im System, in dem etwas geschafft ist.
+     * Der Taktschlag davor (--motion-ack-delay) trennt Handlung und
+     * Bestätigung — ohne ihn wirkt es hektisch, mit ihm wie eine Antwort.
+     * `both` hält den Endzustand, damit das Häkchen nach der Animation
+     * sichtbar bleibt und nicht auf scale(0.6) zurückfällt. */
+    animation: cw-ack-pop var(--motion-ack, 420ms)
+               cubic-bezier(0.34, 1.56, 0.64, 1)
+               var(--motion-ack-delay, 90ms) both;
+  }
+  /* Der Keyframe wohnt bewusst HIER, nicht in tokens-base.css: sonst hinge
+   * die Sichtbarkeit des Häkchens daran, ob das Kundenprojekt jene Datei
+   * eingebunden hat. Overshoot ist im System die Ausnahme — dies ist der
+   * einzige Moment, in dem etwas geschafft ist. */
+  @keyframes cw-ack-pop {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  /* Weniger Bewegung: Dauer kollabiert, Endzustand bleibt erreicht.
+   * `animation: none` würde das Häkchen auf dem Startbild einfrieren
+   * (scale 0.6, opacity 0) — also unsichtbar machen. */
+  @media (prefers-reduced-motion: reduce) {
+    .success-icon {
+      animation-duration: 0.01ms;
+      animation-delay: 0ms;
+    }
   }
   .form-success h3 { font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--color-primary); }
   .form-success p { color: var(--color-muted); margin: 0; }

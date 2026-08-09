@@ -92,15 +92,37 @@ if (isVague && import.meta.env.DEV) {
     font-size: 1rem;
     font-weight: 600;
     text-decoration: none;
-    transition: background 0.2s, transform 0.1s;
+    /* Zwei Dauern: raus (Ruhelage) ist der Normalzustand der Transition,
+     * rein wird in :active überschrieben. Asymmetrie ist Absicht. */
+    transition: background 0.2s,
+                transform var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)),
+                filter var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1));
     min-height: 44px; /* WCAG touch target */
     line-height: 1.2;
   }
   .cta-primary:hover {
     transform: translateY(-1px);
   }
+  /* Der Druckpunkt muss UNTER die Ruhelage gehen, nicht auf sie zurück.
+   * Vorher stand hier `translateY(0)` — das hebt lediglich den Hover-Versatz
+   * auf. Auf einem Telefon gibt es keinen Hover, der Ausgangswert ist also
+   * bereits 0: Drücken bewirkte dort exakt keine sichtbare Änderung. Genau
+   * auf dem Kanal, über den die meisten Besucher kommen. */
   .cta-primary:active {
-    transform: translateY(0);
+    transform: translateY(var(--motion-press-offset, 2px)) scale(var(--motion-press-scale, 0.97));
+    filter: brightness(0.94);
+    transition-duration: 0.2s, var(--motion-press-in, 70ms), var(--motion-press-in, 70ms);
+  }
+  /* Weniger Bewegung: der Übergang fällt weg, die Antwort bleibt.
+   * Wer diese Einstellung wählt, will keine Rückmeldung verlieren — nur
+   * keine Bewegung. Ein hartes `transform: none` würde den Druckpunkt
+   * komplett entfernen. */
+  @media (prefers-reduced-motion: reduce) {
+    .cta-primary { transition-duration: 0.01ms; }
+    .cta-primary:active {
+      transform: translateY(var(--motion-press-offset, 2px));
+      transition-duration: 0.01ms;
+    }
   }
   .cta-primary:focus-visible {
     outline: 2px solid var(--color-accent, #EF7612);
