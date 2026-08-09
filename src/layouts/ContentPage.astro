@@ -108,6 +108,15 @@ interface Props {
    * - `false`: erzwingt den normalen 3rem-Atemraum.
    */
   flushBottom?: boolean;
+  /**
+   * Rendert `title` als `<h1>` über dem Slot. Default `true`.
+   *
+   * Auf `false` setzen, wenn die Seite im Slot eine eigene `<h1>` mitbringt —
+   * sonst stehen zwei sichtbare H1 untereinander, die erste mit der
+   * `border-bottom`-Linie dieses Layouts. `title` wird weiterhin gebraucht:
+   * BaseLayout speist daraus `<title>` und die SEO-Tags.
+   */
+  showTitle?: boolean;
 }
 
 const {
@@ -130,6 +139,7 @@ const {
   footer,
   turnstileSiteKey,
   flushBottom,
+  showTitle = true,
 } = Astro.props;
 
 // Zero-config: flushBottom explizit gesetzt → gilt. Sonst automatisch bündig,
@@ -170,7 +180,7 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
   />
   <main class:list={["content-page", { "flush-bottom": shouldFlush }]}>
     <div class="container">
-      <h1>{title}</h1>
+      {showTitle && <h1>{title}</h1>}
       <slot />
     </div>
     <slot name="full-width" />

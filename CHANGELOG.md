@@ -22,6 +22,56 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.98.0 (2026-08-09)
+
+**Feature:** `ContentPage` kann den Titel weglassen — `showTitle`
+
+`ContentPage.astro` rendert den `title`-Prop hart als `<h1>`. Bringt die Seite im
+Slot eine eigene `<h1>` mit, stehen zwei sichtbare Ueberschriften untereinander —
+die erste mit der `border-bottom`-Linie des Layouts. Das ist keine reine
+Semantik-Frage: es sieht aus wie ein Fehler, und Suchmaschinen bekommen zwei
+konkurrierende Hauptueberschriften.
+
+Am 08.08.2026 live an `baeckereizink.de/catering` gemessen:
+
+```html
+<h1 data-astro-cid-gohdapgh>Catering — Brotzeit, Torten &amp; Fingerfood</h1>
+<h1 data-astro-cid-456pihg2>Catering aus der eigenen Backstube</h1>
+```
+
+Ueber alle 25 Customer-Repos nachgezaehlt sind vier betroffen, mit elf Seiten:
+`customer-zink-baeckerei` (sortiment, catering, festival-catering),
+`customer-donau-profi` und `customer-pferdesport-silberhorn` (je datenschutz,
+impressum, danke — dort exakte Dubletten „Impressum" / „Impressum") sowie
+`customer-mika-elektrotechnik` (ueber-uns, leistungen/[slug]).
+
+Neuer Prop:
+
+- `showTitle?: boolean` — Default `true`. Auf `false` rendert das Layout keine
+  eigene `<h1>`, die Seite bringt ihre eigene im Slot mit.
+
+```astro
+<ContentPage {...landingBaseProps} title="Catering — Brotzeit, Torten & Fingerfood" showTitle={false}>
+  <h1>Catering aus der eigenen Backstube</h1>
+</ContentPage>
+```
+
+`title` bleibt Pflicht-Prop und wird weiter gebraucht: `BaseLayout` speist daraus
+`<title>` und die SEO-Tags. Weggelassen wird nur die sichtbare Ueberschrift.
+
+Das scoped CSS `.content-page h1` bleibt unveraendert. Astro scopt es auf die
+`cid` des Layouts, die Slot-H1 der Seite wird davon ohnehin nicht getroffen —
+deshalb bringen die betroffenen Seiten eigene `.head h1`-Regeln mit.
+
+Gleiches Muster wie `showTitle` in `PaketeSection.astro`.
+
+**Migrations-Hinweis:** Keiner. Default `true` haelt bestehendes Verhalten
+unveraendert — ohne Opt-in aendert der Bump auf keiner Seite etwas. Die vier
+betroffenen Repos brauchen zusaetzlich `showTitle={false}` an den jeweiligen
+Seiten; der Bump allein behebt dort nichts.
+
+---
+
 ## v0.97.3 (2026-08-08)
 
 - [kunde:sichtbar] Kurze Textstellen in Schreibmaschinenschrift (Jahreszahlen, Domainnamen, technische Angaben) wurden auf Android- und Linux-Geraeten in einer zufaelligen Schriftart angezeigt, teils sogar in einer fuer asiatische Schriftzeichen gedachten. Sie nutzen jetzt ueberall dieselbe, festgelegte Schrift.
