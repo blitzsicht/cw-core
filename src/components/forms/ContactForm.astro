@@ -126,8 +126,13 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         </>
       )}
 
-      <!-- Honeypot Spam-Schutz (immer rendern, in beiden Submit-Pfaden) -->
-      <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" />
+      <!-- Honeypot Spam-Schutz (immer rendern, in beiden Submit-Pfaden).
+           aria-hidden wie beim url_honey darunter: ohne das meldeten axe und htmlcs
+           je einen Fehler ("kein zugaenglicher Name"), weil ein Formularfeld ohne
+           Label im A11y-Baum steht. Zulaessig, weil tabindex="-1" das Feld nicht
+           fokussierbar macht. Die Spam-Abwehr bleibt unveraendert — gelesen wird
+           botcheck in handle-submission.js und contact-handler.js. -->
+      <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
       <!-- URL-Honeypot — Bots füllen oft "url" oder "website" automatisch aus -->
       <input type="text" name="url_honey" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" aria-hidden="true" />
 

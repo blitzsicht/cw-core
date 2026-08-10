@@ -109,9 +109,13 @@ const hasImage = !!teamImage;
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.9);
-    border: 1px solid rgba(255,255,255,0.2);
+    /* Dunkler statt hellerer Schleier — derselbe Fix wie in Hero.astro (v0.101.1).
+       Ein Weissschleier hellt den farbigen Grund auf und drueckt den Kontrast des
+       Textes darauf: an Zink gemessen 3.95:1, also unter AA. Abgedunkelt und voll
+       deckend sind es 6.49:1. */
+    background: rgba(0,0,0,0.15);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.45);
     border-radius: 100px;
     padding: 0.375rem 0.875rem;
     font-size: 0.8125rem;
@@ -127,7 +131,10 @@ const hasImage = !!teamImage;
   }
   .hero-sub {
     font-size: clamp(1rem, 1.5vw, 1.2rem);
-    color: rgba(255,255,255,0.8);
+    /* Volle Deckkraft statt 0.8 — beim Fix in Hero.astro und CTABlock (v0.101.0)
+       uebersehen, obwohl es dieselbe Ursache ist: 3.52:1 auf dem hellen
+       Verlaufsende, ohne Transparenz 4.99:1. */
+    color: #ffffff;
     max-width: 52ch;
     line-height: 1.7;
     margin: 0 0 2rem;

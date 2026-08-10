@@ -98,7 +98,11 @@ const {
     margin-bottom: 1rem;
   }
   .danke-message {
-    color: rgba(255, 255, 255, 0.65);
+    /* Volle Deckkraft statt 0.65. Anders als bei Hero und CTABlock liegt hier eine
+       Volltonflaeche (--color-primary), kein Verlauf: der Wert war mit 2.68:1 an
+       Zink gemessen der schlechteste der Site, und der Fix wird deshalb auch in der
+       pa11y-Zahl sichtbar. Voll deckend sind es 4.99:1. */
+    color: #ffffff;
     margin-bottom: 2rem;
   }
   .danke-cta {

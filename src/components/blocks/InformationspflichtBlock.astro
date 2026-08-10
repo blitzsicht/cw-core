@@ -412,7 +412,13 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
     font-size: 0.9375rem;
   }
   .informationspflicht-block ul { padding-left: 1.25rem; margin-bottom: 0.75rem; }
-  .informationspflicht-block a { color: var(--color-accent-text, var(--color-primary)); }
+  /* Unterstrichen, nicht nur eingefaerbt: axe (link-in-text-block) verlangt, dass ein
+     Link im Fliesstext auch ohne Farbwahrnehmung erkennbar ist. Auf Zinks
+     /datenschutz waren das vier Meldungen — Mailto- und Querverweise mitten im Absatz. */
+  .informationspflicht-block a {
+    color: var(--color-accent-text, var(--color-primary));
+    text-decoration: underline;
+  }
   .ip-table {
     width: 100%;
     border-collapse: collapse;

@@ -22,6 +22,66 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.102.0 (2026-08-10)
+
+- [kunde:sichtbar] Vier Stellen auf der Website waren für Menschen mit eingeschränktem Sehvermögen schwer zu lesen: helle Schrift auf farbigem Grund war zu blass. Sie ist jetzt voll deckend. Außerdem sind Links im Datenschutz-Text unterstrichen, damit sie nicht allein an der Farbe erkennbar sind.
+
+**Fix:** Vier A11y-Befunde, die beim Fix in v0.101.0/.1 übersehen wurden
+
+Der Lauf, der v0.101.0 ausgelöst hat, prüfte nur die Startseite und zwei Unterseiten.
+Nachdem die pa11y-Konfiguration bei Zink am 10.08. auf alle zwölf gebauten Seiten
+erweitert wurde, tauchte dieselbe Ursache an vier weiteren Stellen auf — teils in
+Komponenten, die vorher nie im Prüfumfang standen. Es ist **Bestand, kein Rückschritt**.
+
+Alle Werte an Zinks `--color-primary` (`#d90570`) gemessen:
+
+| Komponente | Stelle | vorher | nachher |
+|---|---|---|---|
+| `KarriereHero` | `.hero-badge` (Weißschleier `rgba(255,255,255,.1)`) | 3.95:1 | 6.49:1 |
+| `KarriereHero` | `.hero-sub` (Deckkraft 0.8) | 3.52:1 | 4.99:1 |
+| `DankePage` | `.danke-message` (Deckkraft 0.65) | **2.68:1** | 4.99:1 |
+| `ContactForm` | Honeypot ohne zugänglichen Namen | — | — |
+| `InformationspflichtBlock` | Links nur farblich unterschieden | — | — |
+
+`KarriereHero` bekommt exakt die Behandlung, die `Hero.astro` in v0.101.0/.1 erhalten hat:
+abdunkelnder statt aufhellender Schleier beim Badge, volle Deckkraft beim Subtext. Die
+Komponente war damals schlicht nicht mitgeprüft worden.
+
+`DankePage` ist der schwerwiegendste Einzelbefund — mit 2.68:1 der schlechteste Wert im
+gesamten Bestand. Anders als bei `Hero` und `CTABlock` liegt dort eine **Volltonfläche**
+statt eines Verlaufs, weshalb der Fix auch in der pa11y-Zahl sichtbar wird.
+
+Beim `ContactForm`-Honeypot fehlte `aria-hidden`, das das `url_honey`-Feld direkt daneben
+längst trägt. Ohne das stand ein Formularfeld ohne Label im A11y-Baum und erzeugte je eine
+Meldung von axe und htmlcs. **Die Spam-Abwehr ist unverändert** — `botcheck` wird in
+`handle-submission.js` und `contact-handler.js` weiterhin gelesen, `tabindex="-1"` hält das
+Feld unfokussierbar.
+
+Gegenprobe an Zink, identischer Build, nur die cw-core-Version unterschiedlich:
+
+| Seite | vorher | nachher |
+|---|---:|---:|
+| `/danke` | 1 | **0** |
+| `/kontakt` | 2 | **0** |
+| `/datenschutz` | 4 | **0** |
+| `/karriere` | 3 | 3 — siehe unten |
+| Gesamt (12 Seiten) | 38 | 31 |
+
+**Warum `/karriere` bei 3 bleibt, obwohl der Fix greift:** Der Block liegt auf einem
+`linear-gradient`. Dort kann axe die Hintergrundfarbe an der Textposition nicht bestimmen
+und meldet konservativ weiter — unabhängig davon, welche Textfarbe darauf steht. Derselbe
+Effekt betrifft `Hero` und `CTABlock` und ist seit v0.101.0 dokumentiert. Der
+Kontrastgewinn ist real, er ist nur rechnerisch zu belegen und nicht durch Zählen von
+Meldungen. Wer an diesen Stellen „grün" will, muss den Verlauf antasten, nicht die Schrift.
+
+322/322 Tests grün.
+
+**Migrations-Hinweis:** Keiner, der Bump genügt. Sichtbar ändert sich das Erscheinungsbild
+an drei Stellen: Karriere-Hero (Badge dunkler hinterlegt, Subtext heller), Danke-Seite
+(Fließtext heller), Datenschutz (Links unterstrichen).
+
+---
+
 ## v0.101.3 (2026-08-10)
 
 - [kunde] Keine Auswirkung auf die Website. Eine interne Prüfung meldete bisher einen Fehler, wo keiner war — sie hätte irgendwann grundlos den Veröffentlichungs-Vorgang blockiert.
