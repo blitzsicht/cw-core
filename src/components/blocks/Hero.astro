@@ -241,6 +241,14 @@ const motionCfg: HeroMotionConfig =
       )}
     </div>
 
+    {/*
+      fallbackFormat="webp" ist Pflicht, nicht Kosmetik: `formats` steuert nur die
+      <source>-Eintraege, das <img>-Fallback erzeugt Astro sonst im Default — PNG,
+      unkomprimiert. Aus einer 144-KB-WebP-Quelle wurde so ein 1900-KB-PNG, das in
+      jedem dist/ mitliegt (gemessen 10.08.2026 an zink/mika/schiller/steller).
+      Moderne Browser laden es nie, aber es zaehlt gegen das Perf-Budget und hielt
+      fuenf Kunden dauerhaft rot. Siehe blitzsicht-ops#641.
+    */}
     {hasImage && (
       motionCfg.parallax ? (
         <ParallaxImage class="hero-image-wrap" speed={0.2}>
@@ -253,6 +261,7 @@ const motionCfg: HeroMotionConfig =
               loading="eager"
               fetchpriority="high"
               formats={['avif', 'webp']}
+              fallbackFormat="webp"
               class="hero-img"
             />
           ) : (
@@ -281,6 +290,7 @@ const motionCfg: HeroMotionConfig =
               loading="eager"
               fetchpriority="high"
               formats={['avif', 'webp']}
+              fallbackFormat="webp"
               class="hero-img"
             />
           ) : (

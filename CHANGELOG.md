@@ -22,6 +22,41 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.101.2 (2026-08-10)
+
+- [kunde] Beim Veröffentlichen wurden für das Titelbild bisher zusätzlich unkomprimierte Kopien angelegt, die kein Browser je abgerufen hat — teils fast 2 MB pro Stück. Sie entfallen.
+
+**Fix:** `<Picture>` ohne `fallbackFormat` erzeugte PNG-Fallbacks bis 1,9 MB
+
+`formats={['avif','webp']}` steuert nur die `<source>`-Einträge. Das `<img>`-Fallback,
+das Astro daneben erzeugt, lief ohne `fallbackFormat` in den Default — PNG,
+unkomprimiert. Aus einer 144-KB-WebP-Quelle wurde so ein 1900-KB-PNG.
+
+Gemessen am 10.08.2026 beim Fleet-Scan gegen v0.101.1: fünf Kunden rissen das
+200-KB-Bildbudget mit zusammen 18 Dateien, obwohl ihre Quelldateien zwischen 104 und
+160 KB liegen. Die Ursache lag nicht bei den Kunden, sondern hier.
+
+Paar-Messung an zink-baeckerei, gleicher Worktree, nur die Prop unterschiedlich:
+
+| | PNG-Derivate | WebP | AVIF | Perf-Budget-Guard |
+|---|---|---|---|---|
+| ohne `fallbackFormat` | 4 (bis 1902 KB) | 5 | 4 | 4 Befunde |
+| mit `fallbackFormat="webp"` | 0 | 4 | 4 | ✓ alle ≤ 200 KB |
+
+Das Bild wird unverändert ausgeliefert, nur das Fallback ist jetzt WebP statt PNG.
+
+Geändert: `Hero.astro` an beiden `<Picture>`-Stellen (Parallax- und Standard-Variante).
+Weitere `<Picture>`-Aufrufe gibt es in cw-core nicht.
+
+**Migrations-Hinweis:** Keiner, der Bump genügt. Einzige Verhaltensänderung: Browser
+ohne WebP-Unterstützung (Safari < 14, IE) bekommen kein Hero-Bild mehr statt eines
+PNG. WebP wird seit 2020 von allen aktuellen Browsern unterstützt.
+
+Siehe blitzsicht-ops#641, Basiszahl in
+`customer-websites/docs/fleet-guard-basiszahl-v0.101.1-2026-08-10.md`.
+
+---
+
 ## v0.101.1 (2026-08-10)
 
 - [kunde:sichtbar] Die kurzen Stichpunkte unter der Hauptüberschrift (etwa „Seit 1898 in Familienhand") waren ebenfalls leicht durchscheinend und stehen jetzt in vollem Weiß.
