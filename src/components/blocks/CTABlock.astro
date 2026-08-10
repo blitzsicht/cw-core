@@ -65,7 +65,11 @@ const {
   .cta-inner { text-align: center; max-width: 42rem; margin-inline: auto; position: relative; padding-top: 3rem; }
   .cta-bolt { position: absolute; top: -1rem; left: 50%; transform: translateX(-50%); opacity: 0.4; }
   .cta-inner h2 { font-size: clamp(1.75rem, 3vw, 2.5rem); color: white; margin-bottom: 1rem; }
-  .cta-inner p { font-size: 1.0625rem; color: rgba(255,255,255,0.8); line-height: 1.7; margin-bottom: 2rem; }
+  /* Volle Deckkraft statt 0.8: auf dem hellen Ende des Verlaufs kam der Subtext
+     damit nur auf 3.52:1 und riss AA (gemessen an Zink, --color-primary #d90570).
+     Ohne Transparenz sind es 4.99:1. Grenze siehe CHANGELOG v0.101.0 — auf sehr
+     hellen Primaerfarben reicht auch reines Weiss nicht, das haengt am Token. */
+  .cta-inner p { font-size: 1.0625rem; color: #ffffff; line-height: 1.7; margin-bottom: 2rem; }
   .cta-buttons { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
   /* Konvention „Vorwärts gehört nach rechts" (docs/ux-conventions.md): Primär
      rechts im Paar. Die Gruppe bleibt zentriert — die Sektion ist zentriert

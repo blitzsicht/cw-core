@@ -22,6 +22,63 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.101.0 (2026-08-10)
+
+- [kunde:sichtbar] Erklaertexte auf den farbigen Blöcken (Hero und der Kontakt-Block am Seitenende) waren leicht durchscheinend und dadurch schwer zu lesen. Sie stehen jetzt in vollem Weiß. Das kleine Etikett über der Hauptüberschrift hat einen dunkleren Hintergrund bekommen, damit die Schrift darauf deutlich absteht.
+
+**Fix:** Weisse Schrift mit reduzierter Deckkraft riss auf farbigem Grund die AA-Grenze
+
+`Hero` und `CTABlock` setzten ihren Subtext auf `rgba(255,255,255,0.8)`. Auf einer
+Magenta-Flaeche ergibt das 3.52:1 — WCAG AA verlangt 4.5:1. Ohne Transparenz sind
+es 4.99:1. Nachgerechnet am 10.08.2026 an Zink (`--color-primary: #d90570`).
+
+Derselbe Mechanismus beim `.hero-badge`: Dessen Hintergrund war ein **Weiss**schleier
+(`rgba(255,255,255,0.22)`), der den farbigen Grund aufhellt und damit den Kontrast
+des weissen Textes *senkt* — 4.00:1. Der Schleier ist jetzt abdunkelnd
+(`rgba(0,0,0,0.15)`), das ergibt 6.52:1.
+
+Geaendert:
+
+- `CTABlock.astro` — `.cta-inner p` auf `#ffffff`
+- `Hero.astro` — `.hero-sub` auf `#ffffff`, `.hero-badge` Hintergrund auf `rgba(0,0,0,0.15)`
+
+**Wichtige Einschraenkung, die dieser Fix NICHT loest:** Ob weisser Text auf
+`--color-primary` besteht, haengt an der Markenfarbe des jeweiligen Kunden — und die
+liegt im Customer-Repo, nicht hier. Nachgerechnet:
+
+| `--color-primary` | weisser Text |
+|---|---:|
+| `#d90570` (Zink heute) | 4.99:1 — pass |
+| `#E20680` | 4.59:1 — pass, ohne Puffer |
+| `#ed0677` | 4.29:1 — **fail** |
+
+Auf einer zu hellen Primaerfarbe reisst also auch reines Weiss. cw-core kann das
+nicht abfangen, ohne die Textfarbe aus der Markenfarbe zu berechnen — das waere ein
+deutlich groesserer Eingriff und ist bewusst nicht Teil dieses Release. Wer eine
+helle Marke fuehrt, dunkelt die Flaechenvariante im eigenen `tokens.css` ab, so wie
+Zink es mit `#ed0677` → `#d90570` gemacht hat.
+
+**Nicht wundern: die axe-Fehlerzahl sinkt dadurch nicht.** `Hero` und `CTABlock`
+liegen auf einem `linear-gradient`. Gegen Verlaeufe kann axe die tatsaechliche
+Hintergrundfarbe an der Textposition nicht bestimmen und meldet den Block
+konservativ als Kontrastfehler — unabhaengig davon, welche Textfarbe darauf steht.
+
+Am 10.08.2026 gegengeprueft: Ersetzt man im `CTABlock` versuchsweise den Verlauf
+durch `background: var(--color-primary)` und laesst *alles andere unveraendert*,
+fallen die Meldungen sofort weg — auf drei Zink-Seiten je von 3 auf 0, auf der
+Startseite von 15 auf 12. Der Verlauf ist also die Ursache der Meldung, nicht der
+Text. Diese drei Meldungen pro Block sind ein Werkzeug-Artefakt.
+
+Der Fix hier ist trotzdem real: 3.52:1 war rechnerisch zu wenig, egal was axe dazu
+sagt. Nur taugt die Fehlerzahl des Werkzeugs an dieser Stelle nicht als Nachweis —
+wer den Erfolg messen will, rechnet die Kontrastwerte, statt Meldungen zu zaehlen.
+
+**Migrations-Hinweis:** Keiner, der Bump genuegt. Aber es ist eine sichtbare
+Aenderung: Subtexte wirken kraeftiger, das Hero-Etikett dunkler statt aufgehellt.
+Bei `[kunde:sichtbar]`-Releases gilt der erweiterte Canary-Check im Release-Train.
+
+---
+
 ## v0.100.0 (2026-08-10)
 
 - [kunde:sichtbar] Inhalte, die beim Scrollen eingeblendet werden, bleiben jetzt auch dann sichtbar, wenn im Browser JavaScript abgeschaltet ist. Vorher blieben diese Stellen der Seite in dem Fall dauerhaft leer.

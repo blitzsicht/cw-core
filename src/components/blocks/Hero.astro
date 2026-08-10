@@ -456,7 +456,11 @@ const motionCfg: HeroMotionConfig =
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: rgba(255,255,255,0.22);
+    /* Dunkler statt hellerer Schleier. Ein Weissschleier hellt den farbigen Grund
+       auf und drueckt den Kontrast des weissen Textes darauf — an Zink gemessen
+       4.00:1, also unter AA. Abgedunkelt sind es 6.52:1, und selbst auf der
+       hellsten Markenfarbe im Bestand noch 5.69:1. */
+    background: rgba(0,0,0,0.15);
     color: #ffffff;
     border: 1px solid rgba(255,255,255,0.45);
     border-radius: 100px;
@@ -474,7 +478,9 @@ const motionCfg: HeroMotionConfig =
   }
   .hero-sub {
     font-size: clamp(1rem, 1.5vw, 1.25rem);
-    color: rgba(255,255,255,0.8);
+    /* Volle Deckkraft statt 0.8 — derselbe Befund wie in CTABlock: 3.52:1 auf dem
+       hellen Verlaufsende, ohne Transparenz 4.99:1. Siehe CHANGELOG v0.101.0. */
+    color: #ffffff;
     max-width: 52ch;
     line-height: 1.7;
     margin: 0 0 2.25rem;
