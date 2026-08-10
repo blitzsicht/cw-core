@@ -22,6 +22,44 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.102.1 (2026-08-10)
+
+**Fix:** Meta-Linter zählte HTML-Entities als Escape-Sequenz statt als Zeichen
+
+`zink-baeckerei` stand mit „`/festival/` Title 61 Zeichen > 60" im Fleet-Report. Der Title
+lautet „Festival — Bäckerstand für Feste & Events | Bäckerei Zink" und ist **57** Zeichen
+lang. Die vier Zeichen Differenz sind das `&`, das Astro als `&amp;` ins HTML schreibt:
+`extractTitle` maß den rohen HTML-Text, `extractDescription` direkt daneben dekodierte
+ausdrücklich vor dem Längen-Check. Google zählt das dargestellte Zeichen — der Guard war
+der Fehler, nicht die Copy.
+
+Zweite Lücke im selben Zug: die alte Dekodier-Tabelle kannte nur `&amp;`. Astro schreibt
+denselben `&` im `content`-Attribut aber als **`&#38;`** — fleet-weit 62 Descriptions, die
+bisher jeweils 4 Zeichen zu lang gemessen wurden. Heute riss keine davon die 160er-Grenze,
+die Falle stand aber scharf.
+
+| | vorher | nachher |
+|---|---|---|
+| `<title>` | roh gezählt | Entities dekodiert |
+| `<meta description>` | `&amp;` + 4 Named-Entities | alle Named- **und** numerischen Entities |
+
+Die Dekodierung läuft in **einem** Durchgang, damit `&amp;lt;` zu `&lt;` wird und nicht zu
+`<` weiterzerfällt. Unbekannte Named-Entities (`&copy;`) und ungültige Code-Points
+(`&#1114112;`) bleiben als Literal stehen, statt still zu verschwinden oder zu werfen.
+
+Fleet-Scan über alle gebauten `dist/`: 46 Titles in 9 Repos tragen Entities. Genau einer
+kippte über die Grenze — zinks `/festival/`. Sein Befund fällt damit ersatzlos weg, ohne
+dass eine Zeile Copy angefasst wurde.
+
+11 neue Tests (`tests/ai-discovery/meta-linter.test.js`), 4 davon gegengeprobt rot gegen den
+ungefixten Stand. `lintPageMeta` ist dafür exportiert, wie `lintPageImgAlt` es schon war.
+
+**Migrations-Hinweis:** Keiner. Reiner Build-time-Guard, kein Output-Unterschied.
+
+Issue: siluri/blitzsicht-ops#644
+
+---
+
 ## v0.102.0 (2026-08-10)
 
 - [kunde:sichtbar] Vier Stellen auf der Website waren für Menschen mit eingeschränktem Sehvermögen schwer zu lesen: helle Schrift auf farbigem Grund war zu blass. Sie ist jetzt voll deckend. Außerdem sind Links im Datenschutz-Text unterstrichen, damit sie nicht allein an der Farbe erkennbar sind.

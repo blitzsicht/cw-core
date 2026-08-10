@@ -440,7 +440,7 @@ function collectIds(obj: unknown, out: string[] = []): string[] {
   return out;
 }
 
-interface MetaIssue {
+export interface MetaIssue {
   page: string;
   type: 'title_missing' | 'title_too_long' | 'description_missing' | 'description_too_long';
   detail: string;
@@ -608,30 +608,61 @@ export function lintBrandNameInRobotsTxt(distDir: string, brandName: string): Br
   ];
 }
 
-/** Extrahiert den `<title>`-Text (whitespace-normalized). Leerer String wenn fehlend. */
+/** Named-Entities, die in Astro-Output real vorkommen. Bewusst klein gehalten. */
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: '&',
+  quot: '"',
+  apos: "'",
+  lt: '<',
+  gt: '>',
+  nbsp: ' ',
+};
+
+/**
+ * Dekodiert HTML-Entities für den Längen-Check — Google zählt das dargestellte Zeichen,
+ * nicht die Escape-Sequenz. `&amp;` ist 1 Zeichen in der SERP, nicht 5.
+ *
+ * Ein einziger Durchgang, damit `&amp;lt;` zu `&lt;` wird und nicht zu `<` weiterzerfällt.
+ * Numerische Formen gehören dazu: Astro schreibt denselben `&` in `<title>` als `&amp;`,
+ * im description-Attribut aber als `&#38;` (fleet-weit 49× bzw. 62×, Stand 10.08.2026).
+ */
+function decodeBasicEntities(text: string): string {
+  return text.replace(
+    /&(?:#(\d+)|#[xX]([0-9a-fA-F]+)|([a-zA-Z][a-zA-Z0-9]*));/g,
+    (match, dec?: string, hex?: string, name?: string) => {
+      if (dec !== undefined) return fromCodePointSafe(Number.parseInt(dec, 10), match);
+      if (hex !== undefined) return fromCodePointSafe(Number.parseInt(hex, 16), match);
+      return NAMED_ENTITIES[(name ?? '').toLowerCase()] ?? match;
+    },
+  );
+}
+
+/** `String.fromCodePoint` ohne Crash-Risiko — ungültige Code-Points bleiben als Literal stehen. */
+function fromCodePointSafe(code: number, fallback: string): string {
+  if (!Number.isInteger(code) || code < 0 || code > 0x10ffff) return fallback;
+  try {
+    return String.fromCodePoint(code);
+  } catch {
+    return fallback;
+  }
+}
+
+/** Extrahiert den `<title>`-Text (Entities dekodiert, whitespace-normalized). Leer wenn fehlend. */
 function extractTitle(html: string): string {
   const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
   if (!m) return '';
-  return m[1].replace(/\s+/g, ' ').trim();
+  return decodeBasicEntities(m[1]).replace(/\s+/g, ' ').trim();
 }
 
 /** Extrahiert den Inhalt von `<meta name="description" content="...">`. Leer wenn fehlend. */
 function extractDescription(html: string): string {
   const m = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']*)["'][^>]*>/i);
   if (!m) return '';
-  // Astro escapt manche Chars (&amp;, &#34; etc.) — für Längen-Check decodieren wir minimal.
-  return m[1]
-    .replace(/&amp;/g, '&')
-    .replace(/&#34;|&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return decodeBasicEntities(m[1]).replace(/\s+/g, ' ').trim();
 }
 
 /** Prüft Title/Description-Längen einer Page. */
-function lintPageMeta(
+export function lintPageMeta(
   htmlPath: string,
   distDir: string,
   maxTitle: number,
