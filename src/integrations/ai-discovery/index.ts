@@ -34,6 +34,13 @@ import {
   extractInlineStyles,
 } from './perf-check.js';
 import { checkEmbedConsent } from './embed-consent-check.js';
+import {
+  buildMarkerOwners,
+  checkMotionConsent,
+  collectConsent,
+  countMarker,
+  stripInlineBlocks as stripMotionInlineBlocks,
+} from './motion-consent-check.js';
 import { geotagDist } from './geotag.js';
 import { walkImages } from './geotag-core.js';
 
@@ -296,6 +303,30 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * brechen. Nur `true` (explizit pro Site opt-in) macht daraus einen Build-Fail.
    */
   strictAltQuality?: boolean;
+
+  /**
+   * Default true. Motion-Consent-Guard: warnt, wenn das gebaute `dist/` eine
+   * Motion-Komponente ausliefert, die weder importiert noch per Prop
+   * angefordert wurde.
+   *
+   * Auslöser (09.08.2026): `PaketeSection` hat `tilt = true` als Voreinstellung
+   * und `Hero` rendert `TiltCard` ungated ab zwei Bildern — digital-direkt.com
+   * lieferte dadurch 6 TiltCards aus, die niemand bestellt hatte. Ein
+   * Import-Grep sieht das nicht, weil die API hier eine Prop ist.
+   *
+   * PERMANENT soft-warn — kein Strict-Flip. Der Guard misst Absicht, und
+   * Absicht ist nichts, wofür ein Deploy brechen darf.
+   */
+  checkMotionConsent?: boolean;
+
+  /**
+   * Motion, die bewusst gewollt ist, obwohl sie nicht importiert wird.
+   * Akzeptiert Prop-Keys (`'tilt'`, `'blob'`, …) wie Komponentennamen
+   * (`'TiltCard'`). Macht die Absicht sichtbar, statt den Guard stillzulegen.
+   *
+   * @example acknowledgedMotion: ['tilt']
+   */
+  acknowledgedMotion?: readonly string[];
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -1104,6 +1135,11 @@ export function lintSiteDataShape(data: any): ShapeIssue[] {
 export default function aiDiscovery<T extends AiDiscoverySiteData>(
   options: AiDiscoveryOptions<T>,
 ): AstroIntegration {
+  // Der Motion-Consent-Guard braucht beides: das gebaute dist/ (was kommt beim
+  // Besucher an?) und den Kunden-Quelltext (was wurde angefordert?). `srcDir`
+  // gibt es nur im config-Hook, geprüft wird erst nach dem Build.
+  let customerSrcDir: string | null = null;
+
   return {
     name: '@cw/core/integrations/ai-discovery',
     hooks: {
@@ -1113,6 +1149,12 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
       // dazu, dass canonical/Schema/Sitemap UND die hier generierte llms.txt
       // auf eine falsche/tote Domain verweisen — ein stiller SEO-Killer.
       'astro:config:done': async ({ config, logger }) => {
+        try {
+          customerSrcDir = fileURLToPath(config.srcDir);
+        } catch {
+          customerSrcDir = null; // Motion-Guard meldet das dann als ungeprüft
+        }
+
         let data: T;
         try {
           data = await options.siteData();
@@ -1611,6 +1653,80 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             }
           } else {
             logger.info('Embed-Consent-Guard: ✓ kein eager geladenes Buchungs-Embed.');
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Motion-Consent-Guard: ausgeliefert, aber nie angefordert
+        // -------------------------------------------------------------------
+        // Directory-Walk hier (walkHtml in Scope), reine Logik in
+        // motion-consent-check.js — gleicher Split wie perf-check.js.
+        if (options.checkMotionConsent !== false) {
+          const motionDir = new URL('../../components/motion/', import.meta.url);
+          let motionComponents: { name: string; source: string }[] = [];
+          try {
+            const dir = fileURLToPath(motionDir);
+            motionComponents = readdirSync(dir)
+              .filter((f) => f.endsWith('.astro'))
+              .map((f) => ({
+                name: f.replace(/\.astro$/, ''),
+                source: readFileSync(join(dir, f), 'utf-8'),
+              }));
+          } catch {
+            motionComponents = [];
+          }
+
+          if (motionComponents.length === 0) {
+            // Vorbedingung nicht erfüllt — ohne Komponenten kann der Guard
+            // nichts finden, und "nichts gefunden" sähe aus wie "alles gut".
+            logger.warn(
+              'Motion-Guard: übersprungen — cw-core/components/motion nicht lesbar. NICHT als "sauber" werten.',
+            );
+          } else if (!customerSrcDir || !existsSync(customerSrcDir)) {
+            logger.warn(
+              'Motion-Guard: übersprungen — srcDir nicht lesbar, Zustimmung nicht feststellbar. NICHT als "sauber" werten.',
+            );
+          } else {
+            const markerOwners = buildMarkerOwners(motionComponents);
+            const markerCounts: Record<string, number> = {};
+            for (const file of walkHtml(distDir)) {
+              const body = stripMotionInlineBlocks(readFileSync(file, 'utf-8'));
+              for (const marker of markerOwners.keys()) {
+                markerCounts[marker] = (markerCounts[marker] ?? 0) + countMarker(body, marker);
+              }
+            }
+
+            const sourceTexts: string[] = [];
+            const collectSources = (dir: string) => {
+              for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                const full = join(dir, entry.name);
+                if (entry.isDirectory()) {
+                  if (entry.name !== 'node_modules') collectSources(full);
+                } else if (/\.(astro|ts|tsx|js|mjs|jsx|md|mdx)$/.test(entry.name)) {
+                  sourceTexts.push(readFileSync(full, 'utf-8'));
+                }
+              }
+            };
+            collectSources(customerSrcDir);
+
+            const motionIssues = checkMotionConsent({
+              markerCounts,
+              markerOwners,
+              consented: collectConsent(sourceTexts),
+              acknowledged: options.acknowledgedMotion ?? [],
+            });
+
+            if (motionIssues.length > 0) {
+              logger.warn(
+                `Motion-Guard: ${motionIssues.length} Motion-Effekt(e) werden ausgeliefert, ohne angefordert zu sein:`,
+              );
+              for (const mi of motionIssues) logger.warn(`  ${mi.details}`);
+            } else {
+              const delivered = Object.values(markerCounts).reduce((a, b) => a + b, 0);
+              logger.info(
+                `Motion-Guard: ✓ ${delivered} Motion-Marker ausgeliefert, alle angefordert.`,
+              );
+            }
           }
         }
 

@@ -181,21 +181,43 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Pre-reveal state for ScrollReveal / StaggerGroup children.
  * Initial state is set via [data-motion-reveal]; the `.is-visible` class
- * is toggled by the runtime after the element enters the viewport. */
-[data-motion-reveal] {
-  opacity: 0;
-  will-change: opacity, transform;
-  transition: opacity var(--motion-duration-base) var(--motion-ease-out),
-              transform var(--motion-duration-base) var(--motion-ease-out);
+ * is toggled by the runtime after the element enters the viewport.
+ *
+ * WARUM DER GANZE VORZUSTAND HINTER `scripting: enabled` LIEGT
+ * ------------------------------------------------------------
+ * `.is-visible` vergibt ausschliesslich JavaScript (ScrollReveal.astro:62,69;
+ * StaggerGroup:67,74; TextReveal:102,106). Ohne JS wurde der Vorzustand nie
+ * zurueckgenommen — auf blitzsicht.com blieben dadurch 14 Elemente dauerhaft
+ * unsichtbar. Ein Vorzustand, den nur JS aufloest, gehoert hinter eine
+ * Bedingung, die JS voraussetzt.
+ *
+ * Die Transform-Varianten muessen MIT hinein. Nur `opacity` zu kapseln waere
+ * schlimmer als nichts: die Elemente waeren dann sichtbar, aber um 2rem
+ * verschoben — und nichts setzte sie je zurueck.
+ *
+ * Fehlerrichtung: Ein Browser, der `scripting` nicht kennt, verwirft den
+ * ganzen Block. Reveals bleiben dann sichtbar. Das ist die richtige Seite,
+ * auf der man irren will. */
+@media (scripting: enabled) {
+  [data-motion-reveal] {
+    opacity: 0;
+    will-change: opacity, transform;
+    transition: opacity var(--motion-duration-base) var(--motion-ease-out),
+                transform var(--motion-duration-base) var(--motion-ease-out);
+  }
+  [data-motion-reveal="up"]    { transform: translate3d(0, 2rem, 0); }
+  [data-motion-reveal="down"]  { transform: translate3d(0, -2rem, 0); }
+  [data-motion-reveal="left"]  { transform: translate3d(2rem, 0, 0); }
+  [data-motion-reveal="right"] { transform: translate3d(-2rem, 0, 0); }
+  [data-motion-reveal="zoom"]  { transform: scale(0.92); }
 }
-[data-motion-reveal="up"]    { transform: translate3d(0, 2rem, 0); }
-[data-motion-reveal="down"]  { transform: translate3d(0, -2rem, 0); }
-[data-motion-reveal="left"]  { transform: translate3d(2rem, 0, 0); }
-[data-motion-reveal="right"] { transform: translate3d(-2rem, 0, 0); }
-[data-motion-reveal="zoom"]  { transform: scale(0.92); }
 [data-motion-reveal].is-visible {
   opacity: 1;
   transform: translate3d(0, 0, 0) scale(1);
+  /* Compositor-Layer wieder freigeben. `will-change` oben galt bis hierher
+   * dauerhaft, weil nichts es zuruecknahm — jedes eingeblendete Element hielt
+   * seinen Layer bis zum Seitenwechsel. Betrifft nur Kunden mit Reveals. */
+  will-change: auto;
 }
 
 /* Scroll progress bar utility used by ScrollProgress. */

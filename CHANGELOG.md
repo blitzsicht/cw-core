@@ -22,6 +22,75 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.100.0 (2026-08-10)
+
+- [kunde:sichtbar] Inhalte, die beim Scrollen eingeblendet werden, bleiben jetzt auch dann sichtbar, wenn im Browser JavaScript abgeschaltet ist. Vorher blieben diese Stellen der Seite in dem Fall dauerhaft leer.
+
+**Fix:** Eingeblendete Inhalte waren ohne JavaScript unsichtbar (D1)
+
+`[data-motion-reveal]` setzte `opacity: 0`, aufgehoben wurde das ausschließlich
+durch die Klasse `.is-visible` — und die vergibt nur JavaScript
+(`ScrollReveal.astro:62,69`, `StaggerGroup:67,74`, `TextReveal:102,106`).
+Ohne JavaScript wurde der Vorzustand nie zurückgenommen. Gemessen am
+ausgelieferten HTML: auf blitzsicht.com blieben 14 Elemente dauerhaft leer.
+Betroffen war nur dieser eine Live-Kunde — alle anderen zwölf liefern keine
+Reveals aus.
+
+Der komplette Vorzustand liegt jetzt hinter `@media (scripting: enabled)`,
+inklusive der fünf Transform-Varianten. Nur `opacity` zu kapseln wäre schlimmer
+als nichts gewesen: die Elemente wären dann sichtbar, aber um 2 rem verschoben —
+und nichts hätte sie je zurückgesetzt. Ein Browser, der `scripting` nicht kennt,
+verwirft den ganzen Block; Reveals bleiben dann sichtbar. Das ist die richtige
+Fehlerrichtung.
+
+Nachgewiesen mit vier Läufen (repariert × JavaScript an/aus), jeweils unter
+`prefers-reduced-motion: no-preference` — unter `reduce` macht die Regel in
+dieser Datei Reveals ohnehin sichtbar, ein Lauf mit `reduce` wäre fälschlich
+grün gewesen. Unrepariert und ohne JavaScript: 7 von 7 unsichtbar. Repariert:
+0 von 7. Mit JavaScript in beiden Fassungen identisch.
+
+**Tweak:** `will-change` wird zurückgenommen (D3)
+
+`.is-visible` setzt jetzt `will-change: auto`. Bisher behielt jedes einmal
+eingeblendete Element seinen Compositor-Layer bis zum Seitenwechsel, weil
+nichts das `will-change` aus dem Vorzustand aufhob.
+
+**Feature:** Motion-Consent-Guard — ausgeliefert, ohne bestellt zu sein
+
+Neue Build-Zeit-Warnung in `ai-discovery`: meldet, wenn das gebaute `dist/`
+einen Motion-Effekt ausliefert, den der Kunde weder importiert noch per Prop
+angefordert hat.
+
+Anlass: `PaketeSection` hat `tilt = true` als Voreinstellung und `Hero` rendert
+`TiltCard` ungated ab zwei Bildern. digital-direkt.com liefert dadurch sechs
+TiltCards aus, ohne `TiltCard` je zu importieren — und ohne dass es jemand
+bemerkt hätte. Eine Suche nach Importen sieht das prinzipiell nicht, weil die
+öffentliche Schnittstelle hier eine Prop ist und kein Import.
+
+Als Zustimmung gilt beides: der direkte Import und die explizite Prop
+(`motion={{ textReveal: true }}`, `tilt={true}`). Gemessen gegen drei echte
+Builds: digital-direkt meldet die sechs TiltCards, blitzsicht bleibt bei
+309 ausgelieferten Markern still, soleno hat keine.
+
+Neue Optionen:
+
+- `checkMotionConsent` — Default `true`, permanent Soft-Warn. Kein Strict-Flip:
+  der Guard misst Absicht, und Absicht ist nichts, wofür ein Deploy bricht.
+- `acknowledgedMotion` — Liste gewollter Effekte, akzeptiert Prop-Keys
+  (`['tilt']`) wie Komponentennamen (`['TiltCard']`). Macht die Absicht
+  sichtbar, statt den Guard stillzulegen.
+
+Ein mehrdeutiger Marker wird nur gemeldet, wenn keiner seiner möglichen
+Verursacher zugestimmt ist — `data-motion-reveal` setzen `ScrollReveal`,
+`StaggerGroup` und `FullBleed` gleichermaßen, eine Warnung darüber wäre sonst
+nicht auflösbar.
+
+**Migrations-Hinweis:** Keiner. Wer die neue Warnung bei sich sieht, hat
+entweder einen Effekt an, den er nicht bestellt hat (dann `tilt={false}`), oder
+er will ihn (dann `acknowledgedMotion`). Der Build bricht in keinem Fall.
+
+---
+
 ## v0.99.1 (2026-08-09)
 
 - [kunde:sichtbar] Die Rueckmeldung beim Antippen von Schaltflaechen wirkt jetzt auf allen Buttons der Website, nicht nur auf einzelnen. Auf Mobilgeraeten passierte beim Druecken bisher nichts Sichtbares.
