@@ -3,12 +3,16 @@
  * Motion-Referenzseite — alle zwölf Komponenten aus components/motion/.
  *
  * Zweck (drei auf einmal):
- *   1. Anschauungsobjekt — der Layer wurde bisher kaum genutzt, weil ihn niemand
- *      in Aktion gesehen hat.
+ *   1. Anschauungsobjekt — der Layer wurde kaum genutzt, weil ihn niemand in
+ *      Aktion gesehen hat.
  *   2. Prüfvehikel — liefert ein `dist/`, gegen das CSP, CLS und das Verhalten
  *      ohne JavaScript geprüft werden können, ohne eine Kundenseite anzufassen.
- *   3. Gegenbeweis — die Seite macht Defekt D1 (siehe unten) sichtbar, statt
- *      ihn zu beschreiben.
+ *   3. Gegenbeweis — die Seite macht Defekt D1 sichtbar, statt ihn zu beschreiben.
+ *
+ * Warum jeder Block einen "Nochmal"-Knopf hat: ScrollReveal ruft nach dem
+ * Einblenden `io.unobserve()`. Der Effekt läuft genau einmal pro Seitenaufruf —
+ * wer beim Laden nicht hinsieht, sieht ihn nie wieder. Für eine Referenzseite
+ * ist das untauglich, deshalb setzt der Knopf `.is-visible` zurück.
  *
  * Bedienung:
  *   cd examples && pnpm dev     → http://localhost:4322/motion
@@ -66,53 +70,64 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
     .back { display: inline-block; margin-bottom: 1.5rem; color: var(--color-muted);
             font-size: 0.875rem; text-decoration: none; }
     h1 { font-size: 2rem; color: var(--color-primary); margin: 0 0 0.5rem; }
-    .lead { color: var(--color-muted); margin: 0 0 2rem; padding-bottom: 1rem;
-            border-bottom: 1px solid var(--color-border); }
+    .lead { color: var(--color-muted); margin: 0 0 1.5rem; }
 
-    /* Jeder Demo-Block. Grosszuegige Hoehe, damit beim Scrollen wirklich
-       ein Viewport-Eintritt stattfindet und die Observer feuern. */
+    /* Abstand zwischen den Bloecken, damit beim Scrollen ein echter
+       Viewport-Eintritt entsteht statt "alles auf einmal".
+       KEIN justify-content:center in Kombination mit grosser min-height —
+       das schiebt den Inhalt in die Blockmitte und erzeugt davor einen halben
+       Bildschirm Leerraum, in dem es so aussieht, als passiere nichts. */
     .demo {
-      margin: 4rem 0;
-      padding: 1.5rem;
-      border: 1px solid var(--color-border);
-      border-radius: 8px;
-      min-height: 40vh;
+      padding: 3rem 0 6rem;
+      border-top: 1px solid var(--color-border);
     }
-    .demo > h2 {
-      font-family: var(--font-mono);
-      font-size: 1rem;
-      color: var(--color-primary);
-      margin: 0 0 0.25rem;
-    }
-    .demo > .was { font-size: 0.875rem; color: var(--color-muted); margin: 0 0 1.25rem; }
+    .demo-kopf { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }
+    .demo-kopf h2 { font-family: var(--font-mono); font-size: 1.0625rem; color: var(--color-primary); margin: 0; }
+    .was { font-size: 0.9375rem; color: var(--color-muted); margin: 0 0 1.5rem; max-width: 62ch; }
 
-    .karten { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
+    /* Warnschild: sagt vorab, warum man evtl. nichts sieht. */
+    .hinweis {
+      font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em;
+      padding: 0.15rem 0.5rem; border-radius: 999px; font-weight: 700;
+      background: #fef3c7; color: #92400e;
+    }
+    .hinweis--aus { background: #fee2e2; color: #991b1b; }
+    .hinweis--an  { background: #dcfce7; color: #166534; }
+
+    .replay {
+      align-self: flex-start; margin-top: 1.25rem; padding: 0.5rem 1rem;
+      font: inherit; font-size: 0.875rem; cursor: pointer;
+      background: var(--color-primary); color: #fff;
+      border: 0; border-radius: 6px;
+    }
+    .replay:hover { background: var(--color-primary-dark); }
+
+    .karten { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; }
     .karte {
       padding: 1.25rem; background: var(--color-surface);
       border-radius: 8px; border-left: 4px solid var(--color-accent);
     }
     .zahl { font-size: 2rem; font-weight: 700; color: var(--color-accent); }
     .platzhalter {
-      height: 220px; border-radius: 8px;
+      height: 240px; border-radius: 8px;
       background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
     }
-    .blob-buehne { position: relative; height: 220px; border-radius: 8px; overflow: hidden; }
+    .blob-buehne { position: relative; height: 240px; border-radius: 8px; overflow: hidden; }
 
-    /* Statuszeile: belegt sichtbar, ob JS lief. Ohne JS bleibt der rote Text
-       stehen — zusammen mit dem noscript-Kasten ist das der D1-Nachweis. */
     .js-status {
       font-family: var(--font-mono); font-size: 0.8125rem;
-      padding: 0.75rem 1rem; border-radius: 6px;
+      padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem;
       background: #fee2e2; color: #991b1b;
     }
     .warnung {
       border-left: 4px solid #dc2626; background: #fef2f2;
-      padding: 1rem 1.25rem; border-radius: 6px; margin: 1.5rem 0;
-      font-size: 0.9375rem;
+      padding: 1rem 1.25rem; border-radius: 6px; margin: 1.5rem 0; font-size: 0.9375rem;
     }
     .warnung strong { color: #991b1b; }
-    @media (prefers-reduced-motion: reduce) {
-      .rm-hinweis::after { content: ' — gerade aktiv: Animationen sind abgeschaltet.'; font-weight: 700; }
+    .messwerte {
+      font-family: var(--font-mono); font-size: 0.8125rem; color: var(--color-muted);
+      background: var(--color-surface); padding: 0.75rem 1rem; border-radius: 6px;
+      margin-bottom: 2rem;
     }
   </style>
 </head>
@@ -124,12 +139,12 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
     <a href="/" class="back">← Übersicht</a>
     <h1>Motion-Komponenten</h1>
     <p class="lead">
-      Alle zwölf Komponenten aus <code>components/motion/</code>. Scrolle langsam —
-      die meisten Effekte lösen erst beim Eintritt in den Viewport aus.
+      Alle zwölf aus <code>components/motion/</code>. Scrolle langsam — und nutze
+      „Nochmal abspielen“, wenn du einen Effekt verpasst hast.
     </p>
 
     <p class="js-status" id="js-status">
-      JavaScript ist <strong>nicht</strong> gelaufen. Alle Reveal-Abschnitte unten sind
+      JavaScript ist <strong>nicht</strong> gelaufen. Alle Reveal-Abschnitte sind
       dadurch dauerhaft unsichtbar — das ist Defekt D1.
     </p>
 
@@ -138,56 +153,61 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
         <strong>D1 belegt.</strong> Ohne JavaScript setzt niemand die Klasse
         <code>.is-visible</code>. Alles unter <code>[data-motion-reveal]</code> steht auf
         <code>opacity: 0</code> und bleibt es — auch für Crawler, die kein JS ausführen.
-        Genau deshalb gilt: Reparatur vor Rollout.
       </div>
     </noscript>
 
-    <p class="rm-hinweis" style="font-size:0.875rem;color:var(--color-muted)">
-      Diese Seite respektiert <code>prefers-reduced-motion</code>.
-    </p>
+    <!-- Zeigt live, welche Voraussetzungen gerade erfüllt sind. Ohne das rätselt
+         man, warum ein Effekt ausbleibt. -->
+    <p class="messwerte" id="messwerte">Messwerte werden ermittelt …</p>
 
-    <!-- 1 ScrollReveal — alle sechs Richtungen -->
-    <section class="demo">
-      <h2>ScrollReveal</h2>
-      <p class="was">Blendet Inhalt beim Viewport-Eintritt ein. Sechs Richtungen.</p>
+    <!-- 1 ScrollReveal -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>ScrollReveal</h2></div>
+      <p class="was">Blendet Inhalt beim Viewport-Eintritt ein — sechs Richtungen. Läuft pro Element <strong>genau einmal</strong>.</p>
       {revealRichtungen.map((r) => (
         <ScrollReveal direction={r}>
           <div class="karte" style="margin-bottom:0.75rem">Richtung <code>{r}</code></div>
         </ScrollReveal>
       ))}
+      <button type="button" class="replay">Nochmal abspielen</button>
     </section>
 
     <!-- 2 StaggerGroup -->
-    <section class="demo">
-      <h2>StaggerGroup</h2>
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>StaggerGroup</h2></div>
       <p class="was">Wie ScrollReveal, aber die Kinder kommen zeitversetzt nacheinander.</p>
-      <StaggerGroup class="karten" gap={0.1}>
+      <StaggerGroup class="karten" gap={0.12}>
         <div class="karte">Erstes</div>
         <div class="karte">Zweites</div>
         <div class="karte">Drittes</div>
         <div class="karte">Viertes</div>
       </StaggerGroup>
+      <button type="button" class="replay">Nochmal abspielen</button>
     </section>
 
-    <!-- 3 TextReveal — Achtung: animiert erst ab 901px Breite -->
-    <section class="demo">
-      <h2>TextReveal</h2>
+    <!-- 3 TextReveal -->
+    <section class="demo" data-block>
+      <div class="demo-kopf">
+        <h2>TextReveal</h2>
+        <span class="hinweis" id="tr-status">ab 901 px Breite</span>
+      </div>
       <p class="was">
-        Zerlegt Text und blendet ihn wortweise ein. <strong>Ab 901 px Breite</strong> —
-        auf dem Telefon passiert nichts.
+        Zerlegt Text und blendet ihn wortweise ein. Unterhalb von 901 px passiert
+        bewusst nichts — der Effekt hatte mobil CLS 0,29 verursacht.
       </p>
       <h3 style="font-size:1.75rem;color:var(--color-primary)">
         <TextReveal>Sichtbar werden, wo Menschen suchen.</TextReveal>
       </h3>
+      <button type="button" class="replay">Nochmal abspielen</button>
     </section>
 
-    <!-- 4 CountUp — zeigt den Rohtext-Mangel -->
-    <section class="demo">
-      <h2>CountUp</h2>
+    <!-- 4 CountUp -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>CountUp</h2><span class="hinweis hinweis--aus">Rohtext zeigt 0</span></div>
       <p class="was">
         Zählt eine Zahl hoch. <strong>Bekannter Mangel:</strong> sichtbar gerendert wird der
-        Startwert — im Rohtext steht „0“, nicht das Ergebnis. Für Kennzahlen, die zitiert
-        werden sollen, derzeit ungeeignet.
+        Startwert — im Quelltext steht „0“, nicht das Ergebnis. Für Kennzahlen, die von
+        einer KI zitiert werden sollen, derzeit ungeeignet.
       </p>
       <div class="karten">
         <div class="karte"><span class="zahl"><CountUp value={127} suffix="+" /></span><br />Projekte</div>
@@ -196,13 +216,13 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
       </div>
     </section>
 
-    <!-- 5 TiltCard — Default-an in PaketeSection und Hero -->
-    <section class="demo">
-      <h2>TiltCard</h2>
+    <!-- 5 TiltCard -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>TiltCard</h2><span class="hinweis" id="maus-1">braucht Maus</span></div>
       <p class="was">
-        Neigt die Karte zum Zeiger. <strong>Nur mit Maus</strong> — auf Touch wirkungslos.
+        Neigt die Karte zum Zeiger — <strong>fahre mit der Maus darüber</strong>. Auf Touch wirkungslos.
         Läuft in <code>PaketeSection</code> per Voreinstellung mit und im Hero, sobald
-        <code>images</code> gesetzt ist.
+        <code>images</code> gesetzt ist: deshalb hat digital-direkt.com TiltCards, ohne sie bestellt zu haben.
       </p>
       <div class="karten">
         <TiltCard><div class="karte">Standard (10°)</div></TiltCard>
@@ -211,76 +231,112 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
     </section>
 
     <!-- 6 MagneticButton -->
-    <section class="demo">
-      <h2>MagneticButton</h2>
-      <p class="was">Der Knopf wandert dem Zeiger entgegen. Nur mit Maus.</p>
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>MagneticButton</h2><span class="hinweis" id="maus-2">braucht Maus</span></div>
+      <p class="was">Der Knopf wandert dem Zeiger entgegen — <strong>nähere dich ihm langsam</strong>.</p>
       <MagneticButton>
-        <a href="#" class="btn-accent" style="display:inline-block;padding:0.75rem 1.5rem;
-           background:var(--color-accent);color:#fff;border-radius:6px;text-decoration:none">
-          Termin vereinbaren
-        </a>
+        <a href="#" style="display:inline-block;padding:0.75rem 1.5rem;background:var(--color-accent);
+           color:#fff;border-radius:6px;text-decoration:none">Termin vereinbaren</a>
       </MagneticButton>
     </section>
 
     <!-- 7 ParallaxImage -->
-    <section class="demo">
-      <h2>ParallaxImage</h2>
-      <p class="was">Bewegt den Inhalt langsamer als den Scroll.</p>
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>ParallaxImage</h2><span class="hinweis">sehr subtil</span></div>
+      <p class="was">Bewegt den Inhalt langsamer als den Scroll (<code>speed 0.3</code>). Nur beim Scrollen erkennbar.</p>
       <ParallaxImage speed={0.3}><div class="platzhalter"></div></ParallaxImage>
     </section>
 
     <!-- 8 AnimatedBlob -->
-    <section class="demo">
-      <h2>AnimatedBlob</h2>
-      <p class="was">Weiche, driftende Farbflächen als Hintergrund. Reines CSS, kein JS.</p>
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>AnimatedBlob</h2><span class="hinweis">28 s pro Zyklus</span></div>
+      <p class="was">
+        Driftende Farbflächen als Hintergrund, reines CSS. Die Bewegung ist so langsam,
+        dass sie beim kurzen Hinsehen nicht auffällt — das ist Absicht, macht sie aber
+        als „Dynamik“ praktisch wirkungslos.
+      </p>
       <div class="blob-buehne"><AnimatedBlob /></div>
     </section>
 
-    <!-- 9 ScrollProgress (oben aktiv) -->
-    <section class="demo">
-      <h2>ScrollProgress</h2>
-      <p class="was">Fortschrittsbalken am oberen Rand — auf dieser Seite aktiv.</p>
+    <!-- 9 ScrollProgress -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>ScrollProgress</h2><span class="hinweis hinweis--an">aktiv</span></div>
+      <p class="was">Fortschrittsbalken ganz oben am Fensterrand — schau nach oben, während du scrollst.</p>
     </section>
 
-    <!-- 10 CustomCursor (global aktiv) -->
-    <section class="demo">
-      <h2>CustomCursor</h2>
-      <p class="was">Ersetzt den Mauszeiger. Auf dieser Seite aktiv, nur mit Maus sichtbar.</p>
+    <!-- 10 CustomCursor -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>CustomCursor</h2><span class="hinweis" id="maus-3">braucht Maus</span></div>
+      <p class="was">Ersetzt den Mauszeiger durch einen eigenen Punkt. Auf dieser Seite aktiv.</p>
     </section>
 
-    <!-- 11 FullBleed — Waisenkind, wird sonst nirgends genutzt -->
-    <section class="demo">
-      <h2>FullBleed</h2>
+    <!-- 11 FullBleed -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>FullBleed</h2><span class="hinweis hinweis--aus">ungenutzt</span></div>
       <p class="was">
-        Bricht aus der Inhaltsbreite auf volle Fensterbreite aus.
-        <strong>Wird derzeit von keinem Block und keinem Kunden genutzt</strong> — Kandidat
-        zum Streichen.
+        Bricht auf volle Fensterbreite aus. <strong>Von keinem Block und keinem Kunden
+        genutzt</strong>, auch nicht in <code>src/index.ts</code> dokumentiert — Kandidat zum Streichen.
       </p>
     </section>
-    <FullBleed reveal="fade">
-      <div class="platzhalter" style="border-radius:0"></div>
-    </FullBleed>
+    <FullBleed reveal="fade"><div class="platzhalter" style="border-radius:0"></div></FullBleed>
 
-    <!-- 12 SmoothScroll — bewusst nicht eingebunden -->
-    <section class="demo">
-      <h2>SmoothScroll</h2>
+    <!-- 12 SmoothScroll -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>SmoothScroll</h2><span class="hinweis hinweis--aus">nicht eingebunden</span></div>
       <p class="was">
-        Weiches Scrollen über <code>lenis</code>. Hier <strong>bewusst nicht eingebunden</strong>:
-        Es ist die einzige Komponente mit externer Abhängigkeit (optionale Peer-Dependency,
-        dynamisch geladen). Wer sie nutzt, holt Fremdcode ins Bundle.
+        Weiches Scrollen über <code>lenis</code>. Hier bewusst nicht aktiv: einzige Komponente
+        mit externer Abhängigkeit (optionale Peer-Dependency, dynamisch geladen).
       </p>
     </section>
   </main>
 
   <script>
-    // Belegt, dass JS lief. Ohne JS bleibt die rote Meldung stehen — der D1-Nachweis.
-    const el = document.getElementById('js-status');
-    if (el) {
-      el.style.background = '#dcfce7';
-      el.style.color = '#166534';
-      el.textContent =
-        'JavaScript läuft — die Reveal-Abschnitte werden beim Scrollen eingeblendet.';
+    // 1) Belegt, dass JS lief. Ohne JS bleibt die rote Meldung stehen — der D1-Nachweis.
+    const status = document.getElementById('js-status');
+    if (status) {
+      status.style.background = '#dcfce7';
+      status.style.color = '#166534';
+      status.textContent = 'JavaScript läuft — die Reveal-Abschnitte werden beim Scrollen eingeblendet.';
     }
+
+    // 2) Voraussetzungen sichtbar machen. Bleibt ein Effekt aus, soll man hier
+    //    ablesen können warum, statt zu raten.
+    const feinzeiger = window.matchMedia('(pointer: fine)').matches;
+    const wenigerBewegung = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const mw = document.getElementById('messwerte');
+    if (mw) {
+      mw.textContent =
+        `Fensterbreite ${window.innerWidth} px · TextReveal ${window.innerWidth >= 901 ? 'aktiv' : 'AUS (< 901 px)'}` +
+        ` · Maus ${feinzeiger ? 'erkannt' : 'NICHT erkannt — Hover-Effekte bleiben aus'}` +
+        ` · prefers-reduced-motion ${wenigerBewegung ? 'AN — alle Animationen abgeschaltet' : 'aus'}`;
+    }
+    document.querySelectorAll('#maus-1, #maus-2, #maus-3').forEach((el) => {
+      el.className = feinzeiger ? 'hinweis hinweis--an' : 'hinweis hinweis--aus';
+      el.textContent = feinzeiger ? 'Maus erkannt' : 'keine Maus';
+    });
+    const tr = document.getElementById('tr-status');
+    if (tr) {
+      const an = window.innerWidth >= 901;
+      tr.className = an ? 'hinweis hinweis--an' : 'hinweis hinweis--aus';
+      tr.textContent = an ? 'aktiv' : 'aus — Fenster < 901 px';
+    }
+
+    // 3) Nochmal abspielen. Nötig, weil ScrollReveal nach dem Einblenden
+    //    io.unobserve() ruft: ohne Reset läuft jeder Effekt nur ein einziges Mal.
+    document.querySelectorAll('.replay').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const block = btn.closest('[data-block]');
+        if (!block) return;
+        const ziele = block.querySelectorAll('[data-motion-reveal], [data-motion-text-unit]');
+        ziele.forEach((el) => el.classList.remove('is-visible'));
+        // Reflow erzwingen, sonst fasst der Browser Entfernen und Setzen
+        // zu einem Schritt zusammen und man sieht gar nichts.
+        void (block as HTMLElement).offsetWidth;
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => ziele.forEach((el) => el.classList.add('is-visible'))),
+        );
+      });
+    });
   </script>
 </body>
 </html>
