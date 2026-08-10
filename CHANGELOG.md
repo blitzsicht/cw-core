@@ -22,6 +22,25 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.101.1 (2026-08-10)
+
+- [kunde:sichtbar] Die kurzen Stichpunkte unter der Hauptüberschrift (etwa „Seit 1898 in Familienhand") waren ebenfalls leicht durchscheinend und stehen jetzt in vollem Weiß.
+
+**Fix:** Dritte Stelle mit demselben Deckkraft-Befund — `.hero-usp-item`
+
+Nachtrag zu v0.101.0. Dort waren `.hero-sub`, `.hero-badge` und `.cta-inner p`
+erledigt, `.hero-usp-item` aber uebersehen — dieselbe Ursache, dieselbe Zahl:
+`rgba(255,255,255,0.8)` ergibt auf Magenta 3.52:1, voll deckend 4.99:1. Bei 0.9rem
+Schriftgroesse gilt die strenge 4.5:1-Grenze.
+
+Aufgefallen beim Bump in einem Customer-Repo: Nach der Installation von v0.101.0
+fand ein `grep` nach `rgba(255,255,255,0.8)` in `Hero.astro` noch einen Treffer.
+In `Hero.astro` und `CTABlock.astro` gibt es jetzt keinen mehr.
+
+**Migrations-Hinweis:** Keiner, der Bump genuegt.
+
+---
+
 ## v0.101.0 (2026-08-10)
 
 - [kunde:sichtbar] Erklaertexte auf den farbigen Blöcken (Hero und der Kontakt-Block am Seitenende) waren leicht durchscheinend und dadurch schwer zu lesen. Sie stehen jetzt in vollem Weiß. Das kleine Etikett über der Hauptüberschrift hat einen dunkleren Hintergrund bekommen, damit die Schrift darauf deutlich absteht.

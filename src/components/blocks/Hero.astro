@@ -511,7 +511,10 @@ const motionCfg: HeroMotionConfig =
     align-items: center;
     gap: 0.5rem;
     font-size: 0.9rem;
-    color: rgba(255,255,255,0.8);
+    /* Dritte Stelle mit demselben Befund wie .hero-sub und CTABlock (v0.101.0):
+       0.8 Deckkraft ergab 3.52:1 auf Magenta, voll deckend 4.99:1. Bei 0.9rem
+       Schriftgroesse gilt die strenge 4.5:1-Grenze, nicht die fuer Grosstext. */
+    color: #ffffff;
   }
   .usp-icon { font-size: 1.125rem; }
 
