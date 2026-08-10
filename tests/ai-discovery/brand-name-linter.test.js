@@ -226,3 +226,107 @@ test('11. Brand im Kommentar wird trotz URL-Strip erkannt', () => {
     rmSync(distDir, { recursive: true, force: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Wortgrenzen (Fleet-Scan 2026-08-10, Issue #642)
+//
+// Der Zähler lief auf reinem indexOf — ohne Wortgrenze. Damit schlug jede Marke an,
+// die als Teil eines deutschen Kompositums auftritt: "Haus am Lago" traf in
+// "Privates Ferienhaus am Lago di Ledro" (hausamlago, siteData.description).
+//
+// Entscheidend ist die Rename-Probe der Konvention selbst: eine Umbenennung müsste
+// diesen Satz NICHT anfassen — also ist er kein Literal. Unter --strict-warnings
+// (#646) wäre daraus ein harter Build-Fail auf korrektem Deutsch geworden.
+//
+// Umgesetzt ist das über eine Unicode-taugliche isWordChar-Prüfung, NICHT über \b:
+// \b ist ASCII-only, "ä"/"ü" gelten dort nicht als Wortzeichen. Case 14 hält das fest.
+// ---------------------------------------------------------------------------
+
+test('12. [Negativ — echter Bug] Marke als Kompositum-Teil → KEIN Issue', () => {
+  // hausamlago: Marke "Haus am Lago", Prosa "Privates Ferienhaus am Lago di Ledro".
+  // Der Treffer steckt in "Ferienhaus" — vermeidbar ist daran nichts.
+  const data = makeSiteData({
+    name: 'Haus am Lago',
+    description: 'Privates Ferienhaus am Lago di Ledro, Trentino — ideale Basis für Angelurlaub.',
+    tagline: 'Ferienhaus für Angler am Lago di Ledro.',
+    faqs: [],
+    leistungen: [],
+  });
+  const issues = lintBrandNameInSiteData(data, data.name);
+  assert.deepEqual(
+    issues,
+    [],
+    'REGRESSION: "Ferienhaus am Lago" ist kein Brand-Literal — der Name steht dort nicht als eigenes Wort.',
+  );
+});
+
+test('13. Gegenprobe zu 12: dieselbe Marke freistehend → Issue', () => {
+  // Ohne diesen Case könnte 12 auch dadurch grün sein, dass der Guard gar nichts mehr findet.
+  const data = makeSiteData({
+    name: 'Haus am Lago',
+    description: 'Haus am Lago liegt direkt am Bergsee.',
+    tagline: 'Angelurlaub im Trentino.',
+    faqs: [],
+    leistungen: [],
+  });
+  const issues = lintBrandNameInSiteData(data, data.name);
+  assert.equal(issues.length, 1, 'Freistehender Markenname MUSS weiter flaggen.');
+  assert.equal(issues[0].location, 'siteData.description');
+  assert.equal(issues[0].count, 1);
+});
+
+test('14. Umlaut-Marke freistehend → Issue (Beweis gegen ASCII-\\b)', () => {
+  // Mit /\bSachverständigenbüro …\b/ wäre die rechte Grenze nach "o" noch ok, die
+  // linke aber bricht, sobald davor ein Umlaut steht. Der Case sichert ab, dass die
+  // Grenzprüfung Unicode-Wortzeichen kennt und die Marke trotzdem gefunden wird.
+  const data = makeSiteData({
+    name: 'Sachverständigenbüro Gottl Richter Gomeier',
+    description: 'Sachverständigenbüro Gottl Richter Gomeier bewertet Immobilien in Regensburg.',
+    tagline: 'Unabhängig und IHK-zertifiziert.',
+    faqs: [],
+    leistungen: [],
+  });
+  const issues = lintBrandNameInSiteData(data, data.name);
+  assert.equal(issues.length, 1, 'Marke mit Umlauten muss freistehend gefunden werden.');
+  assert.equal(issues[0].count, 1);
+});
+
+test('15. Bindestrich-Anschluss → Issue (Bindestrich ist keine Wortgrenze-Ausnahme)', () => {
+  // "Soleno GmbH-Team" ist ein echtes Literal: der Name steht als eigenes Wort da,
+  // nur direkt gefolgt von einem Trennzeichen. Muss weiter flaggen.
+  const data = makeSiteData({
+    name: 'Soleno GmbH',
+    description: 'Das Soleno GmbH-Team berät Sie zu Photovoltaik.',
+    tagline: 'Mehr Ertrag. Weniger Kosten.',
+    faqs: [],
+    leistungen: [],
+  });
+  const issues = lintBrandNameInSiteData(data, data.name);
+  assert.equal(issues.length, 1, 'Bindestrich hinter der Marke hebt das Literal nicht auf.');
+  assert.equal(issues[0].count, 1);
+});
+
+test('16. [Negativ — echter Bug] robots.txt: Kompositum → KEIN Issue', () => {
+  const distDir = makeTempDist(
+    '# Ferienhaus am Lago di Ledro — Crawl-Regeln\nUser-agent: *\nAllow: /\n',
+  );
+  try {
+    const issues = lintBrandNameInRobotsTxt(distDir, 'Haus am Lago');
+    assert.deepEqual(issues, [], 'REGRESSION: "Ferienhaus am Lago" in robots.txt ist kein Literal.');
+  } finally {
+    rmSync(distDir, { recursive: true, force: true });
+  }
+});
+
+test('17. Gegenprobe zu 16: freistehende Marke in robots.txt → Issue', () => {
+  // Das ist die Zeile, die bei allen 6 Kunden aus #642 tatsächlich drinstand.
+  const distDir = makeTempDist('# Haus am Lago robots.txt\nUser-agent: *\nAllow: /\n');
+  try {
+    const issues = lintBrandNameInRobotsTxt(distDir, 'Haus am Lago');
+    assert.equal(issues.length, 1, 'Die Kommentarzeile aus #642 MUSS weiter flaggen.');
+    assert.equal(issues[0].type, 'static_asset_literal');
+    assert.equal(issues[0].count, 1);
+  } finally {
+    rmSync(distDir, { recursive: true, force: true });
+  }
+});

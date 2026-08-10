@@ -18,7 +18,29 @@ Eine Umbenennung (z. B. "Mika Elektrotechnik" → "Elektrotechnik Mika GmbH") da
 ## Was als Literal gilt
 
 Ein "Literal" ist jede Zeichenkette, die identisch mit `siteData.name` (case-insensitive)
-in einem Prosa-Feld steht.
+in einem Prosa-Feld steht — **und dort als eigenes Wort**, nicht als Teil eines längeren.
+
+### Die Rename-Probe entscheidet
+
+> Müsste eine Umbenennung diesen Satz anfassen? Ja → Literal. Nein → kein Literal.
+
+Deutsche Komposita erzeugen sonst Treffer, an denen nichts vermeidbar ist:
+
+| Marke | Text | Literal? |
+|---|---|---|
+| `Haus am Lago` | „Privates Ferien**haus am Lago** di Ledro" | **Nein** — steckt in „Ferienhaus". Eine Umbenennung ließe den Satz unberührt. |
+| `Haus am Lago` | „**Haus am Lago** liegt am Bergsee" | Ja — freistehend. |
+| `Soleno GmbH` | „Das **Soleno GmbH**-Team berät Sie" | Ja — Bindestrich ist ein Trennzeichen, kein Wortzeichen. |
+
+Der Guard prüft das seit v0.101.3 über Wortgrenzen (`isStandaloneMatch` in
+`ai-discovery/index.ts`). Die Grenzprüfung nutzt Unicode-Wortzeichen
+(`/[\p{L}\p{N}_]/u`) und **nicht** `\b`/`\w` — die sind in JS ASCII-only, für sie ist
+„ä" kein Wortzeichen. Mit `\b` läge mitten in `Sachverständigenbüro` eine Wortgrenze,
+und die Prüfung würde genau bei den Marken versagen, für die sie gedacht ist.
+
+Auslöser: Fleet-Scan 2026-08-10 ([#642](https://github.com/siluri/blitzsicht-ops/issues/642)) —
+`hausamlago` stand allein wegen dieser Kollision rot. Unter `strictBrandName: true` wäre
+daraus ein Build-Fail auf korrektem Deutsch geworden.
 
 ### Betroffen (must be generisch)
 

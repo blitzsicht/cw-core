@@ -22,6 +22,54 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.101.3 (2026-08-10)
+
+- [kunde] Keine Auswirkung auf die Website. Eine interne Prüfung meldete bisher einen Fehler, wo keiner war — sie hätte irgendwann grundlos den Veröffentlichungs-Vorgang blockiert.
+
+**Fix:** Brand-Name-Linter schlug bei Marken innerhalb eines Kompositums fehl
+
+Der Zähler lief auf reinem `indexOf`, ohne Wortgrenze. Damit traf jede Marke an, die
+Teil eines längeren deutschen Wortes ist. Konkret bei hausamlago: Marke `Haus am Lago`,
+Prosa „Privates Ferien**haus am Lago** di Ledro" → gemeldet als vermeidbares Literal.
+
+Entscheidend ist die Rename-Probe, auf der die Konvention beruht: eine Umbenennung
+müsste diesen Satz nicht anfassen — also ist er kein Literal. Der Kunde stand allein
+wegen dieser Kollision rot, an seinem Text war nichts falsch.
+
+Gemessen am Fleet-Scan vom 10.08.2026, echte Kundendaten, nur die Guard-Version
+unterschiedlich:
+
+| Kunde | vorher | nachher | Text unverändert? |
+|---|---|---|---|
+| hausamlago `description` | 1 Befund | ✓ 0 | ja — keine Copy-Änderung |
+| steller/soleno/mika `description` | je 1 Befund | je 1 Befund | echte Literale, bleiben gemeldet |
+| 6× `robots.txt`-Kommentar | je 1 Befund | je 1 Befund | echte Literale, bleiben gemeldet |
+
+Die Grenzprüfung (`isStandaloneMatch`) nutzt Unicode-Wortzeichen `/[\p{L}\p{N}_]/u` und
+**nicht** `\b`/`\w` — die sind in JS ASCII-only. Für `\b` ist „ä" kein Wortzeichen, es
+läge also mitten in `Sachverständigenbüro` eine Wortgrenze, und die Prüfung würde genau
+bei den Marken versagen, für die sie gedacht ist. Ein Test hält das fest.
+
+Trennzeichen bleiben Grenzen: `Soleno GmbH-Team` zählt weiter als Literal.
+
+Geändert: beide Zählstellen in `ai-discovery/index.ts` (`countOccurrences` für
+siteData-Prosa, `lintBrandNameInRobotsTxt` für das statische Asset). Der bestehende
+URL-Strip bleibt unberührt. 6 neue Tests, davon 2 Negativ-Tests gegen den echten Bug
+(gegengeprobt: gegen den ungefixten Stand sind genau diese 2 rot). 322/322 grün.
+
+**Migrations-Hinweis:** Keiner, der Bump genügt. Die Änderung kann nur Warnungen
+entfernen, keine hinzufügen.
+
+**Bekannte Lücke, nicht Teil dieses Fixes:** der Linter prüft `description`, `tagline`,
+`faqs[]` und `leistungen[]` — aber nicht `seo.defaultTitle`, `seo.defaultDescription`,
+`seo.titleTemplate`, `seo.schemaDescription`. Dort liegen bei 14 von 20 Repos Literale,
+auch bei Kunden, die heute als sauber gelten. „0 Befunde" heißt damit noch nicht
+rename-safe. Separat erfasst.
+
+Siehe blitzsicht-ops#642, `docs/brand-name-convention.md`.
+
+---
+
 ## v0.101.2 (2026-08-10)
 
 - [kunde] Beim Veröffentlichen wurden für das Titelbild bisher zusätzlich unkomprimierte Kopien angelegt, die kein Browser je abgerufen hat — teils fast 2 MB pro Stück. Sie entfallen.

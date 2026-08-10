@@ -475,6 +475,32 @@ export interface BrandNameIssue {
  * @param brandName - Der Markenname aus siteData.name.
  * @returns Array von BrandNameIssues (leer = alles OK).
  */
+/**
+ * Wortzeichen im Unicode-Sinn — Buchstaben (inkl. Umlaute/Akzente), Ziffern, Unterstrich.
+ *
+ * Bewusst NICHT `\b`/`\w`: die sind in JS ASCII-only. Für `\b` ist "ä" kein Wortzeichen,
+ * also läge mitten in "Sachverständigenbüro" eine Wortgrenze — die Grenzprüfung würde
+ * bei genau den Marken versagen, für die sie gebraucht wird.
+ */
+function isWordChar(ch: string | undefined): boolean {
+  return !!ch && /[\p{L}\p{N}_]/u.test(ch);
+}
+
+/**
+ * Steht der Treffer bei `pos` als eigenes Wort da — oder klebt er in einem Kompositum?
+ *
+ * Deutsche Komposita machen aus einer Marke ungewollt einen Treffer: "Haus am Lago"
+ * steckt in "Privates Ferienhaus am Lago di Ledro" (hausamlago, Fleet-Scan 2026-08-10).
+ * Ein Literal ist der Name nur, wenn eine Umbenennung den Text anfassen müsste — bei
+ * "Ferienhaus" müsste sie nicht. Trennzeichen (Bindestrich, Komma, `#`) sind keine
+ * Wortzeichen, "Soleno GmbH-Team" bleibt daher ein Treffer.
+ */
+function isStandaloneMatch(lowerHaystack: string, pos: number, needleLength: number): boolean {
+  return (
+    !isWordChar(lowerHaystack[pos - 1]) && !isWordChar(lowerHaystack[pos + needleLength])
+  );
+}
+
 export function lintBrandNameInSiteData(
   data: AiDiscoverySiteData,
   brandName: string,
@@ -491,7 +517,7 @@ export function lintBrandNameInSiteData(
     let pos = 0;
     const lower = text.toLowerCase();
     while ((pos = lower.indexOf(needle, pos)) !== -1) {
-      n++;
+      if (isStandaloneMatch(lower, pos, needle.length)) n++;
       pos += needle.length;
     }
     return n;
@@ -562,7 +588,8 @@ export function lintBrandNameInRobotsTxt(distDir: string, brandName: string): Br
   let count = 0;
   let pos = 0;
   while ((pos = lowerContent.indexOf(needle, pos)) !== -1) {
-    count++;
+    // Wortgrenze: "Ferienhaus am Lago di Ledro" ist kein Literal von "Haus am Lago".
+    if (isStandaloneMatch(lowerContent, pos, needle.length)) count++;
     pos += needle.length;
   }
 
