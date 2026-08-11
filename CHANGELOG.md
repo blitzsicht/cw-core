@@ -22,6 +22,63 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.103.0 (2026-08-11)
+
+**Feature:** Brand-Name-Linter prüft den `seo`-Block — die Felder, die wirklich ausgeliefert werden
+
+Der Guard prüfte `description`, `tagline`, `faqs[]` und `leistungen[]`. Die `<meta
+description>` einer Seite kommt aber aus `seo.defaultDescription`; `siteData.description`
+speist nur `llms.txt`. Er prüfte also das Feld mit der kleineren Reichweite und ließ das
+mit der größeren aus. Fleet-Scan vom 10.08.2026: **31 ausgeschriebene Marken-Literale in
+14 von 20 Repos** — darunter donau-profi und platzfrei, die als „0 Befunde" geführt wurden.
+„Sauber" hieß nicht rename-sicher.
+
+**Zwei Checks, weil die Zielzustände verschieden sind.** Bei Prosa lautet die Regel „Marke
+kommt nicht vor". Im `seo`-Block gilt das Gegenteil — die Marke *gehört* in den Title.
+Verboten ist nur ihr zweites Original:
+
+| Befund | Bedingung | Handlung |
+|---|---|---|
+| `redundant_title_template` | `seo.titleTemplate` ist byte-gleich mit `%s \| ${name}` | Feld löschen |
+| `seo_literal` | Marke steht ausgeschrieben im `seo`-Block der Quelldatei | interpolieren |
+
+`BaseLayout.astro:212` leitet `%s | ${siteName}` seit jeher selbst ab, wenn `titleTemplate`
+fehlt. 10 der 20 Repos wiederholen es trotzdem wörtlich — dort ist das Feld reine
+Duplikation und kann ersatzlos weg, der Output bleibt identisch. Abweichende Templates
+(`%s · Marke`, Kurzformen wie `%s | GRG`) sind erlaubt und werden nicht gemeldet.
+
+**Warum `lintBrandNameInSeoSource` den Quelltext liest und nicht das Objekt:** `` `… ${BRAND}` ``
+und `'… Marke'` sind zur Laufzeit derselbe String. Ein Guard auf dem Wert könnte das
+Zielmuster nicht vom Fehler unterscheiden — er würde die Interpolation mitflaggen und wäre
+unerfüllbar, denn die Marke muss im Title stehen. Der Check liest deshalb
+`src/data/site-data.ts`, grenzt den `seo`-Block über Klammer-Matching ein und ignoriert
+Kommentare wie `${…}`-Interpolationen. Fehlt die Datei oder gehen die Klammern nicht auf,
+meldet er nichts, statt auf einer falschen Region zu urteilen.
+
+**Bekannte Grenze, bewusst offen:** Umschreibungen entgehen jedem Literal-Guard. zinks Name
+ist „Zink Bäckerei & Konditorei", sein Template `%s | Bäckerei Zink`; gottl kürzt auf `GRG`,
+digital-direkt auf `DD`. Alle drei kosten bei einer Umbenennung Handarbeit und bleiben still.
+Bei 0 Befunden ist der `seo`-Block deshalb weiterhin manuell durchzusehen — dokumentiert in
+`docs/brand-name-convention.md`.
+
+Dieselbe Doku behauptete bis hierher, Seiten-Titles seien „generiert aus `siteData.name`,
+kein Literal im Source". Das war in 14 Repos falsch und ist korrigiert.
+
+`src/templates/site-data.template.ts` war die Quelle der flottenweiten Verbreitung
+(`titleTemplate: '%s | TODO: Firmenname'`). Das Template zeigt Neukunden jetzt das
+`const BRAND`-Muster und lässt `titleTemplate` weg.
+
+Trockenlauf gegen die echten `site-data.ts` der Live-Fleet: **17 neue Befunde bei 8 von 13
+Kunden**, keine Doppelmeldung. 13 neue Tests, 3 davon gegengeprobt rot gegen den ungefixten
+Stand; Suite 344/344.
+
+**Migrations-Hinweis:** Keiner — Soft-Warn wie alle Guards. Der Aufwand kommt erst mit
+`--strict-warnings` (blitzsicht-ops#646).
+
+Issue: siluri/blitzsicht-ops#647
+
+---
+
 ## v0.102.1 (2026-08-10)
 
 **Fix:** Meta-Linter zählte HTML-Entities als Escape-Sequenz statt als Zeichen

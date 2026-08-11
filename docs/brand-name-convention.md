@@ -59,8 +59,73 @@ daraus ein Build-Fail auf korrektem Deutsch geworden.
 - `siteData.name` — das IST die SSOT
 - `siteData.url` — enthält oft den Slug des Namens, das ist OK
 - `siteData.contact.email` — oft `info@mika-elektrotechnik.de`, OK
-- Seiten-Titles (`<title>`) — generiert aus `siteData.name` via Komponenten, kein Literal im Source
 - Schema.org `name`-Feld — wird aus `siteData.name` gesetzt, kein Literal im Source
+
+---
+
+## Der `seo`-Block: interpolieren statt streichen (v0.103.0)
+
+Bis v0.102.1 stand hier, Seiten-Titles seien „generiert aus `siteData.name`, kein Literal
+im Source". **Das stimmte nicht.** Der Fleet-Scan am 10.08.2026 fand den Markennamen
+ausgeschrieben in `seo.titleTemplate`/`defaultTitle`/`defaultDescription`/`schemaDescription`
+von **14 der 20 Repos** — darunter donau-profi und platzfrei, die als „0 Befunde" geführt
+wurden (blitzsicht-ops#647). Der Guard prüfte das Feld mit der kleineren Reichweite
+(`description` → nur `llms.txt`) und ließ das mit der größeren aus (`seo.defaultDescription`
+→ die ausgelieferte `<meta description>`).
+
+Hier gilt die Kernregel **anders herum**: die Marke *gehört* in den Title. Verboten ist
+nicht ihr Vorkommen, sondern ihr zweites Original.
+
+```ts
+// FALSCH — Umbenennung kostet eine Suche über alle Felder
+export const siteData = {
+  name: 'Mika Elektrotechnik',
+  seo: { defaultTitle: 'Elektroinstallation Rötz – Mika Elektrotechnik' },
+};
+
+// RICHTIG — Umbenennung kostet genau eine Zeile
+const BRAND = 'Mika Elektrotechnik';
+export const siteData = {
+  name: BRAND,
+  seo: { defaultTitle: `Elektroinstallation Rötz – ${BRAND}` },
+};
+```
+
+### `titleTemplate` braucht meist gar nichts
+
+`BaseLayout.astro:212` leitet den Default selbst ab:
+
+```ts
+const resolvedTitleTemplate = titleTemplate ?? (siteName ? `%s | ${siteName}` : '%s');
+```
+
+Ein `titleTemplate: '%s | <Name>'` wiederholt also nur, was ohnehin passiert — Feld löschen
+(samt Durchreiche in `page-config.ts`), der Output bleibt identisch. Der Guard meldet diesen
+Fall als `redundant_title_template`. **Abweichende** Templates (`'%s · Marke'`, Kurzformen
+wie `'%s | GRG'`) sind erlaubt und werden nicht gemeldet — dort interpoliert man `${BRAND}`.
+
+### Warum dieser Check den Quelltext liest
+
+`` `… ${BRAND}` `` und `'… Marke'` sind zur Laufzeit **derselbe String**. Ein Guard auf dem
+siteData-Objekt könnte das Zielmuster nicht vom Fehler unterscheiden und wäre unerfüllbar —
+der Kunde käme nie auf 0, obwohl die Marke im Title stehen muss. `lintBrandNameInSeoSource`
+liest deshalb `src/data/site-data.ts` und prüft, ob im `seo`-Block ein **ausgeschriebenes**
+Literal steht. Kommentare und `${…}`-Interpolationen zählen nicht mit.
+
+### Bekannte Grenze: Umschreibungen
+
+Ein Literal-Guard fängt nur, was wörtlich übereinstimmt. Weicht die Schreibweise ab, sieht
+er nichts — die Umbenennung kostet trotzdem Handarbeit:
+
+| Kunde | `siteData.name` | `seo.titleTemplate` | Guard |
+|---|---|---|---|
+| zink-baeckerei | `Zink Bäckerei & Konditorei` | `%s \| Bäckerei Zink` | still |
+| gottl-richter-gomeier | `Sachverständigenbüro Gottl Richter Gomeier` | `%s \| GRG` | still |
+| digital-direkt | `Digital-Direkt GmbH` | `%s \| DD` | still |
+
+Das ist keine Lücke, die sich mit mehr Regex schließen lässt — „GRG" ist für jede
+Zeichenkettenprüfung ein anderer String. Bei einer Umbenennung bleibt der `seo`-Block
+deshalb **immer** eine manuelle Durchsicht, auch bei 0 Befunden.
 
 ---
 

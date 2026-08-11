@@ -86,6 +86,13 @@ export interface AiDiscoverySiteData {
     registerNummer?: string;
   };
   seo?: {
+    // Meta-Felder, die BaseLayout in <title> und <meta description> ausliefert.
+    // Sie existierten in den Kunden-Repos längst, standen aber nicht im Typ — und
+    // fielen deshalb aus dem Brand-Name-Linter heraus (blitzsicht-ops#647).
+    titleTemplate?: string;
+    defaultTitle?: string;
+    defaultDescription?: string;
+    schemaDescription?: string;
     foundingDate?: string;
     areaServed?: readonly string[];
     knowsAbout?: readonly string[];
@@ -459,7 +466,7 @@ export interface MetaIssue {
 export interface BrandNameIssue {
   /** Identifikator: siteData-Feldname oder Datei-Pfad (z. B. "dist/robots.txt"). */
   location: string;
-  type: 'prose_literal' | 'static_asset_literal';
+  type: 'prose_literal' | 'seo_literal' | 'redundant_title_template' | 'static_asset_literal';
   /** Anzahl der gefundenen Vorkommen. */
   count: number;
   detail: string;
@@ -556,6 +563,141 @@ export function lintBrandNameInSiteData(
       check(`siteData.leistungen[${i}].description`, svc.description);
     });
   }
+
+  const seo = data.seo;
+  if (seo) {
+    // Der Redundanz-Fall zuerst: ist das Template byte-gleich mit dem, was BaseLayout
+    // ohnehin ableitet, ist das Feld pure Duplikation — und die Meldung wäre als
+    // "interpolieren" irreführend. Er greift auch bei Umschreibungen ohne Literal-Treffer.
+    const derivedTemplate = `%s | ${brandName}`;
+    if (seo.titleTemplate === derivedTemplate) {
+      issues.push({
+        location: 'siteData.seo.titleTemplate',
+        type: 'redundant_title_template',
+        count: 1,
+        detail:
+          `siteData.seo.titleTemplate ist identisch mit "${derivedTemplate}" — genau das, ` +
+          `was BaseLayout aus siteData.name ableitet, wenn das Feld fehlt. ` +
+          `Feld löschen (und die Durchreiche in page-config.ts dazu): identischer Output, ` +
+          `eine Duplikation weniger. Abweichende Templates ("%s · Marke", Kurzformen) ` +
+          `bleiben erlaubt und werden hier nicht gemeldet.`,
+      });
+    }
+    // Ausgeschriebene Marken in defaultTitle/defaultDescription/schemaDescription prüft
+    // lintBrandNameInSeoSource am Quelltext — am Wert wäre `${BRAND}` nicht von einem
+    // Literal zu unterscheiden, und der Check damit unerfüllbar.
+  }
+
+  return issues;
+}
+
+/**
+ * Findet den `seo: { … }`-Block im Quelltext und gibt seinen Inhalt mit Startzeile zurück.
+ * `null`, wenn kein Block gefunden wird oder die Klammern nicht aufgehen — dann meldet der
+ * Guard lieber nichts, als auf einer falschen Region zu urteilen.
+ */
+function extractSeoBlock(source: string): { text: string; startLine: number } | null {
+  const m = source.match(/(^|\n)[ \t]*seo\s*:\s*\{/);
+  if (!m || m.index === undefined) return null;
+  const open = source.indexOf('{', m.index);
+  if (open === -1) return null;
+
+  let depth = 0;
+  for (let i = open; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    else if (source[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        return {
+          text: source.slice(open, i + 1),
+          startLine: source.slice(0, open).split('\n').length,
+        };
+      }
+    }
+  }
+  return null; // Klammern gehen nicht auf → nicht raten
+}
+
+/** Entfernt Zeilenkommentare und `${…}`-Interpolationen — beides zählt nicht als Literal. */
+function stripNonLiteral(line: string): string {
+  return line.replace(/\/\/.*$/, '').replace(/\$\{[^}]*\}/g, '');
+}
+
+/**
+ * Prüft die SEO-Meta-Felder auf **ausgeschriebene** Marken-Literale — im Quelltext, nicht
+ * im Wert.
+ *
+ * Warum nicht auf dem siteData-Objekt wie die Prosa-Felder: bei `description`/`tagline` ist
+ * der Zielzustand „Marke kommt nicht vor". Bei `defaultTitle`/`defaultDescription` ist er das
+ * nicht — die Marke GEHÖRT in den ausgelieferten Title. Rename-Sicherheit heißt hier, dass
+ * sie **interpoliert** statt ausgeschrieben ist, und `` `… ${BRAND}` `` ist zur Laufzeit nicht
+ * von `'… Marke'` zu unterscheiden. Ein Guard auf dem Wert würde das Zielmuster mitflaggen
+ * und wäre unerfüllbar. Also liest dieser Check die Quelldatei.
+ *
+ * @param siteDataPath - Absoluter Pfad zu `src/data/site-data.ts`.
+ * @param brandName    - Der Markenname aus siteData.name.
+ * @returns Array von BrandNameIssues (leer = alles OK, Datei fehlt, oder Block nicht auffindbar).
+ */
+export function lintBrandNameInSeoSource(siteDataPath: string, brandName: string): BrandNameIssue[] {
+  if (!brandName || brandName.trim().length < 2) return [];
+  if (!existsSync(siteDataPath)) return [];
+
+  let source: string;
+  try {
+    source = readFileSync(siteDataPath, 'utf-8');
+  } catch {
+    return [];
+  }
+
+  const block = extractSeoBlock(source);
+  if (!block) return [];
+
+  const needle = brandName.trim().toLowerCase();
+  const issues: BrandNameIssue[] = [];
+  const lines = block.text.split('\n');
+
+  lines.forEach((rawLine, i) => {
+    const line = stripNonLiteral(rawLine);
+    if (/^\s*[*/]/.test(rawLine.trim())) return; // Blockkommentar-Zeile
+
+    // String-Literale der Zeile einsammeln (einfach, doppelt, Backtick).
+    const literals: string[] = [];
+    for (const re of [/'([^'\\]*(?:\\.[^'\\]*)*)'/g, /"([^"\\]*(?:\\.[^"\\]*)*)"/g, /`([^`\\]*(?:\\.[^`\\]*)*)`/g]) {
+      for (const lm of line.matchAll(re)) literals.push(lm[1]);
+    }
+    if (literals.length === 0) return;
+
+    let count = 0;
+    for (const lit of literals) {
+      const lower = lit.toLowerCase();
+      let pos = 0;
+      while ((pos = lower.indexOf(needle, pos)) !== -1) {
+        if (isStandaloneMatch(lower, pos, needle.length)) count++;
+        pos += needle.length;
+      }
+    }
+    if (count === 0) return;
+
+    const field = rawLine.match(/^\s*([A-Za-z_$][\w$]*)\s*:/);
+
+    // Ein titleTemplate, das exakt `%s | <Marke>` wiederholt, meldet der Wert-Check
+    // bereits als redundant — mit der richtigen Handlung ("Feld löschen"). Hier nicht
+    // zusätzlich als Literal melden, sonst zählt ein Fehler doppelt.
+    if (field?.[1] === 'titleTemplate' && literals.some((l) => l === `%s | ${brandName}`)) return;
+
+    const lineNo = block.startLine + i;
+    issues.push({
+      location: field ? `site-data.ts:${lineNo} (seo.${field[1]})` : `site-data.ts:${lineNo}`,
+      type: 'seo_literal',
+      count,
+      detail:
+        `"${brandName}" steht ${count}× ausgeschrieben im seo-Block (Zeile ${lineNo}) — dort, ` +
+        `wo <title> und <meta description> herkommen. Nicht streichen: die Marke gehört in den ` +
+        `Title. Stattdessen interpolieren — Marke einmal als const über siteData definieren ` +
+        `(\`const BRAND = '${brandName}';\`, dann \`name: BRAND\`) und hier \`\${BRAND}\` einsetzen. ` +
+        `Danach kostet eine Umbenennung genau eine Zeile. Siehe docs/brand-name-convention.md`,
+    });
+  });
 
   return issues;
 }
@@ -1268,25 +1410,47 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // Konvention: siteData.name ist SSOT für den Markennamen. Alle anderen
         // Felder (description, tagline, FAQs, Leistungen) müssen generisch
         // formuliert sein — kein Literal-Duplikat des Markennamens.
-        const brandIssuesSiteData = lintBrandNameInSiteData(data, data.name);
+        const brandIssuesSiteData = [
+          ...lintBrandNameInSiteData(data, data.name),
+          // Der seo-Block wird im Quelltext geprüft, nicht am Wert — Begründung an
+          // lintBrandNameInSeoSource. Ohne srcDir (config.srcDir nicht auflösbar) entfällt
+          // der Check still; das meldet der Motion-Guard bereits als ungeprüft.
+          ...(customerSrcDir
+            ? lintBrandNameInSeoSource(join(customerSrcDir, 'data', 'site-data.ts'), data.name)
+            : []),
+        ];
         if (brandIssuesSiteData.length > 0) {
-          const literalCount = brandIssuesSiteData.reduce((s, i) => s + i.count, 0);
+          // Getrennt zählen: ein redundantes titleTemplate ist kein Literal-Duplikat,
+          // und die beiden Befunde haben entgegengesetzte Fix-Richtungen (streichen
+          // vs. interpolieren). Eine Sammelzahl würde beides verwischen.
+          const literals = brandIssuesSiteData.filter((i) => i.type !== 'redundant_title_template');
+          const literalCount = literals.reduce((s, i) => s + i.count, 0);
+          const proseFields = literals.filter((i) => i.type === 'prose_literal').length;
+          const seoFields = literals.filter((i) => i.type === 'seo_literal').length;
+          const redundant = brandIssuesSiteData.length - literals.length;
+
+          const parts: string[] = [];
+          if (proseFields > 0) parts.push(`${proseFields} Prosa-Feld(ern)`);
+          if (seoFields > 0) parts.push(`${seoFields} seo-Meta-Feld(ern)`);
           logger.warn(
-            `Brand-Name-Linter: "${data.name}" kommt ${literalCount}× als Literal in ` +
-            `${brandIssuesSiteData.length} siteData-Prosa-Feld(ern) vor. ` +
-            `Convention: nur siteData.name, generische Formulierung in allen anderen Feldern. ` +
+            (literalCount > 0
+              ? `Brand-Name-Linter: "${data.name}" kommt ${literalCount}× als Literal in ${parts.join(' + ')} vor. `
+              : `Brand-Name-Linter: `) +
+            (redundant > 0 ? `${redundant}× redundantes titleTemplate. ` : '') +
+            `Convention: nur siteData.name, generische Formulierung in Prosa, Interpolation in seo. ` +
             `Siehe docs/brand-name-convention.md`,
           );
           for (const issue of brandIssuesSiteData) {
-            logger.warn(`  [brand-name] ${issue.location}: ${issue.count}× — ${issue.detail.split('.')[0]}.`);
+            const n = issue.type === 'redundant_title_template' ? 'redundant' : `${issue.count}×`;
+            logger.warn(`  [brand-name] ${issue.location}: ${n} — ${issue.detail.split('.')[0]}.`);
           }
           if (options.strictBrandName) {
             throw new Error(
-              `[ai-discovery] strictBrandName=true: Build abgebrochen wegen ${literalCount} Brand-Name-Literalen in siteData.`,
+              `[ai-discovery] strictBrandName=true: Build abgebrochen wegen ${brandIssuesSiteData.length} Brand-Name-Befund(en) in siteData.`,
             );
           }
         } else {
-          logger.info(`Brand-Name-Linter (siteData): ✓ Keine Literal-Duplikate in Prosa-Feldern.`);
+          logger.info(`Brand-Name-Linter (siteData): ✓ Keine Literal-Duplikate in Prosa- und seo-Feldern.`);
         }
 
         // -------------------------------------------------------------------

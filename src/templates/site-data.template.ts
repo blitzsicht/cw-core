@@ -2,9 +2,13 @@
 // Alle Felder mit TODO ausfüllen bevor der erste Build gestartet wird.
 // Nach Ausfüllen: pnpm build → cw-audit → Score muss >90 sein.
 
+// Markenname EINMAL hier, dann überall interpolieren. Eine Umbenennung kostet dann
+// genau diese Zeile — das ist die Zusage, die der Brand-Name-Linter prüft.
+const BRAND = 'TODO: Firmenname';      // z.B. "Elektro Müller"
+
 export const siteData = {
   // ─── Basis ────────────────────────────────────────────────────────────────
-  name: 'TODO: Firmenname',            // z.B. "Elektro Müller"
+  name: BRAND,
   tagline: 'TODO: Kurzslogan',         // z.B. "Ihr Elektriker in Regensburg"
   description: 'TODO: 1-2 Sätze',     // Für Meta-Description + Footer
   url: 'https://TODO.de',             // Live-URL ohne Slash am Ende
@@ -93,10 +97,17 @@ export const siteData = {
 
   // ─── SEO ───────────────────────────────────────────────────────────────────
   seo: {
-    titleTemplate: '%s | TODO: Firmenname',
+    // titleTemplate BEWUSST nicht gesetzt: BaseLayout leitet `%s | ${siteData.name}`
+    // selbst ab (BaseLayout.astro:212). Nur setzen, wenn eine ABWEICHENDE Form gewollt
+    // ist (Kurzform, anderes Trennzeichen) — und dann die Marke interpolieren, nicht
+    // ausschreiben: titleTemplate: `%s · ${BRAND}`. Ein Template, das exakt
+    // `%s | <Name>` wiederholt, meldet der Brand-Name-Linter als redundant.
+    //
     // Homepage-Title: "<Hauptkeyword> <Ort> – <USP> | <Brand>" → max. 60 Zeichen
     // Lokal-SEO: Geo-Keyword IMMER im Title. Bsp: "Elektriker Regensburg – 24h Notdienst | Müller"
-    defaultTitle: 'TODO: Hauptkeyword Ort – USP | Firmenname',
+    // BRAND interpolieren statt ausschreiben — sonst kostet jede Umbenennung eine Suche
+    // über alle Felder, und der Brand-Name-Linter meldet das Literal.
+    defaultTitle: `TODO: Hauptkeyword Ort – USP | ${BRAND}`,
     defaultDescription: 'TODO: 1-2 Sätze mit Geo + Zielgruppe + USP für Google-Snippet (150-160 Zeichen)',
     // OG-Image Fallback-Chain (BaseLayout, 5 Levels): 1. Seiten-ogImage-Prop →
     // 2. heroImage → 3. contentImage → 4. generiertes /og/default.png →

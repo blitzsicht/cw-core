@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { lintBrandNameInSiteData, lintBrandNameInRobotsTxt } from '../../src/integrations/ai-discovery/index.ts';
+import { lintBrandNameInSiteData, lintBrandNameInRobotsTxt, lintBrandNameInSeoSource } from '../../src/integrations/ai-discovery/index.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -329,4 +329,146 @@ test('17. Gegenprobe zu 16: freistehende Marke in robots.txt → Issue', () => {
   } finally {
     rmSync(distDir, { recursive: true, force: true });
   }
+});
+
+
+// ---------------------------------------------------------------------------
+// Tests: seo-Block (blitzsicht-ops#647)
+//
+// Der Linter prüfte description/tagline/faqs/leistungen — aber nicht die Felder, aus
+// denen die ausgelieferte <title>/<meta description> entsteht. donau-profi und platzfrei
+// galten damit als sauber und hätten bei einer Umbenennung trotzdem Handarbeit gekostet.
+// Fleet-Messung 10.08.2026: 31 Felder in 14 Repos.
+//
+// Zwei getrennte Checks, weil die Zielzustände verschieden sind:
+//   - titleTemplate byte-gleich mit `%s | ${name}` → redundant, Feld kann weg (Wert-Check)
+//   - Marke ausgeschrieben im seo-Block → interpolieren (QUELLTEXT-Check, s.u.)
+// ---------------------------------------------------------------------------
+
+test('18. titleTemplate identisch mit dem abgeleiteten Default → redundant_title_template', () => {
+  const data = makeSiteData({ seo: { titleTemplate: '%s | Mika Elektrotechnik' } });
+  const issues = lintBrandNameInSiteData(data, data.name);
+  assert.equal(issues.length, 1, 'Genau ein Befund — nicht zusätzlich als Literal.');
+  assert.equal(issues[0].type, 'redundant_title_template');
+  assert.match(issues[0].detail, /BaseLayout|löschen/i);
+});
+
+test('19. [Negativ] Abweichendes Template ohne Literal → KEIN Issue', () => {
+  // Kurzformen und andere Trennzeichen sind erlaubt: gottl "%s | GRG",
+  // digital-direkt "%s | DD", preshot "%s · PRESHOT". Der Guard kennt die Absicht
+  // nicht und darf hier nicht übergriffig werden.
+  for (const tpl of ['%s | GRG', '%s · Elektro', '%s']) {
+    const data = makeSiteData({ seo: { titleTemplate: tpl } });
+    assert.deepEqual(lintBrandNameInSiteData(data, data.name), [], `"${tpl}" darf nicht flaggen.`);
+  }
+});
+
+test('20. seo-Block fehlt komplett → kein Crash, keine Issues', () => {
+  const data = makeSiteData();
+  delete data.seo;
+  assert.deepEqual(lintBrandNameInSiteData(data, data.name), []);
+});
+
+// --- Quelltext-Check: lintBrandNameInSeoSource --------------------------------
+
+/** Schreibt eine site-data.ts in ein temp-srcDir und gibt den Dateipfad zurück. */
+function makeSiteDataSource(seoBlockBody, { brandConst = null } = {}) {
+  const dir = join(tmpdir(), `cw-test-src-${process.pid}-${Math.random().toString(36).slice(2)}`, 'data');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'site-data.ts');
+  writeFileSync(
+    file,
+    [
+      brandConst ? `const BRAND = '${brandConst}';` : '',
+      'export const siteData = {',
+      `  name: ${brandConst ? 'BRAND' : "'Mika Elektrotechnik'"},`,
+      "  description: 'Ihr Fachbetrieb.',",
+      '  seo: {',
+      seoBlockBody,
+      '  },',
+      '  contact: { phone: undefined },',
+      '};',
+    ].join('\n'),
+    'utf-8',
+  );
+  return file;
+}
+
+test('21. Ausgeschriebene Marke in seo.defaultTitle → seo_literal mit Zeilennummer', () => {
+  const file = makeSiteDataSource("    defaultTitle: 'Elektroinstallation Muenchen – Mika Elektrotechnik',");
+  const issues = lintBrandNameInSeoSource(file, 'Mika Elektrotechnik');
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].type, 'seo_literal');
+  assert.match(issues[0].location, /site-data\.ts:\d+ \(seo\.defaultTitle\)/);
+  assert.match(issues[0].detail, /interpolieren/i);
+});
+
+test('22. [Kern von #647] Interpolierte Marke → KEIN Issue, obwohl der Wert identisch ist', () => {
+  // Das ist der Grund, warum dieser Check den Quelltext liest und nicht das Objekt:
+  // zur Laufzeit sind beide Strings gleich, nur einer ist rename-sicher.
+  const file = makeSiteDataSource(
+    '    defaultTitle: `Elektroinstallation Muenchen – ${BRAND}`,',
+    { brandConst: 'Mika Elektrotechnik' },
+  );
+  assert.deepEqual(lintBrandNameInSeoSource(file, 'Mika Elektrotechnik'), []);
+});
+
+test('23. Mehrere seo-Felder ausgeschrieben → je ein Issue, count pro Zeile', () => {
+  const file = makeSiteDataSource(
+    [
+      "    defaultDescription: 'Mika Elektrotechnik installiert in Muenchen.',",
+      "    schemaDescription: 'Mika Elektrotechnik ist ein Meisterbetrieb. Mika Elektrotechnik seit 2019.',",
+    ].join('\n'),
+  );
+  const issues = lintBrandNameInSeoSource(file, 'Mika Elektrotechnik');
+  assert.deepEqual(
+    issues.map((i) => [i.location.replace(/:\d+ /, ' '), i.count]),
+    [['site-data.ts (seo.defaultDescription)', 1], ['site-data.ts (seo.schemaDescription)', 2]],
+  );
+});
+
+test('24. [Negativ] Marke außerhalb des seo-Blocks → kein Issue aus diesem Check', () => {
+  // name + description liegen außerhalb; die deckt der Prosa-Check ab. Doppelmeldung
+  // würde die Fleet-Zahl aufblähen.
+  const file = makeSiteDataSource("    defaultTitle: 'Elektroinstallation Muenchen',");
+  assert.deepEqual(lintBrandNameInSeoSource(file, 'Mika Elektrotechnik'), []);
+});
+
+test('25. [Negativ] Marke nur im Kommentar → kein Issue', () => {
+  const file = makeSiteDataSource(
+    [
+      '    // Bsp: "Elektriker Muenchen | Mika Elektrotechnik"',
+      "    defaultTitle: 'Elektroinstallation Muenchen',",
+    ].join('\n'),
+  );
+  assert.deepEqual(lintBrandNameInSeoSource(file, 'Mika Elektrotechnik'), []);
+});
+
+test('26. Kompositum im seo-Block → kein Issue (Wortgrenze gilt auch hier)', () => {
+  const file = makeSiteDataSource("    defaultTitle: 'Privates Ferienhaus am Lago di Ledro',");
+  assert.deepEqual(lintBrandNameInSeoSource(file, 'Haus am Lago'), []);
+});
+
+test('27. Datei fehlt oder kein seo-Block → leer, kein Crash', () => {
+  assert.deepEqual(lintBrandNameInSeoSource('/pfad/gibt/es/nicht/site-data.ts', 'Mika Elektrotechnik'), []);
+  const dir = join(tmpdir(), `cw-test-src-${process.pid}-noseo`, 'data');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'site-data.ts');
+  writeFileSync(file, "export const siteData = { name: 'Mika Elektrotechnik' };\n", 'utf-8');
+  assert.deepEqual(lintBrandNameInSeoSource(file, 'Mika Elektrotechnik'), []);
+});
+
+test('28. Redundantes titleTemplate wird NICHT doppelt gemeldet', () => {
+  // Der Wert-Check meldet es als redundant_title_template mit der Handlung "Feld löschen".
+  // Würde der Quelltext-Check dieselbe Zeile zusätzlich als Literal melden, zählte ein
+  // Fehler doppelt — und die Fleet-Zahl wäre um 7 zu hoch (Messung 10.08.2026).
+  const file = makeSiteDataSource("    titleTemplate: '%s | Mika Elektrotechnik',");
+  assert.deepEqual(lintBrandNameInSeoSource(file, 'Mika Elektrotechnik'), []);
+
+  // Abweichendes Template MIT ausgeschriebener Marke bleibt ein Quelltext-Befund
+  // (donau-profi: name "Donau-Profi", template "%s | Donau-Profi Gebäudereinigung").
+  const diverging = makeSiteDataSource("    titleTemplate: '%s | Mika Elektrotechnik Muenchen',");
+  const issues = lintBrandNameInSeoSource(diverging, 'Mika Elektrotechnik');
+  assert.equal(issues.length, 1);
+  assert.match(issues[0].location, /seo\.titleTemplate/);
 });
