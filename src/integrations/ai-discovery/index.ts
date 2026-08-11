@@ -19,9 +19,15 @@
  *   });
  */
 
-import { writeFileSync, mkdirSync, readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
+import {
+  writeFileSync, mkdirSync, readdirSync, readFileSync, statSync, existsSync,
+  openSync, readSync, closeSync,
+} from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { join, relative } from 'node:path';
+import { join, relative, extname } from 'node:path';
+import {
+  sniffImageFormat, expectedFormatForExt, describeFormat, SNIFF_BYTES,
+} from '../../utils/image-format.js';
 import { createHash } from 'node:crypto';
 import type { AstroIntegration } from 'astro';
 import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.js';
@@ -305,6 +311,31 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * `<pre>`/`<code>` sind ausgenommen — dort sind unbalancierte Klammern richtig.
    */
   strictStrayBraces?: boolean;
+
+  /**
+   * Default true. Magic-Byte-Guard auf den Quell-Assets (`public/` + `src/assets/`):
+   * hält bei jeder Bilddatei den Inhalt gegen die Endung. Opt-out pro Site: `false`.
+   */
+  checkAssetFormat?: boolean;
+
+  /**
+   * Default TRUE ab v0.106.0 → Build-Fail (throw), wenn die Endung einer Quell-Bilddatei
+   * über ihren Inhalt lügt. Opt-out pro Site: explizit `false`.
+   *
+   * Sofort strict statt Soft-Warn, gedeckt durch eine Messung über die **committeten**
+   * Blobs aller 23 Kunden-Repos (11.08.2026, `git show origin/main:<pfad>` — nicht über
+   * die Arbeitskopien, die veraltet und teils schon repariert sind): 524 Quell-Assets,
+   * **1 Befund** (stellers `hero.webp`, ein 1257-KB-PNG), **0 Falsch-Positive**.
+   *
+   * Die 0 ist erarbeitet, nicht geschenkt: ein naiver Text-Sniff meldete zunächst 4
+   * Falsch-Positive, weil zinks Logos mit `<!-- … -->` beginnen. Deshalb streift
+   * `sniffImageFormat` BOM, Whitespace, `<?…?>`, Kommentare und DOCTYPE ab, bevor es
+   * das erste Tag liest.
+   *
+   * Gemeldet wird auch „gar kein Bild" (gottls `rics.png` war 212 Byte HTML), nicht nur
+   * PNG-vs-WebP.
+   */
+  strictAssetFormat?: boolean;
 
   /**
    * Default TRUE seit v0.76.0 (strict-Flip, Fleet shape-clean). Build-Fail, wenn der
@@ -1555,6 +1586,115 @@ export function lintSiteDataShape(data: any): ShapeIssue[] {
   return issues;
 }
 
+export interface AssetFormatIssue {
+  /** Pfad relativ zum jeweiligen Wurzelverzeichnis (public/ bzw. src/assets/). */
+  file: string;
+  /** Endung der Datei, klein geschrieben, mit Punkt. */
+  ext: string;
+  /** Was die Endung verspricht. */
+  expected: string;
+  /** Was die Magic Bytes sagen. */
+  actual: string;
+  /** Dateigröße in Bytes — macht „212 Byte HTML statt Logo" auf einen Blick lesbar. */
+  bytes: number;
+}
+
+/** Verzeichnisse, die auch unterhalb von public/ nie Ausliefer-Assets enthalten. */
+const ASSET_WALK_SKIP = new Set(['node_modules', '.git', '.astro', '.vercel', 'dist']);
+
+/**
+ * Alle Dateien mit prüfbarer Bild-Endung unter `dir` einsammeln.
+ * @param dir Wurzelverzeichnis
+ * @param root Wurzel für die relative Pfadangabe
+ */
+function walkAssets(dir: string, root: string, results: string[] = []): string[] {
+  if (!existsSync(dir)) return results;
+  let entries: string[];
+  try {
+    entries = readdirSync(dir);
+  } catch {
+    return results; // unlesbares Verzeichnis darf den Build nicht kippen
+  }
+  for (const entry of entries) {
+    const full = join(dir, entry);
+    let stat;
+    try {
+      stat = statSync(full);
+    } catch {
+      continue; // toter Symlink o.ä.
+    }
+    if (stat.isDirectory()) {
+      if (ASSET_WALK_SKIP.has(entry)) continue;
+      walkAssets(full, root, results);
+    } else if (expectedFormatForExt(extname(entry))) {
+      results.push(full);
+    }
+  }
+  return results;
+}
+
+/**
+ * Magic-Byte-Guard für QUELL-Assets: hält bei jeder Bilddatei den Inhalt gegen die Endung.
+ *
+ * Warum an der Quelle und nicht (wie Geotag-/Perf-Guard) an `dist/`: bis cw-core v0.101.1
+ * meldete exiftool über den Geotag-Guard noch `hero…webp: Not a valid WEBP (looks more like
+ * a PNG)`. Seit v0.101.2 (`fallbackFormat="webp"`) sind die dist-Derivate echte WebP — der
+ * Befund verschwand, ohne dass jemand die Datei angefasst hatte. steller wanderte in der
+ * Fleet-Basiszahl still von „5 Bilder über Budget + Formatwarnung" auf „sauber".
+ * Ein Guard, der nur das Ergebnis prüft, kann eine kaputte Quelle nicht sehen, sobald die
+ * Pipeline sie glattbügelt (blitzsicht-ops#651).
+ *
+ * Geltungsbereich bewusst eng: nur was ausgeliefert wird. Gemessen über die Fleet
+ * (11.08.2026) liegen im ganzen Repo 1377 Bilddateien, in `public/` + `src/assets/` aber
+ * nur 524 — der Rest sind Foto-Master, Website-Archive, QA-Screenshots und Marketing-
+ * Exporte, die nie beim Besucher ankommen. Bilder unter `src/` außerhalb `src/assets/`:
+ * keine. Der enge Schnitt verliert also nichts und spart 839 irrelevante Dateien.
+ *
+ * @param dirs Wurzelverzeichnisse (publicDir, srcDir/assets) — fehlende werden übersprungen
+ * @returns Befunde + wie viele Dateien tatsächlich gelesen wurden (Vorbedingungs-Beleg:
+ *          `checked: 0` heißt „nichts gemessen", nicht „alles sauber")
+ */
+export function lintSourceAssetFormat(dirs: string[]): {
+  issues: AssetFormatIssue[];
+  checked: number;
+} {
+  const issues: AssetFormatIssue[] = [];
+  let checked = 0;
+
+  for (const root of dirs) {
+    if (!root || !existsSync(root)) continue;
+    for (const full of walkAssets(root, root)) {
+      const ext = extname(full).toLowerCase();
+      const expected = expectedFormatForExt(ext);
+      if (!expected) continue;
+
+      let head: Buffer;
+      let bytes: number;
+      try {
+        bytes = statSync(full).size;
+        const fd = openSync(full, 'r');
+        try {
+          const buf = Buffer.alloc(Math.min(SNIFF_BYTES, Math.max(bytes, 1)));
+          const read = readSync(fd, buf, 0, buf.length, 0);
+          head = buf.subarray(0, read);
+        } finally {
+          closeSync(fd);
+        }
+      } catch {
+        continue; // unlesbar → kein Befund erfinden
+      }
+
+      checked++;
+      const actual = sniffImageFormat(head);
+      if (actual !== expected) {
+        issues.push({ file: relative(root, full), ext, expected, actual, bytes });
+      }
+    }
+  }
+
+  return { issues, checked };
+}
+
 export default function aiDiscovery<T extends AiDiscoverySiteData>(
   options: AiDiscoveryOptions<T>,
 ): AstroIntegration {
@@ -1702,6 +1842,65 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           }
         } else {
           logger.info(`Impressum-Linter: ✓ Rechtsform-Angaben vollständig.`);
+        }
+
+        // -------------------------------------------------------------------
+        // Asset-Format-Guard: lügt die Endung über den Inhalt?
+        // -------------------------------------------------------------------
+        // Begründung an lintSourceAssetFormat. Hier im config-Hook, weil nur er die
+        // Quellverzeichnisse kennt — und weil dist/ die Frage nicht beantworten kann:
+        // die Bild-Pipeline bügelt eine falsch benannte Quelle glatt, der Befund
+        // verschwindet still (blitzsicht-ops#651).
+        if (options.checkAssetFormat !== false) {
+          const publicDir = (() => {
+            try {
+              return fileURLToPath(config.publicDir);
+            } catch {
+              return null;
+            }
+          })();
+          const assetDirs = [
+            publicDir,
+            customerSrcDir ? join(customerSrcDir, 'assets') : null,
+          ].filter((d): d is string => Boolean(d) && existsSync(d as string));
+
+          if (assetDirs.length === 0) {
+            // Dritter Zustand. Kein ✓ — „nicht geprüft" ist nicht „sauber".
+            logger.warn(
+              `Asset-Format: NICHT GEPRÜFT — weder publicDir noch src/assets auflösbar. ` +
+                `Das ist kein grünes Ergebnis.`,
+            );
+          } else {
+            const { issues: assetIssues, checked } = lintSourceAssetFormat(assetDirs);
+            if (assetIssues.length > 0) {
+              logger.warn(
+                `Asset-Format: ${assetIssues.length} Datei(en) von ${checked}, deren Endung ` +
+                  `nicht zum Inhalt passt. Die Datei ist falsch benannt oder der Download ist fehlgeschlagen:`,
+              );
+              for (const i of assetIssues) {
+                logger.warn(
+                  `  [asset-format] ${i.file}: ${describeFormat(i.actual)} statt ` +
+                    `${i.expected.toUpperCase()} (${(i.bytes / 1024).toFixed(0)} KB)`,
+                );
+              }
+              if (options.strictAssetFormat !== false) {
+                throw new Error(
+                  `[ai-discovery] strictAssetFormat=true: Build abgebrochen wegen ${assetIssues.length} ` +
+                    `Quell-Asset(s) mit falscher Endung. Datei korrekt konvertieren oder umbenennen — ` +
+                    `nicht die Endung raten. Opt-out: strictAssetFormat:false.`,
+                );
+              }
+            } else if (checked === 0) {
+              // Verzeichnisse da, aber keine einzige Bilddatei gelesen. Kein ✓ — sonst
+              // meldete eine leere Menge dasselbe wie eine geprüfte (Gegenbeweis-Pflicht).
+              logger.warn(
+                `Asset-Format: NICHT GEPRÜFT — keine Bilddatei in ${assetDirs.length} ` +
+                  `Quellverzeichnis(sen) gefunden. Das ist kein grünes Ergebnis.`,
+              );
+            } else {
+              logger.info(`Asset-Format: ✓ ${checked} Quell-Assets, Endung passt zum Inhalt.`);
+            }
+          }
         }
 
         // -------------------------------------------------------------------

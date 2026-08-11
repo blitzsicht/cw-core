@@ -12,7 +12,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldRewriteWebp, isDenied } from './optimize-images.mjs';
+import { shouldRewriteWebp, isDenied, formatMismatch } from './optimize-images.mjs';
 
 test('jpg/png wird immer konvertiert (auch wenn WebP größer würde)', () => {
   assert.equal(
@@ -107,4 +107,37 @@ test('Denylist: echte Content-Bilder werden optimiert (Negativ-Test)', () => {
 test('Denylist: Windows-Backslash-Pfade normalisiert', () => {
   assert.equal(isDenied('public\\og\\default.png'), true);
   assert.equal(isDenied('public\\images\\hero.webp'), false);
+});
+
+// ── Maskierungs-Guard (blitzsicht-ops#651) ────────────────────────────────────
+// Die Pipeline darf eine falsch benannte Datei nicht mehr still reparieren, sonst
+// sieht der Asset-Format-Guard sie nie. Ohne den ersten Fall wäre jedes Grün leer.
+
+test('ECHTER BUG-FALL stellers hero.webp: PNG-Inhalt unter .webp → Mismatch', () => {
+  assert.deepEqual(formatMismatch('.webp', 'png'), { expected: 'webp', actual: 'png' });
+});
+
+test('gottls rics.png: sharp erkennt kein Bild → Mismatch sobald ein Format kommt', () => {
+  assert.deepEqual(formatMismatch('.png', 'svg'), { expected: 'png', actual: 'svg' });
+});
+
+test('passende Datei ist KEIN Mismatch (Negativ-Test)', () => {
+  assert.equal(formatMismatch('.webp', 'webp'), null);
+  assert.equal(formatMismatch('.png', 'png'), null);
+  assert.equal(formatMismatch('.JPG', 'jpeg'), null);
+});
+
+test('sharps jpg/jpeg-Schreibweisen gelten als dasselbe Format', () => {
+  assert.equal(formatMismatch('.jpg', 'jpg'), null);
+  assert.equal(formatMismatch('.jpeg', 'jpeg'), null);
+});
+
+test('.avif als heif gemeldet ist kein Befund (sharps Sammelbegriff)', () => {
+  assert.equal(formatMismatch('.avif', 'heif'), null);
+  assert.equal(formatMismatch('.avif', 'avif'), null);
+});
+
+test('ohne beurteilbare Endung oder Format wird nichts behauptet', () => {
+  assert.equal(formatMismatch('.txt', 'png'), null);
+  assert.equal(formatMismatch('.webp', undefined), null);
 });

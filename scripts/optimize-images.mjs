@@ -32,6 +32,9 @@ import { readdir, stat, rename, unlink } from 'node:fs/promises';
 import { realpathSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
+// Dieselbe Endung→Format-Tabelle wie der Asset-Format-Guard in ai-discovery.
+// Geteilt, damit Pipeline und Guard nie auseinanderlaufen (Twin-Divergenz-Guard).
+import { expectedFormatForExt } from '../src/utils/image-format.js';
 
 // Resolve sharp from the consumer's node_modules (CWD), not from this script's location.
 // Lazy (erst beim Lauf, nicht beim Import): der Logik-Test importiert dieses Modul
@@ -100,6 +103,29 @@ export function shouldRewriteWebp({ isWebP, needsResize, sizeBefore, sizeAfter }
   return saved > 2048 && saved / sizeBefore > 0.02;
 }
 
+/**
+ * Lügt die Endung über den Inhalt? Rein (keine I/O) → ohne sharp testbar.
+ *
+ * `sharp.metadata().format` liest den echten Inhalt, `ext` ist nur der Name. Weichen
+ * sie ab, darf diese Datei NICHT angefasst werden: bis v0.106.0 hat der Optimizer sie
+ * still in ein echtes WebP umgeschrieben und damit den Befund zugedeckt, den der
+ * Asset-Format-Guard melden soll (blitzsicht-ops#651).
+ *
+ * @param {string} ext          Endung mit Punkt
+ * @param {string|undefined} metaFormat  sharps erkanntes Format
+ * @returns {{expected: string, actual: string}|null} null = passt oder nicht beurteilbar
+ */
+export function formatMismatch(ext, metaFormat) {
+  const expected = expectedFormatForExt(ext);
+  if (!expected || !metaFormat) return null;
+  // sharp meldet JPEG als `jpeg`, in älteren Versionen teils als `jpg`.
+  const actual = metaFormat === 'jpg' ? 'jpeg' : String(metaFormat);
+  // `heif` ist sharps Sammelbegriff für die ISOBMFF-Familie inklusive AVIF — eine
+  // .avif, die sharp als heif meldet, ist kein Befund.
+  if (expected === 'avif' && (actual === 'heif' || actual === 'avif')) return null;
+  return actual === expected ? null : { expected, actual };
+}
+
 async function findImages(dir) {
   const files = [];
   let entries;
@@ -144,6 +170,30 @@ async function optimizeImage(filePath) {
   try {
     const image = getSharp()(filePath);
     const meta = await image.metadata();
+
+    // Endung gegen Inhalt halten, BEVOR irgendetwas geschrieben wird.
+    //
+    // `isWebP` oben kommt aus der Endung, sharp liest aber nach Inhalt. Ein falsch
+    // benanntes PNG über 5 KB erfüllt darum `shouldRewriteWebp` (>2 KB und >2 %
+    // Ersparnis) und wurde bis v0.106.0 STILL in ein echtes WebP umgeschrieben —
+    // im prebuild, bevor ein Guard es sehen konnte. Auf Vercel passiert das bei
+    // jedem Build neu, die committete Datei bleibt für immer falsch, und niemand
+    // erfährt davon. Das ist derselbe Fehler wie blitzsicht-ops#651, eine Stufe
+    // früher: die Pipeline deckt die kaputte Quelle zu.
+    //
+    // Darum hier nicht reparieren, sondern melden und die Finger davon lassen. Der
+    // Asset-Format-Guard in ai-discovery bricht den Build dann mit Pfad und Diagnose
+    // ab — eine Meldestelle, nicht zwei. `meta.format` ist bereits geladen, kostet
+    // also keine zusätzliche I/O.
+    const mismatch = formatMismatch(ext, meta.format);
+    if (mismatch) {
+      return {
+        file: filePath,
+        skipped: true,
+        warn: true,
+        reason: `Endung sagt ${mismatch.expected.toUpperCase()}, Inhalt ist ${mismatch.actual.toUpperCase()} — nicht angefasst, bitte korrigieren`,
+      };
+    }
 
     // Skip tiny images (icons, etc.)
     if (sizeBefore < 5000) {
@@ -232,7 +282,13 @@ async function main() {
   for (const file of files) {
     const result = await optimizeImage(file);
     if (result.skipped) {
-      console.log(`   ⏭  ${basename(result.file)} — ${result.reason}`);
+      // Ein Format-Mismatch ist kein harmloses Überspringen — sichtbar machen, und
+      // mit vollem Pfad statt Dateiname: der Operator muss die Datei finden können.
+      console.log(
+        result.warn
+          ? `   ⚠️  ${result.file} — ${result.reason}`
+          : `   ⏭  ${basename(result.file)} — ${result.reason}`,
+      );
     } else if (result.error) {
       console.log(`   ❌ ${basename(result.file)} — ${result.error}`);
     } else {

@@ -22,6 +22,97 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.106.0 (2026-08-11)
+
+- [kunde] Neue Prüfung beim Bauen der Website: Bilddateien, deren Dateiendung nicht zum
+  tatsächlichen Inhalt passt, werden jetzt gemeldet statt still mitgeschleppt. Solche
+  Dateien entstehen durch fehlgeschlagene Downloads und sind entweder unnötig groß oder
+  gar keine Bilder.
+
+**Feature:** Magic-Byte-Guard für Quell-Assets — die Endung lügt, und `dist/` verdeckt es
+
+Zwei Kunden, ein Fehlertyp: **die Dateiendung lügt über den Inhalt.**
+
+| Kunde | Datei | Endung sagt | Inhalt ist |
+|---|---|---|---|
+| gottl-richter-gomeier | `public/images/badges/rics.png` | PNG | HTML (Bot-Schutz-Seite), 212 B |
+| gottl-richter-gomeier | `public/images/badges/rics.svg` | SVG | HTML, 2146 B |
+| steller-sanierungen | `src/assets/images/hero/hero.webp` | WebP | **PNG, 1024×1024, 1257 KB** |
+
+Der Anlass ist nicht die Datei, sondern dass der Befund **still verschwunden ist**. Bis
+v0.101.1 meldete exiftool über den Geotag-Guard noch `hero…webp: Not a valid WEBP (looks
+more like a PNG)`. Seit v0.101.2 (`fallbackFormat="webp"`) sind die dist-Derivate echte
+WebP — der Geotag-Check sieht nur `dist/`, dort ist alles in Ordnung, und die falsch
+benannte Quelle wurde unsichtbar. steller wanderte in der Fleet-Basiszahl von „5 Bilder
+über Budget + Formatwarnung" auf „sauber", ohne dass jemand die Datei angefasst hatte.
+Der Fix von v0.101.2 war richtig; er hat den Befund nur zugedeckt statt gelöst.
+
+Ein Guard, der nur das Ergebnis prüft, kann eine kaputte Quelle nicht sehen, sobald die
+Pipeline sie glattbügelt.
+
+Neu ist `lintSourceAssetFormat(dirs)` im `astro:config:done`-Hook (dort, wo auch
+Brand-Name-, Impressum- und Shape-Guard sitzen — nur dieser Hook kennt die
+Quellverzeichnisse). Geprüft werden `publicDir` und `srcDir/assets`, jede Datei mit
+eindeutig zuordenbarer Bild-Endung, gegen ihre Magic Bytes. Gemeldet wird auch **„gar kein
+Bild"** — gottls Fall war HTML, nicht bloß eine Format-Verwechslung.
+
+**Geltungsbereich bewusst eng.** Über die Fleet gemessen liegen im ganzen Repo 1377
+Bilddateien, in `public/` + `src/assets/` aber nur 524. Der Rest sind Foto-Master,
+Website-Archive, QA-Screenshots und Marketing-Exporte, die nie beim Besucher ankommen.
+Bilder unter `src/` außerhalb `src/assets/`: keine. Der enge Schnitt verliert nichts.
+
+**Default strict** (`strictAssetFormat`, Opt-out `false`). Gedeckt durch eine Messung über
+die **committeten** Blobs aller Kunden-Repos (`git show origin/main:<pfad>` — nicht über
+die Arbeitskopien, die teils Commits zurück und teils schon repariert sind):
+
+| Umfang | Assets | Befunde |
+|---|---:|---:|
+| 20 Kunden-Repos, `public/` + `src/assets/` | **524** | **1** |
+
+Der eine Befund ist stellers `hero.webp`. **Null Falsch-Positive** — und die Null ist
+erarbeitet: ein naiver Text-Sniff („beginnt mit `<?xml` oder `<svg`") meldete zuerst vier
+gültige SVGs, weil zinks Logos mit einem mehrzeiligen `<!-- … -->`-Kommentar über die
+Illustrator-Herkunft beginnen. `sniffImageFormat` streift deshalb BOM, Whitespace,
+Processing Instructions, Kommentare und DOCTYPE ab, bevor es das erste Tag liest.
+
+**Fix:** `optimize-images` deckt eine falsch benannte Datei nicht mehr zu
+
+Derselbe Fehler saß eine Stufe früher in der Pipeline. `optimize-images.mjs` läuft im
+`prebuild` über `public/`; `isWebP` kam aus der **Endung**, sharp liest aber den
+**Inhalt**. Ein falsch benanntes PNG über 5 KB erfüllte damit `shouldRewriteWebp` und
+wurde still in ein echtes WebP umgeschrieben — bevor irgendein Guard es sehen konnte. Auf
+Vercel passiert das bei jedem Build neu, die committete Datei bleibt für immer falsch,
+und niemand erfährt davon.
+
+Gegenprobe an derselben Datei, beide Fassungen:
+
+```
+v0.105.0   ✅ luegner.webp → .webp  1.2MB → 35KB  -97%     (Lüge still repariert)
+v0.106.0   ⚠️  luegner.webp — Endung sagt WEBP, Inhalt ist PNG — nicht angefasst
+```
+
+Neu ist `formatMismatch(ext, metaFormat)` (rein, ohne sharp testbar). Bei Abweichung wird
+die Datei nicht angefasst und laut gemeldet; den Build bricht dann der Guard ab — eine
+Meldestelle, nicht zwei. `meta.format` ist bereits geladen, es kostet keine zusätzliche I/O.
+
+Die Endung→Format-Tabelle liegt geteilt in `src/utils/image-format.js`, damit Pipeline und
+Guard nicht auseinanderlaufen (Twin-Divergenz-Guard, wie `copyright.js`).
+
+**Gegenbeweis** (ein Check, der nie rot werden kann, ist kein Nachweis): im echten
+steller-Build das PNG unter dem Namen `hero.webp` zurückgeschrieben → Build bricht mit
+exit 1 ab und nennt Pfad, Format und Größe. Mit der reparierten Datei → exit 0 und
+`Asset-Format: ✓ 16 Quell-Assets`. Fehlen beide Quellverzeichnisse oder findet sich keine
+einzige Bilddatei, meldet der Guard **NICHT GEPRÜFT** ohne ✓ — eine leere Menge darf nicht
+wie eine geprüfte aussehen.
+
+Guard-Zahl im Fleet-Scan steigt 19 → 20 (hausamlago 17 → 18).
+
+21 neue Tests, Gesamtsuite 394 (vorher 373).
+
+Closes: siluri/blitzsicht-ops#651
+
+---
+
 ## v0.105.0 (2026-08-11)
 
 **Feature:** Stray-Brace-Guard — Template-Klammern, die als Text auf der Seite landen
