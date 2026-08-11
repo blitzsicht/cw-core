@@ -22,6 +22,41 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.103.1 (2026-08-11)
+
+**Fix:** Schema-Linter kennt Top-Level-Arrays — `/karriere/` war nie kaputt
+
+Ein JSON-LD-Block darf laut Spec ein einzelnes Objekt **oder ein Array von Objekten**
+sein; Google unterstützt beide Formen. Bei der Array-Form trägt jedes Element `@context`
+und `@type`, der Wurzelknoten selbst hat keine. Der Linter las die Pflichtfelder aber am
+Wurzelknoten — auf einem Array ist `root['@context']` immer `undefined`, also feuerten
+`missing_context` **und** `missing_type` auf einem völlig korrekten Block.
+
+Betroffen war jede Seite, die mehrere Items in einem Block ausliefert. `StellenListe.astro`
+tut genau das: digital-direkts `/karriere/` meldete zwei Befunde für zwei einwandfreie
+`JobPosting`s. Fleet-Trockenlauf über alle vorhandenen `dist/`: **36 Falschmeldungen auf
+2 Kunden** (digital-direkt 2, gympanzen 34 auf allen 17 Seiten). Der Fix nimmt ausschließlich
+weg — kein Kunde bekommt dadurch einen neuen Befund.
+
+**Zweite Lücke im selben Zug:** `collectIds` stieg auf Top-Level-Arrays gar nicht ein
+(`o['@id']` und `o['@graph']` sind auf einem Array `undefined`). Die Duplikat-Erkennung —
+der Kern-Check dieses Linters, der mikas doppelte `@id` gefunden hat (#643) — war auf
+Array-Blöcken blind. Sie greift jetzt auch dort.
+
+Befunde in Arrays nennen ab sofort den Element-Index (`#4[1]` statt `#4`), sonst ist die
+Stelle in einem Block mit N Items nicht auffindbar.
+
+**Warum das so lange durchkam:** `lintPageSchema` war als einziger Linter der Datei weder
+exportiert noch getestet — alle Geschwister (`lintPageMeta`, `lintPageImgAlt`,
+`lintBrandNameInSiteData` …) sind beides. Beides ist jetzt nachgezogen:
+`tests/ai-discovery/schema-linter.test.js` mit 12 Fällen, darunter der Gegenbeweis, dass
+ein echt fehlendes `@context` weiterhin rot wird. Gegen den alten Code fallen genau die
+vier Array-Fälle um, die acht übrigen bleiben grün.
+
+**Migrations-Hinweis:** Keiner. Der Linter warnt beim Build, er verändert kein Markup.
+
+---
+
 ## v0.103.0 (2026-08-11)
 
 **Feature:** Brand-Name-Linter prüft den `seo`-Block — die Felder, die wirklich ausgeliefert werden

@@ -429,21 +429,28 @@ function extractJsonLd(html: string): string[] {
   return blocks;
 }
 
-interface SchemaIssue {
+export interface SchemaIssue {
   page: string;
   type: 'duplicate_id' | 'missing_context' | 'missing_type' | 'invalid_json';
   detail: string;
 }
 
-/** Sammelt alle @id-Strings aus einem parsed JSON-LD-Objekt (Top-Level + @graph). */
+/**
+ * Sammelt alle @id-Strings aus einem parsed JSON-LD-Block
+ * (Top-Level-Objekt, Top-Level-Array und @graph).
+ *
+ * Die Array-Form fehlte bis v0.103.0: `o['@id']` ist auf einem Array immer
+ * `undefined`, damit war die Duplikat-Erkennung auf Array-Bloecken blind.
+ */
 function collectIds(obj: unknown, out: string[] = []): string[] {
   if (!obj || typeof obj !== 'object') return out;
+  if (Array.isArray(obj)) {
+    for (const item of obj) collectIds(item, out);
+    return out;
+  }
   const o = obj as Record<string, unknown>;
   if (typeof o['@id'] === 'string') out.push(o['@id']);
-  const graph = o['@graph'];
-  if (Array.isArray(graph)) {
-    for (const item of graph) collectIds(item, out);
-  }
+  collectIds(o['@graph'], out);
   return out;
 }
 
@@ -962,7 +969,7 @@ export function lintPageImgAltQuality(
 }
 
 /** Prüft eine einzelne dist-HTML auf Schema-Probleme. */
-function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
+export function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
   const issues: SchemaIssue[] = [];
   const pagePath = htmlPath.slice(distDir.length).replace(/\/index\.html$/, '/');
   const page = pagePath.startsWith('/') ? pagePath : `/${pagePath}`;
@@ -980,12 +987,28 @@ function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
       continue;
     }
     // Sekundär-Smoke-Checks: @context + @type
-    const root = parsed as Record<string, unknown>;
-    if (!root['@context'] && !Array.isArray(root['@graph'])) {
-      issues.push({ page, type: 'missing_context', detail: `JSON-LD-Block #${i + 1} hat kein @context.` });
-    }
-    if (!root['@type'] && !Array.isArray(root['@graph'])) {
-      issues.push({ page, type: 'missing_type', detail: `JSON-LD-Block #${i + 1} hat kein @type.` });
+    //
+    // Ein Block darf laut JSON-LD-Spec ein einzelnes Objekt ODER ein Array von
+    // Objekten sein — Google unterstützt beide Formen. Bei der Array-Form trägt
+    // jedes Element die Pflichtfelder, der Wurzelknoten selbst hat keine. Wer nur
+    // die Wurzel prüft, meldet ein korrektes Array als kontext- und typlos
+    // (digital-direkt `/karriere/`, zwei JobPostings in einem Block).
+    const nodes: Array<{ node: unknown; where: string }> = Array.isArray(parsed)
+      ? parsed.map((node, j) => ({ node, where: `#${i + 1}[${j}]` }))
+      : [{ node: parsed, where: `#${i + 1}` }];
+
+    for (const { node, where } of nodes) {
+      if (!node || typeof node !== 'object' || Array.isArray(node)) {
+        issues.push({ page, type: 'invalid_json', detail: `JSON-LD-Block ${where} ist kein Objekt.` });
+        continue;
+      }
+      const n = node as Record<string, unknown>;
+      if (!n['@context'] && !Array.isArray(n['@graph'])) {
+        issues.push({ page, type: 'missing_context', detail: `JSON-LD-Block ${where} hat kein @context.` });
+      }
+      if (!n['@type'] && !Array.isArray(n['@graph'])) {
+        issues.push({ page, type: 'missing_type', detail: `JSON-LD-Block ${where} hat kein @type.` });
+      }
     }
     collectIds(parsed, allIds);
   }
