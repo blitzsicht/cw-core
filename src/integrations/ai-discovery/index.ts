@@ -293,6 +293,20 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   strictAltText?: boolean;
 
   /**
+   * Default TRUE ab v0.105.0 → Build-Fail (throw), wenn eine gerenderte Seite eine
+   * **verwaiste** `{`/`}` in einem Textknoten trägt. Opt-out pro Site: explizit `false`.
+   *
+   * Sofort strict statt Soft-Warn, weil der Fehler sichtbaren Müll auf die Kundenseite
+   * schreibt („Work Sans}") und eine Log-Warnung ihn nachweislich nicht verhindert hätte —
+   * er stand monatelang live (blitzsicht-ops#652). Gedeckt ist das durch eine Messung über
+   * die dist-Verzeichnisse aller 22 Kunden-Repos (11.08.2026): 344 Seiten, 4 Befunde, und
+   * alle vier waren der echte Bug. Null Falsch-Positive.
+   *
+   * `<pre>`/`<code>` sind ausgenommen — dort sind unbalancierte Klammern richtig.
+   */
+  strictStrayBraces?: boolean;
+
+  /**
    * Default TRUE seit v0.76.0 (strict-Flip, Fleet shape-clean). Build-Fail, wenn der
    * Schema-Consistency-Guard eine `warn`-Shape-Abweichung findet (z.B. `images.hero`-String
    * statt `hero.image`, `services[]` ohne `leistungen[]`, `hero.imageAlt` ohne `image`).
@@ -1057,6 +1071,103 @@ export function lintPageImgAltQuality(
   return issues;
 }
 
+export interface StrayBraceIssue {
+  page: string;
+  type: 'stray_brace';
+  detail: string;
+}
+
+/** Elemente, deren Inhalt kein Fließtext ist oder unbalancierte Klammern tragen darf. */
+const BRACE_EXEMPT_ELEMENTS = ['script', 'style', 'pre', 'code'] as const;
+
+/**
+ * Scannt eine dist-HTML nach **verwaisten** `{`/`}` in gerenderten Textknoten.
+ *
+ * Hintergrund (blitzsicht-ops#652): der Astro-Compiler (2.13.1) beendet einen
+ * Template-Ausdruck zu früh, wenn ein Regex-Literal darin Anführungszeichen in der
+ * Zeichenklasse trägt — `{v.replace(/['"]/g, '')}`. Die schließende Klammer landet dann als
+ * Text in der Seite. In customer-blitzsicht rendered jedes Schriftmuster der Brand-Guides
+ * monatelang „Work Sans}" / „Inter Variable}", ohne dass irgendein Guard anschlug.
+ *
+ * Geprüft wird die **allgemeine Form** — Zeichen, die der Parser als Text ausgibt, obwohl
+ * sie Syntax sein sollten — nicht dieser eine Regex-Fall.
+ *
+ * Zwei Einschränkungen halten die Regel falsch-positiv-frei (Messung 11.08.2026 über die
+ * dist-Verzeichnisse aller 22 vorhandenen Kunden-Repos):
+ *
+ * 1. **Nur balancierte Knoten gehen durch.** `'{ "a": 1 }'` ist Prosa, `' Work Sans}'` ist
+ *    ein Artefakt. Alle vier echten Treffer sind verwaiste `}`.
+ * 2. **{@link BRACE_EXEMPT_ELEMENTS} ausgenommen.** `<script>`/`<style>` sind kein Text;
+ *    `<pre>`/`<code>` dürfen unbalanciert sein — ein Code-Beispiel wie `if (x) {` ist
+ *    richtig so. Code-Blöcke gibt es auf 17 der 22 Sites, heute noch ohne Klammern.
+ *
+ * Der Aufrufer reicht nur `index.html` herein ({@link walkHtml}). Das ist keine Feinheit,
+ * sondern trägt die Messung: über *alle* `*.html` wären es 440 Treffer, davon 436 aus zwei
+ * statischen Dateien aus `public/`, die nie durch Astros Parser liefen (ein Handbuch mit
+ * Code-Beispielen, eine Mail-Vorlage). Über `index.html` sind es exakt die 4 echten.
+ *
+ * Pure Funktion (Regex, kein DOM) — wie lintPageMeta/lintPageImgAlt/lintPageSchema.
+ */
+export function lintPageStrayBraces(htmlPath: string, distDir: string): StrayBraceIssue[] {
+  const issues: StrayBraceIssue[] = [];
+  const pagePath = htmlPath.slice(distDir.length).replace(/\/index\.html$/, '/');
+  const page = pagePath.startsWith('/') ? pagePath : `/${pagePath}`;
+  if (!existsSync(htmlPath)) return issues;
+
+  let html: string;
+  try {
+    html = readFileSync(htmlPath, 'utf-8');
+  } catch {
+    return issues;
+  }
+
+  // Ausgenommene Elemente samt Inhalt entfernen, bevor Textknoten gelesen werden.
+  for (const tag of BRACE_EXEMPT_ELEMENTS) {
+    html = html.replace(new RegExp(`<${tag}\\b[^>]*>[\\s\\S]*?</${tag}\\s*>`, 'gi'), '');
+    // Self-closing/leere Variante (z. B. <script src=… />) hinterlässt keinen Text.
+  }
+
+  for (const m of html.matchAll(/>([^<]+)</g)) {
+    const text = m[1];
+    if (!text.includes('{') && !text.includes('}')) continue;
+
+    // Entities sind gewollter Text, kein Parser-Artefakt — vor der Zählung entfernen.
+    const cleaned = text.replace(/&(?:#x?[0-9a-f]+|[a-z]+);/gi, '');
+
+    // Verwaist = im selben Knoten ohne Gegenstück. Reihenfolge zählt: "}{" ist zweimal
+    // verwaist, nicht ausgeglichen.
+    let open = 0;
+    let orphanClose = 0;
+    for (const ch of cleaned) {
+      if (ch === '{') open++;
+      else if (ch === '}') {
+        if (open > 0) open--;
+        else orphanClose++;
+      }
+    }
+    if (open === 0 && orphanClose === 0) continue;
+
+    const snippet = text.trim().replace(/\s+/g, ' ').slice(0, 80);
+    const what = [
+      orphanClose > 0 ? `${orphanClose}× verwaiste }` : '',
+      open > 0 ? `${open}× verwaiste {` : '',
+    ]
+      .filter(Boolean)
+      .join(', ');
+    issues.push({
+      page,
+      type: 'stray_brace',
+      detail:
+        `„${snippet}" — ${what} im Text. Häufigste Ursache: ein Regex-Literal mit ` +
+        `Anführungszeichen in der Zeichenklasse (/['"]/) in einem Template-Ausdruck — ` +
+        `der Compiler beendet den Ausdruck zu früh und schreibt die Klammer als Text. ` +
+        `Ausdruck ins Frontmatter ziehen.`,
+    });
+  }
+
+  return issues;
+}
+
 /** Prüft eine einzelne dist-HTML auf Schema-Probleme. */
 export function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
   const issues: SchemaIssue[] = [];
@@ -1795,6 +1906,43 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           if (options.strictAltQuality === true) {
             throw new Error(
               `[ai-discovery] strictAltQuality=true: Build abgebrochen wegen ${qualityIssues.length} Alt-Qualität-Issues.`,
+            );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Stray-Brace-Guard: Template-Klammern, die als Text in der Seite landen
+        // -------------------------------------------------------------------
+        // Der Astro-Compiler beendet einen Ausdruck zu früh, wenn ein Regex-Literal darin
+        // Anführungszeichen in der Zeichenklasse trägt — die Klammer wird zu Text.
+        // blitzsichts Brand-Guides rendered monatelang „Work Sans}", ohne dass etwas rot
+        // wurde (blitzsicht-ops#652). Strict per Default: der Fehler ist kundensichtbar,
+        // und eine Warnung im Log hat ihn nachweislich nicht verhindert.
+        const braceIssues: StrayBraceIssue[] = [];
+        for (const file of htmlFiles) {
+          braceIssues.push(...lintPageStrayBraces(file, distDir));
+        }
+        if (braceIssues.length === 0) {
+          logger.info(
+            `Stray-Brace-Guard: ✓ ${htmlFiles.length} Pages — keine verirrten Template-Klammern.`,
+          );
+        } else {
+          const pages = new Set(braceIssues.map((i) => i.page)).size;
+          logger.warn(
+            `Stray-Brace-Guard: ${braceIssues.length} verirrte Template-Klammer(n) auf ${pages} Seite(n):`,
+          );
+          for (const issue of braceIssues.slice(0, 20)) {
+            logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+          }
+          if (braceIssues.length > 20) {
+            logger.warn(`  … und ${braceIssues.length - 20} weitere.`);
+          }
+          if (options.strictStrayBraces !== false) {
+            throw new Error(
+              `[ai-discovery] strictStrayBraces=true: Build abgebrochen wegen ${braceIssues.length} verirrten ` +
+                `Template-Klammer(n). Ursache ist fast immer ein Regex-Literal mit Anführungszeichen in der ` +
+                `Zeichenklasse (/['"]/) in einem .astro-Template-Ausdruck — den Ausdruck ins Frontmatter ziehen. ` +
+                `Opt-out: strictStrayBraces:false.`,
             );
           }
         }

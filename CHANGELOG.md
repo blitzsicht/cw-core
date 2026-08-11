@@ -22,6 +22,71 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.105.0 (2026-08-11)
+
+**Feature:** Stray-Brace-Guard — Template-Klammern, die als Text auf der Seite landen
+
+Der Astro-Compiler (2.13.1) beendet einen Template-Ausdruck zu früh, wenn ein Regex-Literal
+darin **Anführungszeichen in der Zeichenklasse** trägt. Die schließende Klammer wird dann
+als Text ausgegeben. Am Compiler direkt gemessen, mit Negativkontrollen:
+
+```
+{v.split(',')[0].replace(/['"]/g, '')}   →  <span>${…}</span>}</span>   DEFEKT
+{v.split(',')[0].replace(/[xy]/g, '')}   →  <span>${…}</span>           ok
+{v.split(',')[0].replaceAll("'", '')}    →  <span>${…}</span>           ok
+{v.split(',')[0]}                        →  <span>${…}</span>           ok
+```
+
+Es liegt nicht am Regex, sondern an den Quotes darin. In `customer-blitzsicht` rendered
+dadurch jedes Schriftmuster der Brand-Guide-Seiten monatelang „Work Sans}",
+„Inter Variable}" — kundensichtbar, auf einer Seite, die wir Kunden als Ergebnis zeigen,
+und **keiner der 18 Guards schlug an**. Genau diese Lücke schließt der neue Check: nicht
+den einen Regex-Fall, sondern die allgemeine Form — Zeichen, die der Parser als Text
+ausgibt, obwohl sie Syntax sein sollten.
+
+Neu ist `lintPageStrayBraces(htmlPath, distDir)`, aufgebaut wie `lintPageImgAlt`: pure
+Funktion, Regex statt DOM, pro Seite über die `index.html` aus `walkHtml`.
+
+**Gemeldet wird nur eine verwaiste Klammer** — eine, die im selben Textknoten kein
+Gegenstück hat. `'{ "a": 1 }'` ist Prosa und geht durch, `' Work Sans}'` ist ein Artefakt.
+Reihenfolge zählt: `}{` ist zweimal verwaist, nicht ausgeglichen.
+
+Ausgenommen sind `<script>`, `<style>`, `<pre>` und `<code>`. Die ersten beiden sind kein
+Text; in Code-Beispielen sind unbalancierte Klammern richtig (`if (x) {`). Code-Blöcke gibt
+es auf 17 der 22 Sites — heute noch ohne Klammern, aber ein technischer Blogpost hätte den
+Guard sonst zu Recht ausgelöst.
+
+**Default strict** (`strictStrayBraces`, Opt-out `false`). Ungewöhnlich für einen neuen
+Guard, hier aber gedeckt: der Fehler schreibt sichtbaren Müll auf die Kundenseite, und eine
+Log-Warnung hat ihn nachweislich nicht verhindert — er stand monatelang live.
+
+Messung vor dem Release über die dist-Verzeichnisse aller 22 vorhandenen Kunden-Repos
+(11.08.2026), **344 Seiten**:
+
+| Umfang | Treffer |
+|---|---:|
+| alle `*.html` | 440 — unbrauchbar |
+| nur `index.html` (= was `walkHtml` liefert) | **4**, und alle vier sind der echte Bug |
+
+Die 436 Falsch-Positiven steckten ausnahmslos in zwei statischen Dateien aus `public/`, die
+nie durch Astros Parser liefen (ein Handbuch mit Code-Beispielen, eine Mail-Vorlage). Über
+`index.html` gemessen: null Falsch-Positive.
+
+Gegenprobe in beide Richtungen gefahren, weil ein Check, der nie rot wird, nichts belegt:
+gegen den Stand *vor* dem Kunden-Fix 4 Befunde, gegen die reparierten Live-Seiten 0. Dazu
+ein Integrationstest — der alte Ausdruck testweise zurückgeschrieben bricht den Build mit
+exit 1 ab.
+
+Tests: 10 Fälle in `stray-brace-linter.test.js`, darunter der wörtliche Bug-Ausschnitt,
+beide Spiegelfälle (`{` und `}`), Code-Blöcke, JSON-LD und HTML-Entities.
+
+**Migrations-Hinweis:** Keiner für die aktuelle Fleet — alle zwölf Live-Kunden bauen mit
+diesem Guard grün. Die Guard-Zahl im Scan steigt von **18 auf 19** (`hausamlago` 16 → 17);
+wer gegen die alte Zahl prüft, muss sie nachziehen, sonst liest sich „nicht gelaufen" wie
+„sauber".
+
+---
+
 ## v0.104.0 (2026-08-11)
 
 **Fix:** Brand-Name-Linter prüft FAQs am Quelltext statt am Wert — er traf bisher nur einwortige Marken
