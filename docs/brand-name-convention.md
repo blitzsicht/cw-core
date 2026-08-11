@@ -48,11 +48,40 @@ daraus ein Build-Fail auf korrektem Deutsch geworden.
 |---|---|---|
 | `siteData.description` | `"Mika Elektrotechnik ist Ihr …"` | `"Ihr Elektrofachbetrieb in …"` |
 | `siteData.tagline` | `"Mika Elektrotechnik — sicher."` | `"Sicher. Zuverlässig. Schnell."` |
-| `siteData.faqs[].q` | `"Was macht Mika Elektrotechnik?"` | `"Was bieten Sie an?"` |
-| `siteData.faqs[].a` | `"Mika Elektrotechnik bietet …"` | `"Wir bieten …"` |
 | `siteData.leistungen[].title` | `"Mika Elektrotechnik Notdienst"` | `"Elektro-Notdienst"` |
 | `siteData.leistungen[].description` | `"Mika Elektrotechnik kommt sofort"` | `"Wir sind rund um die Uhr erreichbar"` |
 | `public/robots.txt` | `# Mika Elektrotechnik robots.txt` | (Kommentar weglassen, kein Brand nötig) |
+
+### FAQs: Marke erlaubt, aber interpoliert (seit v0.104.0)
+
+`siteData.faqs[].q/.a` stehen **nicht** in der Tabelle oben. In einer FAQ gehört der
+Markenname hin: „Was ist <Marke>?" / „<Marke> ist ein …" ist die Entitäts-Definition,
+an der AI Overviews, ChatGPT und Perplexity die Marke festmachen. Ausgerechnet dort den
+Namen zu streichen, arbeitet gegen den Zweck der Seite.
+
+Die Rename-Kosten bleiben trotzdem bei einer Zeile — über Interpolation:
+
+```ts
+const BRAND = 'Mika Elektrotechnik';
+
+export const siteData = {
+  name: BRAND,
+  faqs: [
+    { q: `Was ist ${BRAND}?`, a: `${BRAND} ist Ihr Elektrofachbetrieb …` },  // ✓
+    { q: 'Was ist Mika Elektrotechnik?', a: '…' },                            // ✗ Befund
+  ],
+};
+```
+
+Beide Varianten liefern denselben Text — deshalb prüft `lintBrandNameInFaqSource` den
+**Quelltext**, nicht den Wert. Am ausgewerteten Objekt sind sie nicht unterscheidbar.
+
+> **Warum die Regel geändert wurde (blitzsicht-ops#640).** Bis v0.103.1 lief die FAQ-Prüfung
+> über den Wert. Damit traf sie nur Marken, deren `name` wörtlich in der Prosa steht — also
+> einwortige. Gemessen am 11.08.2026: `zink` (`name: "Zink Bäckerei & Konditorei"`) blieb
+> bei 0 Befunden, obwohl die FAQ „Wie viele Filialen hat Zink?" lautet; `blitzsicht`
+> (`name: "Blitzsicht"`) bekam 7 Befunde für denselben Stil. Der Guard maß die Länge des
+> Namens, nicht die Rename-Kosten.
 
 ### Nicht betroffen (darf/muss den Namen enthalten)
 
@@ -173,8 +202,11 @@ stammt aber aus `siteData.name` (SSOT), nicht aus einem Literal.
 
 Die ai-discovery-Integration prüft seit v0.28.0 automatisch:
 
-1. **siteData-Felder** (in `astro:config:done`): description, tagline, FAQs, Leistungen
-2. **dist/robots.txt** (in `astro:build:done`): auf Literal-Duplikate
+1. **siteData-Werte** (in `astro:config:done`): description, tagline, Leistungen
+2. **Quelltext von `src/data/site-data.ts`**: `seo`-Block und `faqs`-Block — dort ist der
+   Markenname erlaubt, solange er interpoliert ist. Am Wert wäre `${BRAND}` von einem
+   Literal nicht zu unterscheiden, der Check also unerfüllbar.
+3. **dist/robots.txt** (in `astro:build:done`): auf Literal-Duplikate
 
 ### Konfiguration
 
@@ -197,7 +229,7 @@ aiDiscovery({
 2 siteData-Prosa-Feld(ern) vor. Convention: nur siteData.name, generische
 Formulierung in allen anderen Feldern. Siehe docs/brand-name-convention.md
   [brand-name] siteData.description: 1× — "Mika Elektrotechnik" kommt 1× als Literal...
-  [brand-name] siteData.faqs[0].a: 2× — "Mika Elektrotechnik" kommt 2× als Literal...
+  [brand-name] site-data.ts:514 (faqs.q): 1× — "Mika Elektrotechnik" steht 1× ausgeschrieben...
 ```
 
 ---

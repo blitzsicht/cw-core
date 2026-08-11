@@ -27,7 +27,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { lintBrandNameInSiteData, lintBrandNameInRobotsTxt, lintBrandNameInSeoSource } from '../../src/integrations/ai-discovery/index.ts';
+import { lintBrandNameInSiteData, lintBrandNameInRobotsTxt, lintBrandNameInSeoSource, lintBrandNameInFaqSource } from '../../src/integrations/ai-discovery/index.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,7 +92,7 @@ test('3. Literal in tagline → Issue mit korrektem location-Feld', () => {
   assert.equal(issues[0].location, 'siteData.tagline');
 });
 
-test('4. Literale in FAQs + Leistungen → mehrere Issues, korrekter count', () => {
+test('4. Leistungen am Wert geprüft, FAQs NICHT (die macht der Quelltext-Check)', () => {
   const data = makeSiteData({
     faqs: [
       {
@@ -106,11 +106,17 @@ test('4. Literale in FAQs + Leistungen → mehrere Issues, korrekter count', () 
     ],
   });
   const issues = lintBrandNameInSiteData(data, data.name);
-  // Erwartet: faqs[0].q (1x), faqs[0].a (2x → zwei Vorkommen in einem Satz), faqs[1].q (1x), leistungen[0].title (1x)
-  assert.ok(issues.length >= 4, `Erwartet mindestens 4 Issues, bekam ${issues.length}.`);
-  const faq0a = issues.find(i => i.location === 'siteData.faqs[0].a');
-  assert.ok(faq0a, 'Erwartet Issue fuer siteData.faqs[0].a.');
-  assert.equal(faq0a.count, 2, 'Erwartet count=2 (2 Vorkommen in faq[0].a).');
+  const locations = issues.map((i) => i.location);
+
+  // leistungen bleibt Wert-Check: dort ist "generisch formulieren" die richtige Antwort.
+  assert.ok(locations.includes('siteData.leistungen[0].title'), 'leistungen muss weiter flaggen.');
+
+  // FAQs nicht mehr — am Wert ist `${BRAND}` nicht von einem Literal zu unterscheiden,
+  // und in einer FAQ gehört die Marke hin. Zuständig: lintBrandNameInFaqSource.
+  assert.ok(
+    !locations.some((l) => l.startsWith('siteData.faqs')),
+    `FAQs dürfen hier nicht mehr auftauchen, bekam: ${locations.join(', ')}`,
+  );
 });
 
 test('5. Case-insensitive: Kleinschreibungs-Variante wird erkannt', () => {
@@ -134,8 +140,8 @@ test('6. Literal in mehreren Feldern → alle Issues gemeldet', () => {
   const locations = issues.map(i => i.location);
   assert.ok(locations.includes('siteData.description'), 'description muss gemeldet werden.');
   assert.ok(locations.includes('siteData.tagline'), 'tagline muss gemeldet werden.');
-  assert.ok(locations.includes('siteData.faqs[0].q'), 'faqs[0].q muss gemeldet werden.');
-  assert.equal(issues.length, 3);
+  // faqs[0].q ist hier bewusst NICHT dabei — siehe Case 4.
+  assert.equal(issues.length, 2);
 });
 
 test('10. Leerer Markenname → Guard deaktiviert, keine false-positives', () => {
@@ -456,6 +462,139 @@ test('27. Datei fehlt oder kein seo-Block → leer, kein Crash', () => {
   const file = join(dir, 'site-data.ts');
   writeFileSync(file, "export const siteData = { name: 'Mika Elektrotechnik' };\n", 'utf-8');
   assert.deepEqual(lintBrandNameInSeoSource(file, 'Mika Elektrotechnik'), []);
+});
+
+// ---------------------------------------------------------------------------
+// Tests: lintBrandNameInFaqSource (blitzsicht-ops#640)
+//
+// Der Wert-Check prüfte FAQs mit. Das traf aber nur Marken, deren siteData.name
+// wörtlich in der Prosa steht — also einwortige. Gemessen 11.08.2026:
+//   zink   name "Zink Bäckerei & Konditorei", FAQ "Wie viele Filialen hat Zink?" → 0
+//   blitzsicht name "Blitzsicht",             FAQ "Was ist Blitzsicht?"          → 7
+// Derselbe Stil, verschiedenes Urteil. Der Guard maß die Länge des Namens.
+//
+// In einer FAQ gehört die Marke hin (Entitäts-Definition für AI Overviews). Erfüllbar
+// bleibt die Konvention über Interpolation — die ist nur im QUELLTEXT sichtbar.
+// ---------------------------------------------------------------------------
+
+/** Schreibt eine site-data.ts mit faqs-Block und gibt den Dateipfad zurück. */
+function makeFaqSource(faqLines, { brandConst = null } = {}) {
+  const dir = join(tmpdir(), `cw-test-faq-${process.pid}-${Math.random().toString(36).slice(2)}`, 'data');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'site-data.ts');
+  writeFileSync(
+    file,
+    [
+      brandConst ? `const BRAND = '${brandConst}';` : '',
+      'export const siteData = {',
+      `  name: ${brandConst ? 'BRAND' : "'Mika Elektrotechnik'"},`,
+      "  description: 'Ihr Fachbetrieb.',",
+      '  faqs: [',
+      faqLines,
+      '  ],',
+      '};',
+    ].join('\n'),
+    'utf-8',
+  );
+  return file;
+}
+
+test('29. [Gegenprobe] Ausgeschriebene Marke in einer FAQ → Issue', () => {
+  // Ohne diesen Case wäre Case 30 auch dadurch grün, dass der Check gar nichts mehr findet.
+  const file = makeFaqSource(
+    [
+      '    {',
+      "      q: 'Was ist Mika Elektrotechnik?',",
+      "      a: 'Mika Elektrotechnik ist Ihr Elektrofachbetrieb. Mika Elektrotechnik seit 2019.',",
+      '    },',
+    ].join('\n'),
+  );
+  const issues = lintBrandNameInFaqSource(file, 'Mika Elektrotechnik');
+  assert.equal(issues.length, 2, 'q und a je ein Issue.');
+  assert.equal(issues[0].type, 'prose_literal');
+  assert.match(issues[0].location, /site-data\.ts:\d+ \(faqs\.q\)/);
+  assert.equal(issues[1].count, 2, 'zwei Vorkommen in der a-Zeile.');
+  assert.match(issues[1].detail, /interpolieren/i);
+});
+
+test('30. [Kern von #640] Interpolierte Marke in FAQ → KEIN Issue, obwohl der Wert gleich ist', () => {
+  const file = makeFaqSource(
+    [
+      '    {',
+      '      q: `Was ist ${BRAND}?`,',
+      '      a: `${BRAND} ist Ihr Elektrofachbetrieb.`,',
+      '    },',
+    ].join('\n'),
+    { brandConst: 'Mika Elektrotechnik' },
+  );
+  assert.deepEqual(
+    lintBrandNameInFaqSource(file, 'Mika Elektrotechnik'),
+    [],
+    'Interpolation ist rename-sicher und muss durchgehen.',
+  );
+});
+
+test('31. Gemischt: interpolierte und hartkodierte FAQ → nur die hartkodierte flaggt', () => {
+  const file = makeFaqSource(
+    [
+      '    {',
+      '      q: `Was ist ${BRAND}?`,',
+      "      a: 'Mika Elektrotechnik ist Ihr Elektrofachbetrieb.',",
+      '    },',
+    ].join('\n'),
+    { brandConst: 'Mika Elektrotechnik' },
+  );
+  const issues = lintBrandNameInFaqSource(file, 'Mika Elektrotechnik');
+  assert.equal(issues.length, 1);
+  assert.match(issues[0].location, /\(faqs\.a\)/);
+});
+
+test('32. Kompositum in FAQ → kein Issue (Wortgrenze gilt auch hier)', () => {
+  const file = makeFaqSource(
+    ["    { q: 'Wo liegt das Ferienhaus am Lago di Ledro?', a: 'Im Trentino.' },"].join('\n'),
+  );
+  assert.deepEqual(lintBrandNameInFaqSource(file, 'Haus am Lago'), []);
+});
+
+test('33. Marke nur im Kommentar innerhalb der FAQs → kein Issue', () => {
+  const file = makeFaqSource(
+    [
+      '    // Mika Elektrotechnik: Reihenfolge nach Suchvolumen',
+      "    { q: 'Wie schnell kommen Sie?', a: 'Binnen 24 Stunden.' },",
+    ].join('\n'),
+  );
+  assert.deepEqual(lintBrandNameInFaqSource(file, 'Mika Elektrotechnik'), []);
+});
+
+test('34. Kein faqs-Block / Datei fehlt / leerer Markenname → leer, kein Crash', () => {
+  assert.deepEqual(lintBrandNameInFaqSource('/pfad/gibt/es/nicht/site-data.ts', 'Mika Elektrotechnik'), []);
+
+  const dir = join(tmpdir(), `cw-test-faq-${process.pid}-nofaq`, 'data');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'site-data.ts');
+  writeFileSync(file, "export const siteData = { name: 'Mika Elektrotechnik' };\n", 'utf-8');
+  assert.deepEqual(lintBrandNameInFaqSource(file, 'Mika Elektrotechnik'), []);
+
+  const withFaq = makeFaqSource("    { q: 'Was ist Mika Elektrotechnik?', a: 'Ein Betrieb.' },");
+  assert.deepEqual(lintBrandNameInFaqSource(withFaq, ''), [], 'Leerer Markenname deaktiviert den Guard.');
+});
+
+test('35. [Ungleichbehandlung behoben] mehrwortige und einwortige Marke werden gleich behandelt', () => {
+  // Das war der eigentliche Befund: der Wert-Check traf nur einwortige Marken.
+  // Am Quelltext zählt jetzt allein, ob interpoliert wurde — unabhängig von der Namenslänge.
+  const hardcodedShort = makeFaqSource("    { q: 'Was ist Blitzsicht?', a: 'Ein Website-Anbieter.' },");
+  const hardcodedLong = makeFaqSource("    { q: 'Was ist Zink Bäckerei & Konditorei?', a: 'Eine Bäckerei.' },");
+  assert.equal(lintBrandNameInFaqSource(hardcodedShort, 'Blitzsicht').length, 1, 'einwortig: flaggt');
+  assert.equal(
+    lintBrandNameInFaqSource(hardcodedLong, 'Zink Bäckerei & Konditorei').length,
+    1,
+    'mehrwortig: flaggt genauso',
+  );
+
+  const interpShort = makeFaqSource('    { q: `Was ist ${BRAND}?`, a: `Ein Website-Anbieter.` },', {
+    brandConst: 'Blitzsicht',
+  });
+  assert.deepEqual(lintBrandNameInFaqSource(interpShort, 'Blitzsicht'), [], 'interpoliert: beide sauber');
 });
 
 test('28. Redundantes titleTemplate wird NICHT doppelt gemeldet', () => {

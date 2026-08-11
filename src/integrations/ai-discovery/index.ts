@@ -557,12 +557,9 @@ export function lintBrandNameInSiteData(
   check('siteData.description', data.description);
   check('siteData.tagline', data.tagline);
 
-  if (data.faqs) {
-    data.faqs.forEach((faq, i) => {
-      check(`siteData.faqs[${i}].q`, faq.q);
-      check(`siteData.faqs[${i}].a`, faq.a);
-    });
-  }
+  // FAQs bewusst NICHT am Wert prüfen — das übernimmt lintBrandNameInFaqSource am
+  // Quelltext. Dort ist die Marke erlaubt, solange sie interpoliert ist; am Wert wäre
+  // `${BRAND}` von einem Literal nicht zu unterscheiden und der Check unerfüllbar.
 
   if (data.leistungen) {
     data.leistungen.forEach((svc, i) => {
@@ -599,20 +596,25 @@ export function lintBrandNameInSiteData(
 }
 
 /**
- * Findet den `seo: { … }`-Block im Quelltext und gibt seinen Inhalt mit Startzeile zurück.
- * `null`, wenn kein Block gefunden wird oder die Klammern nicht aufgehen — dann meldet der
- * Guard lieber nichts, als auf einer falschen Region zu urteilen.
+ * Findet den Block `<key>: { … }` bzw. `<key>: [ … ]` im Quelltext und gibt seinen Inhalt
+ * mit Startzeile zurück. `null`, wenn kein Block gefunden wird oder die Klammern nicht
+ * aufgehen — dann meldet der Guard lieber nichts, als auf einer falschen Region zu urteilen.
  */
-function extractSeoBlock(source: string): { text: string; startLine: number } | null {
-  const m = source.match(/(^|\n)[ \t]*seo\s*:\s*\{/);
+function extractBlock(
+  source: string,
+  key: string,
+  openCh: '{' | '[',
+): { text: string; startLine: number } | null {
+  const closeCh = openCh === '{' ? '}' : ']';
+  const m = source.match(new RegExp(`(^|\\n)[ \\t]*${key}\\s*:\\s*\\${openCh}`));
   if (!m || m.index === undefined) return null;
-  const open = source.indexOf('{', m.index);
+  const open = source.indexOf(openCh, m.index);
   if (open === -1) return null;
 
   let depth = 0;
   for (let i = open; i < source.length; i++) {
-    if (source[i] === '{') depth++;
-    else if (source[i] === '}') {
+    if (source[i] === openCh) depth++;
+    else if (source[i] === closeCh) {
       depth--;
       if (depth === 0) {
         return {
@@ -623,6 +625,47 @@ function extractSeoBlock(source: string): { text: string; startLine: number } | 
     }
   }
   return null; // Klammern gehen nicht auf → nicht raten
+}
+
+/** Findet den `seo: { … }`-Block. Dünner Aufruf von {@link extractBlock}. */
+function extractSeoBlock(source: string): { text: string; startLine: number } | null {
+  return extractBlock(source, 'seo', '{');
+}
+
+/**
+ * Zählt freistehende Marken-Treffer in den String-Literalen **einer** Quelltextzeile.
+ *
+ * Entscheidend: {@link stripNonLiteral} entfernt vorher `${…}` — eine interpolierte Marke
+ * zählt also nicht. Genau daran hängt die Unterscheidung „rename-sicher" vs. „hartkodiert",
+ * die am ausgewerteten Wert prinzipiell nicht zu treffen ist.
+ */
+function countBrandLiteralsInLine(
+  rawLine: string,
+  needle: string,
+): { count: number; literals: string[] } {
+  if (/^\s*[*/]/.test(rawLine.trim())) return { count: 0, literals: [] }; // Kommentarzeile
+  const line = stripNonLiteral(rawLine);
+
+  const literals: string[] = [];
+  for (const re of [
+    /'([^'\\]*(?:\\.[^'\\]*)*)'/g,
+    /"([^"\\]*(?:\\.[^"\\]*)*)"/g,
+    /`([^`\\]*(?:\\.[^`\\]*)*)`/g,
+  ]) {
+    for (const lm of line.matchAll(re)) literals.push(lm[1]);
+  }
+  if (literals.length === 0) return { count: 0, literals };
+
+  let count = 0;
+  for (const lit of literals) {
+    const lower = lit.toLowerCase();
+    let pos = 0;
+    while ((pos = lower.indexOf(needle, pos)) !== -1) {
+      if (isStandaloneMatch(lower, pos, needle.length)) count++;
+      pos += needle.length;
+    }
+  }
+  return { count, literals };
 }
 
 /** Entfernt Zeilenkommentare und `${…}`-Interpolationen — beides zählt nicht als Literal. */
@@ -664,25 +707,7 @@ export function lintBrandNameInSeoSource(siteDataPath: string, brandName: string
   const lines = block.text.split('\n');
 
   lines.forEach((rawLine, i) => {
-    const line = stripNonLiteral(rawLine);
-    if (/^\s*[*/]/.test(rawLine.trim())) return; // Blockkommentar-Zeile
-
-    // String-Literale der Zeile einsammeln (einfach, doppelt, Backtick).
-    const literals: string[] = [];
-    for (const re of [/'([^'\\]*(?:\\.[^'\\]*)*)'/g, /"([^"\\]*(?:\\.[^"\\]*)*)"/g, /`([^`\\]*(?:\\.[^`\\]*)*)`/g]) {
-      for (const lm of line.matchAll(re)) literals.push(lm[1]);
-    }
-    if (literals.length === 0) return;
-
-    let count = 0;
-    for (const lit of literals) {
-      const lower = lit.toLowerCase();
-      let pos = 0;
-      while ((pos = lower.indexOf(needle, pos)) !== -1) {
-        if (isStandaloneMatch(lower, pos, needle.length)) count++;
-        pos += needle.length;
-      }
-    }
+    const { count, literals } = countBrandLiteralsInLine(rawLine, needle);
     if (count === 0) return;
 
     const field = rawLine.match(/^\s*([A-Za-z_$][\w$]*)\s*:/);
@@ -703,6 +728,70 @@ export function lintBrandNameInSeoSource(siteDataPath: string, brandName: string
         `Title. Stattdessen interpolieren — Marke einmal als const über siteData definieren ` +
         `(\`const BRAND = '${brandName}';\`, dann \`name: BRAND\`) und hier \`\${BRAND}\` einsetzen. ` +
         `Danach kostet eine Umbenennung genau eine Zeile. Siehe docs/brand-name-convention.md`,
+    });
+  });
+
+  return issues;
+}
+
+/**
+ * Prüft den `faqs: [ … ]`-Block auf **ausgeschriebene** Marken-Literale — im Quelltext,
+ * nicht am Wert.
+ *
+ * Warum FAQs anders behandelt werden als description/tagline/leistungen: dort ist die
+ * richtige Antwort „generisch formulieren", der Markenname gehört schlicht nicht hinein.
+ * In FAQs gehört er hinein. „Was ist <Marke>?" / „<Marke> ist ein …" ist die
+ * Entitäts-Definition, an der AI Overviews, ChatGPT und Perplexity die Marke festmachen —
+ * ausgerechnet dort den Namen zu streichen, arbeitet gegen den Zweck der Seite.
+ *
+ * Der Zweck der Konvention (eine Umbenennung fasst genau eine Zeile an) bleibt trotzdem
+ * erfüllbar: `` `Was ist ${BRAND}?` `` liefert denselben Text und ist rename-sicher.
+ * Am ausgewerteten Wert sind beide Varianten identisch — deshalb liest dieser Check den
+ * Quelltext, genau wie {@link lintBrandNameInSeoSource}.
+ *
+ * Vorgeschichte: bis v0.103.1 prüfte der Wert-Check die FAQs mit. Das traf nur Marken,
+ * deren `name` wörtlich in der Prosa steht — also einwortige. „Zink Bäckerei & Konditorei"
+ * blieb sauber, obwohl die FAQ „Wie viele Filialen hat Zink?" lautet; „Blitzsicht" bekam
+ * 7 Befunde für denselben Stil. Der Guard maß die Länge des Namens, nicht die Rename-Kosten.
+ *
+ * @param siteDataPath - Absoluter Pfad zu `src/data/site-data.ts`.
+ * @param brandName    - Der Markenname aus siteData.name.
+ * @returns Array von BrandNameIssues (leer = OK, Datei fehlt, oder Block nicht auffindbar).
+ */
+export function lintBrandNameInFaqSource(siteDataPath: string, brandName: string): BrandNameIssue[] {
+  if (!brandName || brandName.trim().length < 2) return [];
+  if (!existsSync(siteDataPath)) return [];
+
+  let source: string;
+  try {
+    source = readFileSync(siteDataPath, 'utf-8');
+  } catch {
+    return [];
+  }
+
+  const block = extractBlock(source, 'faqs', '[');
+  if (!block) return [];
+
+  const needle = brandName.trim().toLowerCase();
+  const issues: BrandNameIssue[] = [];
+
+  block.text.split('\n').forEach((rawLine, i) => {
+    const { count } = countBrandLiteralsInLine(rawLine, needle);
+    if (count === 0) return;
+
+    const field = rawLine.match(/^\s*([A-Za-z_$][\w$]*)\s*:/);
+    const lineNo = block.startLine + i;
+    issues.push({
+      location: field ? `site-data.ts:${lineNo} (faqs.${field[1]})` : `site-data.ts:${lineNo} (faqs)`,
+      type: 'prose_literal',
+      count,
+      detail:
+        `"${brandName}" steht ${count}× ausgeschrieben in den FAQs (Zeile ${lineNo}). ` +
+        `Nicht streichen: in einer FAQ gehört die Marke hin, das ist die Entitäts-Definition ` +
+        `für AI Overviews. Stattdessen interpolieren — Marke einmal als const über siteData ` +
+        `definieren (\`const BRAND = '${brandName}';\`, dann \`name: BRAND\`) und hier ` +
+        `\`\${BRAND}\` einsetzen. Gleicher Text, aber eine Umbenennung kostet eine Zeile. ` +
+        `Siehe docs/brand-name-convention.md`,
     });
   });
 
@@ -1439,7 +1528,11 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // lintBrandNameInSeoSource. Ohne srcDir (config.srcDir nicht auflösbar) entfällt
           // der Check still; das meldet der Motion-Guard bereits als ungeprüft.
           ...(customerSrcDir
-            ? lintBrandNameInSeoSource(join(customerSrcDir, 'data', 'site-data.ts'), data.name)
+            ? [
+                ...lintBrandNameInSeoSource(join(customerSrcDir, 'data', 'site-data.ts'), data.name),
+                // FAQs ebenfalls am Quelltext — Begründung an lintBrandNameInFaqSource.
+                ...lintBrandNameInFaqSource(join(customerSrcDir, 'data', 'site-data.ts'), data.name),
+              ]
             : []),
         ];
         if (brandIssuesSiteData.length > 0) {

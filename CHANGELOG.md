@@ -22,6 +22,53 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.104.0 (2026-08-11)
+
+**Fix:** Brand-Name-Linter prüft FAQs am Quelltext statt am Wert — er traf bisher nur einwortige Marken
+
+Der Guard verbot den Markennamen in `siteData.faqs[].q/.a` und verglich dafür den
+**ausgewerteten** Wert. Das hatte zwei Folgen, die beide erst der Fleet-Scan sichtbar machte:
+
+1. **Die Regel war nicht erfüllbar.** `` `Was ist ${BRAND}?` `` und `'Was ist Blitzsicht?'`
+   ergeben zur Laufzeit denselben String. Die rename-sichere Variante wurde also genauso
+   gemeldet wie die hartkodierte — es gab keinen Weg, den Befund loszuwerden, außer den
+   Namen ganz zu streichen.
+2. **Sie traf ungleich.** Gemessen am 11.08.2026: `zink` (`name: "Zink Bäckerei &
+   Konditorei"`) stand bei 0 Befunden, obwohl seine FAQ „Wie viele Filialen hat Zink?"
+   lautet — der volle Name steht dort nie wörtlich. `blitzsicht` (`name: "Blitzsicht"`)
+   bekam 7 Befunde für exakt denselben Stil. Gemessen wurde die Länge des Namens, nicht
+   die Rename-Kosten.
+
+Fachlich kommt dazu, dass in einer FAQ der Markenname hingehört: „Was ist <Marke>?" /
+„<Marke> ist ein …" ist die Entitäts-Definition, an der AI Overviews, ChatGPT und
+Perplexity die Marke festmachen. Ausgerechnet dort den Namen zu verbieten, arbeitet gegen
+den Zweck der Seite.
+
+Neu ist `lintBrandNameInFaqSource(siteDataPath, brandName)` — dieselbe Quelltext-Technik,
+die `lintBrandNameInSeoSource` seit v0.100.0 für den `seo`-Block nutzt (#647). Interpolation
+geht durch, ein ausgeschriebenes Literal bleibt ein Befund, mit Datei und Zeilennummer:
+
+```
+[brand-name] site-data.ts:514 (faqs.q): 1× — "Blitzsicht" steht 1× ausgeschrieben in den FAQs
+```
+
+`description`, `tagline` und `leistungen` bleiben unverändert Wert-Checks — dort ist
+„generisch formulieren" weiterhin die richtige Antwort, der Name gehört schlicht nicht hinein.
+
+Nebenbei generalisiert: `extractSeoBlock` → `extractBlock(source, key, '{' | '[')`, damit
+auch Array-Blöcke wie `faqs: [ … ]` sauber abgegrenzt werden. Die Zeilen-Scan-Logik liegt
+jetzt einmal in `countBrandLiteralsInLine` statt zweimal.
+
+Tests: 37 Fälle in `brand-name-linter.test.js` (vorher 30). Enthalten sind die Gegenprobe
+(hartkodierte FAQ **muss** flaggen, sonst wäre „grün" nur Abwesenheit) und ein Fall, der
+ein- und mehrwortige Marken nebeneinander stellt und gleiche Behandlung festnagelt.
+
+**Migrations-Hinweis:** Keiner. Der Guard meldet ab jetzt weniger, nie mehr. Kunden, die
+den Markennamen in FAQs hartkodiert haben, sehen denselben Befund wie zuvor — nur mit
+Zeilennummer und dem ausführbaren Hinweis, auf `${BRAND}` umzustellen statt zu streichen.
+
+---
+
 ## v0.103.1 (2026-08-11)
 
 **Fix:** Schema-Linter kennt Top-Level-Arrays — `/karriere/` war nie kaputt
