@@ -9,6 +9,8 @@
  *     UND digit-normalisiert im SSOT-Telefon-Set aus src/data/site-data.ts
  *   - jede mailto: im SSOT-E-Mail-Set (oder Allowlist, z. B. Aufsichtsbehörde)
  *   - jede wa.me-/api.whatsapp.com-Href im SSOT-Telefon-Set
+ *   - (dist) interne Links + Ads-URLs als gebaute Datei oder Rewrite auflösbar,
+ *     Redirect-Treffer = Hop — dieselbe Frage wie live, aber schon im PR-Gate
  *   - (live) interne Links direkt 200, null Redirect-Hops
  *   - (live) Ads-Final-URLs literal 200 ohne Redirect
  *   - (live) Plausible-Proxy-Kette (/js/script.js, /api/event) erreichbar
@@ -30,8 +32,13 @@
  *     "extraPhones": ["+499401539590"],
  *     "extraEmails": [],
  *     "allowExternalMailto": ["poststelle@lda.bayern.de"],
- *     "adsFinalUrls": ["https://kunde.de/leistungen/x/"]
+ *     "adsFinalUrls": ["https://kunde.de/leistungen/x/"],
+ *     "distLinkChecks": "warn"   // "warn" (Default) | "fail" | "off"
  *   }
+ *
+ * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung. Der tel:/mailto:-Check
+ * bleibt davon unberührt hart — er war der Anlass des Scripts und darf nicht
+ * mit abgeschaltet werden, wenn ein Repo seine Altlinks noch abarbeitet.
  *
  * Rate-Limit-Budget: der contact-handler limitiert 3 POSTs/10min pro IP, und der
  * Limiter läuft VOR dem Honeypot. Dieses Script macht deshalb maximal 2 POSTs auf
@@ -231,6 +238,150 @@ export function extractInternalLinks(html, origin) {
   return [...out];
 }
 
+// ─── dist-Modus: Links gegen das gebaute Verzeichnis auflösen ───────────────
+//
+// Bis v0.107.x liefen Link- und Ads-URL-Check ausschliesslich live, also erst
+// NACH dem Vercel-Deploy im smoke-test-Job. digital-direkt-ops#17 lag deshalb
+// sechs Tage unentdeckt: eine Seite wurde in eine andere eingearbeitet, der
+// Redirect gesetzt — aber die Ads-Soll-Liste zeigte weiter auf die alte URL.
+// Im PR war nichts rot. Die Helfer hier holen genau diese Prüfung in den
+// dist-Modus vor, ohne Netzwerk.
+
+/**
+ * Canonical-Origin aus gebautem HTML lesen — im dist-Modus gibt es kein --url,
+ * `extractInternalLinks` braucht aber eins, um same-site von extern zu trennen.
+ * @param {string} html @returns {string | null} z. B. https://kunde.de
+ */
+export function detectOriginFromHtml(html) {
+  const tag = html.match(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i)?.[0];
+  const href = tag?.match(/\bhref=["'](https?:\/\/[^/"']+)/i)?.[1];
+  return href ?? null;
+}
+
+/**
+ * Wurzel des ausgelieferten HTML im dist-Verzeichnis.
+ *
+ * Astro MIT Adapter (blitzsicht: `output:'static'` + `adapter: vercel()`) legt
+ * das Output unter `dist/client/` ab, `dist/` selbst bleibt bis auf den
+ * Adapter-Kram leer. Ein naives join(dist, urlPath) findet dort KEINE einzige
+ * Datei und meldet jeden Link der Site als tot — bei blitzsicht 131 Stück,
+ * gemessen 12.08.2026. Darum die Fallunterscheidung statt eines festen Pfads.
+ *
+ * @param {string} distDir @param {string[]} entries Namen direkt unter distDir
+ * @returns {string} distDir oder distDir/client
+ */
+export function pickDistRoot(distDir, entries) {
+  const hasHtmlHere = entries.some((e) => e.toLowerCase().endsWith('.html'));
+  if (!hasHtmlHere && entries.includes('client')) return join(distDir, 'client');
+  return distDir;
+}
+
+/**
+ * URL-Pfad für den Dateisystem-Vergleich normalisieren.
+ *
+ * Prozent-Encoding UND Unicode-Form zählen beide: digital-direkt verlinkt
+ * dieselbe Seite als `/leistungen/druck-kopierl%C3%B6sungen/` und als
+ * `/leistungen/druck-kopierlösungen`. readdir liefert auf macOS/Linux NFC —
+ * ein NFD-kodierter Href wäre ohne normalize() ein Fehlalarm.
+ *
+ * @param {string} raw @returns {string}
+ */
+export function normalizeUrlPath(raw) {
+  let p = raw.split('#')[0].split('?')[0];
+  try {
+    p = decodeURIComponent(p);
+  } catch {
+    // Kaputtes Encoding (einzelnes %) — roh weiterverwenden statt zu werfen.
+  }
+  return p.normalize('NFC');
+}
+
+/**
+ * Dateipfade (dist-relativ), unter denen ein URL-Pfad liegen kann.
+ * Deckt Astros `directory`-Default und das `file`-Format ab, dazu das
+ * trailingSlash-Paar: DD verlinkt viele Seiten als `/agb` UND `/agb/`.
+ * @param {string} urlPath @returns {string[]}
+ */
+export function distPathCandidates(urlPath) {
+  const p = normalizeUrlPath(urlPath).replace(/^\/+/, '').replace(/\/+$/, '');
+  if (p === '') return ['index.html'];
+  return [`${p}/index.html`, `${p}.html`, p];
+}
+
+/**
+ * Löst einen URL-Pfad gegen die Dateiliste des gebauten dist/ auf.
+ * @param {string} urlPath @param {Set<string>} files dist-relative Pfade, NFC
+ * @returns {boolean}
+ */
+export function resolveDistPath(urlPath, files) {
+  return distPathCandidates(urlPath).some((c) => files.has(c));
+}
+
+/**
+ * Vercel-`source` in einen Regex übersetzen — `:param` und `:rest*`.
+ * Alles darüber hinaus (Regex-Gruppen wie `:id(\\d+)`, Alternativen) wird
+ * bewusst NICHT geraten: null heisst „nicht auswertbar", der Aufrufer warnt
+ * dann, statt einen Treffer oder ein Nicht-Treffer zu erfinden.
+ * @param {string} source @returns {RegExp | null}
+ */
+function vercelSourceToRegex(source) {
+  if (/[()[\]{}?+^$|\\]/.test(source)) return null;
+  const segs = source.split('/').filter((s) => s !== '');
+  let re = '^';
+  segs.forEach((seg, i) => {
+    const last = i === segs.length - 1;
+    if (seg.startsWith(':') && seg.endsWith('*')) {
+      // `/x/:path*` erfasst auch `/x` selbst → Slash davor optional.
+      re += '(?:/.*)?';
+    } else if (seg.startsWith(':')) {
+      re += '/[^/]+';
+    } else {
+      re += '/' + seg.replace(/[.]/g, '\\.');
+    }
+    if (last) re += '/?';
+  });
+  if (segs.length === 0) re += '/?';
+  return new RegExp(re + '$');
+}
+
+/**
+ * Erfasst eine vercel.json-Route diesen Pfad?
+ *
+ * 🔴 `has`/`missing` MÜSSEN mitgelesen werden. 16 von 22 Kundenrepos tragen die
+ * www→Apex-Kanonisierung als Catch-all:
+ *   {"source":"/:path*","has":[{"type":"host","value":"www.kunde.de"}], …}
+ * Ein Matcher, der die Bedingung ignoriert, hält JEDEN Pfad für einen Redirect
+ * und macht damit jeden internen Link der Flotte zum Befund (~700 Stück,
+ * gemessen 12.08.2026). Der dist-Check prüft immer den kanonischen Host, für
+ * den eine host-konditionierte Regel per Definition nicht greift — deshalb
+ * gelten bedingte Regeln hier als nicht anwendbar.
+ *
+ * @param {string} urlPath
+ * @param {{redirects?: object[], rewrites?: object[]}} vercelJson
+ * @returns {'redirect' | 'rewrite' | 'unknown' | null}
+ */
+export function matchVercelRoute(urlPath, vercelJson) {
+  const p = normalizeUrlPath(urlPath) || '/';
+  let sawUnparsable = false;
+  for (const [kind, list] of [
+    ['rewrite', vercelJson?.rewrites ?? []],
+    ['redirect', vercelJson?.redirects ?? []],
+  ]) {
+    for (const rule of list) {
+      if (rule?.has || rule?.missing) continue; // bedingt → nicht auf dem Canonical-Host
+      const src = rule?.source;
+      if (typeof src !== 'string') continue;
+      const re = vercelSourceToRegex(src);
+      if (!re) {
+        sawUnparsable = true;
+        continue;
+      }
+      if (re.test(p)) return /** @type {'redirect'|'rewrite'} */ (kind);
+    }
+  }
+  return sawUnparsable ? 'unknown' : null;
+}
+
 // ─── Main ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -305,19 +456,28 @@ async function main() {
   /** @type {{ name: string, html: string }[]} */
   const pages = [];
 
+  /** @type {Set<string>} dist-relative Pfade aller gebauten Dateien, NFC */
+  const distFiles = new Set();
+
   if (distDir) {
-    const absDist = distDir.startsWith('/') ? distDir : join(root, distDir);
-    if (!existsSync(absDist)) {
-      console.error(`FATAL: dist-Verzeichnis ${absDist} existiert nicht — erst bauen.`);
+    const absArg = distDir.startsWith('/') ? distDir : join(root, distDir);
+    if (!existsSync(absArg)) {
+      console.error(`FATAL: dist-Verzeichnis ${absArg} existiert nicht — erst bauen.`);
       return 2;
+    }
+    const absDist = pickDistRoot(absArg, readdirSync(absArg));
+    if (absDist !== absArg) {
+      console.log(`ℹ️  Adapter-Build erkannt — ausgeliefertes HTML liegt in ${relative(absArg, absDist)}/.`);
     }
     const walk = (dir) =>
       readdirSync(dir).flatMap((e) => {
         const p = join(dir, e);
-        return statSync(p).isDirectory() ? walk(p) : extname(p) === '.html' ? [p] : [];
+        return statSync(p).isDirectory() ? walk(p) : [p];
       });
     for (const f of walk(absDist)) {
-      pages.push({ name: relative(absDist, f), html: readFileSync(f, 'utf-8') });
+      const rel = relative(absDist, f).replace(/\\/g, '/').normalize('NFC');
+      distFiles.add(rel);
+      if (extname(f) === '.html') pages.push({ name: rel, html: readFileSync(f, 'utf-8') });
     }
     if (pages.length === 0) {
       console.error(`FATAL: keine .html-Dateien unter ${absDist}.`);
@@ -376,6 +536,92 @@ async function main() {
     }
   }
   if (hrefProblems === 0) ok(`tel:/mailto:/WhatsApp-Hrefs auf ${pages.length} Seite(n) kanonisch + SSOT-konform`);
+
+  // ── dist-Checks: interne Links + Ads-URLs OHNE Netzwerk ──
+  //
+  // Dieselbe Frage wie Check 2/3 im Live-Modus, nur eine Deploy-Stufe früher.
+  // Startet bewusst als Warnung: bei der Fleet-Messung am 12.08.2026 standen
+  // 14 echte Altbefunde in den 13 Live-Repos, sieben davon aus einer einzigen
+  // cw-core-Template-Ursache. Ein Guard, der ein Repo beim Bump sofort rot
+  // macht, wird abgeschaltet statt abgearbeitet. Auf 'fail' flippen, sobald die
+  // Flotte auf 0 steht — pro Repo via touchpoint-audit.config.json.
+  const distMode = cfg.distLinkChecks ?? 'warn';
+  if (distDir && distMode !== 'off') {
+    if (!['warn', 'fail'].includes(distMode)) {
+      console.error(`FATAL: distLinkChecks="${distMode}" unbekannt — erlaubt: "warn", "fail", "off".`);
+      return 2;
+    }
+    const flag = distMode === 'fail' ? fail : warn;
+
+    /** @type {{redirects?: object[], rewrites?: object[]}} */
+    let vercelJson = {};
+    const vercelPath = join(root, 'vercel.json');
+    if (existsSync(vercelPath)) {
+      try {
+        vercelJson = JSON.parse(readFileSync(vercelPath, 'utf-8'));
+      } catch (err) {
+        warn(`vercel.json nicht lesbar (${err.message}) — Redirect-/Rewrite-Auflösung entfällt.`);
+      }
+    } else {
+      warn('keine vercel.json — Links, die nur per Redirect/Rewrite leben, sind hier nicht erkennbar.');
+    }
+
+    const origin = pages.map((p) => detectOriginFromHtml(p.html)).find(Boolean);
+    if (!origin) {
+      warn('kein <link rel="canonical"> im dist gefunden — interne Links im dist-Modus nicht prüfbar.');
+    }
+
+    /**
+     * Ein Pfad ist in Ordnung, wenn er als Datei gebaut wurde oder von einem
+     * Rewrite bedient wird. Ein Redirect ist ein Hop — bezahlt bei Ads, langsam
+     * bei internen Links. Nicht auswertbare Route-Syntax wird nie zum Befund.
+     * @returns {string | null} Befundtext oder null
+     */
+    const judge = (urlPath) => {
+      if (resolveDistPath(urlPath, distFiles)) return null;
+      switch (matchVercelRoute(urlPath, vercelJson)) {
+        case 'rewrite':
+          return null;
+        case 'redirect':
+          return 'nur per Redirect erreichbar (Hop)';
+        case 'unknown':
+          return null; // vercel.json nutzt Syntax, die dieser Guard nicht deutet
+        default:
+          return 'weder gebaute Datei noch Redirect/Rewrite (toter Link)';
+      }
+    };
+
+    if (origin) {
+      const seen = new Map();
+      for (const page of pages) {
+        if (/(^|\/)email\//.test(page.name)) continue; // Mail-Markup, s. Check 1
+        for (const link of extractInternalLinks(page.html, origin)) {
+          const p = link.slice(origin.length) || '/';
+          if (!seen.has(p)) seen.set(p, page.name);
+        }
+      }
+      let bad = 0;
+      for (const [p, firstPage] of seen) {
+        const problem = judge(p);
+        if (problem) {
+          flag(`interner Link ${p} — ${problem} · zuerst in ${firstPage}`);
+          bad++;
+        }
+      }
+      if (bad === 0) ok(`${seen.size} interne Links im dist: alle als Datei oder Rewrite auflösbar`);
+    }
+
+    for (const adsUrl of cfg.adsFinalUrls ?? []) {
+      if (origin && !adsUrl.startsWith(origin)) {
+        warn(`Ads-Final-URL ${adsUrl} zeigt nicht auf ${origin} — im dist nicht prüfbar.`);
+        continue;
+      }
+      const p = origin ? adsUrl.slice(origin.length) || '/' : new URL(adsUrl).pathname;
+      const problem = judge(p);
+      if (problem) flag(`Ads-Final-URL ${adsUrl} — ${problem}`);
+      else ok(`Ads-Final-URL ${adsUrl} → im dist gebaut`);
+    }
+  }
 
   // ── Live-only Checks ──
   if (liveUrl) {

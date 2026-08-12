@@ -26,6 +26,12 @@ import {
   auditHtml,
   postsToContactApi,
   extractInternalLinks,
+  detectOriginFromHtml,
+  pickDistRoot,
+  normalizeUrlPath,
+  distPathCandidates,
+  resolveDistPath,
+  matchVercelRoute,
 } from './verify-touchpoints.mjs';
 
 const SCRIPT = resolve(import.meta.dirname, 'verify-touchpoints.mjs');
@@ -309,4 +315,294 @@ test('E2E: ohne --dist/--url → Exit 2 mit Usage', () => {
     code = err.status;
   }
   assert.equal(code, 2);
+});
+
+// ─── dist-Link-Auflösung: Pure Helpers ──────────────────────────────────────
+
+test('detectOriginFromHtml: canonical liefert das Origin, Attribut-Reihenfolge egal', () => {
+  assert.equal(
+    detectOriginFromHtml('<link rel="canonical" href="https://kunde.de/agb/">'),
+    'https://kunde.de',
+  );
+  assert.equal(
+    detectOriginFromHtml('<link href="https://kunde.de/x/" rel="canonical">'),
+    'https://kunde.de',
+  );
+  assert.equal(detectOriginFromHtml('<link rel="icon" href="https://kunde.de/f.ico">'), null);
+});
+
+test('pickDistRoot: Adapter-Build (dist/client) vs. reiner Static-Build', () => {
+  // blitzsicht: output:'static' + adapter vercel() → HTML liegt in dist/client.
+  // Ohne diese Weiche meldet der Guard dort JEDEN Link als tot (131 Stück).
+  assert.match(pickDistRoot('/x/dist', ['client', '.vercel']), /dist\/client$/);
+  // digital-direkt: HTML direkt in dist/ — 'client' darf hier nicht gewinnen.
+  assert.equal(pickDistRoot('/x/dist', ['404.html', '_astro', 'agb']), '/x/dist');
+  assert.equal(pickDistRoot('/x/dist', ['index.html', 'client']), '/x/dist');
+});
+
+test('normalizeUrlPath: Prozent-Encoding, Query, Fragment, NFC', () => {
+  assert.equal(normalizeUrlPath('/leistungen/druck-kopierl%C3%B6sungen/'), '/leistungen/druck-kopierlösungen/');
+  assert.equal(normalizeUrlPath('/suche?q=1#treffer'), '/suche');
+  // NFD (o + combining diaeresis) muss zur NFC-Form werden, wie readdir sie liefert
+  assert.equal(normalizeUrlPath('/öl'), '/öl');
+  // kaputtes Encoding darf nicht werfen
+  assert.equal(normalizeUrlPath('/50%-rabatt'), '/50%-rabatt');
+});
+
+test('distPathCandidates: directory-Format, file-Format, trailingSlash-Paar', () => {
+  assert.deepEqual(distPathCandidates('/agb/'), ['agb/index.html', 'agb.html', 'agb']);
+  assert.deepEqual(distPathCandidates('/agb'), ['agb/index.html', 'agb.html', 'agb']);
+  assert.deepEqual(distPathCandidates('/'), ['index.html']);
+});
+
+test('resolveDistPath: Datei, Verzeichnis-Index und Asset lösen auf, Erfundenes nicht', () => {
+  const files = new Set(['index.html', 'agb/index.html', '404.html', 'docs/preise.pdf']);
+  assert.equal(resolveDistPath('/agb/', files), true);
+  assert.equal(resolveDistPath('/agb', files), true);
+  assert.equal(resolveDistPath('/404/', files), true, '.html-Fallback (Divergenz: live ist /404/ ein 404)');
+  assert.equal(resolveDistPath('/docs/preise.pdf', files), true);
+  assert.equal(resolveDistPath('/', files), true);
+  assert.equal(resolveDistPath('/gibt-es-nicht/', files), false);
+});
+
+test('matchVercelRoute: has-konditionierter Catch-all zählt NICHT — sonst ist jeder Pfad ein Hop', () => {
+  // Die www→Apex-Kanonisierung steht in 16 von 22 Kundenrepos. Wird die
+  // has-Bedingung ignoriert, matcht /:path* jeden Pfad und der Guard meldet die
+  // komplette Flotte als Redirect-Hop (~700 Links, gemessen 12.08.2026).
+  const wwwCanonical = {
+    redirects: [
+      { source: '/:path*', has: [{ type: 'host', value: 'www.kunde.de' }], destination: 'https://kunde.de/:path*' },
+    ],
+  };
+  assert.equal(matchVercelRoute('/irgendwas/', wwwCanonical), null);
+  assert.equal(matchVercelRoute('/', wwwCanonical), null);
+  // missing genauso
+  assert.equal(
+    matchVercelRoute('/x', { redirects: [{ source: '/:path*', missing: [{ type: 'cookie', key: 'a' }] }] }),
+    null,
+  );
+});
+
+test('matchVercelRoute: unbedingte Regeln greifen — Redirect vs. Rewrite unterschieden', () => {
+  const v = {
+    redirects: [{ source: '/leistungen/kopierer-leasen/', destination: '/leistungen/drucker-leasen-vs-kaufen/' }],
+    rewrites: [{ source: '/masterplan/:path*', destination: 'https://cockpit.example/:path*' }],
+  };
+  assert.equal(matchVercelRoute('/leistungen/kopierer-leasen/', v), 'redirect');
+  assert.equal(matchVercelRoute('/leistungen/kopierer-leasen', v), 'redirect', 'trailingSlash-tolerant');
+  assert.equal(matchVercelRoute('/masterplan/dashboard', v), 'rewrite');
+  assert.equal(matchVercelRoute('/masterplan', v), 'rewrite', ':path* erfasst auch das nackte Präfix');
+  assert.equal(matchVercelRoute('/etwas-anderes/', v), null);
+});
+
+test('matchVercelRoute: :param matcht ein Segment, nicht mehrere', () => {
+  const v = { redirects: [{ source: '/blog/:slug', destination: '/artikel/:slug' }] };
+  assert.equal(matchVercelRoute('/blog/foo', v), 'redirect');
+  assert.equal(matchVercelRoute('/blog/foo/bar', v), null);
+});
+
+test('matchVercelRoute: nicht deutbare Syntax → "unknown", nie ein geratener Treffer', () => {
+  const v = { redirects: [{ source: '/produkt/:id(\\d+)', destination: '/p/:id' }] };
+  assert.equal(matchVercelRoute('/produkt/42', v), 'unknown');
+  assert.equal(matchVercelRoute('/ganz/woanders', v), 'unknown');
+});
+
+test('matchVercelRoute: leere/fehlende vercel.json wirft nicht', () => {
+  assert.equal(matchVercelRoute('/x', {}), null);
+  assert.equal(matchVercelRoute('/x', undefined), null);
+});
+
+// ─── dist-Link-Auflösung: End-to-End ────────────────────────────────────────
+
+const PAGE = (canonical, links = []) =>
+  `<!doctype html><html><head><link rel="canonical" href="${canonical}"></head>` +
+  `<body>${links.map((l) => `<a href="${l}">x</a>`).join('')}</body></html>`;
+
+/**
+ * E2E-Lauf mit frei gebautem dist-Baum (statt der einen index.html von runDist).
+ * @param {object} o
+ * @param {Record<string,string>} o.files dist-relative Pfade → Inhalt
+ * @param {object} [o.config] touchpoint-audit.config.json
+ * @param {object} [o.vercel] vercel.json
+ * @param {string} [o.distSub] '' oder 'client' (Adapter-Layout)
+ */
+function runTree({ files, config, vercel, distSub = '' }) {
+  const cwd = join(tmpdir(), `cwcore-tree-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  mkdirSync(join(cwd, 'src', 'data'), { recursive: true });
+  writeFileSync(join(cwd, 'src', 'data', 'site-data.ts'), SITE_DATA);
+  for (const [rel, content] of Object.entries(files)) {
+    const abs = join(cwd, 'dist', distSub, rel);
+    mkdirSync(join(abs, '..'), { recursive: true });
+    writeFileSync(abs, content);
+  }
+  if (config) writeFileSync(join(cwd, 'touchpoint-audit.config.json'), JSON.stringify(config));
+  if (vercel) writeFileSync(join(cwd, 'vercel.json'), JSON.stringify(vercel));
+
+  let code = 0;
+  let out = '';
+  try {
+    out = execFileSync(process.execPath, [SCRIPT, '--dist', 'dist'], { cwd, encoding: 'utf-8', timeout: 10000 });
+  } catch (err) {
+    code = err.status ?? 1;
+    out = (err.stdout ?? '') + (err.stderr ?? '');
+  } finally {
+    try {
+      rmSync(cwd, { recursive: true, force: true });
+    } catch {
+      /* ignore */
+    }
+  }
+  return { code, out };
+}
+
+test('E2E Gegenbeweis digital-direkt-ops#17: Ads-URL nur per Redirect → Exit 1', () => {
+  // Der reale Fall: /leistungen/kopierer-leasen/ wurde am 06.08.2026 in die
+  // Vergleichsseite eingearbeitet, der Redirect gesetzt — die Ads-Soll-Liste
+  // zeigte weiter auf die alte URL. Live fiel das erst nach dem Deploy auf.
+  const setup = (adsUrl) => ({
+    files: {
+      'index.html': PAGE('https://kunde.de/'),
+      'leistungen/drucker-leasen-vs-kaufen/index.html': PAGE('https://kunde.de/leistungen/drucker-leasen-vs-kaufen/'),
+    },
+    vercel: {
+      redirects: [
+        { source: '/:path*', has: [{ type: 'host', value: 'www.kunde.de' }], destination: 'https://kunde.de/:path*' },
+        { source: '/leistungen/kopierer-leasen/', destination: '/leistungen/drucker-leasen-vs-kaufen/', permanent: true },
+      ],
+    },
+    config: { distLinkChecks: 'fail', adsFinalUrls: [adsUrl] },
+  });
+
+  const rot = runTree(setup('https://kunde.de/leistungen/kopierer-leasen/'));
+  assert.equal(rot.code, 1, `alte URL muss rot sein, out:\n${rot.out}`);
+  assert.match(rot.out, /kopierer-leasen\/ — nur per Redirect erreichbar \(Hop\)/);
+
+  const gruen = runTree(setup('https://kunde.de/leistungen/drucker-leasen-vs-kaufen/'));
+  assert.equal(gruen.code, 0, `korrigierte URL muss grün sein, out:\n${gruen.out}`);
+  assert.match(gruen.out, /drucker-leasen-vs-kaufen\/ → im dist gebaut/);
+});
+
+test('E2E: has-Catch-all allein macht keinen Link zum Hop', () => {
+  const { code, out } = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/agb/', '/agb', '/impressum/']),
+      'agb/index.html': PAGE('https://kunde.de/agb/'),
+      'impressum/index.html': PAGE('https://kunde.de/impressum/'),
+    },
+    vercel: {
+      redirects: [
+        { source: '/:path*', has: [{ type: 'host', value: 'www.kunde.de' }], destination: 'https://kunde.de/:path*' },
+      ],
+    },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(code, 0, `keine Befunde erwartet, out:\n${out}`);
+  assert.match(out, /interne Links im dist: alle als Datei oder Rewrite auflösbar/);
+});
+
+test('E2E: has-Catch-all verfälscht die Diagnose nicht — tot bleibt tot, wird nicht zum Hop', () => {
+  // Der Test darüber erreicht matchVercelRoute gar nicht: dort existieren alle
+  // Dateien, judge() steigt vorher aus. Erst ein NICHT gebauter Pfad zeigt, ob
+  // die has-Bedingung gelesen wird — und der Unterschied steckt allein in der
+  // Meldung, nicht im Exit-Code. Ohne die doesNotMatch-Zeile wäre der Bug hier
+  // unsichtbar, weil beide Varianten rot sind.
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/', ['/gibt-es-nicht/']) },
+    vercel: {
+      redirects: [
+        { source: '/:path*', has: [{ type: 'host', value: 'www.kunde.de' }], destination: 'https://kunde.de/:path*' },
+      ],
+    },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(code, 1, `out:\n${out}`);
+  assert.match(out, /gibt-es-nicht\/ — weder gebaute Datei noch Redirect\/Rewrite/);
+  assert.doesNotMatch(out, /nur per Redirect erreichbar/, 'has-Bedingung wurde ignoriert — jeder Pfad wäre ein Hop');
+});
+
+test('E2E: has-Catch-all verdeckt keine echte Ads-URL-Prüfung', () => {
+  // Gegenstück für Check 3: ohne has-Auswertung meldet der Guard die Ads-URL als
+  // "im dist gebaut"→nein, sondern als Hop — und der Operator jagt einen Redirect,
+  // den es nicht gibt.
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/') },
+    vercel: {
+      redirects: [
+        { source: '/:path*', has: [{ type: 'host', value: 'www.kunde.de' }], destination: 'https://kunde.de/:path*' },
+      ],
+    },
+    config: { distLinkChecks: 'fail', adsFinalUrls: ['https://kunde.de/kampagne/'] },
+  });
+  assert.equal(code, 1, `out:\n${out}`);
+  assert.match(out, /Ads-Final-URL.*kampagne\/ — weder gebaute Datei noch Redirect\/Rewrite/);
+});
+
+test('E2E: toter interner Link wird gefangen, Rewrite-Ziel nicht', () => {
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/', ['/masterplan/dashboard', '/gibt-es-nicht/']) },
+    vercel: { rewrites: [{ source: '/masterplan/:path*', destination: 'https://cockpit.example/:path*' }] },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(code, 1, `toter Link muss rot sein, out:\n${out}`);
+  assert.match(out, /gibt-es-nicht\/ — weder gebaute Datei noch Redirect\/Rewrite/);
+  assert.doesNotMatch(out, /masterplan/, 'externer Rewrite ist kein Befund');
+});
+
+test('E2E: Adapter-Layout dist/client wird erkannt', () => {
+  const { code, out } = runTree({
+    distSub: 'client',
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/agb/']),
+      'agb/index.html': PAGE('https://kunde.de/agb/'),
+    },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(code, 0, `dist/client muss gefunden werden, out:\n${out}`);
+  assert.match(out, /Adapter-Build erkannt/);
+});
+
+test('E2E: Umlaut-Seite, prozent-kodiert verlinkt, ist kein Befund', () => {
+  const { code, out } = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/leistungen/druck-kopierl%C3%B6sungen/', '/leistungen/druck-kopierlösungen']),
+      'leistungen/druck-kopierlösungen/index.html': PAGE('https://kunde.de/leistungen/druck-kopierlösungen/'),
+    },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(code, 0, `beide Schreibweisen müssen auflösen, out:\n${out}`);
+});
+
+test('E2E: Default ist warn — Befund sichtbar, Exit bleibt 0', () => {
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/', ['/gibt-es-nicht/']) },
+  });
+  assert.equal(code, 0, `Default darf nicht failen, out:\n${out}`);
+  assert.match(out, /⚠ interner Link \/gibt-es-nicht\//);
+});
+
+test('E2E: distLinkChecks="off" schaltet nur diese Checks ab', () => {
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/', ['/gibt-es-nicht/']) },
+    config: { distLinkChecks: 'off' },
+  });
+  assert.equal(code, 0);
+  assert.doesNotMatch(out, /gibt-es-nicht/);
+  assert.match(out, /tel:\/mailto:\/WhatsApp-Hrefs/, 'Check 1 muss weiterlaufen');
+});
+
+test('E2E: unbekannter distLinkChecks-Wert → Exit 2, kein stiller Pass', () => {
+  const { code } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/') },
+    config: { distLinkChecks: 'vielleicht' },
+  });
+  assert.equal(code, 2);
+});
+
+test('E2E: fehlende vercel.json warnt, failt aber nicht', () => {
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/', ['/agb/']), 'agb/index.html': PAGE('https://kunde.de/agb/') },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(code, 0, `out:\n${out}`);
+  assert.match(out, /keine vercel\.json/);
 });

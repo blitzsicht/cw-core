@@ -22,6 +22,61 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.108.0 (2026-08-12)
+
+**Feature:** Touchpoint-Audit prüft interne Links und Ads-Final-URLs jetzt auch im
+`--dist`-Modus — also im PR, ohne Netzwerk, vor dem Deploy.
+
+Kontext: Beide Checks liefen bislang ausschließlich hinter `if (liveUrl)`, also nur im
+`smoke-test`-Job nach dem Vercel-Deploy auf `main`. digital-direkt-ops#17 lag deshalb sechs
+Tage unentdeckt: eine Seite wurde am 06.08. in eine andere eingearbeitet und ein Redirect
+gesetzt, aber die Ads-Soll-Liste zeigte weiter auf die alte URL. Im PR war nichts rot. Der
+dist-Modus stellt dieselbe Frage eine Stufe früher: Ist der Pfad als Datei gebaut, wird er
+von einem Rewrite bedient — oder hängt er an einem Redirect (Hop) bzw. an gar nichts (tot)?
+
+Neue exportierte Helfer in `scripts/verify-touchpoints.mjs`:
+
+- `resolveDistPath(urlPath, files)` — löst gegen das gebaute Verzeichnis auf; kennt
+  directory- und file-Format, das trailingSlash-Paar, Prozent-Encoding und NFC.
+- `matchVercelRoute(urlPath, vercelJson)` — `redirect` / `rewrite` / `unknown` / `null`.
+  Liest `:param` und `:rest*`; unbekannte Syntax wird nie geraten.
+- `pickDistRoot(distDir, entries)` — findet `dist/client/` bei Adapter-Builds.
+- `normalizeUrlPath`, `distPathCandidates`, `detectOriginFromHtml`.
+
+Zwei Fallen, die den Guard ohne Gegenmaßnahme fleetweit unbrauchbar gemacht hätten und
+darum je einen Pflicht-Test haben:
+
+- **`has`/`missing` müssen gelesen werden.** 16 von 22 Repos tragen die www→Apex-Kanonisierung
+  als `{"source":"/:path*","has":[{"type":"host",…}]}`. Wer die Bedingung ignoriert, hält
+  jeden Pfad für einen Redirect — gemessen wären das ~700 Hop-Befunde über die Flotte
+  gewesen. Bedingte Regeln gelten auf dem kanonischen Host als nicht anwendbar.
+- **`dist/client/` bei Adapter-Builds.** blitzsicht baut `output:'static'` + `adapter: vercel()`;
+  ein naives `join(dist, pfad)` meldet dort alle 131 Links als tot.
+
+Neuer Config-Key in `touchpoint-audit.config.json`:
+
+```json
+{ "distLinkChecks": "warn" }
+```
+
+`"warn"` (Default) · `"fail"` · `"off"`. Betrifft **nur** diese Auflösung — der
+tel:/mailto:/WhatsApp-Check bleibt unverändert hart, damit ein Repo mit Altlinks nicht den
+Check mit abschaltet, der Anlass des ganzen Scripts war.
+
+Gemessen am 12.08.2026 über die 13 Live-Repos, jeder Treffer gegen die Live-URL gegengeprüft:
+15 echte Befunde — 7× `/informationspflicht` als Redirect-Hop (eine gemeinsame
+Template-Ursache), 4 tote `*.md`-Zwillinge bei blitzsicht, 2× `/pakete`, 1× platzfrei
+`/kontakt`. Keine Falschpositive. Darum startet der Check als Warnung: hart geflippt wird,
+wenn die Flotte auf 0 steht.
+
+Tests: 23 → 44. Gegenbeweis geführt — `has`-Auswertung entfernt bricht 3 Tests,
+`dist/client` entfernt 2, Encoding/NFC entfernt 2.
+
+**Migrations-Hinweis:** Keiner. Ohne `distLinkChecks` verhält sich der Guard als Warnung und
+kann keinen Build rot machen, der vorher grün war.
+
+---
+
 ## v0.107.4 (2026-08-12)
 
 - [kunde:sichtbar] Auf Seiten mit dem großen Abschluss-Block verschwindet der zweite Knopf
