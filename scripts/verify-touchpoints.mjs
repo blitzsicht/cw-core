@@ -50,6 +50,8 @@ import { existsSync, readdirSync, readFileSync, statSync, realpathSync } from 'n
 import { join, extname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { AUFSICHTS_MAILTO_ALLOWLIST } from '../src/utils/legal/aufsichtsbehoerde.js';
+
 // ─── Pure Helpers (exportiert für node --test) ──────────────────────────────
 
 /**
@@ -141,7 +143,17 @@ export function findSchemelessContactHrefs(html) {
  */
 export function auditHtml(html, ssot, cfg = {}) {
   const problems = [...findSchemelessContactHrefs(html)];
-  const allowMail = new Set((cfg.allowExternalMailto ?? []).map((e) => e.toLowerCase()));
+  // Die Adresse der Datenschutz-Aufsichtsbehörde steht naturgemäss NICHT im
+  // E-Mail-Set des Kunden — sie gehört niemandem im Haus. cw-core schreibt sie
+  // aber selbst in jede Datenschutzerklärung (Beschwerderecht Art. 77 DSGVO).
+  // Ohne diesen Default meldete der Guard die eigene Ausgabe als Fremdkörper:
+  // drei von vier frisch ausgerollten Repos fielen am 12.08.2026 exakt darüber
+  // (blitzsicht-ops#653). Abgeleitet aus utils/legal/aufsichtsbehoerde.js,
+  // damit ein Wechsel der Behörde hier nicht nachgezogen werden muss.
+  const allowMail = new Set([
+    ...AUFSICHTS_MAILTO_ALLOWLIST,
+    ...(cfg.allowExternalMailto ?? []).map((e) => e.toLowerCase()),
+  ]);
 
   for (const href of extractHrefs(html, 'tel')) {
     const value = href.slice(4);

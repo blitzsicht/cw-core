@@ -111,6 +111,35 @@ test('auditHtml: OK-Fixture ist sauber (inkl. ?subject und Allowlist)', () => {
   assert.deepEqual(problems, []);
 });
 
+test('auditHtml: Aufsichtsbehörde ist OHNE Config erlaubt — cw-core liefert sie selbst aus', () => {
+  // blitzsicht-ops#653: die Adresse steht in keinem Kunden-Repo, sondern in
+  // InformationspflichtBlock.astro. Der Guard meldete damit die eigene Ausgabe
+  // als Fremdkörper — drei von vier frisch ausgerollten Repos fielen darüber.
+  const html = `<a href="mailto:poststelle@lda.bayern.de">Beschwerde</a>`;
+  assert.deepEqual(auditHtml(html, parseSsot(SITE_DATA)), []);
+});
+
+test('auditHtml: eine fremde Adresse bleibt ein Befund — die Allowlist ist kein Freibrief', () => {
+  // Gegenprobe. Ohne sie belegt der Test darüber nur, dass es still ist.
+  const html = `<a href="mailto:fremd@example.com">x</a>`;
+  const problems = auditHtml(html, parseSsot(SITE_DATA));
+  assert.equal(problems.length, 1);
+  assert.match(problems[0].problem, /weder im SSOT-E-Mail-Set noch in allowExternalMailto/);
+});
+
+test('auditHtml: allowExternalMailto gilt zusätzlich, nicht statt', () => {
+  // Kunden ausserhalb Bayerns setzen ihre eigene Behörde — beide müssen durch.
+  const html =
+    `<a href="mailto:poststelle@lda.bayern.de">bayern</a>` +
+    `<a href="mailto:poststelle@datenschutz-berlin.de">berlin</a>`;
+  assert.deepEqual(
+    auditHtml(html, parseSsot(SITE_DATA), {
+      allowExternalMailto: ['poststelle@datenschutz-berlin.de'],
+    }),
+    [],
+  );
+});
+
 test('auditHtml: ohne SSOT (leere Sets) nur Syntax-Checks', () => {
   const problems = auditHtml(
     `<a href="tel:+4999999">x</a><a href="tel:+49 1 2">y</a>`,

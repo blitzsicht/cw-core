@@ -22,6 +22,45 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.107.2 (2026-08-12)
+
+**Fix:** Der Touchpoint-Audit meldete die Adresse, die cw-core selbst ausliefert
+
+`scripts/verify-touchpoints.mjs` prüft jede `mailto:`-Href im gebauten HTML gegen das
+E-Mail-Set des Kunden aus `site-data.ts`. Die Datenschutz-Aufsichtsbehörde steht dort
+naturgemäß nicht — sie gehört niemandem im Haus. Geschrieben wird sie aber von cw-core
+selbst: `InformationspflichtBlock.astro` rendert den Hinweis auf das Beschwerderecht
+(Art. 77 DSGVO) samt `mailto:poststelle@lda.bayern.de`.
+
+Der Guard meldete damit die eigene Ausgabe als Fremdkörper. Gemessen am 12.08.2026 beim
+Rollout des `build-check.yml`-Templates: **drei von vier** frisch ausgerollten Repos fielen
+mit exakt dieser Zeile (zink-baeckerei, schiller-gartenbau, mika-elektrotechnik). Und in den
+committeten Quellen aller **23 Kunden-Repos** kommt die Adresse **kein einziges Mal** vor —
+sie kann also gar nicht vom Kunden stammen. Das war kein Kundenfehler, das war der Guard.
+
+Neu ist `src/utils/legal/aufsichtsbehoerde.js` mit `DEFAULT_BESCHWERDESTELLE`. Beide
+Datenschutz-Blöcke lesen von dort, und `verify-touchpoints.mjs` leitet seine Allowlist
+daraus ab — wer die Behörde austauscht, ändert die Allowlist mit, ohne etwas nachzuziehen.
+
+Die Angabe stand vorher **doppelt** als Literal in den Prop-Defaults von
+`DatenschutzBlock.astro` und `InformationspflichtBlock.astro` und war bereits
+auseinandergelaufen: eine Fassung trug Telefon und `mailto:`, die andere nicht. Der Output
+ändert sich dadurch nicht — `DatenschutzBlock` rendert nur `name`, `address` und `url`.
+
+**Geltungsbereich bewusst eng:** in die Allowlist kommen **nur die Adressen, die cw-core
+selbst ausliefert** — keine aus dem Gedächtnis abgeschriebene Liste aller 17 deutschen
+Aufsichtsbehörden. Eine falsche Adresse dort wäre schlimmer als keine: sie stünde als
+„geprüft" in einem Guard, ohne je geprüft worden zu sein. Kunden außerhalb Bayerns setzen
+ihre Behörde über das Prop `beschwerdeStelle` und tragen deren Adresse in
+`allowExternalMailto` ein — dieser Weg existierte schon und bleibt.
+
+Gegenproben gefahren: eine erfundene Fremdadresse bleibt ein Befund; am echten `dist/` von
+zink-baeckerei geht der alte Guard mit Exit 1 raus, der neue mit Exit 0 bei 13 geprüften
+Seiten. Dazu ein Drift-Test, der fehlschlägt, sobald eine Komponente die Behördenangabe
+wieder als Literal führt.
+
+Tests 444 → 453.
+
 ## v0.107.1 (2026-08-12)
 
 **Docs:** `[kunde]`-Zeile zur Dateigröße korrigiert — sie behauptete mehr als gemessen ist

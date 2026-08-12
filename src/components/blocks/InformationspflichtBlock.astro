@@ -43,6 +43,7 @@ export type DatenEmpfaenger = {
 export type Branche = 'druck' | 'solar' | 'web' | 'handwerk' | 'beratung' | 'ferienhaus' | 'generic';
 
 import { phoneToTelHref } from '../../utils/text/tel-href';
+import { DEFAULT_BESCHWERDESTELLE } from '../../utils/legal/aufsichtsbehoerde.js';
 
 interface Props {
   legal: LegalProps;
@@ -160,13 +161,7 @@ const {
   empfaenger,
   zwecke = ZWECKE_DEFAULTS,
   datenschutzEmail: datenschutzEmailProp,
-  beschwerdeStelle = {
-    name: 'Bayerisches Landesamt für Datenschutzaufsicht (BayLDA)',
-    address: 'Promenade 27, 91522 Ansbach',
-    phone: '+49 981 180093-0',
-    emailUrl: 'mailto:poststelle@lda.bayern.de',
-    url: 'https://www.lda.bayern.de',
-  },
+  beschwerdeStelle = DEFAULT_BESCHWERDESTELLE,
   hatDSB = false,
   dsb,
   standDatum = new Date().toLocaleDateString('de-DE', { day: 'numeric', month: 'long', year: 'numeric' }),
