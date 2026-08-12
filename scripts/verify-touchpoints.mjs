@@ -733,7 +733,12 @@ async function main() {
           bad++;
         }
       }
+      // Der Zählwert wird IMMER ausgegeben, nicht nur im sauberen Fall. Stand er
+      // nur dort, sähe ein Repo mit einem Befund im CI-Log genauso aus wie eines,
+      // in dem der Check gar nicht lief — „geprüft und was gefunden" wäre von
+      // „nicht geprüft" nicht mehr zu unterscheiden.
       if (bad === 0) ok(`${linkSeen.size} interne Links im dist: alle als Datei oder Rewrite auflösbar`);
+      else console.log(`ℹ️  ${linkSeen.size} interne Links im dist geprüft — ${bad} davon nicht auflösbar (oben gemeldet).`);
     }
 
     // ── Asset-Referenzen: src/srcset/CSS-url() gegen das gebaute dist ──
@@ -774,9 +779,12 @@ async function main() {
           badAssets++;
         }
       }
-      if (badAssets === 0) {
-        ok(`${assetSeen.size} Asset-Referenzen im dist (${distCss.length} CSS-Datei(en) mitgelesen): alle auflösbar`);
-      }
+      // Zählwert immer, s. Kommentar beim Link-Check: eine Null ohne Zähler daneben
+      // ist kein Nachweis, und eine fehlende Zeile darf nicht wie „nicht geprüft"
+      // aussehen, wenn in Wahrheit geprüft und gefunden wurde.
+      const geprueft = `${assetSeen.size} Asset-Referenzen im dist (${distCss.length} CSS-Datei(en) mitgelesen)`;
+      if (badAssets === 0) ok(`${geprueft}: alle auflösbar`);
+      else console.log(`ℹ️  ${geprueft} — ${badAssets} davon nicht auflösbar (oben gemeldet).`);
       if (skippedRelative > 0) {
         // Dokument-relative Pfade bräuchten den Ort der Quelldatei. Ungeprüft —
         // aber sichtbar ungeprüft, statt still als „sauber" durchzugehen.

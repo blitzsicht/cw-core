@@ -22,6 +22,32 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.111.1 (2026-08-12)
+
+**Fix:** Der dist-Check gibt die Zahl der geprüften Links und Asset-Referenzen jetzt **immer**
+aus, nicht nur wenn nichts zu beanstanden war.
+
+Bis v0.111.0 stand die Zeile `N Asset-Referenzen im dist … alle auflösbar` ausschliesslich im
+sauberen Fall. Ein Repo mit einem Befund zeigte im CI-Log also den Befund, aber keinen
+Zählwert — und war damit von einem Repo, in dem der Check gar nicht lief, nicht mehr zu
+unterscheiden. „NICHT GEPRÜFT" und „geprüft, etwas gefunden" sahen gleich aus.
+
+Aufgefallen beim Bau der Flottenmessung für den Rollout von v0.111.0: die Auswertung meldete
+für ein absichtlich kaputtes Fixture `KEINE_ZEILE` statt einer Zahl — bei einem Lauf, der
+sauber geprüft und den Fehler korrekt gemeldet hatte.
+
+Neu bei Befunden:
+
+```
+ℹ️  61 Asset-Referenzen im dist (1 CSS-Datei(en) mitgelesen) — 1 davon nicht auflösbar (oben gemeldet).
+ℹ️  131 interne Links im dist geprüft — 2 davon nicht auflösbar (oben gemeldet).
+```
+
+Ohne Befund bleibt die bisherige `✓`-Zeile unverändert. Kein Verhaltensunterschied bei
+Exit-Codes, reine Nachweis-Ausgabe. Tests 501 → 502.
+
+---
+
 ## v0.111.0 (2026-08-12)
 
 - [kunde] Der automatische Vorab-Check prüft ab sofort auch Bilder, Schriften und Skripte:

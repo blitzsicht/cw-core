@@ -794,6 +794,32 @@ test('E2E: Asset-Prüfung braucht kein <link rel="canonical">', () => {
   assert.match(out, /Asset-Referenz \/fehlt\.png/);
 });
 
+test('E2E: Zählwert steht auch dann im Log, wenn es Befunde gibt', () => {
+  // Stand die Zahl nur im sauberen Fall, sähe ein Repo mit einem Befund im CI-Log
+  // aus wie eines, in dem der Check gar nicht lief. „NICHT GEPRÜFT" und „geprüft,
+  // was gefunden" müssen unterscheidbar bleiben — sonst ist die Flottenmessung,
+  // die den Flip auf "fail" begründen soll, nicht auswertbar.
+  const mitBefund = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/toter-link/']).replace('<body>', '<body><img src="/fehlt.png">'),
+    },
+    config: { distLinkChecks: 'warn', assetRefChecks: 'warn' },
+  });
+  assert.match(mitBefund.out, /\d+ Asset-Referenzen im dist \(\d+ CSS-Datei\(en\) mitgelesen\) — 1 davon nicht auflösbar/);
+  assert.match(mitBefund.out, /\d+ interne Links im dist geprüft — 1 davon nicht auflösbar/);
+
+  const sauber = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/da/']).replace('<body>', '<body><img src="/da.png">'),
+      'da/index.html': PAGE('https://kunde.de/da/'),
+      'da.png': 'PNG',
+    },
+    config: { distLinkChecks: 'warn', assetRefChecks: 'warn' },
+  });
+  assert.match(sauber.out, /Asset-Referenzen im dist .*: alle auflösbar/);
+  assert.match(sauber.out, /interne Links im dist: alle als Datei oder Rewrite auflösbar/);
+});
+
 test('E2E: Fragment-Strip — /kontakt#formular wird endlich geprüft', () => {
   // Bis v0.110.0 liess `[^"'#]+` den Match scheitern: der Link blieb unsichtbar.
   const rot = runTree({
