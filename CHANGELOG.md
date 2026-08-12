@@ -22,6 +22,59 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.111.0 (2026-08-12)
+
+- [kunde] Der automatische Vorab-Check prüft ab sofort auch Bilder, Schriften und Skripte:
+  Verweist die Website auf eine Bilddatei, die es nach dem Bauen nicht mehr gibt, fällt das
+  jetzt vor der Veröffentlichung auf statt gar nicht.
+
+**Fix:** Der dist-Link-Check erfasst zusätzlich `src`, `srcset` und CSS-`url()` — und schneidet
+bei `href` das Fragment ab, statt am `#` den ganzen Link zu verlieren.
+
+Kontext (blitzsicht-ops#656): Die Extraktion sah bis v0.110.0 ausschließlich `href=`. Bilder
+hängen aber an `src=`. Beim Heben der Alt-Repos rutschten dem Guard deshalb zwei tote
+Bildverweise durch — beide vom selben Mechanismus verursacht: `optimize-images.mjs
+--delete-originals` macht aus `public/*.png` ein `.webp` und räumt das Original weg, der
+Verweis bleibt auf `.png` stehen. Das lief bei **jedem** Build in einen 404, ohne dass je ein
+PR rot wurde.
+
+- `[blumen-schmid]` Footer-Logo `<img src="/signet-white.png">`, gebaut wurde nur `.webp`
+- `[allstargirls]` Hintergrund `url(/star.png)` in `_astro/index.*.css`, gebaut nur `.webp`
+
+Neu: `extractAssetRefs(source, origin, {cssOnly})` neben `extractInternalLinks`. Getrennt
+gemeldet, weil ein fehlendes Bild ein anderer Schaden ist als ein toter Seiten-Link.
+
+**Geltungsbereich, vorher gemessen statt geraten** (12.08.2026, 22 Repos, 518 Seiten):
+
+- CSS-`url()` wird **nur** in `<style>`-Blöcken und `.css`-Dateien gelesen. Über rohes HTML
+  trifft der Regex JavaScript statt CSS (`new URL(t.href)` → `url(t.href)`): 502 von 554
+  Treffern waren Falschpositive. Auf `<style>` eingegrenzt bleibt exakt null davon übrig.
+- `src`/`srcset` nur an `img`, `source`, `script`, `video`, `audio`, `track`, `embed`, `iframe`.
+- Übersprungen: `data:`, `blob:`, protokoll-relativ, fremde Origins, `/_vercel/…`, `/_image…`.
+  Dokument-relative Pfade werden übersprungen, aber **gezählt** und ausgegeben.
+- Kein `<link rel="canonical">` nötig — anders als der Link-Check läuft die Asset-Prüfung auch
+  auf Repos ohne Canonical (Beleg: herztoene).
+
+**Vormessung über die 13 Live-Seiten** (deployte Builds, nicht lokale dist-Stände): 549
+distinkte Asset-Referenzen, **549× HTTP 200**, kein Redirect, kein 404. Einziges per Rewrite
+statt als Datei bedientes Asset ist der Plausible-Proxy `/js/script.js`; in allen 12
+referenzierenden Repos als unbedingter Rewrite in `vercel.json` verifiziert.
+
+**Fragment-Strip:** `extractInternalLinks` verlor bisher jeden href mit `#` komplett — die
+Zeichenklasse `[^"'#]+` liess den Match scheitern, statt `#…` abzuschneiden. 2166 hrefs der
+Flotte waren unsichtbar. Der Fix deckt 136 zusätzliche distinkte Pfade ab und erzeugt dabei
+über alle 22 Repos **0 zusätzliche Befunde** (28 vorher, 28 nachher).
+
+**Konfiguration:** neuer Schlüssel `assetRefChecks` in `touchpoint-audit.config.json`,
+`"warn"` (Default) | `"fail"` | `"off"`. Bewusst getrennt von `distLinkChecks`, das auf
+`"fail"` bleibt. Der Default wird nach der Flottenmessung über frische CI-Builds auf `"fail"`
+gezogen — derselbe Weg wie v0.108.0 → v0.109.0. Unbekannter Wert → Exit 2, kein stiller Pass.
+
+Tests 484 → 501. Der Rot-Beweis fährt beide realen Bugs nach (Attribut- und CSS-Form) und
+sichert den grünen Zweig ab; die Falschpositiv-Klasse `new URL()` ist negativ abgetestet.
+
+---
+
 ## v0.110.0 (2026-08-12)
 
 - [kunde] In der maschinenlesbaren Datei für KI-Assistenten stehen jetzt auch Firmierung,

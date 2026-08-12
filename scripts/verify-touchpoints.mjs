@@ -33,12 +33,14 @@
  *     "extraEmails": [],
  *     "allowExternalMailto": ["poststelle@lda.bayern.de"],
  *     "adsFinalUrls": ["https://kunde.de/leistungen/x/"],
- *     "distLinkChecks": "fail"   // "fail" (Default seit v0.109.0) | "warn" | "off"
+ *     "distLinkChecks": "fail",  // "fail" (Default seit v0.109.0) | "warn" | "off"
+ *     "assetRefChecks": "warn"   // "warn" (Default seit v0.111.0) | "fail" | "off"
  *   }
  *
- * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung. Der tel:/mailto:-Check
- * bleibt davon unberührt hart — er war der Anlass des Scripts und darf nicht
- * mit abgeschaltet werden, wenn ein Repo seine Altlinks noch abarbeitet.
+ * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung, assetRefChecks NUR die
+ * Asset-Referenzen (src/srcset/CSS-url()). Der tel:/mailto:-Check bleibt davon
+ * unberührt hart — er war der Anlass des Scripts und darf nicht mit abgeschaltet
+ * werden, wenn ein Repo seine Altlinks noch abarbeitet.
  *
  * Rate-Limit-Budget: der contact-handler limitiert 3 POSTs/10min pro IP, und der
  * Limiter läuft VOR dem Honeypot. Dieses Script macht deshalb maximal 2 POSTs auf
@@ -221,21 +223,113 @@ export function auditHtml(html, ssot, cfg = {}) {
 
 /**
  * Interne Link-Hrefs (same-site, http/relative) aus HTML — für den Redirect-Check.
+ *
+ * 🔴 Das Fragment wird ABGESCHNITTEN, nicht als Ausschlusskriterium benutzt. Die
+ * frühere Zeichenklasse `[^"'#]+` liess den Match scheitern, statt `#…` zu
+ * entfernen: `href="/kontakt#formular"` matchte GAR NICHT und blieb ungeprüft.
+ * 2166 hrefs der Flotte waren so unsichtbar, gemessen 12.08.2026
+ * (blitzsicht-ops#656).
+ *
  * @param {string} html @param {string} origin z. B. https://kunde.de
  * @returns {string[]} absolute URLs, dedupliziert
  */
 export function extractInternalLinks(html, origin) {
   const out = new Set();
-  for (const m of html.matchAll(/href=["']([^"'#]+)["']/gi)) {
-    const href = m[1];
+  for (const m of html.matchAll(/href=["']([^"']+)["']/gi)) {
+    const href = m[1].split('#')[0];
+    if (!href) continue; // reiner Seitenanker (href="#kontakt") — kein eigenes Ziel
     if (/^(mailto:|tel:|javascript:|data:)/i.test(href)) continue;
     if (/^https?:\/\//i.test(href)) {
-      if (href.startsWith(origin)) out.add(href.split('#')[0]);
+      if (href.startsWith(origin)) out.add(href);
       continue;
     }
-    if (href.startsWith('/')) out.add(origin + href.split('#')[0]);
+    if (href.startsWith('/')) out.add(origin + href);
   }
   return [...out];
+}
+
+/** Tags, deren src/srcset auf eine ausgelieferte Datei zeigt. */
+const ASSET_TAG_RE = /<(?:img|source|script|video|audio|track|embed|iframe)\b[^>]*>/gi;
+
+/**
+ * Asset-Referenzen (Bilder, Skripte, Schriften, CSS-Hintergründe) aus HTML.
+ *
+ * Getrennt von `extractInternalLinks`, weil ein fehlendes Bild ein anderer
+ * Schaden ist als ein toter Seiten-Link — und weil der Geltungsbereich ein
+ * anderer ist. Anlass: blitzsicht-ops#656. Der prebuild-Schritt
+ * `optimize-images.mjs --delete-originals` konvertiert `public/*.png` zu `.webp`
+ * und räumt das Original weg; bleibt der Verweis auf `.png` stehen, lief das bis
+ * v0.110.0 bei JEDEM Build in einen 404, ohne dass ein PR rot wurde
+ * (blumen-schmid `/signet-white.png`, allstargirls `url(/star.png)`).
+ *
+ * 🔴 CSS-`url()` wird NUR in `<style>`-Blöcken gelesen, nie über rohes HTML.
+ * Über die ganze Datei trifft der Regex JavaScript statt CSS: `new URL(t.href)`
+ * → `url(t.href)`. Gemessen am 12.08.2026 über 518 Seiten der Flotte waren das
+ * 502 von 554 Treffern — die Eingrenzung auf `<style>` lässt exakt null davon
+ * übrig. Für `.css`-Dateien des dist ruft der Aufrufer mit `cssOnly` auf.
+ *
+ * Origin ist optional: fast alle Asset-Refs sind root-relativ, und ohne
+ * `<link rel="canonical">` fällt der Link-Check sonst komplett aus (Beleg:
+ * herztoene). Das Origin dient nur dazu, absolute Same-Site-URLs aufzulösen.
+ *
+ * @param {string} source HTML — oder CSS, wenn `cssOnly`
+ * @param {string | null} origin z. B. https://kunde.de, optional
+ * @param {{cssOnly?: boolean}} [opts]
+ * @returns {{refs: string[], skippedRelative: number}} Pfade ab `/`, dedupliziert
+ */
+export function extractAssetRefs(source, origin, opts = {}) {
+  const refs = new Set();
+  let skippedRelative = 0;
+
+  const push = (raw) => {
+    const u = (raw ?? '').trim();
+    if (!u) return;
+    // data:/blob: tragen ihren Inhalt selbst; javascript:/mailto:/tel: sind keine Dateien.
+    if (/^(data:|blob:|about:|javascript:|mailto:|tel:)/i.test(u)) return;
+    if (u.startsWith('#')) return;
+    if (u.startsWith('//')) return; // protokoll-relativ → immer extern
+    if (/^https?:\/\//i.test(u)) {
+      if (origin && (u === origin || u.startsWith(origin + '/'))) {
+        const p = (u.slice(origin.length) || '/').split('#')[0];
+        if (p.startsWith('/')) refs.add(p);
+      }
+      return; // fremdes Origin — nicht unsere Datei
+    }
+    if (!u.startsWith('/')) {
+      // Relativ zum Dokument. Auflösung bräuchte den Ort der Quelldatei; über die
+      // Flotte gemessen 6 Fälle. Bewusst ungeprüft, aber gezählt statt verschwiegen.
+      skippedRelative++;
+      return;
+    }
+    // Vercel-Bildoptimierung und Astros Image-Endpoint sind Laufzeit-Routen, keine
+    // gebauten Dateien. Heute 0 Vorkommen — Vorsorge, damit ein Repo, das sie
+    // einschaltet, nicht auf einen Schlag jedes Bild als Befund meldet.
+    if (/^\/_vercel\//.test(u) || /^\/_image(?:[?/]|$)/.test(u)) return;
+    refs.add(u.split('#')[0]);
+  };
+
+  if (!opts.cssOnly) {
+    for (const m of source.matchAll(ASSET_TAG_RE)) {
+      const tag = m[0];
+      push(tag.match(/\ssrc=["']([^"']+)["']/i)?.[1]);
+      const srcset = tag.match(/\ssrcset=["']([^"']+)["']/i)?.[1];
+      if (srcset && !/^\s*data:/i.test(srcset)) {
+        // "/a.webp 400w, /b.webp 800w" → URL ist der erste Token je Kandidat.
+        for (const cand of srcset.split(',')) push(cand.trim().split(/\s+/)[0]);
+      }
+    }
+  }
+
+  const cssBlocks = opts.cssOnly
+    ? [source]
+    : [...source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]);
+  for (const css of cssBlocks) {
+    for (const m of css.matchAll(/url\(\s*([^)]*?)\s*\)/gi)) {
+      push(m[1].replace(/^["']|["']$/g, ''));
+    }
+  }
+
+  return { refs: [...refs], skippedRelative };
 }
 
 // ─── dist-Modus: Links gegen das gebaute Verzeichnis auflösen ───────────────
@@ -420,7 +514,7 @@ async function main() {
   }
 
   // Optionale Per-Customer-Config
-  /** @type {{ extraPhones?: string[], extraEmails?: string[], allowExternalMailto?: string[], adsFinalUrls?: string[] }} */
+  /** @type {{ extraPhones?: string[], extraEmails?: string[], allowExternalMailto?: string[], adsFinalUrls?: string[], distLinkChecks?: string, assetRefChecks?: string }} */
   let cfg = {};
   const cfgPath = join(root, 'touchpoint-audit.config.json');
   if (existsSync(cfgPath)) {
@@ -456,6 +550,14 @@ async function main() {
   /** @type {{ name: string, html: string }[]} */
   const pages = [];
 
+  /**
+   * Ausgelagerte Stylesheets des dist. Mit `inlineStylesheets:'always'` landet CSS
+   * im `<style>`-Block, aber nicht restlos — der allstargirls-Fall `url(/star.png)`
+   * stand in `_astro/index.*.css`. Ohne diese Liste bliebe die Klasse offen.
+   * @type {{ name: string, css: string }[]}
+   */
+  const distCss = [];
+
   /** @type {Set<string>} dist-relative Pfade aller gebauten Dateien, NFC */
   const distFiles = new Set();
 
@@ -478,6 +580,7 @@ async function main() {
       const rel = relative(absDist, f).replace(/\\/g, '/').normalize('NFC');
       distFiles.add(rel);
       if (extname(f) === '.html') pages.push({ name: rel, html: readFileSync(f, 'utf-8') });
+      else if (extname(f) === '.css') distCss.push({ name: rel, css: readFileSync(f, 'utf-8') });
     }
     if (pages.length === 0) {
       console.error(`FATAL: keine .html-Dateien unter ${absDist}.`);
@@ -551,13 +654,26 @@ async function main() {
   // Repos auf sehr alten Pins (< v0.108.0, alle nicht-live) sehen beim Bump
   // ihre Altbefunde hart. Dort ist `"distLinkChecks": "warn"` in der
   // touchpoint-audit.config.json der Weg, sie erst abzuarbeiten.
+  //
+  // Asset-Referenzen (seit v0.111.0) hängen am eigenen Schalter `assetRefChecks`,
+  // damit Links und Assets getrennt abgestuft werden können: die Link-Prüfung ist
+  // seit v0.109.0 flottenweit sauber und bleibt hart, die Asset-Prüfung startet
+  // als Warnung und wird nach der Flottenmessung über frische CI-Builds
+  // nachgezogen — derselbe Weg wie v0.108.0 → v0.109.0.
   const distMode = cfg.distLinkChecks ?? 'fail';
-  if (distDir && distMode !== 'off') {
-    if (!['warn', 'fail'].includes(distMode)) {
-      console.error(`FATAL: distLinkChecks="${distMode}" unbekannt — erlaubt: "warn", "fail", "off".`);
-      return 2;
+  const assetMode = cfg.assetRefChecks ?? 'warn';
+  if (distDir && (distMode !== 'off' || assetMode !== 'off')) {
+    for (const [key, value] of [
+      ['distLinkChecks', distMode],
+      ['assetRefChecks', assetMode],
+    ]) {
+      if (!['warn', 'fail', 'off'].includes(value)) {
+        console.error(`FATAL: ${key}="${value}" unbekannt — erlaubt: "warn", "fail", "off".`);
+        return 2;
+      }
     }
     const flag = distMode === 'fail' ? fail : warn;
+    const assetFlag = assetMode === 'fail' ? fail : warn;
 
     /** @type {{redirects?: object[], rewrites?: object[]}} */
     let vercelJson = {};
@@ -572,8 +688,10 @@ async function main() {
       warn('keine vercel.json — Links, die nur per Redirect/Rewrite leben, sind hier nicht erkennbar.');
     }
 
-    const origin = pages.map((p) => detectOriginFromHtml(p.html)).find(Boolean);
-    if (!origin) {
+    // Nur der Link-Check braucht das Origin, um same-site von extern zu trennen.
+    // Asset-Referenzen sind fast alle root-relativ und laufen auch ohne.
+    const origin = pages.map((p) => detectOriginFromHtml(p.html)).find(Boolean) ?? null;
+    if (!origin && distMode !== 'off') {
       warn('kein <link rel="canonical"> im dist gefunden — interne Links im dist-Modus nicht prüfbar.');
     }
 
@@ -597,27 +715,78 @@ async function main() {
       }
     };
 
-    if (origin) {
-      const seen = new Map();
+    /** @type {Map<string, string>} Pfad → erste Fundstelle, für beide Checks */
+    const linkSeen = new Map();
+    if (origin && distMode !== 'off') {
       for (const page of pages) {
         if (/(^|\/)email\//.test(page.name)) continue; // Mail-Markup, s. Check 1
         for (const link of extractInternalLinks(page.html, origin)) {
           const p = link.slice(origin.length) || '/';
-          if (!seen.has(p)) seen.set(p, page.name);
+          if (!linkSeen.has(p)) linkSeen.set(p, page.name);
         }
       }
       let bad = 0;
-      for (const [p, firstPage] of seen) {
+      for (const [p, firstPage] of linkSeen) {
         const problem = judge(p);
         if (problem) {
           flag(`interner Link ${p} — ${problem} · zuerst in ${firstPage}`);
           bad++;
         }
       }
-      if (bad === 0) ok(`${seen.size} interne Links im dist: alle als Datei oder Rewrite auflösbar`);
+      if (bad === 0) ok(`${linkSeen.size} interne Links im dist: alle als Datei oder Rewrite auflösbar`);
     }
 
-    for (const adsUrl of cfg.adsFinalUrls ?? []) {
+    // ── Asset-Referenzen: src/srcset/CSS-url() gegen das gebaute dist ──
+    //
+    // blitzsicht-ops#656: bis v0.110.0 sah die Extraktion nur `href=`. Zwei tote
+    // Bildverweise liefen dadurch seit jeher live in einen 404, ohne dass je ein
+    // PR rot wurde. Vormessung über die 13 Live-Seiten (= deployte frische Builds)
+    // am 12.08.2026: 549 distinkte Referenzen, 549× HTTP 200, kein Redirect, kein
+    // 404 — die Extraktion ist also nicht laut. Einziges per Rewrite (statt als
+    // Datei) bediente Asset ist der Plausible-Proxy /js/script.js; `judge` deckt
+    // das ab.
+    if (assetMode !== 'off') {
+      const assetSeen = new Map();
+      let skippedRelative = 0;
+      const collect = (refs, name) => {
+        for (const u of refs) if (!assetSeen.has(u)) assetSeen.set(u, name);
+      };
+      for (const page of pages) {
+        if (/(^|\/)email\//.test(page.name)) continue; // Mail-Markup, s. Check 1
+        const r = extractAssetRefs(page.html, origin);
+        collect(r.refs, page.name);
+        skippedRelative += r.skippedRelative;
+      }
+      for (const sheet of distCss) {
+        const r = extractAssetRefs(sheet.css, origin, { cssOnly: true });
+        collect(r.refs, sheet.name);
+        skippedRelative += r.skippedRelative;
+      }
+
+      let badAssets = 0;
+      for (const [p, firstIn] of assetSeen) {
+        // Schon als interner Link gemeldet (z. B. <link rel="preload" href="…">)
+        // — derselbe Pfad soll nicht zweimal auftauchen.
+        if (linkSeen.has(p)) continue;
+        const problem = judge(p);
+        if (problem) {
+          assetFlag(`Asset-Referenz ${p} — ${problem} · zuerst in ${firstIn}`);
+          badAssets++;
+        }
+      }
+      if (badAssets === 0) {
+        ok(`${assetSeen.size} Asset-Referenzen im dist (${distCss.length} CSS-Datei(en) mitgelesen): alle auflösbar`);
+      }
+      if (skippedRelative > 0) {
+        // Dokument-relative Pfade bräuchten den Ort der Quelldatei. Ungeprüft —
+        // aber sichtbar ungeprüft, statt still als „sauber" durchzugehen.
+        console.log(`ℹ️  ${skippedRelative} dokument-relative Asset-Referenz(en) übersprungen (nicht geprüft).`);
+      }
+    }
+
+    // Ads-URLs gehören zum Link-Check, nicht zu den Assets — `distLinkChecks:"off"`
+    // muss sie weiterhin mit abschalten.
+    for (const adsUrl of distMode === 'off' ? [] : cfg.adsFinalUrls ?? []) {
       if (origin && !adsUrl.startsWith(origin)) {
         warn(`Ads-Final-URL ${adsUrl} zeigt nicht auf ${origin} — im dist nicht prüfbar.`);
         continue;

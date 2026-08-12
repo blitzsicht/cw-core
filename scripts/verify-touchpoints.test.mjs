@@ -26,6 +26,7 @@ import {
   auditHtml,
   postsToContactApi,
   extractInternalLinks,
+  extractAssetRefs,
   detectOriginFromHtml,
   pickDistRoot,
   normalizeUrlPath,
@@ -618,4 +619,196 @@ test('E2E: fehlende vercel.json warnt, failt aber nicht', () => {
   });
   assert.equal(code, 0, `out:\n${out}`);
   assert.match(out, /keine vercel\.json/);
+});
+
+// ─── Asset-Referenzen (blitzsicht-ops#656): Pure Helper ─────────────────────
+
+test('extractAssetRefs: src an img/source/script/video wird erfasst', () => {
+  const html = `
+    <img src="/logo.webp" alt="">
+    <picture><source src="/hero.avif"></picture>
+    <script src="/js/nav.js"></script>
+    <video src="/clip.mp4" poster="/poster.webp"></video>
+    <iframe src="/eingebettet/"></iframe>`;
+  const { refs } = extractAssetRefs(html, 'https://kunde.de');
+  assert.deepEqual(refs.sort(), ['/clip.mp4', '/eingebettet/', '/hero.avif', '/js/nav.js', '/logo.webp']);
+  // poster= ist bewusst NICHT dabei — enger Geltungsbereich, s. Doc-Kommentar.
+});
+
+test('extractAssetRefs: srcset liefert die URLs ohne Deskriptor', () => {
+  const html = '<img srcset="/a.webp 400w, /b.webp 800w,/c.webp 2x" src="/a.webp">';
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/a.webp', '/b.webp', '/c.webp']);
+});
+
+test('extractAssetRefs: url() im <style> zählt, new URL() im <script> NICHT', () => {
+  // Die gemessene Falschpositiv-Klasse: über rohes HTML trifft der url()-Regex
+  // JavaScript. 502 von 554 Treffern der Flotte waren `new URL(t.href)` &Co.
+  const html = `
+    <style>.hero{background:url('/bild.webp')}@font-face{src:url(/fonts/x.woff2)}</style>
+    <script>const u = new URL(t.href); fetch(new URL(e, document.baseURI));</script>`;
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/bild.webp', '/fonts/x.woff2']);
+  assert.ok(!refs.some((r) => r.includes('href')), `JS darf nicht durchschlagen: ${refs}`);
+});
+
+test('extractAssetRefs: cssOnly liest eine ganze CSS-Datei', () => {
+  const { refs } = extractAssetRefs(".stern{background:url(/star.png)}", null, { cssOnly: true });
+  assert.deepEqual(refs, ['/star.png']);
+});
+
+test('extractAssetRefs: data:, protokoll-relativ und fremdes Origin fallen durch', () => {
+  const html = `
+    <img src="data:image/webp;base64,UklGRg==">
+    <script src="//cdn.example.com/x.js"></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>
+    <img src="https://status.blitzsicht.com/badge.svg">
+    <style>.x{background:url("data:image/svg+xml,%3Csvg%3E")}</style>`;
+  const { refs } = extractAssetRefs(html, 'https://kunde.de');
+  assert.deepEqual(refs, [], `nichts davon ist unsere Datei: ${refs}`);
+});
+
+test('extractAssetRefs: Laufzeit-Routen der Bildoptimierung sind keine gebauten Dateien', () => {
+  const html = '<img src="/_vercel/image?url=%2F_astro%2Fx.webp&w=640&q=75"><img src="/_image?href=%2Fa.png">';
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs, []);
+});
+
+test('extractAssetRefs: eigenes Origin absolut wird zum Pfad, ohne Origin bleibt root-relativ prüfbar', () => {
+  const html = '<img src="https://kunde.de/logo.webp"><img src="/signet.svg">';
+  assert.deepEqual(extractAssetRefs(html, 'https://kunde.de').refs.sort(), ['/logo.webp', '/signet.svg']);
+  // Ohne canonical (Beleg: herztoene) fällt nur die absolute URL weg, nicht alles.
+  assert.deepEqual(extractAssetRefs(html, null).refs, ['/signet.svg']);
+});
+
+test('extractAssetRefs: dokument-relative Pfade werden gezählt, nicht still geschluckt', () => {
+  const { refs, skippedRelative } = extractAssetRefs('<img src="bild.webp"><img src="./x.png">', null);
+  assert.deepEqual(refs, []);
+  assert.equal(skippedRelative, 2);
+});
+
+test('extractAssetRefs: Fragment wird abgeschnitten', () => {
+  const { refs } = extractAssetRefs('<img src="/sprite.svg#icon">', null);
+  assert.deepEqual(refs, ['/sprite.svg']);
+});
+
+// ─── Asset-Referenzen: End-to-End ───────────────────────────────────────────
+
+test('E2E Gegenbeweis blitzsicht-ops#656 (a): totes <img src> wird gefangen', () => {
+  const rot = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/').replace('<body>', '<body><img src="/gibt-es-nicht.png">') },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /Asset-Referenz \/gibt-es-nicht\.png/);
+
+  const gruen = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/').replace('<body>', '<body><img src="/gibt-es.png">'),
+      'gibt-es.png': 'PNG',
+    },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(gruen.code, 0, `grüner Zweig muss erreichbar bleiben, out:\n${gruen.out}`);
+  assert.match(gruen.out, /Asset-Referenzen im dist/);
+});
+
+test('E2E Gegenbeweis blitzsicht-ops#656 (b): allstargirls — url(/star.png) in einer CSS-Datei', () => {
+  // Realer Fall: optimize-images.mjs --delete-originals macht aus star.png ein
+  // star.webp, der CSS-Verweis blieb auf .png. Lief bei JEDEM Build in einen 404.
+  const files = (vorhanden) => ({
+    'index.html': PAGE('https://kunde.de/').replace('<head>', '<head><link rel="stylesheet" href="/_astro/index.css">'),
+    '_astro/index.css': '.stern{background-image:url(/star.png)}',
+    ...(vorhanden ? { 'star.png': 'PNG' } : { 'star.webp': 'WEBP' }),
+  });
+
+  const rot = runTree({ files: files(false), config: { assetRefChecks: 'fail' } });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /Asset-Referenz \/star\.png/);
+  assert.match(rot.out, /_astro\/index\.css/, 'Fundstelle muss die CSS-Datei nennen');
+
+  const gruen = runTree({ files: files(true), config: { assetRefChecks: 'fail' } });
+  assert.equal(gruen.code, 0, `out:\n${gruen.out}`);
+});
+
+test('E2E Gegenbeweis blitzsicht-ops#656 (c): blumen-schmid — .png verlinkt, nur .webp gebaut', () => {
+  const { code, out } = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/').replace('<body>', '<body><img src="/signet-white.png" alt="Logo">'),
+      'signet-white.webp': 'WEBP',
+    },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(code, 1, `out:\n${out}`);
+  assert.match(out, /Asset-Referenz \/signet-white\.png/);
+});
+
+test('E2E: Plausible-Proxy /js/script.js lebt per Rewrite — kein Befund', () => {
+  // Das einzige per Rewrite (statt als Datei) bediente Asset der Flotte,
+  // in 12 von 13 Live-Repos referenziert. Ein Befund hier wäre flottenweit.
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/').replace('<body>', '<body><script src="/js/script.js"></script>') },
+    vercel: { rewrites: [{ source: '/js/script.js', destination: 'https://plausible.io/js/script.js' }] },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(code, 0, `out:\n${out}`);
+  assert.doesNotMatch(out, /Asset-Referenz \/js\/script\.js/);
+});
+
+test('E2E: assetRefChecks — Default warn, "fail" rot, "off" still, Unsinn → Exit 2', () => {
+  const files = { 'index.html': PAGE('https://kunde.de/').replace('<body>', '<body><img src="/fehlt.png">') };
+
+  const std = runTree({ files });
+  assert.equal(std.code, 0, `Default ist warn, out:\n${std.out}`);
+  assert.match(std.out, /⚠ Asset-Referenz \/fehlt\.png/);
+
+  assert.equal(runTree({ files, config: { assetRefChecks: 'fail' } }).code, 1);
+
+  const aus = runTree({ files, config: { assetRefChecks: 'off' } });
+  assert.equal(aus.code, 0);
+  assert.doesNotMatch(aus.out, /fehlt\.png/);
+
+  assert.equal(runTree({ files, config: { assetRefChecks: 'vielleicht' } }).code, 2);
+});
+
+test('E2E: assetRefChecks läuft auch, wenn distLinkChecks="off"', () => {
+  const { code, out } = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/toter-link/']).replace('<body>', '<body><img src="/fehlt.png">'),
+    },
+    config: { distLinkChecks: 'off', assetRefChecks: 'fail' },
+  });
+  assert.equal(code, 1, `out:\n${out}`);
+  assert.match(out, /Asset-Referenz \/fehlt\.png/);
+  assert.doesNotMatch(out, /interner Link \/toter-link/, 'Link-Check bleibt abgeschaltet');
+});
+
+test('E2E: Asset-Prüfung braucht kein <link rel="canonical">', () => {
+  // Ohne canonical fällt der Link-Check aus (Beleg: herztoene). Die Asset-Refs
+  // sind root-relativ und müssen trotzdem geprüft werden.
+  const { code, out } = runTree({
+    files: { 'index.html': '<!doctype html><html><body><img src="/fehlt.png"></body></html>' },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(code, 1, `out:\n${out}`);
+  assert.match(out, /Asset-Referenz \/fehlt\.png/);
+});
+
+test('E2E: Fragment-Strip — /kontakt#formular wird endlich geprüft', () => {
+  // Bis v0.110.0 liess `[^"'#]+` den Match scheitern: der Link blieb unsichtbar.
+  const rot = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/', ['/kontakt#formular']) },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /interner Link \/kontakt /);
+
+  const gruen = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/kontakt#formular', '#nur-anker']),
+      'kontakt/index.html': PAGE('https://kunde.de/kontakt/'),
+    },
+    config: { distLinkChecks: 'fail' },
+  });
+  assert.equal(gruen.code, 0, `reiner Anker darf nichts auslösen, out:\n${gruen.out}`);
 });
