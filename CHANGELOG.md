@@ -63,11 +63,22 @@ Neuer Config-Key in `touchpoint-audit.config.json`:
 tel:/mailto:/WhatsApp-Check bleibt unverändert hart, damit ein Repo mit Altlinks nicht den
 Check mit abschaltet, der Anlass des ganzen Scripts war.
 
-Gemessen am 12.08.2026 über die 13 Live-Repos, jeder Treffer gegen die Live-URL gegengeprüft:
-15 echte Befunde — 7× `/informationspflicht` als Redirect-Hop (eine gemeinsame
-Template-Ursache), 4 tote `*.md`-Zwillinge bei blitzsicht, 2× `/pakete`, 1× platzfrei
-`/kontakt`. Keine Falschpositive. Darum startet der Check als Warnung: hart geflippt wird,
-wenn die Flotte auf 0 steht.
+**Fleet-Messung, korrigiert.** Eine erste Messung über die lokal vorhandenen `dist/`-Stände
+meldete 19 Treffer und nach einer Live-Gegenprobe „15 echte Befunde". Beides war falsch. Die
+lokalen `dist/` waren Wochen alt, und die Gegenprobe fragte nur, ob das *Ziel* einen Hop
+macht — nicht, ob die aktuelle Seite den Link überhaupt noch enthält. Beim Rollout auf die
+12 Repos hat die CI dann frisch gebaut und geprüft:
+
+**543 interne Links, 0 Befunde.** Genau ein Treffer der Erstmessung war echt (donau-profi
+verlinkte `/informationspflicht`, ein 308 auf `/datenschutz/#art-13-geschaeftskontakte`;
+im selben Rollout behoben). Alles andere waren Artefakte veralteter Build-Stände.
+
+Lehre für den nächsten Guard dieser Art: eine Messung über vorhandene `dist/` misst
+Repo-Historie, nicht den Guard. Und bei einem Link-Befund gehören immer zwei Fragen geprüft
+— antwortet das Ziel mit einem Hop, *und* steht der Link noch auf der Seite.
+
+Der Check startet trotzdem als Warnung. Die Flotte steht auf 0, der Hart-Flip auf `"fail"`
+ist damit vorbereitet, gehört aber als eigener Schritt gefahren.
 
 Tests: 23 → 44. Gegenbeweis geführt — `has`-Auswertung entfernt bricht 3 Tests,
 `dist/client` entfernt 2, Encoding/NFC entfernt 2.
