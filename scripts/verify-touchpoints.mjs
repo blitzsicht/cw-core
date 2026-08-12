@@ -33,7 +33,7 @@
  *     "extraEmails": [],
  *     "allowExternalMailto": ["poststelle@lda.bayern.de"],
  *     "adsFinalUrls": ["https://kunde.de/leistungen/x/"],
- *     "distLinkChecks": "warn"   // "warn" (Default) | "fail" | "off"
+ *     "distLinkChecks": "fail"   // "fail" (Default seit v0.109.0) | "warn" | "off"
  *   }
  *
  * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung. Der tel:/mailto:-Check
@@ -540,12 +540,18 @@ async function main() {
   // ── dist-Checks: interne Links + Ads-URLs OHNE Netzwerk ──
   //
   // Dieselbe Frage wie Check 2/3 im Live-Modus, nur eine Deploy-Stufe früher.
-  // Startet bewusst als Warnung: bei der Fleet-Messung am 12.08.2026 standen
-  // 14 echte Altbefunde in den 13 Live-Repos, sieben davon aus einer einzigen
-  // cw-core-Template-Ursache. Ein Guard, der ein Repo beim Bump sofort rot
-  // macht, wird abgeschaltet statt abgearbeitet. Auf 'fail' flippen, sobald die
-  // Flotte auf 0 steht — pro Repo via touchpoint-audit.config.json.
-  const distMode = cfg.distLinkChecks ?? 'warn';
+  //
+  // Default ist hart seit v0.109.0. Der Check startete in v0.108.0 als Warnung,
+  // weil eine Messung über lokal vorhandene dist/-Stände 15 Altbefunde vermuten
+  // liess. Der Rollout mit frischen CI-Builds ergab dann 543 interne Links und
+  // 0 Befunde über alle 12 Live-Repos — die Altbefunde waren Artefakte wochen-
+  // alter Build-Stände, genau einer war echt und wurde im selben Zug behoben.
+  // Eine saubere Flotte, die nur gewarnt wird, driftet zurück.
+  //
+  // Repos auf sehr alten Pins (< v0.108.0, alle nicht-live) sehen beim Bump
+  // ihre Altbefunde hart. Dort ist `"distLinkChecks": "warn"` in der
+  // touchpoint-audit.config.json der Weg, sie erst abzuarbeiten.
+  const distMode = cfg.distLinkChecks ?? 'fail';
   if (distDir && distMode !== 'off') {
     if (!['warn', 'fail'].includes(distMode)) {
       console.error(`FATAL: distLinkChecks="${distMode}" unbekannt — erlaubt: "warn", "fail", "off".`);

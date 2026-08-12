@@ -22,6 +22,36 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.109.0 (2026-08-12)
+
+**Tweak:** `distLinkChecks` ist per Default `"fail"` — der dist-Link-Check aus v0.108.0 macht
+den Build jetzt rot statt nur zu warnen.
+
+Kontext: v0.108.0 startete bewusst als Warnung, weil eine Vorab-Messung Altbefunde vermuten
+liess. Der Rollout mit frischen CI-Builds ergab dann über alle 12 Live-Repos **543 interne
+Links und 0 Befunde**. Eine saubere Flotte, die nur gewarnt wird, driftet zurück — und der
+Warn-Default wäre ohnehin fast wirkungslos gewesen: nur digital-direkt hat überhaupt eine
+`touchpoint-audit.config.json`, in 11 von 12 Repos hätte niemand je auf `"fail"` gestellt.
+
+Ab jetzt gilt: ein interner Link oder eine Ads-Final-URL, die weder als Datei gebaut wird
+noch von einem Rewrite bedient wird, bricht den Build. Ein Redirect-Treffer zählt als Hop und
+ebenfalls als Befund.
+
+**Migrations-Hinweis:** Für die 12 Live-Repos keiner — sie sind gemessen sauber. Repos auf
+Pins älter als v0.108.0 (alle nicht-live: weinkontor-sinzing, allstargirls-regensburg,
+braustall, herztoene, itk-regensburg, pferdesport-silberhorn, siluri, mazterplan, preshot)
+sehen ihre Altbefunde beim Bump hart. Wer dort erst abarbeiten will, setzt in
+`touchpoint-audit.config.json`:
+
+```json
+{ "distLinkChecks": "warn" }
+```
+
+`"off"` schaltet nur diese Auflösung ab; der tel:/mailto:/WhatsApp-Check bleibt in jedem Fall
+hart.
+
+---
+
 ## v0.108.0 (2026-08-12)
 
 **Feature:** Touchpoint-Audit prüft interne Links und Ads-Final-URLs jetzt auch im

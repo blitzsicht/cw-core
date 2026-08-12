@@ -572,11 +572,24 @@ test('E2E: Umlaut-Seite, prozent-kodiert verlinkt, ist kein Befund', () => {
   assert.equal(code, 0, `beide Schreibweisen müssen auflösen, out:\n${out}`);
 });
 
-test('E2E: Default ist warn — Befund sichtbar, Exit bleibt 0', () => {
+test('E2E: Default ist fail — ohne Config wird ein toter Link rot (seit v0.109.0)', () => {
+  // Bis v0.108.0 war der Default 'warn'. Der Rollout zeigte 543 Links / 0
+  // Befunde über die Live-Flotte, also wurde hart geflippt. Nur DD hat
+  // überhaupt eine Config-Datei — ohne harten Default wäre der Check in 11 von
+  // 12 Repos wirkungslos geblieben.
   const { code, out } = runTree({
     files: { 'index.html': PAGE('https://kunde.de/', ['/gibt-es-nicht/']) },
   });
-  assert.equal(code, 0, `Default darf nicht failen, out:\n${out}`);
+  assert.equal(code, 1, `Default muss failen, out:\n${out}`);
+  assert.match(out, /✗ interner Link \/gibt-es-nicht\//);
+});
+
+test('E2E: distLinkChecks="warn" gibt Repos mit Altlasten eine Schonfrist', () => {
+  const { code, out } = runTree({
+    files: { 'index.html': PAGE('https://kunde.de/', ['/gibt-es-nicht/']) },
+    config: { distLinkChecks: 'warn' },
+  });
+  assert.equal(code, 0, `warn darf nicht failen, out:\n${out}`);
   assert.match(out, /⚠ interner Link \/gibt-es-nicht\//);
 });
 
