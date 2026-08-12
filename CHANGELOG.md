@@ -22,6 +22,47 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.110.0 (2026-08-12)
+
+- [kunde] In der maschinenlesbaren Datei für KI-Assistenten stehen jetzt auch Firmierung,
+  Vertretungsberechtigte, Handelsregister und Umsatzsteuer-Nummer — aus derselben Quelle wie
+  der Rest der Website, statt aus einer handgepflegten Datei, die dabei veraltete.
+
+**Fix:** `llms.txt` gibt die Rechtsform-Angaben aus `siteData.legal` aus, und eine statische
+`public/llms.txt` wird beim Build gemeldet.
+
+Kontext (blitzsicht-ops#648): `generateLlmsTxt` kannte die Felder `owner`, `representatives`,
+`registerCourt`, `registerNumber` und `ustIdNr` nicht — sie fehlten im Typ, obwohl die
+Kunden-Repos sie längst pflegten. Zwei Kunden (mika, zink) haben deshalb eine statische
+`public/llms.txt` gepflegt und per `postbuild: cp public/llms.txt dist/llms.txt` **nach** dem
+Generator darübergelegt. Ergebnis war ein Mischzustand: `llms.txt` handgepflegt und
+eingefroren, `llms-full.txt` aus `siteData`. Eine Änderung an `siteData.description` blieb bei
+mika wirkungslos, während sie bei soleno live durchschlug.
+
+Neu in den Eckdaten, jedes Feld einzeln optional:
+
+```
+- Firma: Elektrotechnik Mika GmbH
+- Vertretungsberechtigt: Kewin Mika
+- Handelsregister: HRB 21336, Amtsgericht Regensburg
+- USt-IdNr.: DE451598291
+```
+
+Dazu ein Guard: Findet die Integration eine `public/llms.txt`, warnt sie. Die Datei kann
+nichts bewirken — der Generator überschreibt sie eine Zeile später — und ist entweder toter
+Ballast oder, mit `postbuild`-`cp`, die Ursache genau dieser Drift. Gemessen am 12.08.2026:
+**12 Repos** hatten eine solche Datei, 10 davon wirkungslos.
+
+Bewusst nicht aufgenommen: Öffnungszeiten und Handwerkskammer. Beide stehen im JSON-LD-Schema,
+das KI-Agenten ohnehin lesen; `llms.txt` bleibt auf die Impressumspflichtfelder beschränkt.
+
+**Migrations-Hinweis:** Wer eine `public/llms.txt` hat, bekommt beim Build eine Warnung —
+im Release-Train ist die hart (#646). Die Datei löschen; trägt sie Inhalte, die die generierte
+nicht hat, gehören sie nach `siteData`. Ein `postbuild: cp public/llms.txt dist/llms.txt`
+gehört ersatzlos entfernt.
+
+---
+
 ## v0.109.0 (2026-08-12)
 
 **Tweak:** `distLinkChecks` ist per Default `"fail"` — der dist-Link-Check aus v0.108.0 macht

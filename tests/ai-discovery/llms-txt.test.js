@@ -25,7 +25,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { resolveImportantPages } from '../../src/integrations/ai-discovery/index.ts';
+import { resolveImportantPages, generateLlmsTxt } from '../../src/integrations/ai-discovery/index.ts';
 
 const BASE = 'https://example.com';
 
@@ -157,4 +157,61 @@ test('7. Deterministische alphabetische Sortierung', () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// ─── Eckdaten: Firmierung + Registerdaten (blitzsicht-ops#648) ──────────────
+//
+// mika und zink pflegten Firma, Handelsregister und USt-IdNr. in einer statischen
+// public/llms.txt und legten sie per postbuild-cp über die generierte Datei —
+// weil generateLlmsTxt diese Felder nicht ausgab. Damit fror die ausgelieferte
+// Fassung auf einem Stand ein, den niemand mehr pflegte. Jetzt kommen sie aus
+// siteData, und der cp kann weg.
+
+const SITE = {
+  name: 'Elektrotechnik Mika',
+  description: 'Meisterbetrieb für Elektrotechnik.',
+  url: 'https://elektro-mika.com',
+  contact: { phone: '0160 91172381', email: 'info@elektro-mika.com' },
+  legal: {
+    street: 'Xaver-Winklmann-Straße 19',
+    zip: '92444',
+    city: 'Rötz',
+    owner: 'Elektrotechnik Mika GmbH',
+    registerNumber: 'HRB 21336',
+    registerCourt: 'Amtsgericht Regensburg',
+    ustIdNr: 'DE451598291',
+    representatives: ['Kewin Mika'],
+  },
+};
+
+test('generateLlmsTxt: Firma, Handelsregister und USt-IdNr. stehen in den Eckdaten', () => {
+  const out = generateLlmsTxt(SITE, undefined, []);
+  assert.match(out, /- Firma: Elektrotechnik Mika GmbH/);
+  assert.match(out, /- Handelsregister: HRB 21336, Amtsgericht Regensburg/);
+  assert.match(out, /- USt-IdNr\.: DE451598291/);
+  assert.match(out, /- Vertretungsberechtigt: Kewin Mika/);
+});
+
+test('generateLlmsTxt: fehlende Rechtsform-Felder erzeugen keine leeren Zeilen', () => {
+  // Kunden ohne gepflegtes Rechtsform-Schema (Einzelunternehmer) dürfen keine
+  // "- Firma: undefined"-Zeilen bekommen.
+  const out = generateLlmsTxt(
+    { ...SITE, legal: { street: 'A 1', zip: '1', city: 'B' } },
+    undefined,
+    [],
+  );
+  assert.doesNotMatch(out, /Firma:|Handelsregister:|USt-IdNr|Vertretungsberechtigt/);
+  assert.doesNotMatch(out, /undefined/);
+});
+
+test('generateLlmsTxt: Registergericht optional — Nummer allein reicht', () => {
+  const legal = { ...SITE.legal, registerCourt: undefined };
+  const out = generateLlmsTxt({ ...SITE, legal }, undefined, []);
+  assert.match(out, /- Handelsregister: HRB 21336$/m, 'kein baumelndes Komma ohne Gericht');
+});
+
+test('generateLlmsTxt: leere USt-IdNr. wird weggelassen (zink pflegt sie als "")', () => {
+  const legal = { ...SITE.legal, ustIdNr: '' };
+  const out = generateLlmsTxt({ ...SITE, legal }, undefined, []);
+  assert.doesNotMatch(out, /USt-IdNr/);
 });

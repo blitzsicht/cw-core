@@ -91,6 +91,13 @@ export interface AiDiscoverySiteData {
     register?: string;
     registerNumber?: string;
     registerNummer?: string;
+    // Standen in den Kunden-Repos längst, fehlten aber im Typ — dadurch konnte
+    // generateLlmsTxt sie nicht ausgeben, und mika/zink pflegten stattdessen eine
+    // statische public/llms.txt, die per postbuild-cp die generierte überschrieb
+    // (blitzsicht-ops#648).
+    registerCourt?: string;
+    ustIdNr?: string;
+    representatives?: readonly string[];
   };
   seo?: {
     // Meta-Felder, die BaseLayout in <title> und <meta description> ausliefert.
@@ -1295,7 +1302,7 @@ export function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[]
 // Generators
 // ---------------------------------------------------------------------------
 
-function generateLlmsTxt(
+export function generateLlmsTxt(
   data: AiDiscoverySiteData,
   services: ReadonlyArray<ServiceItem> | undefined,
   importantPages: ReadonlyArray<{ label: string; href: string }> = [],
@@ -1328,12 +1335,32 @@ function generateLlmsTxt(
   }
 
   // Key facts — only emit non-empty values
+  //
+  // Firmierung und Registerdaten gehören hierher, seit blitzsicht-ops#648: mika und
+  // zink pflegten sie in einer statischen public/llms.txt, weil die generierte Datei
+  // sie nicht enthielt — und überschrieben die generierte per postbuild-cp. Damit
+  // drifteten Markenname und Beschreibung dauerhaft von siteData weg. Jetzt kommen
+  // sie aus derselben Quelle wie alles andere.
   const facts: string[] = [];
+  if (data.legal.owner) {
+    facts.push(`- Firma: ${data.legal.owner}`);
+  }
+  if (data.legal.representatives && data.legal.representatives.length > 0) {
+    facts.push(`- Vertretungsberechtigt: ${data.legal.representatives.join(', ')}`);
+  }
   if (data.seo?.foundingDate) {
     facts.push(`- Gegründet: ${data.seo.foundingDate}`);
   }
   if (data.seo?.areaServed && data.seo.areaServed.length > 0) {
     facts.push(`- Servicegebiet: ${data.seo.areaServed.join(', ')}`);
+  }
+  const registerNo = data.legal.registerNumber ?? data.legal.registerNummer;
+  if (registerNo) {
+    const court = data.legal.registerCourt ? `, ${data.legal.registerCourt}` : '';
+    facts.push(`- Handelsregister: ${registerNo}${court}`);
+  }
+  if (data.legal.ustIdNr) {
+    facts.push(`- USt-IdNr.: ${data.legal.ustIdNr}`);
   }
   if (facts.length > 0) {
     lines.push('## Eckdaten');
@@ -2034,6 +2061,22 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         const distDir = outDir.replace(/\/$/, '');
         const htmlFiles = walkHtml(distDir);
         const importantPages = resolveImportantPages(htmlFiles, distDir, data.url);
+
+        // Eine statische public/llms.txt kann nichts bewirken — Astro kopiert sie
+        // nach dist/, wo dieser Hook sie eine Zeile später überschreibt. Sie ist
+        // entweder toter Ballast oder, schlimmer, sie wird per postbuild-cp wieder
+        // darübergelegt und friert Markenname und Beschreibung auf einem Stand ein,
+        // den niemand mehr pflegt (blitzsicht-ops#648: mika + zink, 13 Repos mit
+        // toter Datei). Warnung statt Abbruch: die Datei zu haben ist unsauber,
+        // aber kein Defekt.
+        if (existsSync(join(distDir, 'llms.txt'))) {
+          logger.warn(
+            'public/llms.txt gefunden — sie wird von der generierten Datei überschrieben und ' +
+              'kann nichts bewirken. Inhalte gehören nach siteData, die Datei gelöscht. ' +
+              'Liegt sie per postbuild-cp NACH diesem Hook wieder in dist/, driftet die ' +
+              'ausgelieferte Fassung dauerhaft von siteData weg (blitzsicht-ops#648).',
+          );
+        }
 
         const llmsTxt = generateLlmsTxt(data, services, importantPages);
         writeFileSync(join(outDir, 'llms.txt'), llmsTxt, 'utf-8');
