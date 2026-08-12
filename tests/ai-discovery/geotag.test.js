@@ -32,6 +32,7 @@ import {
   buildDescByStem,
   synthesizeKeywords,
   walkImages,
+  BUDGET_EXT,
   descForFile,
   resolveCopyrightHolder,
   isDenied,
@@ -108,6 +109,45 @@ test('5. walkImages findet .webp UND .png (Negativ gegen echten Bug)', () => {
     writeFileSync(join(dir, 'index.html'), 'x'); // kein Bild → ignoriert
     const found = walkImages(dir).map((p) => p.split('/').pop()).sort();
     assert.deepEqual(found, ['hero.abc123.webp', 'og-image.png', 'team.def456.WEBP']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('5b. Geotag-Walk sammelt KEIN .avif, der Budget-Walk schon', () => {
+  // blitzsicht-ops#660: das Größen-Budget lieh sich TAGGABLE_EXT — die Liste dessen,
+  // was exiftool taggen kann — und übersah AVIF damit vollständig. Bei gympanzen
+  // lagen 5 AVIF zwischen 215 und 348 KB unbemerkt über Budget, und bei <picture>
+  // lädt der Browser genau die zuerst.
+  //
+  // Beide Richtungen absichern: der Fix darf NICHT in den Geotag-Pfad wandern,
+  // sonst schickt er AVIF an exiftool, das damit nichts anfangen kann.
+  const dir = mkdtempSync(join(tmpdir(), 'geotag-avif-'));
+  try {
+    writeFileSync(join(dir, 'drop-02-1024.avif'), 'x');
+    writeFileSync(join(dir, 'drop-02-1024.webp'), 'x');
+    writeFileSync(join(dir, 'mascot.AVIF'), 'x'); // case-insensitiv
+
+    const getagged = walkImages(dir).map((p) => p.split('/').pop()).sort();
+    assert.deepEqual(getagged, ['drop-02-1024.webp'], `AVIF darf nicht getaggt werden: ${getagged}`);
+
+    const budget = walkImages(dir, [], BUDGET_EXT).map((p) => p.split('/').pop()).sort();
+    assert.deepEqual(budget, ['drop-02-1024.avif', 'drop-02-1024.webp', 'mascot.AVIF']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('5c. Budget-Walk respektiert weiterhin die Denylist', () => {
+  // Sonst repariert der Fix das eine und bricht das andere: OG/Icons/Favicons
+  // dürfen legitim größer sein und bleiben auch im Budget-Pfad ausgenommen.
+  const dir = mkdtempSync(join(tmpdir(), 'geotag-avif-deny-'));
+  try {
+    mkdirSync(join(dir, 'og'));
+    writeFileSync(join(dir, 'og', 'default.avif'), 'x');
+    writeFileSync(join(dir, 'hero.avif'), 'x');
+    const budget = walkImages(dir, [], BUDGET_EXT).map((p) => p.split('/').pop());
+    assert.deepEqual(budget, ['hero.avif']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

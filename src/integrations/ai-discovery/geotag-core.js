@@ -59,22 +59,39 @@ export const MAX_KEYWORDS = 20;
  */
 export const TAG_DENY_RE = /(^|\/)(og|icons|email|social)\/|(^|\/)favicon[^/]*$|(^|\/)apple-touch-icon[^/]*$/i;
 
+/**
+ * Endungen fürs Größen-Budget — TAGGABLE_EXT plus `.avif`.
+ *
+ * 🔴 Bewusst eine eigene Liste, nicht TAGGABLE_EXT erweitert: die steuert das
+ * exiftool-Geotagging, und AVIF gehört dort nicht hinein. Das Budget interessiert
+ * dagegen jede ausgelieferte Bilddatei.
+ *
+ * Anlass (blitzsicht-ops#660, 12.08.2026): der Budget-Guard lieh sich TAGGABLE_EXT
+ * und übersah damit AVIF vollständig. Bei gympanzen lagen 5 AVIF zwischen 215 und
+ * 348 KB unbemerkt über Budget — und bei `<picture>` lädt der Browser genau die
+ * zuerst. Die Guard-Meldung riet zugleich „(oder AVIF-Variante)": sie empfahl ein
+ * Format, das sie anschliessend nicht mass. Cluster-Scan über alle customer-Repos:
+ * ausser gympanzen hat keines ein AVIF über 200 KB.
+ */
+export const BUDGET_EXT = [...TAGGABLE_EXT, '.avif'];
+
 /** Ob ein Pfad vom Tagging ausgeschlossen ist (OG/Icons/Favicons/Email/Social). */
 export function isDenied(p) {
   return TAG_DENY_RE.test(String(p).replace(/\\/g, '/'));
 }
 
-/** Rekursiver Walk über dist → taggbare Content-Bilder (.webp/.png/.jpg, ohne OG/Icons/Favicons). */
-export function walkImages(dir, acc = []) {
+/**
+ * Rekursiver Walk über dist. Ohne `exts` taggbare Content-Bilder
+ * (.webp/.png/.jpg, ohne OG/Icons/Favicons) — das ist der Geotag-Pfad.
+ * Für das Größen-Budget mit `BUDGET_EXT` aufrufen.
+ * @param {string} dir @param {string[]} [acc] @param {string[]} [exts]
+ */
+export function walkImages(dir, acc = [], exts = TAGGABLE_EXT) {
   for (const name of readdirSync(dir)) {
     const p = join(dir, name);
     const st = statSync(p);
-    if (st.isDirectory()) walkImages(p, acc);
-    else if (
-      st.isFile() &&
-      TAGGABLE_EXT.some((e) => p.toLowerCase().endsWith(e)) &&
-      !isDenied(p)
-    )
+    if (st.isDirectory()) walkImages(p, acc, exts);
+    else if (st.isFile() && exts.some((e) => p.toLowerCase().endsWith(e)) && !isDenied(p))
       acc.push(p);
   }
   return acc;

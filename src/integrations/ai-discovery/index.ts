@@ -49,7 +49,7 @@ import {
 } from './motion-consent-check.js';
 import { lintRenderEntropy } from './render-entropy-check.js';
 import { geotagDist } from './geotag.js';
-import { walkImages } from './geotag-core.js';
+import { walkImages, BUDGET_EXT } from './geotag-core.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -2642,9 +2642,14 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // Directory-Walk + statSync hier, reiner Größenvergleich in perf-check.js.
         // reuse walkImages → OG/Icons/Favicons ausgenommen. Soft-Warn-Start
         // (strictImageBudget opt-IN), erst nach Fleet-Lauf strict-Kandidat.
+        //
+        // BUDGET_EXT statt der Default-Liste: der Geotag-Pfad kennt kein AVIF
+        // (exiftool taggt es nicht), das Größen-Budget muss es aber sehen —
+        // sonst bleibt genau das Format ungemessen, das `<picture>` zuerst lädt
+        // (blitzsicht-ops#660).
         if (options.checkImageBudget !== false) {
           const maxKb = options.maxImageKb ?? 200;
-          const budgetImages = walkImages(distDir).map((p: string) => ({
+          const budgetImages = walkImages(distDir, [], BUDGET_EXT).map((p: string) => ({
             path: p.slice(distDir.length).replace(/^\//, ''),
             sizeBytes: statSync(p).size,
           }));

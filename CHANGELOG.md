@@ -22,6 +22,39 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.113.0 (2026-08-12)
+
+**Fix:** Der Perf-Budget-Guard misst jetzt auch `.avif`.
+
+`checkImageBudget` ist formatagnostisch, bekam seine Dateiliste aber aus `walkImages`, das über
+`TAGGABLE_EXT = ['.webp','.png','.jpg','.jpeg']` läuft — die Liste dessen, was **exiftool
+geo-taggen** kann. AVIF gehört dort zu Recht nicht hinein, fürs Größenbudget war es aber die
+falsche Liste.
+
+Folge: bei `<picture>` lädt der Browser das AVIF **zuerst**, und genau das Format blieb
+ungemessen. Bei gympanzen lagen 5 AVIF zwischen 215 und 348 KB unbemerkt über Budget, während
+die Guard-Meldung selbst „(oder AVIF-Variante)" empfahl — sie riet zu einem Format, das sie
+anschliessend nicht prüfte. Wer nur die gemeldeten WebP verkleinert hätte, wäre formal grün
+gewesen, ohne dass ein einziger Besucher weniger lädt.
+
+Neu: `BUDGET_EXT = [...TAGGABLE_EXT, '.avif']` und ein optionaler `exts`-Parameter an
+`walkImages`. **`TAGGABLE_EXT` bleibt unverändert** — sie steuert das exiftool-Geotagging, und
+der Fix darf nicht dorthin wandern. Die Denylist (OG/Icons/Favicons/Email/Social) gilt im
+Budget-Pfad unverändert weiter.
+
+**Cluster-Scan vor der Änderung** (12.08.2026, alle `customer-*`-Repos gegen ihren
+Default-Branch): **5 AVIF über 200 KB, alle in gympanzen.** Kein anderes Repo betroffen — der
+Fix legt also nirgends sonst neue Warnungen frei.
+
+Gegenprobe gegen v0.110.0: derselbe Verzeichnisbaum liefert dort nur das WebP, mit dem Fix
+beide Dateien. Zwei neue Tests sichern beide Richtungen ab — AVIF im Budget-Walk **und**
+weiterhin kein AVIF im Geotag-Walk, sonst schickt der Fix exiftool Formate, die es nicht
+verarbeitet.
+
+Tests 502 → 504.
+
+---
+
 ## v0.112.0 (2026-08-12)
 
 **Breaking (Guard):** `assetRefChecks` steht per Default auf `"fail"`. Eine Asset-Referenz,
