@@ -22,15 +22,34 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.107.1 (2026-08-12)
+
+**Docs:** `[kunde]`-Zeile zur Dateigröße korrigiert — sie behauptete mehr als gemessen ist
+
+Die zweite `[kunde]`-Zeile von v0.107.0 sagte „Die Seiten mit Animationen werden dabei
+deutlich kleiner". Für die Referenzseite stimmt das (31 214 → 22 669 Bytes, −27 %), für eine
+echte Kundenseite nicht zwingend: blitzsichts Startseite wuchs von 272 217 auf 273 423 Bytes
+(+0,4 %). Ursache ist der CLS-Fix selbst — die wortweise zerlegte Headline steht jetzt im
+Quelltext, statt vom Browser zusammengebaut zu werden. Das kostet Bytes und spart
+Layout-Sprünge.
+
+Diese Zeilen gehen wörtlich in die Monatsreport-Sektion „Was ist neu auf Ihrer Website".
+Eine Größenzusage, die auf der eigenen Seite nicht eintritt, ist dort schlechter als keine.
+Der Nutzen ist der Cache, nicht die Größe — die korrigierte Zeile sagt genau das.
+
+Kein Code-Change, kein Kunden-Pin-Bump nötig.
+
 ## v0.107.0 (2026-08-12)
 
 - [kunde] Die Website erzeugt jetzt bei jedem Bauen exakt dieselbe Datei, solange sich am
   Inhalt nichts geändert hat. Vorher bekam ein Teil der Seiten bei jeder Veröffentlichung
   neue Zufallswerte im Quelltext — Browser mussten sie deshalb jedes Mal komplett neu
   laden, obwohl sich nichts geändert hatte.
-- [kunde] Die Seiten mit Animationen werden dabei deutlich kleiner: auf der Referenzseite
-  von 31 auf 23 Kilobyte, weil derselbe Programmcode nicht mehr Dutzende Male im Quelltext
-  wiederholt wird.
+- [kunde] Derselbe Programmcode für die Animationen steht nicht mehr Dutzende Male im
+  Quelltext, sondern einmal. Wie stark eine Seite dadurch schrumpft, hängt davon ab, wie
+  viele Animationen auf ihr liegen — bei wenigen kann sie auch minimal wachsen, weil
+  animierter Text jetzt fertig im Quelltext steht statt erst im Browser zusammengesetzt zu
+  werden. Das ist gewollt: es verhindert das kurze Verspringen des Layouts beim Laden.
 - [kunde:sichtbar] Bei gestaffelt einfliegenden Kachelreihen startet die Bewegung jetzt für
   die ganze Reihe gemeinsam, sobald sie ins Bild kommt — vorher zählte jede Kachel für
   sich. Betrifft blitzsicht.
