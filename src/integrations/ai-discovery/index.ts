@@ -1761,6 +1761,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
   // Besucher an?) und den Kunden-Quelltext (was wurde angefordert?). `srcDir`
   // gibt es nur im config-Hook, geprüft wird erst nach dem Build.
   let customerSrcDir: string | null = null;
+  let customerPublicDir: string | null = null;
 
   return {
     name: '@cw/core/integrations/ai-discovery',
@@ -1775,6 +1776,11 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           customerSrcDir = fileURLToPath(config.srcDir);
         } catch {
           customerSrcDir = null; // Motion-Guard meldet das dann als ungeprüft
+        }
+        try {
+          customerPublicDir = fileURLToPath(config.publicDir);
+        } catch {
+          customerPublicDir = null; // llms.txt-Guard benennt die Ursache dann unspezifisch
         }
 
         let data: T;
@@ -2062,19 +2068,44 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         const htmlFiles = walkHtml(distDir);
         const importantPages = resolveImportantPages(htmlFiles, distDir, data.url);
 
-        // Eine statische public/llms.txt kann nichts bewirken — Astro kopiert sie
-        // nach dist/, wo dieser Hook sie eine Zeile später überschreibt. Sie ist
-        // entweder toter Ballast oder, schlimmer, sie wird per postbuild-cp wieder
-        // darübergelegt und friert Markenname und Beschreibung auf einem Stand ein,
-        // den niemand mehr pflegt (blitzsicht-ops#648: mika + zink, 13 Repos mit
-        // toter Datei). Warnung statt Abbruch: die Datei zu haben ist unsauber,
-        // aber kein Defekt.
+        // Alles, was vor diesem Hook ein llms.txt nach dist/ legt, ist wirkungslos —
+        // die Zeile darunter überschreibt es. Das ist entweder toter Ballast oder,
+        // schlimmer, es wird per postbuild-cp wieder darübergelegt und friert
+        // Markenname und Beschreibung auf einem Stand ein, den niemand mehr pflegt
+        // (blitzsicht-ops#648: mika + zink). Warnung statt Abbruch: unsauber, kein Defekt.
+        //
+        // 🔴 Die URSACHE muss benannt werden, nicht geraten. Der Check sieht nur
+        // dist/llms.txt und kann daraus nicht ableiten, woher die Datei stammt:
+        // eine statische public/llms.txt und eine Astro-Route src/pages/llms.txt.ts
+        // erzeugen dasselbe Artefakt, brauchen aber gegensätzliche Handgriffe.
+        // Bis v0.111.1 nannte die Meldung immer public/llms.txt — bei
+        // schiller-gartenbau (Route, keine Datei) schickte sie damit auf die Suche
+        // nach einer Datei, die es nicht gibt. Gemessen 12.08.2026 über die Flotte:
+        // braustall hat die Datei, schiller die Route, sonst niemand.
         if (existsSync(join(distDir, 'llms.txt'))) {
+          const staticFile = customerPublicDir ? join(customerPublicDir, 'llms.txt') : null;
+          const routeFile = customerSrcDir
+            ? ['llms.txt.ts', 'llms.txt.js', 'llms.txt.mjs']
+                .map((f) => join(customerSrcDir!, 'pages', f))
+                .find((f) => existsSync(f))
+            : undefined;
+
+          let ursache: string;
+          if (staticFile && existsSync(staticFile)) {
+            ursache = 'public/llms.txt gefunden — die Datei gehört gelöscht, Inhalte nach siteData.';
+          } else if (routeFile) {
+            ursache =
+              `${relative(distDir, routeFile).replace(/^(\.\.\/)+/, '')} erzeugt llms.txt — ` +
+              'die Route ist seit der ai-discovery-Integration überflüssig und gehört gelöscht.';
+          } else {
+            ursache =
+              'dist/llms.txt lag schon vor diesem Hook vor — Quelle unklar, im Repo nach ' +
+              'public/llms.txt oder einer llms.txt-Route suchen.';
+          }
           logger.warn(
-            'public/llms.txt gefunden — sie wird von der generierten Datei überschrieben und ' +
-              'kann nichts bewirken. Inhalte gehören nach siteData, die Datei gelöscht. ' +
-              'Liegt sie per postbuild-cp NACH diesem Hook wieder in dist/, driftet die ' +
-              'ausgelieferte Fassung dauerhaft von siteData weg (blitzsicht-ops#648).',
+            `${ursache} Die Datei wird von der generierten überschrieben und kann nichts ` +
+              'bewirken. Liegt sie per postbuild-cp NACH diesem Hook wieder in dist/, driftet ' +
+              'die ausgelieferte Fassung dauerhaft von siteData weg (blitzsicht-ops#648).',
           );
         }
 
