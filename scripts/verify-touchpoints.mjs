@@ -79,7 +79,11 @@ export function normalizePhone(raw) {
 export function parseSsot(src) {
   const phones = new Set();
   const emails = new Set();
-  for (const m of src.matchAll(/\b(?:phone|fax|tel|whatsapp)\w*\s*:\s*['"`]([^'"`]+)['"`]/gi)) {
+  // `mobile` gehört dazu, seit donau-profi darüber fiel (12.08.2026): die Nummer
+  // stand als `mobile: '+49 151 18220924'` sauber in site-data.ts, der Parser las
+  // sie nicht — und der Guard meldete 17-mal „Nummer nicht im SSOT" für eine
+  // Nummer, die im SSOT steht. Das war der Guard, nicht der Kunde.
+  for (const m of src.matchAll(/\b(?:phone|fax|tel|mobile|whatsapp)\w*\s*:\s*['"`]([^'"`]+)['"`]/gi)) {
     const n = normalizePhone(m[1]);
     if (n.length >= 8) phones.add(n);
   }

@@ -111,6 +111,23 @@ test('auditHtml: OK-Fixture ist sauber (inkl. ?subject und Allowlist)', () => {
   assert.deepEqual(problems, []);
 });
 
+test('parseSsot: mobile-Key zählt mit — donau-profi fiel 17-mal über eine Nummer, die im SSOT stand', () => {
+  const src = `
+    contact: { phone: '+49 941 63082470' },
+    kontakt: { mobile: '+49 151 18220924' },
+  `;
+  const { phones } = parseSsot(src);
+  assert.ok(phones.has(normalizePhone('+4915118220924')), 'mobile fehlt im SSOT-Set');
+  assert.ok(phones.has(normalizePhone('+4994163082470')), 'phone fehlt im SSOT-Set');
+});
+
+test('parseSsot: ein beliebiger Key wird NICHT zur Telefonquelle', () => {
+  // Gegenprobe zur Erweiterung oben: die Liste ist eine Liste, kein „alles was
+  // nach Nummer aussieht". Sonst wuerde jede Hausnummer zur gueltigen Rufnummer.
+  const { phones } = parseSsot(`umsatzsteuerId: '+49 151 18220924',`);
+  assert.equal(phones.size, 0);
+});
+
 test('auditHtml: Aufsichtsbehörde ist OHNE Config erlaubt — cw-core liefert sie selbst aus', () => {
   // blitzsicht-ops#653: die Adresse steht in keinem Kunden-Repo, sondern in
   // InformationspflichtBlock.astro. Der Guard meldete damit die eigene Ausgabe

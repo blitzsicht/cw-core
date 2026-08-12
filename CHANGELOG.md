@@ -22,6 +22,35 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.107.3 (2026-08-12)
+
+**Fix:** Zwei Lücken im Touchpoint-/Form-Health-Gate, beide beim Fleet-Rollout aufgefallen
+
+Der vollständige Rollout des `build-check.yml`-Templates (12.08.2026, 13 von 13 Repos)
+brachte den Audit erstmals in Repos, die ihn nie hatten. Von den daraufhin roten CIs waren
+zwei **wieder** Guard-Lücken, keine Kundenfehler:
+
+**1. `parseSsot` las den `mobile`-Key nicht.** donau-profi meldete 17-mal *„Nummer nicht im
+SSOT-Telefon-Set"* für `+49 151 18220924` — eine Nummer, die sauber in `site-data.ts` steht,
+nur unter `mobile:` statt `phone:`. Der Key ist jetzt in der Liste
+(`phone|fax|tel|mobile|whatsapp`). Gegenprobe im Test: ein beliebiger Key (`umsatzsteuerId`)
+wird weiterhin **nicht** zur Telefonquelle — die Liste bleibt eine Liste, kein
+„alles was nach Nummer aussieht".
+
+**2. Das Template reichte `FORM_PAGE_PATH` nicht durch.** platzfrei fiel mit
+*„/kontakt/ status=404"*, obwohl die Site ein funktionierendes Formular hat — es sitzt auf
+der Startseite (One-Pager). `verify-form-health.mjs` kann das seit jeher über
+`FORM_PAGE_PATH`, nur kam die Variable im Workflow nie an. Jetzt durchgereicht; unbelegt
+bleibt der Default `/kontakt/`.
+
+Setzen mit `gh variable set FORM_PAGE_PATH --body "/" --repo <repo>`.
+
+Beide Befunde folgen demselben Muster wie v0.107.2: Der Guard zeigte auf den Kunden, der
+Fehler lag im Guard. Wer einen Guard neu ausrollt, sollte die ersten Befunde grundsätzlich
+gegen den Guard prüfen, bevor er Kundendaten anfasst.
+
+Tests 453 → 455.
+
 ## v0.107.2 (2026-08-12)
 
 **Fix:** Der Touchpoint-Audit meldete die Adresse, die cw-core selbst ausliefert

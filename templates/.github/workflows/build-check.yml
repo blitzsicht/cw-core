@@ -185,9 +185,16 @@ jobs:
         run: sleep 60
 
       - name: Run form-health smoke-test
+        # FORM_PAGE_PATH: One-Pager haben kein /kontakt/ — ihr Formular sitzt auf
+        # der Startseite. platzfrei fiel am 12.08.2026 mit „/kontakt/ status=404",
+        # obwohl die Site ein funktionierendes Formular hat (WaitlistSection).
+        # verify-form-health.mjs kann das seit jeher (Default '/kontakt/'), nur
+        # reichte dieses Template die Variable nicht durch.
+        # Setzen mit: gh variable set FORM_PAGE_PATH --body "/" --repo <repo>
         run: node node_modules/@cw/core/scripts/verify-form-health.mjs
         env:
           SITE_URL: ${{ vars.PRODUCTION_URL }}
+          FORM_PAGE_PATH: ${{ vars.FORM_PAGE_PATH }}
           WAIT_MS: 0
 
       - name: Touchpoint-Audit (live — Links/Redirects/Plausible/Form-Kette)
