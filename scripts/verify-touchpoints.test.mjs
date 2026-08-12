@@ -24,6 +24,7 @@ import {
   extractWhatsAppHrefs,
   findSchemelessContactHrefs,
   auditHtml,
+  postsToContactApi,
   extractInternalLinks,
 } from './verify-touchpoints.mjs';
 
@@ -109,6 +110,25 @@ test('auditHtml: OK-Fixture ist sauber (inkl. ?subject und Allowlist)', () => {
     allowExternalMailto: ['poststelle@lda.bayern.de'],
   });
   assert.deepEqual(problems, []);
+});
+
+test('postsToContactApi: erkennt die Kontakt-Route am action-Attribut', () => {
+  assert.equal(postsToContactApi('<form action="/api/contact" method="post">'), true);
+  assert.equal(postsToContactApi("<form method='post' action='/api/contact'>"), true);
+});
+
+test('postsToContactApi: ein Suchfeld ist kein Kontaktformular', () => {
+  // Der Grund fuer die action-Pruefung statt „gibt es ein <form>": sonst haette
+  // jede Site mit Suchfeld die /api/contact-Probe getriggert.
+  assert.equal(postsToContactApi('<form action="/suche"><input name="q"></form>'), false);
+  assert.equal(postsToContactApi('<div>kein Formular, nur Text über /api/contact</div>'), false);
+});
+
+test('postsToContactApi: hausamlago-Fall — Erwähnung in der Datenschutzerklärung zählt nicht', () => {
+  // Genau der Fehlalarm vom 12.08.2026: die Site nennt /api/contact in der
+  // Datenschutzerklärung, hat aber weder Formular noch Route.
+  const html = '<p>Ihre Anfrage wird über <code>/api/contact</code> verarbeitet.</p>';
+  assert.equal(postsToContactApi(html), false);
 });
 
 test('parseSsot: mobile-Key zählt mit — donau-profi fiel 17-mal über eine Nummer, die im SSOT stand', () => {

@@ -35,7 +35,16 @@ const {
   primaryLabel = 'Beratung anfragen',
   primaryHref = '/kontakt',
   secondaryLabel = 'Pakete & Preise ansehen',
-  secondaryHref = '/pakete',
+  // KEIN Default mehr. Bis 12.08.2026 stand hier '/pakete' — und weil auch
+  // `secondaryLabel` einen Default hat, rendert jeder CTABlock ohne explizite
+  // Props einen Knopf dorthin. Gemessen über die committeten Quellen:
+  // **/pakete existiert in genau 1 von 14 Repos** (blitzsicht). Bei
+  // gottl-richter-gomeier meldete der Live-Audit den toten Link.
+  //
+  // Dasselbe Muster wie der TiltCard-Vorfall (siehe motion-consent-check.js):
+  // ein Prop-Default liefert etwas aus, das der Kunde nie bestellt hat — nur
+  // sieht man es hier erst, wenn jemand draufklickt.
+  secondaryHref,
 } = Astro.props;
 ---
 <section class="cta-section">
@@ -50,7 +59,7 @@ const {
       <p>{sub}</p>
       <div class="cta-buttons">
         <a href={primaryHref} class="btn-accent" data-cta={`cta-block:${primaryLabel}`}>{primaryLabel}</a>
-        {secondaryLabel && <a href={secondaryHref} class="btn-outline" data-cta={`cta-block:${secondaryLabel}`}>{secondaryLabel}</a>}
+        {secondaryHref && secondaryLabel && <a href={secondaryHref} class="btn-outline" data-cta={`cta-block:${secondaryLabel}`}>{secondaryLabel}</a>}
       </div>
     </div>
   </div>

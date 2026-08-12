@@ -94,6 +94,21 @@ export function parseSsot(src) {
 }
 
 /**
+ * Postet diese Seite auf `/api/contact`?
+ *
+ * Bewusst am `action`-Attribut und nicht an „gibt es ein <form>": Suchfelder und
+ * Newsletter-Anmeldungen sind auch Formulare, führen aber nicht auf die
+ * Kontakt-Route. hausamlago (Telefon-/WhatsApp-only) hat gar keine — die Route
+ * dort als „tot" zu melden wäre ein Fehlalarm (12.08.2026).
+ *
+ * @param {string} html
+ * @returns {boolean}
+ */
+export function postsToContactApi(html) {
+  return /action=["'][^"']*\/api\/contact\b/i.test(html);
+}
+
+/**
  * Alle Href-Werte einer Sorte aus HTML ziehen (Attribut-Anführungszeichen-tolerant).
  * @param {string} html @param {'tel'|'mailto'} scheme @returns {string[]} rohe Href-Werte inkl. Schema
  */
@@ -423,7 +438,24 @@ async function main() {
       fail(`/api/event unerreichbar: ${err.message}`);
     }
 
-    // Check 5: /api/contact — Rate-Limit-Budget beachten (max 2 POSTs)!
+    // Check 5: /api/contact — nur wenn die Site überhaupt ein Formular hat.
+    //
+    // hausamlago fiel am 12.08.2026 mit „/api/contact Honeypot-Trip → 404" —
+    // die Site ist bewusst Telefon-/WhatsApp-only, hat kein Formular und keine
+    // API-Route. Eine Route, die es nicht geben soll, als „tot" zu melden, ist
+    // ein Fehlalarm; er hätte die CI dieses Kunden dauerhaft rot gehalten.
+    //
+    // Erkannt am ausgelieferten HTML: irgendeine Seite muss auf /api/contact
+    // posten. Das ist strenger als „gibt es ein <form>" (Suchfelder, Newsletter)
+    // und kommt ohne Konfiguration aus.
+    const hatKontaktFormular = pages.some((p) => postsToContactApi(p.html));
+    if (!hatKontaktFormular) {
+      console.log(
+        `↷ /api/contact übersprungen — keine Seite postet dorthin (Site ohne Kontaktformular). ` +
+          `Das ist kein Grün für die Formular-Kette, sondern deren Abwesenheit.`,
+      );
+    } else {
+    // Rate-Limit-Budget beachten (max 2 POSTs)!
     const postContact = (body, extraHeaders = {}) =>
       fetch(`${liveUrl}/api/contact`, {
         method: 'POST',
@@ -475,6 +507,7 @@ async function main() {
         fail(`/api/contact Foreign-Origin-Probe unerreichbar: ${err.message}`);
       }
     }
+    } // Ende: Site hat ein Kontaktformular
   }
 
   console.log('');

@@ -41,6 +41,12 @@ export interface FaviconIcoOptions {
   source?: string;
   /** Output file name inside the build output dir. Default: 'favicon.ico'. */
   output?: string;
+  /**
+   * PNG-Icon-Größen, die aus dem SVG erzeugt werden, falls die Datei in
+   * `public/` fehlt. Default: [192, 512] — genau die, die `BaseLayout.astro`
+   * verlinkt. Leeres Array schaltet die Erzeugung ab.
+   */
+  pngSizes?: number[];
 }
 
 // Minimal shape of the `sharp` API we actually use — avoids a hard
@@ -55,6 +61,7 @@ interface SharpLike {
 
 export default function faviconIco(options: FaviconIcoOptions = {}): AstroIntegration {
   const sizes = options.sizes ?? [16, 32, 48];
+  const pngSizes = options.pngSizes ?? [192, 512];
   const sourceName = options.source ?? 'favicon.svg';
   const outputName = options.output ?? 'favicon.ico';
 
@@ -107,6 +114,29 @@ export default function faviconIco(options: FaviconIcoOptions = {}): AstroIntegr
         logger.info(
           `favicon.ico generated from ${sourceName} (${sizes.join('/')}px) → ${outputName}`,
         );
+
+        // ─── PNG-Icons, die BaseLayout bedingungslos verlinkt ────────────────
+        //
+        // `BaseLayout.astro` schreibt <link rel="icon" … href="/favicon-192.png">
+        // und <link rel="apple-touch-icon" href="/favicon-192.png"> in JEDE Seite.
+        // Gemessen am 12.08.2026 über die committeten Quellen: **6 von 20 Repos
+        // haben die Datei nicht** (hausamlago, hausammincio, mika-elektrotechnik,
+        // zink-baeckerei, blumen-schmid, weinkontor-sinzing). Diese Sites liefern
+        // auf jeder Seite einen toten Icon-Link aus — und ein Lesezeichen auf dem
+        // iOS-Homescreen bekommt kein Icon.
+        //
+        // Gleiche Antwort wie bei favicon.ico (#491): nicht 20 Repos einsammeln,
+        // sondern beim Build erzeugen. Vorhandene Dateien werden NICHT
+        // überschrieben — wer ein eigenes, besseres PNG pflegt, behält es.
+        for (const pngSize of pngSizes) {
+          const name = `favicon-${pngSize}.png`;
+          if (existsSync(join(publicDirPath, name))) continue; // Kunde pflegt eigenes
+          writeFileSync(
+            join(outDir, name),
+            await sharp(svgBuffer).resize(pngSize, pngSize).png().toBuffer(),
+          );
+          logger.info(`${name} aus ${sourceName} erzeugt (fehlte in public/).`);
+        }
       },
     },
   };

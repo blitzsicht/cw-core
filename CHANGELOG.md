@@ -22,6 +22,47 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.107.4 (2026-08-12)
+
+- [kunde:sichtbar] Auf Seiten mit dem großen Abschluss-Block verschwindet der zweite Knopf
+  („Pakete & Preise ansehen"), wo er auf eine Seite zeigte, die es gar nicht gibt. Der
+  Hauptknopf bleibt unverändert.
+- [kunde] Websites ohne hinterlegtes App-Icon bekommen es jetzt beim Bauen automatisch aus
+  dem vorhandenen Logo. Vorher zeigte das Lesezeichen auf dem Handy-Startbildschirm kein
+  Bild.
+
+**Fix:** Drei tote Enden, die der Fleet-Rollout sichtbar gemacht hat
+
+Der Touchpoint-Audit lief nach dem vollständigen Template-Rollout erstmals in allen Repos.
+Was er in der zweiten Welle fand, waren wieder je zur Hälfte echte Defekte und Guard-Lücken:
+
+**1. `CTABlock` verlinkte `/pakete` als Voreinstellung.** Weil auch `secondaryLabel` einen
+Default hat, rendert jeder `<CTABlock />` ohne explizite Props einen Knopf dorthin. Gemessen
+über die committeten Quellen: **`/pakete` existiert in genau 1 von 14 Repos** (blitzsicht) —
+82 Verwendungen des Blocks über die Fleet. Bei gottl-richter-gomeier meldete der Live-Audit
+den toten Link. Der Default ist raus; der zweite Knopf rendert nur noch, wenn `secondaryHref`
+gesetzt ist. Dasselbe Muster wie der TiltCard-Vorfall: ein Prop-Default liefert etwas aus,
+das der Kunde nie bestellt hat.
+
+**2. `favicon-192.png` wurde bedingungslos verlinkt, existierte aber oft nicht.**
+`BaseLayout.astro` schreibt `<link rel="icon">` und `<link rel="apple-touch-icon">` in jede
+Seite. Gemessen: **6 von 20 Repos haben die Datei nicht** (hausamlago, hausammincio,
+mika-elektrotechnik, zink-baeckerei, blumen-schmid, weinkontor-sinzing). Gleiche Antwort wie
+bei `favicon.ico` (#491): nicht 20 Repos einsammeln, sondern beim Build aus `favicon.svg`
+erzeugen. Die `favicon-ico`-Integration macht das jetzt für 192 und 512 px — **vorhandene
+Dateien werden nicht überschrieben**, wer ein eigenes PNG pflegt, behält es. Abschaltbar über
+`pngSizes: []`.
+
+**3. Die `/api/contact`-Probe lief auch auf Sites ohne Formular.** hausamlago ist bewusst
+Telefon-/WhatsApp-only, hat weder Formular noch Route — der Audit meldete die Route als tot
+und hätte die CI dieses Kunden dauerhaft rot gehalten. Die Probe läuft jetzt nur, wenn
+mindestens eine ausgelieferte Seite tatsächlich auf `/api/contact` postet (`postsToContactApi`,
+am `action`-Attribut, nicht an „gibt es ein `<form>`" — Suchfelder sind auch Formulare). Der
+Skip wird ausgegeben, nicht verschwiegen: „kein Grün für die Formular-Kette, sondern deren
+Abwesenheit".
+
+Tests 455 → 458.
+
 ## v0.107.3 (2026-08-12)
 
 **Fix:** Zwei Lücken im Touchpoint-/Form-Health-Gate, beide beim Fleet-Rollout aufgefallen
