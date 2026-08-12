@@ -1,0 +1,28 @@
+---
+/**
+ * @cw/core – motion/MotionRuntime.astro
+ *
+ * Rendert kein Markup. Ihr einziger Zweck ist der `<script>`-Block darunter:
+ * jede Motion-Komponente rendert diese Komponente mit, und weil Astro
+ * gehobene Scripts **pro Komponentendatei** bündelt, landet die Einbindung
+ * genau einmal pro Seite — egal wie viele Motion-Komponenten darauf stehen.
+ *
+ * ## Warum nicht der Script-Block direkt in jeder Komponente
+ *
+ * Gemessen am 11.08.2026 an `examples/motion`: derselbe Block in fünf
+ * Komponenten ergibt fünf Einstiegsdateien (`CountUp.astro_…js`,
+ * `StaggerGroup.astro_…js`, …) mit identischem Inhalt und je 49 Bytes. Der
+ * schwere Teil (`motion-runtime`) wird zwar geteilt, aber der Browser holt
+ * fünf Hüllen statt einer. Astro dedupliziert Scripts NICHT über
+ * Komponentengrenzen hinweg, auch wenn sie zeichengleich sind.
+ *
+ * Nebeneffekt: Es gibt nur noch eine Stelle, an der die Einbindung steht.
+ * Vorher hing die Bündelung daran, dass fünf Blöcke zeichengleich bleiben —
+ * eine Bedingung, die kein Test prüft und die beim ersten Umformatieren
+ * gebrochen wäre.
+ */
+---
+<script>
+  import { initMotion } from '../../scripts/motion-runtime';
+  initMotion();
+</script>

@@ -3,14 +3,37 @@
  * @cw/core – motion/StaggerGroup.astro
  *
  * Reveals direct children one after another with a configurable stagger.
- * Uses CSS transition-delay stamping — no JS library required beyond
- * the IntersectionObserver bootstrap included in ScrollReveal.astro.
+ * Reines CSS: der Vorzustand, die Richtung und die Staffelung stehen in
+ * `tokens-base.css` (`[data-motion-stagger]`), die Zeitwerte kommen als
+ * Custom Properties am Wurzelelement an. JavaScript setzt nur `.is-visible`,
+ * sobald die Gruppe in den Viewport kommt.
+ *
+ * ## Warum kein Script mehr die Kinder anfasst (blitzsicht-ops#650)
+ *
+ * Bis 11.08.2026 stempelte ein `is:inline`-Script beim Parsen jedem Kind
+ * `data-motion-reveal` und ein `transition-delay` auf. Um sich selbst zu
+ * finden, brauchte es eine ID — aus `Math.random()`. Zwei Builds derselben
+ * Quelle erzeugten damit unterschiedliches HTML.
+ *
+ * Die Stempelei in ein gebündeltes Modul zu verschieben wäre schlimmer als der
+ * Fehler: sie liefe dann NACH dem Parsen, die Kinder wären einen Moment
+ * sichtbar und würden danach auf `opacity: 0` springen. Ein Vorzustand gehört
+ * ins CSS, nicht in einen Nachtrag.
+ *
+ * ## Verhalten
+ *
+ * Beobachtet wird die GRUPPE, nicht mehr jedes Kind einzeln: die Staffel
+ * startet, sobald die Gruppe zu 15 % im Bild ist. Bei einer Kachelreihe ist
+ * das die Bewegung, die gemeint war; bei einer sehr langen Liste beginnt sie
+ * früher als vorher.
  *
  * @example
  *   <StaggerGroup direction="up" gap={0.08}>
  *     <div>1</div><div>2</div><div>3</div>
  *   </StaggerGroup>
  */
+import MotionRuntime from './MotionRuntime.astro';
+
 export type StaggerDirection = 'up' | 'down' | 'left' | 'right' | 'zoom';
 
 interface Props {
@@ -31,59 +54,15 @@ const {
   as: Tag = 'div',
 } = Astro.props;
 
-const groupId = `stg-${Math.random().toString(36).slice(2, 9)}`;
 ---
 <Tag
-  id={groupId}
   class:list={['motion-stagger', className]}
   data-motion-stagger={direction}
   data-motion-gap={gap}
   data-motion-delay={delay}
+  style={`--stagger-gap:${gap}s;--stagger-start:${delay}s`}
 >
   <slot />
 </Tag>
 
-<script is:inline define:vars={{ groupId, direction, gap, delay }}>
-  (function () {
-    const root = document.getElementById(groupId);
-    if (!root) return;
-    const kids = Array.from(root.children);
-    kids.forEach((child, i) => {
-      child.setAttribute('data-motion-reveal', direction);
-      const d = delay + i * gap;
-      const prev = child.getAttribute('style') || '';
-      child.setAttribute('style', `${prev}; transition-delay: ${d}s`);
-    });
-  })();
-</script>
-
-<script>
-  // Share the IntersectionObserver bootstrap with ScrollReveal by relying
-  // on the same `[data-motion-reveal]` selector.
-  const init = () => {
-    const els = document.querySelectorAll<HTMLElement>('[data-motion-reveal]:not(.is-visible)');
-    if (!els.length) return;
-    if (!('IntersectionObserver' in window)) {
-      els.forEach((el) => el.classList.add('is-visible'));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-visible');
-            io.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.15, rootMargin: '0px 0px -10% 0px' },
-    );
-    els.forEach((el) => io.observe(el));
-  };
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-  document.addEventListener('astro:page-load', init);
-</script>
+<MotionRuntime />

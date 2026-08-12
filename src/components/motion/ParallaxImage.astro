@@ -7,11 +7,18 @@
  * raw `<img>`. Respects `prefers-reduced-motion` (tokens-base.css disables
  * the transform entirely).
  *
+ * Die Bewegung steht in `scripts/motion-runtime.ts` und findet dieses Element
+ * über `[data-motion-parallax]`; die Stärke liest sie aus dem Attributwert.
+ * Bis 11.08.2026 lag sie als Inline-IIFE pro Instanz im HTML und fand sich
+ * über eine `Math.random()`-ID selbst (blitzsicht-ops#650).
+ *
  * @example
  *   <ParallaxImage speed={0.3}>
  *     <Image src={hero} alt="…" />
  *   </ParallaxImage>
  */
+import MotionRuntime from './MotionRuntime.astro';
+
 interface Props {
   /** Parallax strength. Positive = slower than scroll (floats up), 0.3 by default. */
   speed?: number;
@@ -19,9 +26,9 @@ interface Props {
 }
 
 const { speed = 0.3, class: className = '' } = Astro.props;
-const id = `plx-${Math.random().toString(36).slice(2, 9)}`;
+
 ---
-<div id={id} class:list={['motion-parallax', className]} data-motion-parallax={speed}>
+<div class:list={['motion-parallax', className]} data-motion-parallax={speed}>
   <slot />
 </div>
 
@@ -40,33 +47,4 @@ const id = `plx-${Math.random().toString(36).slice(2, 9)}`;
   }
 </style>
 
-<script is:inline define:vars={{ id, speed }}>
-  (function () {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const target = el.querySelector('img, picture > img') || el.firstElementChild;
-    if (!target) return;
-
-    let ticking = false;
-    const update = () => {
-      const rect = el.getBoundingClientRect();
-      const vh = window.innerHeight || document.documentElement.clientHeight;
-      // 0 when element is below viewport, 1 when it has fully scrolled past top.
-      const progress = 1 - (rect.top + rect.height) / (vh + rect.height);
-      const clamped = Math.max(0, Math.min(1, progress));
-      const offset = (clamped - 0.5) * rect.height * speed;
-      target.style.transform = `translate3d(0, ${offset.toFixed(2)}px, 0)`;
-      ticking = false;
-    };
-    const onScroll = () => {
-      if (!ticking) {
-        requestAnimationFrame(update);
-        ticking = true;
-      }
-    };
-    update();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
-  })();
-</script>
+<MotionRuntime />

@@ -220,6 +220,69 @@ h1, h2, h3, h4, h5, h6 {
   will-change: auto;
 }
 
+/* StaggerGroup — Vorzustand und Staffelung der direkten Kinder.
+ *
+ * Bis 11.08.2026 stempelte ein Inline-Script beim Parsen jedem Kind
+ * `data-motion-reveal` und ein `transition-delay` auf; die dafuer noetige
+ * Selbst-ID kam aus `Math.random()` und machte das HTML unreproduzierbar
+ * (blitzsicht-ops#650). Hier steht dasselbe rein deklarativ: die Zeitwerte
+ * kommen als Custom Properties vom Wurzelelement, die laufende Nummer aus
+ * `nth-child`. JavaScript setzt nur noch `.is-visible` an der GRUPPE.
+ *
+ * Dieselbe `scripting: enabled`-Bedingung wie oben, aus demselben Grund:
+ * `.is-visible` vergibt ausschliesslich `motion-runtime.ts`. Ohne die
+ * Bedingung blieben die Kinder ohne JavaScript dauerhaft unsichtbar. */
+@media (scripting: enabled) {
+  [data-motion-stagger] > * {
+    opacity: 0;
+    will-change: opacity, transform;
+    transition: opacity var(--motion-duration-base) var(--motion-ease-out),
+                transform var(--motion-duration-base) var(--motion-ease-out);
+    transition-delay: calc(
+      var(--stagger-start, 0s) + var(--stagger-i, 0) * var(--stagger-gap, var(--motion-stagger))
+    );
+  }
+  [data-motion-stagger="up"]    > * { transform: translate3d(0, 2rem, 0); }
+  [data-motion-stagger="down"]  > * { transform: translate3d(0, -2rem, 0); }
+  [data-motion-stagger="left"]  > * { transform: translate3d(2rem, 0, 0); }
+  [data-motion-stagger="right"] > * { transform: translate3d(-2rem, 0, 0); }
+  [data-motion-stagger="zoom"]  > * { transform: scale(0.92); }
+
+  /* Laufende Nummer je Kind. CSS kann nicht zaehlen, also steht die Leiter
+   * hier — gedeckelt bei 24, danach laufen alle weiteren gemeinsam los. Eine
+   * Staffel ueber mehr als zwei Sekunden waere ohnehin keine mehr. */
+  [data-motion-stagger] > *:nth-child(1)  { --stagger-i: 0; }
+  [data-motion-stagger] > *:nth-child(2)  { --stagger-i: 1; }
+  [data-motion-stagger] > *:nth-child(3)  { --stagger-i: 2; }
+  [data-motion-stagger] > *:nth-child(4)  { --stagger-i: 3; }
+  [data-motion-stagger] > *:nth-child(5)  { --stagger-i: 4; }
+  [data-motion-stagger] > *:nth-child(6)  { --stagger-i: 5; }
+  [data-motion-stagger] > *:nth-child(7)  { --stagger-i: 6; }
+  [data-motion-stagger] > *:nth-child(8)  { --stagger-i: 7; }
+  [data-motion-stagger] > *:nth-child(9)  { --stagger-i: 8; }
+  [data-motion-stagger] > *:nth-child(10) { --stagger-i: 9; }
+  [data-motion-stagger] > *:nth-child(11) { --stagger-i: 10; }
+  [data-motion-stagger] > *:nth-child(12) { --stagger-i: 11; }
+  [data-motion-stagger] > *:nth-child(13) { --stagger-i: 12; }
+  [data-motion-stagger] > *:nth-child(14) { --stagger-i: 13; }
+  [data-motion-stagger] > *:nth-child(15) { --stagger-i: 14; }
+  [data-motion-stagger] > *:nth-child(16) { --stagger-i: 15; }
+  [data-motion-stagger] > *:nth-child(17) { --stagger-i: 16; }
+  [data-motion-stagger] > *:nth-child(18) { --stagger-i: 17; }
+  [data-motion-stagger] > *:nth-child(19) { --stagger-i: 18; }
+  [data-motion-stagger] > *:nth-child(20) { --stagger-i: 19; }
+  [data-motion-stagger] > *:nth-child(21) { --stagger-i: 20; }
+  [data-motion-stagger] > *:nth-child(22) { --stagger-i: 21; }
+  [data-motion-stagger] > *:nth-child(23) { --stagger-i: 22; }
+  [data-motion-stagger] > *:nth-child(24) { --stagger-i: 23; }
+  [data-motion-stagger] > *:nth-child(n + 25) { --stagger-i: 24; }
+}
+[data-motion-stagger].is-visible > * {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  will-change: auto;
+}
+
 /* Scroll progress bar utility used by ScrollProgress. */
 .motion-scroll-progress {
   position: fixed;
@@ -264,10 +327,13 @@ h1, h2, h3, h4, h5, h6 {
 /* Respect user preferences — hard-disable every motion primitive. */
 @media (prefers-reduced-motion: reduce) {
   [data-motion-reveal],
-  [data-motion-reveal].is-visible {
+  [data-motion-reveal].is-visible,
+  [data-motion-stagger] > *,
+  [data-motion-stagger].is-visible > * {
     opacity: 1;
     transform: none;
     transition: none;
+    transition-delay: 0s;
   }
   .motion-scroll-progress { display: none; }
   .motion-cursor { display: none; }

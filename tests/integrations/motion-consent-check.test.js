@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import {
   MOTION_PROP_KEYS,
   IMPORT_ONLY_MOTION,
+  NON_VISUAL_MOTION,
   stripInlineBlocks,
   stripComments,
   countMarker,
@@ -18,10 +19,18 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const MOTION_DIR = join(__dirname, '../../src/components/motion');
 
-/** Alle echten Motion-Komponenten aus dem Paket. */
+/**
+ * Alle echten Motion-Komponenten aus dem Paket.
+ *
+ * `NON_VISUAL_MOTION` fliegt raus: das sind Dateien in `motion/`, die kein
+ * Markup rendern (Träger für das gemeinsame Laufzeitmodul). Sie können weder
+ * eine Prop noch einen Marker haben — für die beiden Vollständigkeitstests
+ * unten wären sie ein Dauer-Rot ohne Aussage.
+ */
 function realMotionComponents() {
   return readdirSync(MOTION_DIR)
     .filter((f) => f.endsWith('.astro'))
+    .filter((f) => !NON_VISUAL_MOTION.includes(f.replace(/\.astro$/, '')))
     .map((f) => ({
       name: f.replace(/\.astro$/, ''),
       source: readFileSync(join(MOTION_DIR, f), 'utf-8'),

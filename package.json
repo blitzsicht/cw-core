@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.106.0",
+  "version": "0.107.0",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -32,6 +32,7 @@
     "build": "echo '@cw/core is a source-only Astro component library — no build step (consumers compile via their own Astro pipeline).'",
     "check": "astro check",
     "test": "node --test 'tests/**/*.test.js' 'scripts/**/*.test.mjs' 'src/og/**/*.test.mjs'",
+    "verify:reproducible": "node scripts/verify-reproducible-build.mjs --root examples",
     "optimize:images": "node scripts/optimize-images.mjs --delete-originals",
     "generate:og": "node scripts/generate-og.mjs",
     "sweep:favicon": "node scripts/sweep-favicon.mjs",

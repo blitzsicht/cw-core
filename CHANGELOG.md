@@ -22,6 +22,85 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.107.0 (2026-08-12)
+
+- [kunde] Die Website erzeugt jetzt bei jedem Bauen exakt dieselbe Datei, solange sich am
+  Inhalt nichts geändert hat. Vorher bekam ein Teil der Seiten bei jeder Veröffentlichung
+  neue Zufallswerte im Quelltext — Browser mussten sie deshalb jedes Mal komplett neu
+  laden, obwohl sich nichts geändert hatte.
+- [kunde] Die Seiten mit Animationen werden dabei deutlich kleiner: auf der Referenzseite
+  von 31 auf 23 Kilobyte, weil derselbe Programmcode nicht mehr Dutzende Male im Quelltext
+  wiederholt wird.
+- [kunde:sichtbar] Bei gestaffelt einfliegenden Kachelreihen startet die Bewegung jetzt für
+  die ganze Reihe gemeinsam, sobald sie ins Bild kommt — vorher zählte jede Kachel für
+  sich. Betrifft blitzsicht.
+
+**Fix + Feature:** Das HTML ist wieder reproduzierbar — und ein Guard, der das offen hält
+
+Vier Motion-Komponenten vergaben ihre Element-ID mit
+`Math.random().toString(36).slice(2, 9)` — nur damit ihr eigenes Inline-Script sich per
+`getElementById` selbst wiederfand. Zwei Builds derselben Quelle erzeugten dadurch
+unterschiedliches HTML (blitzsicht-ops#650):
+
+| Messung (11.08.2026, zwei Builds hintereinander) | Ergebnis |
+|---|---:|
+| blitzsicht, Dateien im `dist/` | 203 |
+| davon zwischen zwei Builds verschieden | **13** |
+| übrige 12 Live-Kunden | **0** |
+
+Der Fehler lag drei Jahre im Code, ohne dass etwas rot wurde — ein einzelner Build kann
+ihn nicht sehen. Er kostete bei jedem Deploy den Cache jeder betroffenen Seite (ETag und
+Last-Modified sind wertlos, wenn sich die Bytes ohne Grund ändern) und machte den
+Byte-Vergleich zweier Builds unbrauchbar: in #649 war er das Hauptwerkzeug für den Nachweis
+„Output unverändert" und musste für blitzsicht erst per `sed` normalisiert werden.
+
+**Der Fix nimmt die ID nicht deterministisch, sondern ersatzlos raus.** Die Konfiguration
+stand ohnehin schon als `data-*`-Attribut am Element; eine ID war nie nötig. Das
+Laufzeitverhalten liegt jetzt in einem gemeinsamen Modul (`src/scripts/motion-runtime.ts`),
+das über `MotionRuntime.astro` genau einmal pro Seite ausgeliefert wird.
+
+Zwei Stellen durften dabei nicht einfach „später laufen", weil sie das Layout anfassen:
+
+- **TextReveal** zerlegt den Text jetzt im **Build** (`utils/text/split-text-units.js`), nicht
+  mehr im Browser. Nach dem ersten Paint umzubrechen ist genau die CLS-Quelle, die diese
+  Komponente mobil schon einmal hatte (0,29 am 08.07.2026).
+- **StaggerGroup** bekommt Vorzustand und Staffelung aus `tokens-base.css` (`nth-child`-Leiter
+  bis 24, Zeitwerte als Custom Properties am Wurzelelement). Ein nachträglich per JS
+  gesetzter `opacity: 0` hätte die Kinder erst sichtbar und dann wieder unsichtbar gemacht.
+
+Beide neuen Vorzustände liegen hinter `@media (scripting: enabled)` — ohne das bliebe der
+Text ohne JavaScript dauerhaft unsichtbar (Defekt D1, der auf blitzsicht.com schon einmal
+14 Elemente verschwinden liess).
+
+Nebenbei fallen die duplizierten Inline-Scripts weg: `examples/motion` liefert statt 13
+Script-Tags noch 6 aus, das HTML schrumpft von 31 214 auf 22 669 Bytes (−27 %), ohne einen
+einzigen zusätzlichen Request.
+
+**Zwei Guards, damit diese Fehlerklasse nicht zurückkommt:**
+
+1. **Render-Entropy-Guard** (`ai-discovery`, `astro:config:done`) — findet Zufallsaufrufe im
+   Build-Pfad jeder `.astro`-Quelle und zeigt auf die Zeile. `<script>`/`<style>`-Blöcke und
+   Kommentare fallen vorher raus: Zufall im Browser ist in Ordnung, und die Kommentare der
+   reparierten Komponenten nennen `Math.random()` wörtlich. **Default strict**
+   (`strictRenderEntropy`), gedeckt durch eine Messung über die committeten Quellen aller
+   25 Repos: **371 `.astro`-Dateien, 4 Befunde, alle vier der echte Bug, 0 Falsch-Positive.**
+2. **Doppel-Build-Nachweis** (`scripts/verify-reproducible-build.mjs`) — baut zweimal und
+   vergleicht Byte für Byte, meldet Datei, Zeile und Spalte. Sieht auch, was der Quell-Guard
+   nicht sieht (Zufall in einem importierten Modul, in einer Abhängigkeit, ein Zeitstempel).
+   Läuft als `pnpm verify:reproducible` gegen `examples/` und als neuer Schritt in
+   `templates/.github/workflows/build-check.yml` in jedem Kunden-Repo.
+
+Bewusst `astro build` statt `pnpm build`: blitzsichts `prebuild` holt Live-Daten (Plausible,
+PSI, Audit-Statistiken) — zweimal `pnpm build` wäre dort strukturell rot, und ein Guard, der
+bei einem Kunden immer rot ist, wird abgeschaltet.
+
+Datumsfunktionen sind bewusst kein Befund (`new Date()` steht an sieben Stellen berechtigt:
+Copyright-Jahr, `datePosted`, Sitemap-`lastmod`). Dass sich das HTML dadurch täglich ändert,
+ist derselbe Cache-Effekt aus anderer Ursache und ein eigenes Thema.
+
+Tests: 394 → 444 (18 für die Build-Zerlegung, 19 für den Quell-Guard, 13 für den
+Baum-Vergleich, inklusive Gegenproben, die den Bug wieder einsetzen und rot werden müssen).
+
 ## v0.106.0 (2026-08-11)
 
 - [kunde] Neue Prüfung beim Bauen der Website: Bilddateien, deren Dateiendung nicht zum

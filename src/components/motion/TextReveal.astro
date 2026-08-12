@@ -2,15 +2,37 @@
 /**
  * @cw/core – motion/TextReveal.astro
  *
- * Splits the slot text into words (or chars) and reveals them with a
- * stagger when scrolled into view. CSS-only motion, runtime only
- * touches the DOM once for the split.
+ * Zerlegt den Slot-Text in Wörter (oder Zeichen) und blendet sie gestaffelt
+ * ein, sobald das Element in den Viewport kommt. Die Zerlegung passiert im
+ * Build, nicht im Browser — das HTML kommt fertig aus dem Server.
+ *
+ * ## Warum im Build (blitzsicht-ops#650)
+ *
+ * Bis 11.08.2026 lief die Zerlegung als `is:inline`-Script beim Parsen: es
+ * suchte sein Element über eine `Math.random()`-ID, lief den TreeWalker ab und
+ * tauschte Textknoten gegen Spans. Zwei Builds derselben Quelle erzeugten
+ * dadurch unterschiedliches HTML.
+ *
+ * Sie stattdessen in ein gebündeltes Modul zu verschieben, hätte den Umbau der
+ * Zeilenumbrüche hinter den ersten Paint gelegt — genau die CLS-Quelle, die
+ * diese Komponente mobil schon einmal hatte (0,29 am 08.07.2026). Serverseitig
+ * zerlegt steht das endgültige Layout ab dem ersten Byte.
+ *
+ * ## Grenze
+ *
+ * `Astro.slots.render()` rendert den Slot vorzeitig, damit die Zerlegung ihn
+ * als HTML sieht. Für Text und Inline-Markup (`<br>`, `<strong>`) ist das
+ * folgenlos. Wer eine Komponente in den Slot reicht, sollte wissen, dass sie
+ * an dieser Stelle gerendert wird — und dass ihr Text danach in Spans steckt.
  *
  * @example
  *   <TextReveal as="h1" split="word" delay={0.05}>
  *     Professionelle Website. Ohne Warteliste.
  *   </TextReveal>
  */
+import { splitTextUnits } from '../../utils/text/split-text-units.js';
+import MotionRuntime from './MotionRuntime.astro';
+
 interface Props {
   /** Wrapping element tag. Defaults to "span". */
   as?: string;
@@ -31,11 +53,9 @@ const {
   class: className = '',
 } = Astro.props;
 
-const id = `tr-${Math.random().toString(36).slice(2, 9)}`;
+const units = splitTextUnits(await Astro.slots.render('default'), { split, start, delay });
 ---
-<Tag id={id} class:list={['motion-text-reveal', className]} data-motion-text-reveal={split} data-motion-delay={delay} data-motion-start={start}>
-  <slot />
-</Tag>
+<Tag class:list={['motion-text-reveal', className]} data-motion-text-reveal={split} data-motion-delay={delay} data-motion-start={start} set:html={units} />
 
 <style>
   /* Mobil (Basis) BEWUSST ohne Reveal-Styles: inline-block-Units sind atomar
@@ -44,7 +64,15 @@ const id = `tr-${Math.random().toString(36).slice(2, 9)}`;
      CLS 0,29 mobil, als ein Font nach First Paint eintraf). Die Spans bleiben
      mobil normaler Inline-Fluss, sofort sichtbar; animiert wird erst ab dem
      Desktop-Breakpoint (Hero-Mobile-Grenze 900px). */
-  @media (min-width: 901px) {
+  /* `scripting: enabled` ist Pflicht, seit die Spans im Build entstehen.
+     Vorher gab es sie ohne JavaScript gar nicht — die opacity-0-Regel lief
+     dann ins Leere und der Text war sichtbar. Jetzt stehen sie immer im HTML;
+     ohne die Bedingung bliebe die Headline ohne JS dauerhaft unsichtbar, weil
+     `.is-visible` ausschliesslich von `motion-runtime.ts` kommt. Das ist
+     derselbe Defekt D1, der auf blitzsicht.com 14 Elemente verschwinden liess.
+     Ein Browser, der `scripting` nicht kennt, verwirft den Block und zeigt den
+     Text — die richtige Seite, auf der man irren will. */
+  @media (min-width: 901px) and (scripting: enabled) {
     .motion-text-reveal :global([data-motion-text-unit]) {
       display: inline-block;
       opacity: 0;
@@ -53,9 +81,14 @@ const id = `tr-${Math.random().toString(36).slice(2, 9)}`;
                   transform var(--motion-duration-base, 0.6s) var(--motion-ease-out, cubic-bezier(0.22,1,0.36,1));
       will-change: opacity, transform;
     }
+  }
+  @media (min-width: 901px) {
     .motion-text-reveal.is-visible :global([data-motion-text-unit]) {
       opacity: 1;
       transform: translate3d(0, 0, 0);
+      /* Compositor-Layer wieder freigeben — `will-change` galt sonst bis zum
+         Seitenwechsel. Gleiche Regel wie bei [data-motion-reveal]. */
+      will-change: auto;
     }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -67,47 +100,4 @@ const id = `tr-${Math.random().toString(36).slice(2, 9)}`;
   }
 </style>
 
-<script is:inline define:vars={{ id }}>
-  (function () {
-    const root = document.getElementById(id);
-    if (!root) return;
-    const split = root.dataset.motionTextReveal || 'word';
-    const delay = parseFloat(root.dataset.motionDelay || '0.04');
-    const start = parseFloat(root.dataset.motionStart || '0');
-
-    // Walk text nodes to preserve inline HTML (e.g. <br>, <strong>).
-    const wrap = (node, counter) => {
-      const units = split === 'char'
-        ? Array.from(node.nodeValue)
-        : node.nodeValue.split(/(\s+)/);
-      const frag = document.createDocumentFragment();
-      units.forEach((u) => {
-        if (!u.trim()) { frag.appendChild(document.createTextNode(u)); return; }
-        const span = document.createElement('span');
-        span.setAttribute('data-motion-text-unit', '');
-        span.style.transitionDelay = `${start + counter.i * delay}s`;
-        span.textContent = u;
-        frag.appendChild(span);
-        counter.i += 1;
-      });
-      node.parentNode.replaceChild(frag, node);
-    };
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-    const nodes = [];
-    let n;
-    while ((n = walker.nextNode())) nodes.push(n);
-    const counter = { i: 0 };
-    nodes.forEach((node) => wrap(node, counter));
-
-    if (!('IntersectionObserver' in window)) { root.classList.add('is-visible'); return; }
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          root.classList.add('is-visible');
-          io.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.2 });
-    io.observe(root);
-  })();
-</script>
+<MotionRuntime />

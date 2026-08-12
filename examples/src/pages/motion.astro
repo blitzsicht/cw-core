@@ -175,7 +175,11 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
     <!-- 2 StaggerGroup -->
     <section class="demo" data-block>
       <div class="demo-kopf"><h2>StaggerGroup</h2></div>
-      <p class="was">Wie ScrollReveal, aber die Kinder kommen zeitversetzt nacheinander.</p>
+      <p class="was">
+        Wie ScrollReveal, aber die Kinder kommen zeitversetzt nacheinander. Seit
+        11.08.2026 rein deklarativ: Vorzustand und Staffelung stehen in CSS, beobachtet
+        wird die <strong>Gruppe</strong> statt jedes Kind einzeln.
+      </p>
       <StaggerGroup class="karten" gap={0.12}>
         <div class="karte">Erstes</div>
         <div class="karte">Zweites</div>
@@ -193,7 +197,9 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
       </div>
       <p class="was">
         Zerlegt Text und blendet ihn wortweise ein. Unterhalb von 901 px passiert
-        bewusst nichts — der Effekt hatte mobil CLS 0,29 verursacht.
+        bewusst nichts — der Effekt hatte mobil CLS 0,29 verursacht. Die Zerlegung
+        passiert seit 11.08.2026 im Build: die Wort-Spans stehen im Quelltext, der
+        Browser baut kein Layout mehr um.
       </p>
       <h3 style="font-size:1.75rem;color:var(--color-primary)">
         <TextReveal>Sichtbar werden, wo Menschen suchen.</TextReveal>
@@ -327,7 +333,11 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
       btn.addEventListener('click', () => {
         const block = btn.closest('[data-block]');
         if (!block) return;
-        const ziele = block.querySelectorAll('[data-motion-reveal], [data-motion-text-unit]');
+        // Die Klasse sitzt am Wurzelelement, nicht an den Einheiten: Stagger
+        // staffelt seine Kinder per CSS, TextReveal seine Wort-Spans ebenso.
+        const ziele = block.querySelectorAll(
+          '[data-motion-reveal], [data-motion-stagger], [data-motion-text-reveal]',
+        );
         ziele.forEach((el) => el.classList.remove('is-visible'));
         // Reflow erzwingen, sonst fasst der Browser Entfernen und Setzen
         // zu einem Schritt zusammen und man sieht gar nichts.

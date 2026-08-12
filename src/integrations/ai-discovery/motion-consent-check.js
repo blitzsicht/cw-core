@@ -65,6 +65,21 @@ export const MOTION_PROP_KEYS = Object.freeze({
 export const IMPORT_ONLY_MOTION = Object.freeze(['ScrollReveal', 'CountUp', 'FullBleed']);
 
 /**
+ * Dateien in `components/motion/`, die keine Motion-Komponente sind und
+ * deshalb weder eine Prop noch einen Marker haben können.
+ *
+ * `MotionRuntime.astro` rendert kein Markup — sie trägt ausschliesslich den
+ * `<script>`-Block, über den Astro das gemeinsame Laufzeitmodul einmal pro
+ * Seite ausliefert (blitzsicht-ops#650). Sie schaltet nichts ein, was der
+ * Kunde nicht schon bestellt hätte: sie kommt nur mit, wenn eine echte
+ * Motion-Komponente sie rendert.
+ *
+ * Diese Liste ist bewusst kurz zu halten. Wer hier etwas einträgt, nimmt es
+ * dem Consent-Guard aus dem Blick.
+ */
+export const NON_VISUAL_MOTION = Object.freeze(['MotionRuntime']);
+
+/**
  * Entfernt `<style>`- und `<script>`-Blöcke samt Inhalt.
  * Selbstschliessende Tags zuerst, sonst frisst die Paar-Regel alles bis zum
  * nächsten Schluss-Tag.

@@ -47,6 +47,7 @@ import {
   countMarker,
   stripInlineBlocks as stripMotionInlineBlocks,
 } from './motion-consent-check.js';
+import { lintRenderEntropy } from './render-entropy-check.js';
 import { geotagDist } from './geotag.js';
 import { walkImages } from './geotag-core.js';
 
@@ -317,6 +318,37 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * hält bei jeder Bilddatei den Inhalt gegen die Endung. Opt-out pro Site: `false`.
    */
   checkAssetFormat?: boolean;
+
+  /**
+   * Default true. Render-Entropy-Guard auf den `.astro`-Quellen: findet
+   * Zufallsaufrufe im Build-Pfad (Frontmatter und Template-Ausdrücke), die das
+   * HTML zwischen zwei Builds verändern. Opt-out pro Site: `false`.
+   */
+  checkRenderEntropy?: boolean;
+
+  /**
+   * Default TRUE ab v0.107.0 → Build-Fail (throw), wenn eine `.astro`-Quelle zur
+   * Build-Zeit einen Zufallswert erzeugt (`Math.random()`, `crypto.randomUUID()`).
+   *
+   * Anlass: vier Motion-Komponenten würfelten ihre Element-ID pro Build
+   * (blitzsicht-ops#650). Bei blitzsicht änderten sich dadurch 13 von 52 Seiten
+   * bei jedem Deploy, ohne inhaltliche Änderung — ETag und Last-Modified waren
+   * wertlos, und der Byte-Vergleich zweier Builds, das schärfste Werkzeug für
+   * „Output unverändert", ertrank in 121 Zeilen Rauschen.
+   *
+   * Sofort strict statt Soft-Warn, gedeckt durch eine Messung über die
+   * **committeten** Quellen aller 25 Repos (11.08.2026, `git show <ref>:<pfad>`):
+   * **371 `.astro`-Dateien, 4 Befunde, alle vier der echte Bug, 0 Falsch-Positive.**
+   *
+   * Die 0 ist erarbeitet: ein naiver Scan meldete zunächst die Kopfkommentare der
+   * reparierten Komponenten, weil sie den Fehler erklären und `Math.random()`
+   * dabei wörtlich nennen. Deshalb blendet der Guard Kommentare aus — und
+   * `<script>`/`<style>`-Blöcke ebenso, denn Zufall im Browser ist in Ordnung.
+   *
+   * Nicht abgedeckt: Zufall in einem importierten `.ts`-Modul. Dafür ist
+   * `scripts/verify-reproducible-build.mjs` da (zweimal bauen, Bytes vergleichen).
+   */
+  strictRenderEntropy?: boolean;
 
   /**
    * Default TRUE ab v0.106.0 → Build-Fail (throw), wenn die Endung einer Quell-Bilddatei
@@ -1899,6 +1931,56 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               );
             } else {
               logger.info(`Asset-Format: ✓ ${checked} Quell-Assets, Endung passt zum Inhalt.`);
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Render-Entropy-Guard: würfelt der Build das HTML?
+        // -------------------------------------------------------------------
+        // Begründung an lintRenderEntropy. Hier im config-Hook, weil die Frage an
+        // der Quelle beantwortet wird: in dist/ sieht man nur, DASS eine ID komisch
+        // aussieht — nicht, wer sie erzeugt. Ein einzelner Build kann den Fehler
+        // ohnehin nicht sehen, dafür braucht es zwei (blitzsicht-ops#650).
+        if (options.checkRenderEntropy !== false) {
+          if (!customerSrcDir) {
+            // Dritter Zustand. Kein ✓ — „nicht geprüft" ist nicht „sauber".
+            logger.warn(
+              `Render-Entropy: NICHT GEPRÜFT — srcDir nicht auflösbar. ` +
+                `Das ist kein grünes Ergebnis.`,
+            );
+          } else {
+            const { issues: entropyIssues, checked } = lintRenderEntropy([customerSrcDir]);
+            if (entropyIssues.length > 0) {
+              logger.warn(
+                `Render-Entropy: ${entropyIssues.length} Zufallsaufruf(e) im Build-Pfad von ` +
+                  `${checked} .astro-Datei(en). Das HTML ändert sich damit bei jedem Build:`,
+              );
+              for (const i of entropyIssues.slice(0, 20)) {
+                logger.warn(`  [render-entropy] ${i.file}:${i.line} ${i.pattern} — ${i.snippet}`);
+              }
+              if (entropyIssues.length > 20) {
+                logger.warn(`  … und ${entropyIssues.length - 20} weitere.`);
+              }
+              if (options.strictRenderEntropy !== false) {
+                throw new Error(
+                  `[ai-discovery] strictRenderEntropy=true: Build abgebrochen wegen ` +
+                    `${entropyIssues.length} Zufallsaufruf(en) im Build-Pfad. Ein Wert, der pro ` +
+                    `Build neu gewürfelt wird, entwertet den Cache jeder betroffenen Seite und ` +
+                    `macht den Byte-Vergleich zweier Builds unbrauchbar. Braucht das Element ` +
+                    `wirklich eine ID, oder findet das Script es über ein data-Attribut? ` +
+                    `Opt-out: strictRenderEntropy:false.`,
+                );
+              }
+            } else if (checked === 0) {
+              // Verzeichnis da, aber keine einzige .astro gelesen. Kein ✓ — sonst
+              // meldete eine leere Menge dasselbe wie eine geprüfte.
+              logger.warn(
+                `Render-Entropy: NICHT GEPRÜFT — keine .astro-Datei unter srcDir gefunden. ` +
+                  `Das ist kein grünes Ergebnis.`,
+              );
+            } else {
+              logger.info(`Render-Entropy: ✓ ${checked} .astro-Quellen, kein Zufall im Build-Pfad.`);
             }
           }
         }

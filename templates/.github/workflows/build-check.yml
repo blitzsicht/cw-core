@@ -6,7 +6,8 @@
 #
 # Template location: cw-core/templates/.github/workflows/build-check.yml
 # Rolled out to: all 9 customer-* repos via scripts/rollout-build-check.sh
-# Runtime: ~60–90s per run (Node+pnpm cache hits)
+# Runtime: ~2–3 min per run (Node+pnpm cache hits; enthält einen zweiten
+# astro build für den Reproduzierbarkeits-Nachweis)
 #
 # If this workflow is red but Vercel is green, something is off — investigate immediately.
 # If this workflow is red and Vercel is red, the lockfile was committed stale. Run:
@@ -28,7 +29,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # 8 statt 5 seit dem Reproduzierbarkeits-Schritt: der baut ein zweites Mal
+    # (~30-60 s). Bei 5 Minuten wäre das größte Repo knapp geworden.
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -100,6 +103,31 @@ jobs:
           fi
         env:
           SKIP_TOUCHPOINTS: ${{ vars.SKIP_TOUCHPOINTS }}
+
+      - name: Reproduzierbarkeit (zweimal bauen, Bytes vergleichen)
+        # Anlass blitzsicht-ops#650: vier Motion-Komponenten würfelten ihre
+        # Element-ID pro Build. Zwei Builds derselben Quelle unterschieden sich
+        # bei blitzsicht auf 13 von 203 Dateien — jeder Deploy entwertete den
+        # Cache jeder betroffenen Seite, drei Jahre lang, ohne dass irgendetwas
+        # rot wurde. Ein einzelner Build kann diesen Fehler nicht sehen.
+        #
+        # Läuft NACH dem Build-Schritt: der baut in dist/ (das die Schritte
+        # davor und danach lesen), dieser hier in node_modules/.cache/ und
+        # fasst dist/ nicht an. Kostet einen zweiten astro build (~30-60 s).
+        #
+        # Bewusst `astro build` statt `pnpm build`: blitzsichts prebuild holt
+        # Live-Daten (Plausible, PSI) — zweimal `pnpm build` wäre dort
+        # strukturell rot, und ein Guard, der bei einem Kunden immer rot ist,
+        # wird abgeschaltet. Gemessen wird Astros Rendering bei gleichen Eingaben.
+        #
+        # Fleet-Messung 11.08.2026 vor dem Scharfschalten: 13 Live-Repos,
+        # 12 reproduzierbar, 1 Befund (blitzsicht) — und der war der echte Bug.
+        run: |
+          if [ -f node_modules/@cw/core/scripts/verify-reproducible-build.mjs ]; then
+            node node_modules/@cw/core/scripts/verify-reproducible-build.mjs
+          else
+            echo "skip: cw-core ohne verify-reproducible-build.mjs (< v0.107.0)"
+          fi
 
       - name: CSP-Output-Check (prüft die CSP gegen das GEBAUTE dist/)
         # Der validate-csp-Schritt oben prüft den CSP-*Text* gegen bekannte
