@@ -755,14 +755,19 @@ test('E2E: Plausible-Proxy /js/script.js lebt per Rewrite — kein Befund', () =
   assert.doesNotMatch(out, /Asset-Referenz \/js\/script\.js/);
 });
 
-test('E2E: assetRefChecks — Default warn, "fail" rot, "off" still, Unsinn → Exit 2', () => {
+test('E2E: assetRefChecks — Default fail (seit v0.112.0), "warn" weich, "off" still, Unsinn → Exit 2', () => {
   const files = { 'index.html': PAGE('https://kunde.de/').replace('<body>', '<body><img src="/fehlt.png">') };
 
+  // Gedeckt durch die Flottenmessung 12.08.2026: 703 Asset-Referenzen über frische
+  // Builds aller 20 Repos, 0 Befunde. Eine saubere Flotte, die nur gewarnt wird,
+  // driftet zurück — dieselbe Begründung wie beim Link-Check in v0.109.0.
   const std = runTree({ files });
-  assert.equal(std.code, 0, `Default ist warn, out:\n${std.out}`);
-  assert.match(std.out, /⚠ Asset-Referenz \/fehlt\.png/);
+  assert.equal(std.code, 1, `Default ist fail, out:\n${std.out}`);
+  assert.match(std.out, /✗ Asset-Referenz \/fehlt\.png/);
 
-  assert.equal(runTree({ files, config: { assetRefChecks: 'fail' } }).code, 1);
+  const weich = runTree({ files, config: { assetRefChecks: 'warn' } });
+  assert.equal(weich.code, 0, `warn gibt Repos mit Altlasten eine Schonfrist, out:\n${weich.out}`);
+  assert.match(weich.out, /⚠ Asset-Referenz \/fehlt\.png/);
 
   const aus = runTree({ files, config: { assetRefChecks: 'off' } });
   assert.equal(aus.code, 0);

@@ -22,6 +22,51 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.112.0 (2026-08-12)
+
+**Breaking (Guard):** `assetRefChecks` steht per Default auf `"fail"`. Eine Asset-Referenz,
+die im gebauten `dist/` weder als Datei noch über ein Rewrite auflösbar ist, bricht den Build
+ab statt nur zu warnen.
+
+Gedeckt durch eine Flottenmessung auf **frischen** Builds (12.08.2026), nicht auf vorhandenen
+`dist/`-Ständen — die hatten bei v0.108.0 schon einmal 15 Altbefunde vorgetäuscht, von denen
+genau einer echt war:
+
+| Messung | Umfang | Befunde |
+|---|---|---|
+| Live-Crawl, 13 Seiten, HEAD je Referenz | 549 Referenzen | 0 (549× HTTP 200, kein Redirect) |
+| Lokale Frisch-Builds, 20 Repos | 703 Referenzen | 0 |
+| CI nach dem Bump, 10 Live-Repos | 513 Referenzen | 0 |
+
+Die Einzelzahlen aus CI und lokaler Messung sind deckungsgleich (blitzsicht 61, zink 179,
+digital-direkt 90 …) — zwei unabhängige Wege, dasselbe Ergebnis.
+
+Eine saubere Flotte, die nur gewarnt wird, driftet zurück — dieselbe Begründung wie beim
+Link-Check in v0.109.0.
+
+**Migration:** Repos mit Altbefunden setzen `"assetRefChecks": "warn"` in ihrer
+`touchpoint-audit.config.json`, bis sie abgearbeitet sind. Mit Grund, nicht stillschweigend.
+
+**Fix:** Der `llms.txt`-Guard benennt die tatsächliche Ursache, statt sie zu raten.
+
+Der Check sieht nur `dist/llms.txt` und kann daraus nicht ableiten, woher die Datei stammt.
+Eine statische `public/llms.txt` und eine Astro-Route `src/pages/llms.txt.ts` erzeugen dasselbe
+Artefakt, brauchen aber gegensätzliche Handgriffe — die Meldung nannte trotzdem immer
+`public/llms.txt`. Bei schiller-gartenbau (Route, keine Datei) schickte sie damit auf die Suche
+nach einer Datei, die es im Repo nicht gibt, und blockierte den Kunden über den
+strict-warnings-Gate vom Pin-Bump.
+
+Neu wird unterschieden: Datei vorhanden → Datei löschen. Route vorhanden → Route löschen.
+Keins von beidem → explizit als „Quelle unklar" gemeldet, statt eine zu erfinden.
+Cluster-Scan über alle `customer-*`-Repos: braustall hat die Datei, schiller-gartenbau hatte
+die Route, sonst niemand. Beide Zweige an einem echten Build von
+`customer-schiller-gartenbau` gegengeprüft.
+
+Tests bleiben bei 502 — der Default-Test wurde auf `fail` umgestellt, nicht ergänzt, und
+prüft weiterhin alle vier Zustände (`fail` per Default, `warn`, `off`, Unsinnswert → Exit 2).
+
+---
+
 ## v0.111.1 (2026-08-12)
 
 **Fix:** Der dist-Check gibt die Zahl der geprüften Links und Asset-Referenzen jetzt **immer**

@@ -34,7 +34,7 @@
  *     "allowExternalMailto": ["poststelle@lda.bayern.de"],
  *     "adsFinalUrls": ["https://kunde.de/leistungen/x/"],
  *     "distLinkChecks": "fail",  // "fail" (Default seit v0.109.0) | "warn" | "off"
- *     "assetRefChecks": "warn"   // "warn" (Default seit v0.111.0) | "fail" | "off"
+ *     "assetRefChecks": "fail"   // "fail" (Default seit v0.112.0) | "warn" | "off"
  *   }
  *
  * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung, assetRefChecks NUR die
@@ -655,13 +655,22 @@ async function main() {
   // ihre Altbefunde hart. Dort ist `"distLinkChecks": "warn"` in der
   // touchpoint-audit.config.json der Weg, sie erst abzuarbeiten.
   //
-  // Asset-Referenzen (seit v0.111.0) hängen am eigenen Schalter `assetRefChecks`,
-  // damit Links und Assets getrennt abgestuft werden können: die Link-Prüfung ist
-  // seit v0.109.0 flottenweit sauber und bleibt hart, die Asset-Prüfung startet
-  // als Warnung und wird nach der Flottenmessung über frische CI-Builds
-  // nachgezogen — derselbe Weg wie v0.108.0 → v0.109.0.
+  // Asset-Referenzen hängen am eigenen Schalter `assetRefChecks`, damit Links und
+  // Assets getrennt abgestuft werden können.
+  //
+  // Default hart seit v0.112.0. Der Check startete in v0.111.0 als Warnung, wie
+  // v0.108.0 → v0.109.0 es vorgemacht hat. Die Flottenmessung am 12.08.2026 lief
+  // über FRISCHE Builds aller 20 Repos mit @cw/core-Pin: 703 distinkte
+  // Asset-Referenzen, 0 Befunde, in keinem einzigen Repo etwas. Unabhängig davon
+  // die CI-Läufe nach dem Bump über 10 Live-Repos: 513 Referenzen, 0 Befunde, und
+  // jede Einzelzahl deckungsgleich mit der lokalen Messung.
+  //
+  // Vorher, read-only über die 13 Live-Seiten: 549 Referenzen per HEAD geprüft,
+  // 549× HTTP 200, kein Redirect, kein 404.
+  //
+  // Eine saubere Flotte, die nur gewarnt wird, driftet zurück.
   const distMode = cfg.distLinkChecks ?? 'fail';
-  const assetMode = cfg.assetRefChecks ?? 'warn';
+  const assetMode = cfg.assetRefChecks ?? 'fail';
   if (distDir && (distMode !== 'off' || assetMode !== 'off')) {
     for (const [key, value] of [
       ['distLinkChecks', distMode],
