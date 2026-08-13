@@ -1,0 +1,42 @@
+---
+/**
+ * Fixture für `scripts/verify-hero-title-scope.mjs` — NICHT nur Schaufenster.
+ *
+ * Die Seite rendert Hero in BEIDEN Motion-Zuständen nebeneinander, weil genau der
+ * Unterschied zwischen ihnen der Defekt war (blitzsicht-ops#662): mit `textReveal`
+ * rendert `TextReveal` das <h1>, es trägt dann DESSEN Astro-Scope, und ein scoped
+ * `h1 { … }` im Hero greift ins Leere. Ein Test, der nur den Aus-Zweig baut, kann
+ * das nie rot melden.
+ *
+ * Wer hier etwas ändert: die Überschriften-Texte sind Anker für das Prüfskript.
+ */
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import Hero from '@cw/core/components/blocks/Hero.astro';
+---
+<ExampleLayout
+  title="Hero — Titel-Scope in beiden Motion-Zweigen"
+  description="Regressionsfixture zu #662: die Hero-Überschrift muss in beiden Zweigen dieselbe Größe und Farbe bekommen — auch wenn TextReveal sie rendert."
+>
+  <div class="example-section">
+    <h2>ohne textReveal — Hero rendert das &lt;h1&gt; selbst</h2>
+    <Hero
+      badge="Regressionsfixture"
+      headline="Titel ohne TextReveal"
+      subtext="Der Aus-Zweig: das h1 steht direkt in Hero.astro."
+      ctaPrimary={{ label: 'Kontakt', href: '/kontakt' }}
+      ctaSecondary={{ label: 'Leistungen', href: '/leistungen' }}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>mit textReveal — TextReveal rendert das &lt;h1&gt;</h2>
+    <Hero
+      badge="Regressionsfixture"
+      headline="Titel mit TextReveal"
+      subtext="Der An-Zweig: das h1 kommt aus TextReveal und trägt dessen Scope."
+      ctaPrimary={{ label: 'Kontakt', href: '/kontakt' }}
+      ctaSecondary={{ label: 'Leistungen', href: '/leistungen' }}
+      motion={{ textReveal: true }}
+    />
+  </div>
+</ExampleLayout>

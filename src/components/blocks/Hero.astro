@@ -181,12 +181,16 @@ const motionCfg: HeroMotionConfig =
         {badge}
       </div>
 
+      {/* `hero-title` in BEIDEN Zweigen — die Ueberschrift wird im textReveal-Zweig von
+          TextReveal gerendert und traegt dann DEREN Astro-Scope, nicht den des Hero. Ein
+          scoped `h1 { … }` hier kann sie deshalb nicht treffen. Gestylt wird ueber
+          `.hero-content :global(.hero-title)`, siehe Style-Block. */}
       {motionCfg.textReveal ? (
-        <TextReveal as="h1" split="word" delay={0.05}>
+        <TextReveal as="h1" class="hero-title" split="word" delay={0.05}>
           <Fragment set:html={headline} />
         </TextReveal>
       ) : (
-        <h1 set:html={headline} />
+        <h1 class="hero-title" set:html={headline} />
       )}
 
       {subtext && <p class="hero-sub">{subtext}</p>}
@@ -480,7 +484,16 @@ const motionCfg: HeroMotionConfig =
     margin-bottom: 1.5rem;
     letter-spacing: 0.02em;
   }
-  h1 {
+  /* Ueberschrift ueber `.hero-content :global(.hero-title)`, NICHT ueber `h1 { … }`.
+     Bei `motion.textReveal` rendert TextReveal das <h1>; es traegt dann dessen
+     data-astro-cid, und ein scoped Element-Selektor hier greift ins Leere — die
+     Ueberschrift fiel auf Browser-Default (2em) plus geerbte Farbe zurueck. Auf
+     blitzsicht.com war das live so, bei weinkontor zusaetzlich weinrot, weil dort
+     ein globales `h1 { color: … }` uebernahm.
+     Gleiches Muster wie bei `.hero-collage :global(…)` oben: der scoped Parent
+     bindet die data-cid, :global() umgeht den fremden Kind-Scope. Nebeneffekt und
+     hier erwuenscht: 0,2,0 schlaegt kundenseitige globale h1-Regeln. */
+  .hero-content :global(.hero-title) {
     font-size: clamp(2.25rem, 5vw, 3.75rem);
     color: white;
     margin: 0 0 1.25rem;

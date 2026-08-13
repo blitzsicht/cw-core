@@ -22,6 +22,56 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.115.0 (2026-08-13)
+
+- [kunde:sichtbar] Die Überschrift im oberen Seitenbereich erscheint wieder in voller Größe. Auf Seiten mit eingeblendeter Titel-Animation war sie zuletzt deutlich zu klein.
+
+**Fix:** Die Hero-Überschrift wird jetzt in **beiden** Motion-Zweigen gestylt.
+
+`Hero.astro` rendert die Überschrift bei aktivem `motion.textReveal` nicht selbst, sondern
+über `<TextReveal as="h1">`. Das `<h1>` trägt dadurch den Astro-Scope von TextReveal, und der
+scoped Element-Selektor `h1 { font-size: clamp(2.25rem,5vw,3.75rem); color: white }` im Hero
+konnte es nicht mehr treffen. Übrig blieb, was der Kunde global für `h1` gesetzt hatte — oder
+gar nichts.
+
+Gemessen im Browser an der neuen Fixture, gleiche Seite, beide Zweige nebeneinander:
+
+| Zweig | vorher | nachher |
+|---|---|---|
+| ohne `textReveal` | 60 px | 60 px |
+| mit `textReveal` | **24 px** | 60 px |
+
+**Live betroffen war blitzsicht.com**: dort gab es **keine einzige** Regel, die dem `<h1>`
+Größe oder Farbe zuwies — die Überschrift lief auf Browser-Default. Bei
+`customer-weinkontor-sinzing` kam zusätzlich ein globales `h1 { color: … }` aus den
+Kunden-Tokens durch und färbte sie weinrot auf dunklem Grund.
+
+Neu: beide Zweige rendern `class="hero-title"`, und die Regel bindet als
+`.hero-content :global(.hero-title)`. Dasselbe Muster, das `Hero.astro` für TiltCard-Kinder
+schon nutzt — der scoped Parent bindet die `data-astro-cid`, `:global()` umgeht den fremden
+Kind-Scope. Erwünschter Nebeneffekt: Spezifität `0,2,0` schlägt kundenseitige globale
+`h1`-Regeln. `TextReveal.astro` bleibt unverändert; es nahm den `class`-Prop schon entgegen.
+
+Abgesichert durch `scripts/verify-hero-title-scope.mjs` gegen die Fixture
+`examples/src/pages/hero-title-scope.astro`, die beide Zweige in einem Build nebeneinander
+rendert. Gemessen werden die **berechneten** Stile im echten Browser, nicht der CSS-Text — ein
+Selektor kann korrekt aussehen und trotzdem nichts treffen. Der Check hängt über
+`scripts/verify-hero-title-scope.test.mjs` an `pnpm test` (Tests 508 → 509) und kennt drei
+Zustände: grün, rot, und `NICHT GEPRÜFT` als sichtbares `skip`, wenn Playwright oder Fixture
+fehlen. Gegenbeweis gefahren: gegen den Stand von v0.114.0 meldet er Exit 1 und benennt den
+textReveal-Zweig.
+
+Cluster-Scan: `<TextReveal as=…>` kommt in cw-core **nur** in `Hero.astro` vor. In der Flotte
+nutzen `blitzsicht` und `braustall` `textReveal`; `mazterplan` und `preshot` fahren nur
+`motion={{ progress: true }}` und sind nicht betroffen.
+
+**Migrations-Hinweis:** Keiner. Wer die Überschrift kundenseitig über einen `h1`-Selektor
+übersteuert hat, muss auf `.hero-title` wechseln — in der Flotte tut das niemand.
+
+Refs: blitzsicht-ops#662
+
+---
+
 ## v0.114.0 (2026-08-13)
 
 **Fix:** Der SiteData-Shape-Guard meldet reine SEO-Hinweise als `info` statt als `[WARN]`.
