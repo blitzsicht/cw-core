@@ -22,6 +22,56 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.116.0 (2026-08-13)
+
+**Workflow:** Der Release-Train fragt vor jedem Bump, ob der Kunde überhaupt etwas davon hat.
+
+Bewusst **ohne** `[kunde]`-Zeile — an keiner ausgelieferten Seite ändert sich etwas. Dieser
+Eintrag ist zugleich das erste Beispiel für den Fall, den das neue Gate abfängt.
+
+Gemessen am 13.08.2026, und der Anlass für den Umbau:
+
+| | |
+|---|---|
+| cw-core-Releases seit 01.08. | 40 in 13 Tagen, davon 26 in KW33 |
+| Bump-Commits über die Flotte, 90 Tage | 550 |
+| je Live-Repo | 40–51, also etwa jeden zweiten Tag ein Production-Deploy |
+| CHANGELOG-Einträge **ohne** `[kunde]`-Marker | **155 von 204** |
+
+Der Train zog stumpf den neuesten Tag und koppelte damit zwei Dinge, die nichts miteinander
+zu tun haben: „unsere neuen Guards sollen über die Flotte laufen" und „der Kunde bekommt
+einen Commit und einen Deploy". Drei Viertel der Releases ändern an der ausgelieferten Seite
+nachweislich nichts — gympanzens Sprung v0.95.0 → v0.110.0 ergab über 82 Dateien und 18
+Seiten null Byte Unterschied.
+
+Die Klassifikation existierte längst: der `cw-release`-Skill verlangt bei kundenwirksamen
+Releases eine `[kunde]`- bzw. `[kunde:sichtbar]`-Zeile. Sie wurde nur nie gelesen.
+
+Neu:
+
+- `scripts/lib/changelog-kunde.mjs` — reine Logik. `kundenwirkung(md, von, bis)` sammelt die
+  `[kunde]`-Zeilen der Spanne (`von` exklusiv, `bis` inklusive) und kennt **drei** Zustände:
+  `kundenwirksam`, `nur-tooling` und `unbekannt`. Der dritte ist der wichtige — fehlt eine der
+  Versionen im CHANGELOG oder umfasst die Spanne 0 Versionen, ist das kein „nur Tooling".
+  Eine leere Menge beweist nichts, also **fail open**: bumpen und den Grund melden.
+- `scripts/kunde-gate.mjs` — CLI für den Train. Exit 0 = bumpen, 10 = überspringen,
+  11 = unbekannt, 2 = Aufruffehler. Bewusst so geschnitten, dass ein kaputter Aufruf nie wie
+  „überspringen" aussieht.
+- `upgrade-cw-core-mass.sh` in `customer-websites` ruft das Gate vor jedem Bump. Notausgang
+  `--ignore-kunde-gate`.
+
+**Das Gate entscheidet über den Pin, nicht über das Messen.** `--build-only` läuft bewusst
+daran vorbei: ein alter Pin versteckt Guards, statt sie zu entschärfen. Wer nicht bumpt, muss
+trotzdem scannen — sonst tauscht man Deploy-Lärm gegen blinde Flecken.
+
+Vier Zweige an echten Kunden gegengeprüft: gympanzen v0.113.0 → v0.114.0 (reines Tooling)
+wird übersprungen, digital-direkt v0.112.0 → v0.115.0 geht durch, `--ignore-kunde-gate` hebelt
+den Skip aus, und `--build-only` misst weiterhin (21 Guards mit ✓). Tests 509 → 521.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.115.0 (2026-08-13)
 
 - [kunde:sichtbar] Die Überschrift im oberen Seitenbereich erscheint wieder in voller Größe. Auf Seiten mit eingeblendeter Titel-Animation war sie zuletzt deutlich zu klein.
