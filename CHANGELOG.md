@@ -22,6 +22,45 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.114.0 (2026-08-13)
+
+**Fix:** Der SiteData-Shape-Guard meldet reine SEO-Hinweise als `info` statt als `[WARN]`.
+
+`lintSiteDataShape` stuft `legal.region` und `seo.knowsAbout` seit jeher als
+`severity: 'info'` ein — der Kommentar im Code sagt wörtlich „reine Hinweise, brechen nie
+den Build", und `strictSiteDataShape` wirft ausschließlich bei `warn`. Ausgegeben wurden
+sie trotzdem über `logger.warn`. Astro schreibt daraufhin `[WARN]` ins Build-Log, und der
+strict-warnings-Gate des Release-Trains zählt jede WARN-Zeile mit `@cw/core`-Label als
+Guard-Befund, ohne die Severity zu kennen (`customer-websites/scripts/lib/build-warnings.mjs`).
+
+Folge: ein Hinweis, der laut eigener Definition nichts bricht, verweigerte den PR.
+`customer-allstargirls-regensburg` und `customer-itk-regensburg` hingen **allein deswegen**
+auf v0.110.0 fest — ihr einziger Befund war „`legal.region` fehlt". Zwei weitere Repos
+trugen den Hinweis zusätzlich zu echten Befunden.
+
+Neu: `planShapeReport(issues, strict)` entscheidet als reine Funktion über Log-Level,
+Kopfzeile und Abbruch; der Astro-Hook loggt nur noch, was sie zurückgibt.
+
+- keine Issues → `info`, `✓ Canonical-Shape (Bild-Pipeline voll wirksam).`
+- nur `info`-Issues → **`info`**, `✓ Canonical-Shape, N SEO-Hinweis(e) (kein Befund):` —
+  die Hinweise stehen weiterhin vollständig im Log, nur eben nicht mehr als Warnung.
+- mindestens ein `warn`-Issue → unverändert `warn` + Abbruch bei `strictSiteDataShape`.
+
+Das `✓` im Hinweis-Fall ist Absicht: der Report zählt Info-Zeilen mit `✓` als Beleg, dass
+ein Guard überhaupt gelaufen ist. Ohne Häkchen hätte ausgerechnet ein Repo mit SEO-Hinweisen
+still einen Guard weniger vorzuweisen als ein sauberes.
+
+Belegt in beiden Richtungen: `tests/ai-discovery/sitedata-shape-linter.test.js` prüft neben
+dem Hinweis-Fall den Gegenbeweis (echte Shape-Abweichung → `warn` **und** Abbruch) sowie die
+Mischung aus beidem — ein Hinweis darf eine echte Abweichung nicht herunterstufen. Auf
+Log-Ebene liefert `build-warnings-report.mjs` gegen dasselbe Build-Log vorher `rc=2` und
+nachher `rc=0`, bei `guardOk` 20 → 21.
+
+**Migrations-Hinweis:** Keiner. Sichtbare Website-Ausgabe unverändert; betroffen ist nur das
+Build-Log.
+
+---
+
 ## v0.113.0 (2026-08-12)
 
 **Fix:** Der Perf-Budget-Guard misst jetzt auch `.avif`.

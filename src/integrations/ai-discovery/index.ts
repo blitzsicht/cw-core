@@ -1645,6 +1645,83 @@ export function lintSiteDataShape(data: any): ShapeIssue[] {
   return issues;
 }
 
+/** Was der Shape-Guard ins Build-Log schreibt — und ob er den Build abbricht. */
+export interface ShapeReport {
+  /** Log-Level für Kopf- UND Detailzeilen. */
+  level: 'info' | 'warn';
+  /** Kopfzeile. */
+  header: string;
+  /** Detailzeilen, je eine pro Issue. Führende zwei Leerzeichen sind Vertrag, s.u. */
+  lines: string[];
+  /** true → Build abbrechen. */
+  throws: boolean;
+  /** Text der Abbruch-Meldung. Leer, wenn `throws` false ist. */
+  throwMessage: string;
+}
+
+/**
+ * Entscheidet, mit welchem Level der Shape-Guard meldet. Reine Logik, kein Logger —
+ * damit die Entscheidung testbar ist, statt nur im Astro-Hook zu leben.
+ *
+ * 🔴 Anlass (13.08.2026): `legal.region` und `seo.knowsAbout` sind hier ausdrücklich
+ * `severity: 'info'` und brechen laut eigener Definition nie den Build — `strict` wirft
+ * nur bei `warn`. Ausgegeben wurden sie trotzdem per `logger.warn`, Astro schrieb `[WARN]`
+ * ins Log, und der strict-warnings-Gate des Release-Trains zählt jede WARN-Zeile mit
+ * `@cw/core`-Label als Befund (`customer-websites/scripts/lib/build-warnings.mjs`). Ein
+ * Hinweis, der nichts bricht, verweigerte damit den PR: `allstargirls-regensburg` und
+ * `itk-regensburg` hingen allein deswegen auf v0.110.0 fest.
+ *
+ * Das `✓` im Hinweis-Fall ist Absicht, nicht Kosmetik: der Report zählt Info-Zeilen mit
+ * `✓` als Beleg, dass ein Guard überhaupt gelaufen ist (`guardOk`). Ohne das Häkchen hätte
+ * ein Repo mit SEO-Hinweisen still einen Guard weniger vorzuweisen als ein sauberes — und
+ * ausgerechnet die Vorbedingungs-Zählung würde ungenau.
+ *
+ * Die zwei führenden Leerzeichen der Detailzeilen sind ebenfalls Vertrag: daran erkennt
+ * der Report Detail- von Kopfzeilen und hängt sie an den richtigen Befund.
+ *
+ * @param issues Ergebnis von `lintSiteDataShape`
+ * @param strict `strictSiteDataShape !== false`
+ */
+export function planShapeReport(issues: ShapeIssue[], strict: boolean): ShapeReport {
+  const warnIssues = issues.filter((i) => i.severity === 'warn');
+  const hintCount = issues.length - warnIssues.length;
+  const lines = issues.map((i) => `  [${i.severity}] ${i.field}: ${i.detail}`);
+
+  if (issues.length === 0) {
+    return {
+      level: 'info',
+      header: `SiteData-Shape: ✓ Canonical-Shape (Bild-Pipeline voll wirksam).`,
+      lines: [],
+      throws: false,
+      throwMessage: '',
+    };
+  }
+
+  if (warnIssues.length === 0) {
+    return {
+      level: 'info',
+      header: `SiteData-Shape: ✓ Canonical-Shape, ${hintCount} SEO-Hinweis(e) (kein Befund):`,
+      lines,
+      throws: false,
+      throwMessage: '',
+    };
+  }
+
+  return {
+    level: 'warn',
+    header:
+      `SiteData-Shape: ${warnIssues.length} Shape-Abweichung(en), ` +
+      `${hintCount} SEO-Hinweis(e):`,
+    lines,
+    throws: strict,
+    // Leer, wenn nicht abgebrochen wird — eine Meldung, die niemand wirft, ist toter Text.
+    throwMessage: strict
+      ? `[ai-discovery] strictSiteDataShape=true: Build abgebrochen wegen ${warnIssues.length} Shape-Abweichung(en). ` +
+        `Auf Canonical-Shape bringen (hero.image/hero.imageAlt, leistungen[].title). Opt-out: strictSiteDataShape:false.`
+      : '',
+  };
+}
+
 export interface AssetFormatIssue {
   /** Pfad relativ zum jeweiligen Wurzelverzeichnis (public/ bzw. src/assets/). */
   file: string;
@@ -2024,26 +2101,16 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // Divergente Shapes (images.hero-String, services[], hero.imageAlt ohne
         // image) ließen die Bild-Pipeline still WENIGER tun. Die Pipeline toleriert
         // sie jetzt — dieser Guard loggt sie, damit die Fleet konvergiert. Nur
-        // warn-Severity bricht bei strict; reine SEO-Hinweise (region/knowsAbout) nie.
-        const shapeIssues = lintSiteDataShape(data);
-        const shapeWarn = shapeIssues.filter((i) => i.severity === 'warn');
-        if (shapeIssues.length === 0) {
-          logger.info(`SiteData-Shape: ✓ Canonical-Shape (Bild-Pipeline voll wirksam).`);
-        } else {
-          logger.warn(
-            `SiteData-Shape: ${shapeWarn.length} Shape-Abweichung(en), ` +
-              `${shapeIssues.length - shapeWarn.length} SEO-Hinweis(e):`,
-          );
-          for (const issue of shapeIssues) {
-            logger.warn(`  [${issue.severity}] ${issue.field}: ${issue.detail}`);
-          }
-          if (options.strictSiteDataShape !== false && shapeWarn.length > 0) {
-            throw new Error(
-              `[ai-discovery] strictSiteDataShape=true: Build abgebrochen wegen ${shapeWarn.length} Shape-Abweichung(en). ` +
-                `Auf Canonical-Shape bringen (hero.image/hero.imageAlt, leistungen[].title). Opt-out: strictSiteDataShape:false.`,
-            );
-          }
-        }
+        // warn-Severity bricht bei strict; reine SEO-Hinweise (region/knowsAbout) nie —
+        // und seit v0.114.0 melden sie sich auch als `info`, nicht als `[WARN]`.
+        // Begründung an `planShapeReport`.
+        const shape = planShapeReport(
+          lintSiteDataShape(data),
+          options.strictSiteDataShape !== false,
+        );
+        logger[shape.level](shape.header);
+        for (const line of shape.lines) logger[shape.level](line);
+        if (shape.throws) throw new Error(shape.throwMessage);
       },
 
       'astro:build:done': async ({ dir, logger }) => {
