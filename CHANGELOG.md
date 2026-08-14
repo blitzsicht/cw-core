@@ -22,6 +22,56 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.117.0 (2026-08-13)
+
+**Fix:** Der `smoke-test`-Job überspringt sich nicht mehr stillschweigend, wenn
+`PRODUCTION_URL` fehlt — bei zahlenden Kunden schlägt er stattdessen fehl.
+
+Bewusst **ohne** `[kunde]`-Zeile — an keiner ausgelieferten Seite ändert sich etwas, die
+Änderung wirkt ausschließlich in der CI. Sie entscheidet aber, ob ein totes Kontaktformular
+überhaupt auffällt.
+
+Anlass: siluri/blitzsicht-ops#661. Die Job-Bedingung lautete
+
+```yaml
+if: github.ref == 'refs/heads/main' && vars.PRODUCTION_URL != '' && vars.SKIP_FORM_HEALTH != 'true'
+```
+
+Fehlte die Variable, wurde der ganze Job übersprungen. `conclusion=skipped` ist **kein**
+Fehlschlag: der Lauf steht trotzdem auf `success`, `gh pr checks` exitet 0, und in der Anzeige
+steht `smoke-test  skipping` neben lauter `pass`. Der Ausfall tarnt sich als Erfolg.
+
+Gemessen am 13.08.2026 über alle 24 `customer-*`-Repos (`scripts/audit-form-health-coverage.sh`):
+
+| Repo | `customer.yml` | `PRODUCTION_URL` | letzter `main`-Lauf |
+|---|---|---|---|
+| customer-donau-profi | `type: active` | fehlt | workflow `success`, `smoke-test skipped` |
+| customer-mika-elektrotechnik | `type: active` | fehlt | workflow `success`, `smoke-test skipped` |
+| customer-zink-baeckerei | `type: active` | fehlt | workflow `success`, `smoke-test skipped` |
+
+Drei zahlende Kunden, bei denen der Form-Health-Check nie lief — ohne dass es je rot wurde.
+
+Neu:
+
+- `scripts/form-health-gate.mjs` — Vorschalt-Schritt **im** Job statt Bedingung **am** Job.
+  `SKIP_FORM_HEALTH=true` → exit 0 (sichtbarer Opt-out). `PRODUCTION_URL` gesetzt → exit 0,
+  Smoke-Test läuft. Fehlt sie und `customer.yml` meldet `type: active` → **exit 1**, roter Job.
+  Fehlt sie bei `prospect`/`paused`/ohne `customer.yml` → exit 0, kein Vorfall (fail-open,
+  damit Repos ohne `customer.yml` nicht zwangsweise rot werden).
+- `scripts/form-health-gate.test.mjs` — 7 Tests. Der entscheidende ist der Gegenbeweis nach
+  HANDBOOK §2.6: `type: active` ohne `PRODUCTION_URL` **muss** exit 1 liefern.
+- `scripts/audit-form-health-coverage.sh` — flottenweiter, rein lesender Coverage-Report über
+  alle `customer-*`-Repos: `customer.yml:type`, beide Variablen und ob überhaupt Formular-Code
+  im Repo liegt. Exit 1, solange ein `type: active`-Repo ohne laufenden Check dasteht.
+  Ein fehlgeschlagener Abruf wird als `?` ausgewiesen, **nicht** als „kein Formular" —
+  nicht geprüft ist kein Negativbefund.
+- `templates/.github/workflows/build-check.yml` — Job-`if:` auf `github.ref` reduziert; die
+  Folge-Steps hängen jetzt an `steps.gate.outputs.run_smoke`. Der Job bleibt damit sichtbar
+  grün oder rot, statt als `skipped` aus der Anzeige zu verschwinden.
+
+Nicht in diesem Release: die drei fehlenden `PRODUCTION_URL`-Variablen selbst und die
+`customer.yml` für `customer-gympanzen` — beides liegt in fremden Repos, nicht in cw-core.
+
 ## v0.116.0 (2026-08-13)
 
 **Workflow:** Der Release-Train fragt vor jedem Bump, ob der Kunde überhaupt etwas davon hat.

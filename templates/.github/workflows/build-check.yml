@@ -155,11 +155,24 @@ jobs:
   # nicht entdeckt (Build wäre grün, Form wäre still kaputt).
   #
   # Repository-Variable PRODUCTION_URL setzen (gh variable set PRODUCTION_URL).
-  # Falls die Variable nicht gesetzt ist, wird der Job geskippt.
   # SKIP_FORM_HEALTH='true' setzen für Customer ohne ContactForm (phone-/whatsapp-only).
+  #
+  # WICHTIG (siluri/blitzsicht-ops#661): der Job hat bewusst KEIN
+  # `vars.PRODUCTION_URL != ''` mehr im Job-`if:`. Ein übersprungener Job hat
+  # conclusion=skipped — das ist kein Fehlschlag: der Workflow-Lauf steht
+  # trotzdem auf success, `gh pr checks` exitet 0, und in der Anzeige steht
+  # "smoke-test  skipping" neben lauter "pass". Gemessen am 2026-08-13:
+  # donau-profi, mika-elektrotechnik und zink-baeckerei (alle customer.yml
+  # `type: active`) hatten im letzten main-Lauf je `smoke-test skipped` bei
+  # `workflow success` — der Check lief dort also nie, ohne dass es auffiel.
+  #
+  # Der Job läuft jetzt immer auf main; der erste Step ("Form-Health-Gate")
+  # entscheidet und FEHLSCHLÄGT (statt zu skippen), wenn customer.yml
+  # `type: active` meldet und PRODUCTION_URL fehlt. Siehe
+  # scripts/form-health-gate.mjs.
   smoke-test:
     needs: build
-    if: github.ref == 'refs/heads/main' && vars.PRODUCTION_URL != '' && vars.SKIP_FORM_HEALTH != 'true'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
@@ -181,10 +194,46 @@ jobs:
       - name: Install (just the cw-core script)
         run: pnpm install --frozen-lockfile
 
+      - name: Form-Health-Gate — fehlschlagen statt stillschweigend skippen
+        # Ersetzt das alte `vars.PRODUCTION_URL != ''` im Job-`if:`.
+        # exit 1 (roter Job) nur bei customer.yml `type: active` OHNE
+        # PRODUCTION_URL und ohne Opt-out. Sonst exit 0 + run_smoke=false,
+        # d.h. die folgenden Steps werden übersprungen, der JOB bleibt aber
+        # sichtbar grün statt als `skipped` in der Anzeige zu verschwinden.
+        #
+        # Existenz-Guard: das Gate kam erst mit @cw/core v0.117.0. Repos, die
+        # noch einen älteren Tag pinnen, haben die Datei nicht — ohne diesen
+        # Guard stürbe ihr Job an "Cannot find module" und die ganze Flotte
+        # ginge beim Template-Rollout rot. Fehlt das Gate, fällt der Step
+        # bewusst auf die ALTE Logik zurück (URL gesetzt = laufen), meldet das
+        # aber als ::warning:: — sichtbar als eigener dritter Zustand, nicht
+        # als stilles "alles gut".
+        id: gate
+        run: |
+          GATE=node_modules/@cw/core/scripts/form-health-gate.mjs
+          if [ -f "$GATE" ]; then
+            node "$GATE"
+          else
+            echo "::warning::Form-Health-Gate fehlt (@cw/core < v0.117.0 gepinnt) —"
+            echo "::warning::Fallback auf die alte Logik. Der Schutz aus"
+            echo "::warning::siluri/blitzsicht-ops#661 greift hier NOCH NICHT."
+            echo "::warning::Beheben: @cw/core auf >= v0.117.0 bumpen."
+            if [ -n "$PRODUCTION_URL" ] && [ "$SKIP_FORM_HEALTH" != "true" ]; then
+              echo "run_smoke=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "run_smoke=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+          SKIP_FORM_HEALTH: ${{ vars.SKIP_FORM_HEALTH }}
+
       - name: Wait for Vercel deploy propagation
+        if: steps.gate.outputs.run_smoke == 'true'
         run: sleep 60
 
       - name: Run form-health smoke-test
+        if: steps.gate.outputs.run_smoke == 'true'
         # FORM_PAGE_PATH: One-Pager haben kein /kontakt/ — ihr Formular sitzt auf
         # der Startseite. platzfrei fiel am 12.08.2026 mit „/kontakt/ status=404",
         # obwohl die Site ein funktionierendes Formular hat (WaitlistSection).
@@ -198,6 +247,10 @@ jobs:
           WAIT_MS: 0
 
       - name: Touchpoint-Audit (live — Links/Redirects/Plausible/Form-Kette)
+        # Braucht ebenfalls eine PRODUCTION_URL — läuft daher nur, wenn das
+        # Gate oben den Smoke-Test freigegeben hat (sonst liefe es gegen
+        # --url "" und schlüge aus dem falschen Grund fehl).
+        if: steps.gate.outputs.run_smoke == 'true'
         # --skip-empty-post: verify-form-health hat oben schon 1 POST auf
         # /api/contact gemacht; das Rate-Limit ist 3 POSTs/10min pro IP.
         # Der Audit macht so nur den Honeypot-Trip (Summe 2/3) und wertet
