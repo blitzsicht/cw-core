@@ -430,7 +430,13 @@ const motionCfg: HeroMotionConfig =
 
   @media (scripting: enabled) {
     .hero--visual-swap .hero-visual-wrap { display: block; }
-    .hero--visual-swap .hero-image-wrap { display: none; }
+    /* `:global` ist PFLICHT, nicht Stil: mit `motion.parallax` rendert
+       ParallaxImage diesen Wrapper, und er traegt dann dessen Scope-Kennung
+       statt der von Hero — die gescopte Regel greift an ihm nicht. Gemessen:
+       das Foto blieb im Layout und schob den visual-Slot um 486 px nach unten,
+       also aus dem ersten Bildschirm heraus, den der Slot gewinnen sollte.
+       Dieselbe Loesung wie bei `.hero--collage` weiter unten. */
+    .hero--visual-swap :global(.hero-image-wrap) { display: none; }
   }
   .hero-img {
     display: block;

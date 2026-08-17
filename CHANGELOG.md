@@ -22,6 +22,25 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.121.1 (2026-08-17)
+
+**Fix:** `visualSwap` blendete das Hero-Bild nicht aus, sobald `motion.parallax`
+gesetzt war. Dann rendert `ParallaxImage` den Wrapper, und er traegt dessen
+Scope-Kennung statt der von `Hero` — die gescopte Regel griff an ihm nicht.
+
+Gemessen auf platzfrei.club: Das Foto blieb im Layout und schob den visual-Slot
+um 486 px nach unten, also genau aus dem ersten Bildschirm heraus, den der Slot
+gewinnen sollte (Demo bei 1195 px statt unter 844 px).
+
+Behoben mit `:global(.hero-image-wrap)` — dieselbe Loesung, die eine Zeile
+weiter unten bei `.hero--collage` schon steht.
+
+**Warum v0.121.0 das nicht gefangen hat:** Die Beispielseite `/hero-visual-slot`
+setzt kein `motion`, also rendert dort `Hero` den Wrapper selbst und die Kennung
+passt. Der Fall mit Parallax war ungeprueft. Die Seite deckt ihn jetzt ab.
+
+---
+
 ## v0.121.0 (2026-08-17)
 
 **Neu:** `Hero.astro` bekommt einen benannten Slot `visual` und die Prop

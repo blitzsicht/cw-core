@@ -34,6 +34,10 @@ import ExampleLayout from '../layouts/ExampleLayout.astro';
     siteName="cw-core Examples"
     ctaPrimary={{ label: 'Primär', href: '#' }}
     visualSwap
+    {/* `parallax` ist hier NICHT Deko: mit ihm rendert ParallaxImage den
+        Bild-Wrapper, der dadurch eine andere Scope-Kennung traegt. Genau dieser
+        Fall war in v0.121.0 kaputt und ungeprueft. */}
+    motion={{ parallax: true }}
   >
     <div slot="visual" class="beispiel-visual">
       <p class="beispiel-visual-titel">Ich bin der Slot-Inhalt</p>
