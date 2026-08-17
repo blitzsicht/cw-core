@@ -1,6 +1,7 @@
 ---
 /**
- * Motion-Referenzseite — alle zwölf Komponenten aus components/motion/.
+ * Motion-Referenzseite — alle Komponenten aus components/motion/ plus die
+ * CSS-Utilities .motion-focus-glow und .motion-lift.
  *
  * Zweck (drei auf einmal):
  *   1. Anschauungsobjekt — der Layer wurde kaum genutzt, weil ihn niemand in
@@ -42,7 +43,7 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width" />
   <title>Motion — cw-core Examples</title>
-  <meta name="description" content="Referenzseite für alle zwölf Motion-Komponenten aus cw-core." />
+  <meta name="description" content="Referenzseite für die Motion-Komponenten und -Utilities aus cw-core." />
   <style is:global>
     @import "@cw/core/styles/tokens-base.css";
 
@@ -140,7 +141,8 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
     <a href="/" class="back">← Übersicht</a>
     <h1>Motion-Komponenten</h1>
     <p class="lead">
-      Alle zwölf aus <code>components/motion/</code>. Scrolle langsam — und nutze
+      Alle Komponenten aus <code>components/motion/</code>, dazu die CSS-Utilities
+      <code>.motion-focus-glow</code> und <code>.motion-lift</code>. Scrolle langsam — und nutze
       „Nochmal abspielen“, wenn du einen Effekt verpasst hast.
     </p>
 
@@ -345,6 +347,26 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
         <a href="#" class="motion-focus-glow" style="padding:0.6rem 1.1rem;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);text-decoration:none">Dritter Link</a>
       </div>
     </section>
+    <!-- 15 Karten-Reaktion -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>.motion-lift</h2><span class="hinweis" id="maus-4">braucht Maus</span></div>
+      <p class="was">
+        Eine Karte, die auf Annäherung reagiert, sagt „ich bin anfassbar" — das ist der
+        Unterschied zwischen einer Fläche und einem Bedienelement. Nur hinter
+        <code>@media (hover: hover)</code>: auf dem Telefon vergibt der Browser den
+        Hover-Zustand beim Antippen und behält ihn, die Karte bliebe angehoben stehen.
+      </p>
+      <div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))">
+        <a href="#" class="motion-lift motion-focus-glow" style="display:block;padding:1.25rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;text-decoration:none;color:var(--color-text)">
+          <strong style="display:block;margin-bottom:0.35rem">Erste Karte</strong>
+          <span style="font-size:0.875rem;color:var(--color-muted)">Zeiger drüberhalten und drücken.</span>
+        </a>
+        <a href="#" class="motion-lift motion-focus-glow" style="display:block;padding:1.25rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:10px;text-decoration:none;color:var(--color-text)">
+          <strong style="display:block;margin-bottom:0.35rem">Zweite Karte</strong>
+          <span style="font-size:0.875rem;color:var(--color-muted)">Rein schnell, raus langsamer.</span>
+        </a>
+      </div>
+    </section>
   </main>
 
   <script>
@@ -367,7 +389,7 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
         ` · Maus ${feinzeiger ? 'erkannt' : 'NICHT erkannt — Hover-Effekte bleiben aus'}` +
         ` · prefers-reduced-motion ${wenigerBewegung ? 'AN — alle Animationen abgeschaltet' : 'aus'}`;
     }
-    document.querySelectorAll('#maus-1, #maus-2, #maus-3').forEach((el) => {
+    document.querySelectorAll('#maus-1, #maus-2, #maus-3, #maus-4').forEach((el) => {
       el.className = feinzeiger ? 'hinweis hinweis--an' : 'hinweis hinweis--aus';
       el.textContent = feinzeiger ? 'Maus erkannt' : 'keine Maus';
     });

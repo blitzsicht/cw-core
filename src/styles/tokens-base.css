@@ -384,6 +384,40 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ---------------------------------------------------------------------------
+ * Karten-Reaktion
+ *
+ * Eine Karte, die auf Annaeherung reagiert, sagt "ich bin anfassbar". Das ist
+ * der Unterschied zwischen einer Flaeche und einem Bedienelement.
+ *
+ * NUR hinter `@media (hover: hover)`. Auf einem Telefon gibt es kein Hover:
+ * Der Browser vergibt den Zustand beim Antippen und behaelt ihn, bis woanders
+ * getippt wird — die Karte bliebe angehoben stehen, ohne dass jemand darauf
+ * zeigt. Was als Rueckmeldung gedacht war, wird dort zu einem Artefakt.
+ *
+ * `translateY` und `box-shadow` statt `scale`: eine skalierende Karte
+ * verschiebt ihren Text um Subpixel und laesst ihn flimmern.
+ * -------------------------------------------------------------------------*/
+.motion-lift {
+  transition: transform var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)),
+              box-shadow var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)),
+              border-color var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .motion-lift:hover {
+    transform: translateY(var(--motion-lift-offset, -2px));
+    box-shadow: 0 6px 20px rgb(from var(--color-text) r g b / 0.10);
+  }
+}
+
+/* Ist die Karte selbst anklickbar, gilt derselbe Druckpunkt wie beim Knopf:
+   rein schnell, raus langsamer, und unter die Ruhelage statt auf sie zurueck. */
+.motion-lift:active {
+  transform: translateY(var(--motion-press-offset, 2px));
+  transition-duration: var(--motion-press-in, 70ms);
+}
+
+/* ---------------------------------------------------------------------------
  * Fokus-Schein
  * Der Ring ist SOFORT da; animiert wird nur der weiche Schein aussen.
  * Anwesenheit darf man nie verzoegern — ein Fokusring, der einblendet, fehlt
@@ -447,6 +481,12 @@ h1, h2, h3, h4, h5, h6 {
   .motion-focus-glow:focus-visible {
     animation-duration: 0.01ms;
   }
+
+  /* Karte: der Zustandswechsel bleibt (die Karte hebt sich, man sieht wo man
+     ist), nur die Zeit faellt weg. Ein `transform: none` hier waere genau das
+     Gegenteil dessen, was die Einstellung meint — weniger Bewegung, nicht
+     weniger Rueckmeldung. */
+  .motion-lift { transition-duration: 0.01ms; }
 }
 
 /* ---------------------------------------------------------------------------

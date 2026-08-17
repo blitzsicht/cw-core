@@ -171,6 +171,42 @@ if (import.meta.env.DEV && skippedCount > 0) {
   .fh-answer p:last-child {
     margin-bottom: 0;
   }
+
+  /* Hoehenuebergang beim Aufklappen.
+   *
+   * Bisher wechselte nur das Zeichen von + auf ×, waehrend die Antwort im
+   * selben Frame erschien. Das liest sich wie ein Neuaufbau der Seite, nicht
+   * wie eine Antwort auf den Klick — man verliert kurz, wo man war.
+   *
+   * `<details>` laesst sich nicht direkt animieren; erst `::details-content`
+   * zusammen mit `interpolate-size: allow-keywords` macht den Weg von 0 nach
+   * `auto` ueberhaupt interpolierbar. Beides steht hinter `@supports`: wo es
+   * fehlt, klappt das Element auf wie bisher. Kein Bruch, nur kein Uebergang.
+   *
+   * `interpolate-size` steht auf `.fh-item` statt auf `:root` — global gesetzt
+   * wuerde es JEDE `height: auto`-Transition der ganzen Seite verhalten
+   * aendern, auch in Komponenten, die davon nichts wissen.
+   *
+   * `content-visibility` MUSS mit `allow-discrete` mitlaufen, sonst ist der
+   * Inhalt beim Zuklappen sofort weg und der Uebergang laeuft ins Leere.
+   */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports selector(::details-content) and (interpolate-size: allow-keywords) {
+      .fh-item {
+        interpolate-size: allow-keywords;
+      }
+      .fh-item::details-content {
+        block-size: 0;
+        overflow: hidden;
+        transition:
+          block-size var(--motion-duration-fast, 0.25s) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)),
+          content-visibility var(--motion-duration-fast, 0.25s) allow-discrete;
+      }
+      .fh-item[open]::details-content {
+        block-size: auto;
+      }
+    }
+  }
   .fh-dev-note {
     margin-top: 1rem;
     padding: 0.5rem 0.75rem;

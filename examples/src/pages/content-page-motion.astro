@@ -1,0 +1,44 @@
+---
+/**
+ * ContentPage mit motion-Prop.
+ *
+ * Zweck: belegen, dass `motion` auf ContentPage dasselbe tut wie auf
+ * LandingPage. Bis v0.118.0 kannte ContentPage die Prop nicht — dieselbe
+ * Website hatte auf der Startseite einen Fortschrittsbalken und auf jeder
+ * Unterseite keinen, ohne dass das jemand so entschieden hatte.
+ *
+ * `cursor` bleibt hier aus: der eigene Mauszeiger ist eine Geschmacksfrage und
+ * hat auf einer Rechtstext- oder Inhaltsseite nichts verloren. `smoothScroll`
+ * ebenfalls — es braucht `lenis` als Peer-Dependency, die examples nicht hat.
+ * Gezeigt wird das, was hier tatsaechlich Sinn ergibt.
+ */
+import ContentPage from '@cw/core/layouts/ContentPage.astro';
+---
+<ContentPage
+  title="ContentPage mit Fortschrittsbalken"
+  description="Belegt die motion-Prop auf ContentPage (v0.118.0)."
+  robots="noindex"
+  siteName="cw-core Examples"
+  siteUrl="http://localhost:4322"
+  defaultTitle="cw-core Examples"
+  defaultDescription="Component-Showcase"
+  defaultOgImage="/og.png"
+  header={{ navItems: [{ label: 'Übersicht', href: '/' }] }}
+  footer={{ siteName: 'cw-core Examples' }}
+  motion={{ progress: true }}
+>
+  <p>
+    Ganz oben am Fensterrand läuft ein Fortschrittsbalken mit — <strong>scrolle
+    und schau nach oben</strong>. Er kommt aus <code>motion={'{{ progress: true }}'}</code>,
+    derselben Prop und demselben Typ wie auf <code>LandingPage</code>.
+  </p>
+  <p>
+    Ohne die Prop rendert ContentPage nichts davon. Der Default ist aus: wer
+    nichts setzt, bekommt nichts — an den bestehenden Seiten ändert sich durch
+    v0.118.0 also nichts.
+  </p>
+  <div style="height:150vh;display:grid;place-items:center;color:var(--color-muted)">
+    <p>… genug Höhe zum Scrollen, damit der Balken etwas anzeigen kann …</p>
+  </div>
+  <p>Unten angekommen — der Balken sollte jetzt durchgelaufen sein.</p>
+</ContentPage>

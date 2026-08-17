@@ -1,0 +1,27 @@
+/*
+ * Minimale tokens.css fuer die Examples-App.
+ *
+ * `BaseLayout.astro` importiert fest `@/styles/tokens.css` — cw-core setzt
+ * damit die Kundenstruktur voraus. Genau deshalb baute bis v0.118.0 KEINE
+ * Examples-Seite auf einem Layout auf: sie waere am fehlenden Alias
+ * gescheitert. Diese Datei plus der `@`-Alias in astro.config.ts machen
+ * BaseLayout, ContentPage und LandingPage hier ueberhaupt erst pruefbar.
+ *
+ * Bewusst ohne Tailwind: die Examples brauchen nur die Custom Properties,
+ * die tokens-base.css erwartet.
+ */
+@import "@cw/core/styles/tokens-base.css";
+
+:root {
+  --color-primary: #1D1E3B;
+  --color-primary-dark: #15162e;
+  --color-accent: #EF7612;
+  --color-accent-hover: #d6610a;
+  --color-accent-btn-text: #ffffff;
+  --color-surface: #f8fafc;
+  --color-border: #e2e8f0;
+  --color-text: #1e293b;
+  --color-muted: #64748b;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-heading: var(--font-sans);
+}
