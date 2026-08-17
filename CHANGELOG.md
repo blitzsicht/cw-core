@@ -22,6 +22,58 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.120.0 (2026-08-17)
+
+- [kunde:sichtbar] Hochzaehlende Zahlen zeigen jetzt auch dann den richtigen Wert, wenn im Browser kein JavaScript laeuft.
+
+**Fix:** `CountUp` liess ohne JavaScript den **Startwert** stehen. Der Zaehler haengt
+dann auf `from` und behauptet damit etwas anderes als gemeint.
+
+Gemessen, nicht vermutet — die einzige Kundenseite, die `CountUp` heute nutzt, ist
+betroffen: `customer-blitzsicht/src/components/StatsBar.astro` zeigt den
+PageSpeed-Score mit `countFrom: 90, countTo: 95`. Ohne JavaScript stand dort **90+
+statt 95+**, also eine zu niedrige Angabe ueber die eigene Leistung. Auf
+platzfrei.club haette dieselbe Luecke „0 Sekunden" statt „10 Sekunden" ergeben.
+
+### Wie es behoben ist
+
+Der Endwert steht ohnehin im Markup — als `sr-only`-Span fuer Screenreader. Faellt
+das Skript aus, wird der laufende Zaehler ausgeblendet und dieses Span sichtbar
+gemacht:
+
+```css
+@media not (scripting: enabled) {
+  [data-motion-countup-vis] { display: none; }
+  .motion-countup .sr-only { position: static; /* … */ }
+}
+```
+
+Der sichtbare Teil liegt dafuer neu in einem eigenen Wrapper
+`[data-motion-countup-vis]`. Ohne ihn liessen sich `prefix` und `suffix` nicht
+mit ausblenden und stuenden doppelt da. Die Runtime findet
+`[data-motion-countup-num]` weiterhin, sie sucht in die Tiefe.
+
+`not (scripting: enabled)` statt `(scripting: none)`, damit auch `initial-only`
+getroffen wird — Umgebungen, in denen Skripte nur beim Laden laufen.
+
+### Gegenprobe
+
+| Zustand | Ergebnis |
+|---|---|
+| mit JS | Zaehler sichtbar (`display: inline`), sr-only weggeklippt, Endwert 127 |
+| ohne JS | Zaehler `display: none`, sr-only `position: static`, sichtbar „127+" |
+| Fix wieder entfernt | **rot** — Zaehler `display: inline` mit sichtbarer „0" |
+
+Die erste Fassung der Pruefung war untauglich und wurde ersetzt: sie las den
+sichtbaren Text zusammen und uebersah, dass `.sr-only` sich per `clip` versteckt,
+nicht per `display`. Sie las den Endwert also aus dem Screenreader-Span mit und
+waere auch ohne den Fix gruen geblieben. Geprueft wird jetzt, was tatsaechlich
+umschaltet.
+
+528/528 Tests, lint:css sauber, 19 Beispielseiten bauen.
+
+---
+
 ## v0.119.0 (2026-08-17)
 
 - [kunde:sichtbar] Die Fragen im FAQ klappen jetzt weich auf, statt schlagartig zu erscheinen.
