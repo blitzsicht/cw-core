@@ -69,9 +69,36 @@ const final = fmt(value);
   data-separator={separator}
   data-prefix={prefix}
   data-suffix={suffix}
->{prefix}<span data-motion-countup-num>{initial}</span>{suffix}<span class="sr-only">{prefix}{final}{suffix}</span></Tag>
+><span data-motion-countup-vis>{prefix}<span data-motion-countup-num>{initial}</span>{suffix}</span><span class="sr-only">{prefix}{final}{suffix}</span></Tag>
 
 <style>
+  /* Ohne JavaScript zaehlt nichts hoch — dann bliebe der STARTWERT sichtbar
+   * stehen und behauptete etwas anderes als gemeint. Gemessen auf
+   * blitzsicht.com: die StatsBar zeigte "90+" statt "95+" beim PageSpeed-Score,
+   * also eine Falschaussage ueber die eigene Leistung; auf platzfrei.club
+   * stuende "0 Sekunden" statt "10 Sekunden".
+   *
+   * Der Endwert steht ohnehin im Markup — er ist das sr-only-Span fuer
+   * Screenreader. Faellt das Skript aus, wird der laufende Zaehler samt Prefix
+   * und Suffix ausgeblendet und dieses Span sichtbar gemacht. Deshalb liegt der
+   * sichtbare Teil jetzt in einem eigenen Wrapper: sonst liessen sich Prefix
+   * und Suffix nicht mit ausblenden und stuenden doppelt da.
+   *
+   * `not (scripting: enabled)` statt `(scripting: none)`: das trifft auch
+   * `initial-only`, wo Skripte nur beim Laden laufen. */
+  @media not (scripting: enabled) {
+    [data-motion-countup-vis] { display: none; }
+    .motion-countup .sr-only {
+      position: static;
+      width: auto;
+      height: auto;
+      margin: 0;
+      overflow: visible;
+      clip: auto;
+      white-space: normal;
+    }
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;
