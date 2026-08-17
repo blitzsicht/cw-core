@@ -18,6 +18,7 @@
  *   import CustomCursor    from "@cw/core/components/motion/CustomCursor.astro";
  *   import MagneticButton  from "@cw/core/components/motion/MagneticButton.astro";
  *   import TiltCard        from "@cw/core/components/motion/TiltCard.astro";
+ *   import ThresholdBar    from "@cw/core/components/motion/ThresholdBar.astro";  // § 5a UWG: nur mit echter Datenquelle
  *
  * Layout primitives (zero runtime):
  *   import BentoGrid       from "@cw/core/components/blocks/BentoGrid.astro";

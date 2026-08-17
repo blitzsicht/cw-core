@@ -1,0 +1,98 @@
+---
+/**
+ * @cw/core – motion/ThresholdBar.astro
+ *
+ * A capacity bar whose point is the THRESHOLD MARK, not the fill: the line
+ * that says when something tips over — when the class runs, when the minimum
+ * order is met. Without the mark it is a loading bar and says nothing.
+ *
+ * Pure CSS, no runtime. Styles live in tokens-base.css (`.motion-threshold-bar`)
+ * so the rules also apply to elements created at runtime — a scoped `<style>`
+ * would not match anything JavaScript inserts later.
+ *
+ * ⚠ § 5a UWG — Fill and threshold MUST come from a real data source.
+ * A bar with made-up numbers is invented urgency and counts as a misleading
+ * commercial practice. If you show example values, mark them as examples on
+ * the component itself, not in the fine print. Kein Puls und kein Balken ohne
+ * Quelle.
+ *
+ * @example
+ *   <ThresholdBar value={8} max={12} threshold={4}
+ *                 label="8 von 12 Plätzen belegt" />
+ */
+
+interface Props {
+  /** Current value, e.g. bookings taken. Clamped to 0…max. */
+  value: number;
+  /** Upper bound, e.g. capacity. Must be > 0. */
+  max: number;
+  /** Value at which the state tips. Renders as the fixed mark. */
+  threshold: number;
+  /**
+   * Accessible name. Set it whenever the bar carries information that is not
+   * already spelled out in adjacent text — then the bar becomes a
+   * `progressbar` for assistive tech. Left unset, the bar is `aria-hidden`,
+   * because an unlabelled bar is noise in a screen reader.
+   */
+  label?: string;
+  /** Fill animation duration (CSS time). Defaults to 700ms. */
+  duration?: string;
+  /** Additional class names. */
+  class?: string;
+}
+
+const { value, max, threshold, label, duration, class: className = '' } = Astro.props;
+
+if (!(max > 0)) {
+  throw new Error(`ThresholdBar: max muss > 0 sein, war ${max}`);
+}
+
+// Beide Anteile geklemmt: ein Wert über max ergäbe scaleX > 1 und der Balken
+// liefe sichtbar über seinen eigenen Rahmen hinaus.
+const anteil = Math.min(Math.max(value / max, 0), 1);
+const markeAnteil = Math.min(Math.max(threshold / max, 0), 1);
+
+const modus = value >= max ? 'full' : value < threshold ? 'below' : null;
+
+const klassen = [
+  'motion-threshold-bar',
+  modus ? `motion-threshold-bar--${modus}` : '',
+  className,
+].filter(Boolean).join(' ');
+
+const style = [
+  `--fill:${anteil}`,
+  `--threshold:${markeAnteil}`,
+  duration ? `--threshold-fill-duration:${duration}` : '',
+].filter(Boolean).join(';');
+
+---
+
+{/*
+  Attribute einzeln statt als Spread-Objekt: ein Spread mit Union-Typ
+  ({role,…} | {aria-hidden}) ist Astros `HTMLAttributes` nicht zuweisbar und
+  liess `astro check` mit ts(2322) fallen. Astro laesst `undefined` weg, das
+  Ergebnis im HTML ist identisch.
+*/}
+{/*
+  `data-motion-threshold` traegt keine Styles — die liegen auf den Klassen,
+  damit sie auch fuer Elemente gelten, die JavaScript nachtraeglich einfuegt.
+  Das Attribut ist der Marker fuer den Motion-Consent-Guard: der zaehlt
+  `data-motion-*` im ausgelieferten HTML und meldet Bewegung, die ohne
+  passenden Import auf einer Seite gelandet ist. Ohne Marker waere die
+  Fuellanimation fuer den Guard unsichtbar.
+*/}
+<span
+  class={klassen}
+  style={style}
+  data-motion-threshold
+  role={label ? 'progressbar' : undefined}
+  aria-label={label}
+  aria-valuenow={label ? value : undefined}
+  aria-valuemin={label ? 0 : undefined}
+  aria-valuemax={label ? max : undefined}
+  aria-hidden={label ? undefined : 'true'}
+>
+  <span class="motion-threshold-bar-fill"></span>
+  <span class="motion-threshold-bar-mark"></span>
+</span>

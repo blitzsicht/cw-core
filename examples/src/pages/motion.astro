@@ -31,6 +31,7 @@ import ScrollProgress from '@cw/core/components/motion/ScrollProgress.astro';
 import ScrollReveal from '@cw/core/components/motion/ScrollReveal.astro';
 import StaggerGroup from '@cw/core/components/motion/StaggerGroup.astro';
 import TextReveal from '@cw/core/components/motion/TextReveal.astro';
+import ThresholdBar from '@cw/core/components/motion/ThresholdBar.astro';
 import TiltCard from '@cw/core/components/motion/TiltCard.astro';
 
 const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as const;
@@ -293,6 +294,56 @@ const revealRichtungen = ['up', 'down', 'left', 'right', 'fade', 'zoom'] as cons
         Weiches Scrollen über <code>lenis</code>. Hier bewusst nicht aktiv: einzige Komponente
         mit externer Abhängigkeit (optionale Peer-Dependency, dynamisch geladen).
       </p>
+    </section>
+
+    <!-- 13 ThresholdBar -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>ThresholdBar</h2><span class="hinweis hinweis--an">reines CSS</span></div>
+      <p class="was">
+        Das Spielhafte ist nicht die Füllbewegung, sondern <strong>die Schwellenmarke</strong> —
+        der Strich, ab dem etwas kippt. Er bewegt sich nie; er ist der Bezugspunkt, an dem
+        die Füllung überhaupt eine Aussage bekommt. Ohne ihn ist es ein Ladebalken.
+      </p>
+      <p class="was" style="border-left:3px solid var(--color-accent);padding-left:0.75rem">
+        <strong>§ 5a UWG:</strong> Die Zahlen unten sind <em>ausgedacht</em> und stehen hier
+        als Anschauung. Im Kundeneinsatz müssen Füllstand und Schwelle aus einer echten
+        Datenquelle kommen — ein Balken mit erfundenen Zahlen ist erfundene Dringlichkeit.
+      </p>
+      <div style="display:grid;gap:1rem;max-width:26rem">
+        <div style="display:grid;gap:0.35rem">
+          <span style="font-size:0.8125rem;color:var(--color-muted)">Beispiel: 3 von 12 · Schwelle 4 · fällt aus</span>
+          <ThresholdBar value={3} max={12} threshold={4} label="Beispiel: 3 von 12 Plätzen belegt, Kurs fällt aus" />
+        </div>
+        <div style="display:grid;gap:0.35rem">
+          <span style="font-size:0.8125rem;color:var(--color-muted)">Beispiel: 8 von 12 · Schwelle 4 · findet statt</span>
+          <ThresholdBar value={8} max={12} threshold={4} label="Beispiel: 8 von 12 Plätzen belegt, Kurs findet statt" />
+        </div>
+        <div style="display:grid;gap:0.35rem">
+          <span style="font-size:0.8125rem;color:var(--color-muted)">Beispiel: 12 von 12 · ausgebucht</span>
+          <ThresholdBar value={12} max={12} threshold={4} label="Beispiel: 12 von 12 Plätzen belegt, ausgebucht" />
+        </div>
+      </div>
+      <p class="was">
+        Der erste Balken steht unter der Schwelle und färbt sich über
+        <code>--color-warning</code>. Definiert die Seite dieses Token nicht, fällt er auf
+        <code>--color-muted</code> zurück — cw-core erfindet keine Farbe.
+      </p>
+    </section>
+
+    <!-- 14 Fokus-Schein -->
+    <section class="demo" data-block>
+      <div class="demo-kopf"><h2>.motion-focus-glow</h2><span class="hinweis hinweis--an">Tastatur</span></div>
+      <p class="was">
+        <strong>Mit der Tabulator-Taste durchgehen.</strong> Der Ring ist sofort da, animiert
+        wird nur der weiche Schein außen. Anwesenheit darf man nie verzögern — ein Fokusring,
+        der einblendet, fehlt genau in dem Moment, in dem jemand wissen will, wo er ist.
+        Unter <code>prefers-reduced-motion</code> fällt der Schein weg, der Ring bleibt.
+      </p>
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+        <a href="#" class="motion-focus-glow" style="padding:0.6rem 1.1rem;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);text-decoration:none">Erster Link</a>
+        <a href="#" class="motion-focus-glow" style="padding:0.6rem 1.1rem;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);text-decoration:none">Zweiter Link</a>
+        <a href="#" class="motion-focus-glow" style="padding:0.6rem 1.1rem;border:1px solid var(--color-border);border-radius:6px;color:var(--color-text);text-decoration:none">Dritter Link</a>
+      </div>
     </section>
   </main>
 

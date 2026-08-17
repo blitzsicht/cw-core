@@ -62,7 +62,7 @@ export const MOTION_PROP_KEYS = Object.freeze({
  * Motion-Komponenten, die ausschliesslich per direktem Import kommen — es gibt
  * keine Prop, die sie einschaltet. Sie brauchen deshalb keinen Tabelleneintrag.
  */
-export const IMPORT_ONLY_MOTION = Object.freeze(['ScrollReveal', 'CountUp', 'FullBleed']);
+export const IMPORT_ONLY_MOTION = Object.freeze(['ScrollReveal', 'CountUp', 'FullBleed', 'ThresholdBar']);
 
 /**
  * Dateien in `components/motion/`, die keine Motion-Komponente sind und

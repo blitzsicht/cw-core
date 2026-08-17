@@ -324,6 +324,83 @@ h1, h2, h3, h4, h5, h6 {
   .motion-cursor { display: none; }
 }
 
+/* ---------------------------------------------------------------------------
+ * Zustandsbalken mit Schwellenmarke
+ * Verbraucht von @cw/core/components/motion/ThresholdBar.astro.
+ *
+ * Der Informationsgehalt ist die MARKE, nicht die Fuellbewegung: der Strich
+ * sagt, ab wann etwas kippt — ab wann der Kurs stattfindet, ab wann die
+ * Mindestmenge erreicht ist. Ohne ihn ist es ein Ladebalken und sagt nichts.
+ * Die Marke bewegt sich deshalb nie; sie ist der Bezugspunkt, an dem die
+ * Fuellung gemessen wird.
+ *
+ * ⚠ § 5a UWG: Fuellstand UND Schwelle muessen aus einer echten Datenquelle
+ * kommen. Ein Balken mit ausgedachten Zahlen ist erfundene Dringlichkeit und
+ * damit eine irrefuehrende geschaeftliche Handlung. Wer Beispielwerte zeigt,
+ * muss sie am Bauteil selbst als Beispiel kennzeichnen — nicht im Kleingedruckten.
+ * Kein Puls und kein Balken ohne Quelle.
+ * -------------------------------------------------------------------------*/
+.motion-threshold-bar {
+  position: relative;
+  display: block;
+  height: var(--threshold-bar-height, 0.6rem);
+  border-radius: 999px;
+  background: var(--threshold-bar-track, rgb(from var(--color-text) r g b / 0.12));
+  overflow: hidden;
+}
+
+.motion-threshold-bar-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  /* Endzustand steht IM transform, nicht nur im Keyframe: laeuft die Animation
+     nicht (reduced motion, kein Compositor), steht der Balken trotzdem richtig. */
+  transform: scaleX(var(--fill, 0));
+  background: var(--threshold-fill-color, var(--color-accent));
+  animation: cw-threshold-fill var(--threshold-fill-duration, 700ms)
+             var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)) both;
+}
+
+/* Farbmodi setzen nur eine Custom Property — cw-core definiert selbst keine
+   Farben, jede Kundenseite liefert ihre Tokens. `--color-warning` ist nicht
+   Teil des Kerns; fehlt es, faellt der Balken auf `--color-muted` zurueck
+   statt auf einen erfundenen Hex-Wert. */
+.motion-threshold-bar--below { --threshold-fill-color: var(--color-warning, var(--color-muted)); }
+.motion-threshold-bar--full  { --threshold-fill-color: var(--color-muted); }
+
+.motion-threshold-bar-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: calc(var(--threshold, 0.5) * 100%);
+  width: 2px;
+  background: var(--color-text);
+  opacity: 0.75;
+}
+
+@keyframes cw-threshold-fill {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(var(--fill, 0)); }
+}
+
+/* ---------------------------------------------------------------------------
+ * Fokus-Schein
+ * Der Ring ist SOFORT da; animiert wird nur der weiche Schein aussen.
+ * Anwesenheit darf man nie verzoegern — ein Fokusring, der einblendet, fehlt
+ * genau in dem Moment, in dem jemand wissen will, wo er gerade ist.
+ * Deshalb steht `outline` ausserhalb der Animation und ohne Uebergang.
+ * -------------------------------------------------------------------------*/
+.motion-focus-glow:focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+  animation: cw-focus-glow 600ms var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+@keyframes cw-focus-glow {
+  from { box-shadow: 0 0 0 0 rgb(from var(--color-accent) r g b / 0.55); }
+  to   { box-shadow: 0 0 0 12px rgb(from var(--color-accent) r g b / 0); }
+}
+
 /* Respect user preferences — hard-disable every motion primitive. */
 @media (prefers-reduced-motion: reduce) {
   [data-motion-reveal],
@@ -351,6 +428,24 @@ h1, h2, h3, h4, h5, h6 {
   .btn-outline:active:not(:disabled) {
     transform: translateY(var(--motion-press-offset, 2px));
     transition-duration: 0.01ms;
+  }
+
+  /* Balken und Fokus-Schein: nur die Dauer kollabieren.
+   *
+   * Das haelt die 700-ms-Fuellbewegung an, ohne die Aussage zu verlieren.
+   * Was den Standzustand traegt, ist aber NICHT diese Zeile, sondern die
+   * Basisregel `transform: scaleX(var(--fill))` an `.motion-threshold-bar-fill`.
+   * Nachgemessen statt behauptet: mit `animation: none` an dieser Stelle steht
+   * der Balken weiterhin korrekt; nimmt man dagegen die Basisregel weg, faellt
+   * er auf `transform: none` — und ein Balken ohne Transform ist VOLL, zeigt
+   * also 100 % an, wo 25 % gemeint sind. Das ist der teure Ausfall, und davor
+   * schuetzt die Basisregel, nicht der Dauer-Kollaps.
+   *
+   * Der Fokusring haengt an keiner Animation und bleibt unberuehrt; nur sein
+   * Schein faellt weg. */
+  .motion-threshold-bar-fill,
+  .motion-focus-glow:focus-visible {
+    animation-duration: 0.01ms;
   }
 }
 

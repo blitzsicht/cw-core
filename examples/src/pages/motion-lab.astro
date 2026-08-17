@@ -1,0 +1,364 @@
+---
+/**
+ * Motion-Lab — Schauseite zum Entscheiden, nicht zum Ausliefern.
+ *
+ * Zweck: Der Operator sah den bestehenden Animations-Bestand und fragte
+ * "ist das alles?". Diese Seite dreht das Vokabular bewusst ZU WEIT, damit
+ * zurückgedreht werden kann — die richtige Dosis findet man nicht von unten.
+ *
+ * HERKUNFT: Diese Seite lag bis zum 17.08.2026 in `customer-platzfrei` und war
+ * dort unter platzfrei.club/motion-lab oeffentlich erreichbar — mit `noindex`,
+ * aber gleichzeitig in der Sitemap, was sich widerspricht. Eine interne
+ * Erprobungsflaeche gehoert nicht auf eine Kundendomain. Sie steht jetzt hier,
+ * wo Schauseiten hingehoeren.
+ *
+ * Geerntet wurden daraus in v0.118.0: `motion/ThresholdBar.astro` (Abschnitt 3)
+ * und `.motion-focus-glow` (Abschnitt 4). Die Druckpunkt-Stufen (Abschnitt 1)
+ * sind in den `--motion-press-*`-Tokens aufgegangen. Abschnitt 2 dokumentiert
+ * die Wahl gegen den Schockwellen-Ring.
+ *
+ * Zwei Grundsaetze, die hier ueberall gelten:
+ *
+ *   1. ZEIT vor Kurvenform. Spielgefuehl entsteht durch Timing:
+ *      rein 60-90ms, raus 180-250ms, Quittung 90ms Takt + 420ms.
+ *      Symmetrische Dauern lassen UI "webbig" wirken.
+ *
+ *   2. Druckpunkte als `transition`, nicht als @keyframes. Nur transition
+ *      ist unterbrechbar und kehrt beim Loslassen VON DORT um — genau das
+ *      unterscheidet eine Antwort von einem Abspielvorgang.
+ *
+ * Unter `prefers-reduced-motion` faellt die BEWEGUNG weg, nicht die ANTWORT:
+ * Zustandswechsel bleiben sichtbar, nur ohne Uebergang. Ein Nutzer mit dieser
+ * Einstellung will weniger Bewegung, nicht weniger Rueckmeldung.
+ */
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+
+const druckpunkte = [
+  { id: 'sanft',   label: 'Sanft',      rein: 90, raus: 250, y: 1, s: 0.99 },
+  { id: 'mittel',  label: 'Mittel',     rein: 70, raus: 200, y: 2, s: 0.97 },
+  { id: 'kraeftig',label: 'Kräftig',    rein: 60, raus: 180, y: 3, s: 0.94 },
+];
+---
+
+<ExampleLayout
+  title="Motion-Lab"
+  description="Erprobungsflaeche fuer Interaktions-Rueckmeldung: Druckpunkt, Quittung, Zustandsbalken, Fokus."
+>
+  <main class="lab">
+    <header class="lab-kopf">
+      {/* Kein eigenes <h1> mehr: ExampleLayout rendert den Titel bereits, ein
+          zweites mit demselben Wortlaut waere schlicht doppelt. Die Marke sagt
+          jetzt, was sie nach dem Umzug ist — `noindex` war die Notloesung
+          dafuer, dass die Seite auf einer Kundendomain lag. */}
+      <p class="lab-marke">Erprobung · wird nicht ausgeliefert</p>
+      <p class="lab-lead">
+        Bewusst zu weit gedreht. Probiere alles an — <strong>am besten auf dem
+        Telefon</strong> — und sag, wo zurückgedreht werden soll.
+      </p>
+      <p class="lab-mess" id="mess">Messwerte werden ermittelt …</p>
+    </header>
+
+    <!-- 1 DRUCKPUNKT ------------------------------------------------------ -->
+    <section class="lab-block">
+      <h2>1 · Druckpunkt</h2>
+      <p class="lab-was">
+        Der Knopf sinkt beim Drücken unter seine Ruhelage und federt zurück.
+        <strong>Rein schnell, raus langsamer</strong> — die Asymmetrie ist der
+        ganze Trick. Halte gedrückt und zieh den Finger weg: die Bewegung kehrt
+        von dort um, wo sie gerade ist.
+      </p>
+      <div class="lab-reihe">
+        {druckpunkte.map((d) => (
+          <button type="button" class={`press press--${d.id}`} data-latenz>
+            {d.label}
+            <span class="press-ms">{d.rein} / {d.raus} ms</span>
+          </button>
+        ))}
+      </div>
+      <p class="lab-fuss">
+        Zum Vergleich der heutige Bestand: <button type="button" class="press press--alt">Wie bisher<span class="press-ms">nur Hover</span></button>
+        — auf dem Telefon passiert dort <strong>nichts</strong>, weil es kein Hover gibt.
+      </p>
+    </section>
+
+    <!-- 2 QUITTUNG -------------------------------------------------------- -->
+    <section class="lab-block">
+      <h2>2 · Quittung</h2>
+      <p class="lab-was">
+        Was passiert, wenn etwas <em>geschafft</em> ist. Der Taktschlag von
+        90 ms zwischen Klick und Bestätigung ist beabsichtigt — ohne ihn wirkt
+        es hektisch, mit ihm wie eine Antwort.
+      </p>
+      <div class="lab-reihe">
+        <button type="button" class="press press--mittel" data-quittung="schlicht" data-latenz>
+          Nur Pop<span class="press-ms">420 ms, 90 ms Takt</span>
+        </button>
+        <button type="button" class="press press--mittel" data-quittung="ring" data-latenz>
+          Pop + Ring<span class="press-ms">+ 620 ms Welle</span>
+        </button>
+      </div>
+      <div class="quittung" id="quittung" hidden>
+        <span class="quittung-ring" aria-hidden="true"></span>
+        <span class="quittung-icon" aria-hidden="true">✓</span>
+        <span class="quittung-text">Gebucht.</span>
+      </div>
+    </section>
+
+    <!-- 3 ZUSTANDSBALKEN -------------------------------------------------- -->
+    <section class="lab-block">
+      <h2>3 · Zustandsbalken mit Schwelle</h2>
+      <p class="lab-was">
+        Das Spielhafte ist nicht die Füllbewegung, sondern <strong>die
+        Schwellenmarke</strong> — der Strich, ab dem der Kurs stattfindet.
+        Das macht aus einem Ladebalken eine Anzeige, die etwas bedeutet.
+      </p>
+      <div class="lab-reihe lab-reihe--spalte">
+        <div class="bar-zeile">
+          <span class="bar-label">4 von 12 · Kurs fällt aus</span>
+          <span class="bar" style="--fuell:0.33;--schwelle:0.5"><span class="bar-fuell bar-fuell--risk"></span><span class="bar-marke"></span></span>
+        </div>
+        <div class="bar-zeile">
+          <span class="bar-label">8 von 12 · findet statt</span>
+          <span class="bar" style="--fuell:0.66;--schwelle:0.5"><span class="bar-fuell"></span><span class="bar-marke"></span></span>
+        </div>
+        <div class="bar-zeile">
+          <span class="bar-label">12 von 12 · ausgebucht</span>
+          <span class="bar" style="--fuell:1;--schwelle:0.5"><span class="bar-fuell bar-fuell--voll"></span><span class="bar-marke"></span></span>
+        </div>
+      </div>
+      <button type="button" class="press press--sanft" id="bar-neu" data-latenz>
+        Nochmal füllen<span class="press-ms">700 ms</span>
+      </button>
+    </section>
+
+    <!-- 4 FOKUS ----------------------------------------------------------- -->
+    <section class="lab-block">
+      <h2>4 · Fokus</h2>
+      <p class="lab-was">
+        Mit der Tabulator-Taste durchgehen. Der Ring ist <strong>sofort da</strong>
+        und wird nur in seiner Verzierung animiert — Anwesenheit darf man nie
+        verzögern, sonst fehlt er genau dann, wenn er gebraucht wird.
+      </p>
+      <div class="lab-reihe">
+        <a href="#" class="press press--mittel">Erster Link<span class="press-ms">Tab</span></a>
+        <a href="#" class="press press--mittel">Zweiter Link<span class="press-ms">Tab</span></a>
+        <a href="#" class="press press--mittel">Dritter Link<span class="press-ms">Tab</span></a>
+      </div>
+    </section>
+
+    <p class="lab-ende">
+      Alles hier ist reines CSS mit einer Handvoll Zeilen JavaScript für die
+      Quittung. Nichts davon braucht eine Bibliothek — und nichts davon hängt
+      für seine <em>Sichtbarkeit</em> an JavaScript.
+    </p>
+  </main>
+</ExampleLayout>
+
+<style>
+  /* Die Seite bringt ihr eigenes dunkles Umfeld mit: sie wurde fuer ein dunkles
+     Theme gebaut — Flaechen sind halbtransparentes Weiss — und stuende auf dem
+     hellen Examples-Hintergrund unlesbar da.
+
+     Das Dunkel liegt auf `.lab` und NICHT auf `body`: der Layout-Rahmen
+     (Seitentitel, Zurueck-Link) faerbt sich sonst mit, und `.example-title`
+     schlaegt per Spezifitaet jedes `:global(h1)` — nachgemessen stand die
+     Ueberschrift danach auf rgb(29,30,59) ueber rgb(8,19,27), also
+     dunkelblau auf dunkelblau. Der Rahmen bleibt hell, nur die Lab-Flaeche
+     ist dunkel. */
+  .lab { background: #08131b; color: #eaf6f8; border-radius: 12px; }
+  .lab :global(h2) { color: #eaf6f8; }
+
+  .lab { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
+  .lab-marke {
+    font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--color-accent, #04FFF7); margin: 0 0 0.5rem; font-weight: 700;
+  }
+  .lab-kopf h1 { margin: 0 0 0.5rem; }
+  .lab-lead { margin: 0 0 1.25rem; opacity: 0.85; }
+  .lab-mess {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.75rem; padding: 0.6rem 0.8rem; border-radius: 6px;
+    background: rgb(255 255 255 / 0.06); margin: 0 0 2rem;
+  }
+  .lab-block { margin: 3.5rem 0; }
+  .lab-block h2 { font-size: 1.125rem; margin: 0 0 0.5rem; }
+  .lab-was { margin: 0 0 1.25rem; opacity: 0.8; font-size: 0.9375rem; }
+  .lab-fuss { margin: 1.25rem 0 0; font-size: 0.875rem; opacity: 0.75; }
+  .lab-ende { margin: 4rem 0 0; font-size: 0.875rem; opacity: 0.7; }
+  .lab-reihe { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+  .lab-reihe--spalte { flex-direction: column; align-items: stretch; gap: 1rem; }
+
+  /* --- Druckpunkt -----------------------------------------------------
+     transition, NICHT @keyframes: nur so ist die Bewegung unterbrechbar
+     und kehrt beim Loslassen von ihrer aktuellen Position um.
+     Zwei Dauern, weil rein und raus sich unterschiedlich anfuehlen muessen. */
+  .press {
+    --rein: 70ms;
+    --raus: 200ms;
+    --senk: 2px;
+    --stauch: 0.97;
+    display: inline-flex; flex-direction: column; gap: 0.15rem;
+    padding: 0.7rem 1.1rem; border: 0; border-radius: 10px;
+    font: inherit; font-weight: 700; text-align: left; text-decoration: none;
+    color: #08131b; background: var(--color-accent, #04FFF7);
+    cursor: pointer;
+    transition: transform var(--raus) cubic-bezier(0.16, 1, 0.3, 1),
+                filter   var(--raus) cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .press:active {
+    transform: translateY(var(--senk)) scale(var(--stauch));
+    filter: brightness(0.92);
+    transition-duration: var(--rein);
+  }
+  .press-ms {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.6875rem; font-weight: 400; opacity: 0.65;
+  }
+  .press--sanft    { --rein: 90ms; --raus: 250ms; --senk: 1px; --stauch: 0.99; }
+  .press--mittel   { --rein: 70ms; --raus: 200ms; --senk: 2px; --stauch: 0.97; }
+  .press--kraeftig { --rein: 60ms; --raus: 180ms; --senk: 3px; --stauch: 0.94; }
+
+  /* Der heutige Bestand, zum Vergleich: hebt nur bei Hover und faellt beim
+     Druecken auf die Ruhelage zurueck. Ohne Hover (also auf jedem Telefon)
+     ist das exakt keine sichtbare Aenderung. */
+  .press--alt {
+    background: rgb(255 255 255 / 0.14); color: inherit;
+    transition: transform 0.2s;
+  }
+  .press--alt:hover  { transform: translateY(-1px); }
+  .press--alt:active { transform: translateY(0); filter: none; }
+
+  /* Fokus: sofort sichtbar. Animiert wird nur der weiche Schein aussen. */
+  .press:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+    animation: fokus-schein 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes fokus-schein {
+    from { box-shadow: 0 0 0 0 rgb(255 255 255 / 0.55); }
+    to   { box-shadow: 0 0 0 12px rgb(255 255 255 / 0); }
+  }
+
+  /* --- Quittung -------------------------------------------------------- */
+  .quittung {
+    position: relative; display: flex; align-items: center; gap: 0.6rem;
+    margin-top: 1.5rem; padding: 0.9rem 1.1rem; border-radius: 10px;
+    background: rgb(4 255 247 / 0.1);
+    animation: pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 90ms both;
+  }
+  .quittung-icon {
+    display: grid; place-items: center; width: 1.75rem; height: 1.75rem;
+    border-radius: 50%; background: var(--color-accent, #04FFF7); color: #08131b;
+    font-weight: 700;
+  }
+  .quittung-text { font-weight: 700; }
+  .quittung-ring {
+    position: absolute; left: 1.1rem; top: 50%; width: 1.75rem; height: 1.75rem;
+    margin-top: -0.875rem; border-radius: 50%; opacity: 0;
+    border: 2px solid var(--color-accent, #04FFF7); pointer-events: none;
+  }
+  .quittung--ring .quittung-ring {
+    animation: shockwave 620ms cubic-bezier(0.16, 1, 0.3, 1) 90ms both;
+  }
+  @keyframes pop {
+    from { transform: scale(0.6); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+  @keyframes shockwave {
+    from { opacity: 0.45; transform: scale(0.6); }
+    to   { opacity: 0;    transform: scale(2.4); }
+  }
+
+  /* --- Zustandsbalken --------------------------------------------------- */
+  .bar-zeile { display: grid; gap: 0.35rem; }
+  .bar-label { font-size: 0.8125rem; opacity: 0.8; }
+  .bar {
+    position: relative; display: block; height: 0.6rem; border-radius: 999px;
+    background: rgb(255 255 255 / 0.12); overflow: hidden;
+  }
+  .bar-fuell {
+    position: absolute; inset: 0; transform-origin: left center;
+    transform: scaleX(var(--fuell, 0));
+    background: var(--color-accent, #04FFF7);
+    animation: fuellen 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .bar-fuell--risk { background: #ffd43b; }
+  .bar-fuell--voll { background: rgb(255 255 255 / 0.45); }
+  /* Die Schwellenmarke ist der eigentliche Informationsgehalt: ab hier
+     findet der Kurs statt. Sie bewegt sich nie — sie ist der Bezugspunkt. */
+  .bar-marke {
+    position: absolute; top: -3px; bottom: -3px;
+    left: calc(var(--schwelle, 0.5) * 100%); width: 2px;
+    background: #fff; opacity: 0.75;
+  }
+  @keyframes fuellen {
+    from { transform: scaleX(0); }
+    to   { transform: scaleX(var(--fuell, 0)); }
+  }
+
+  /* --- Weniger Bewegung ------------------------------------------------
+     BEWEGUNG aus, ANTWORT an. Die Zustandswechsel bleiben sichtbar, sie
+     passieren nur sofort statt ueber Zeit. Wer weniger Bewegung einstellt,
+     will keine Rueckmeldung verlieren.
+     Dauern werden auf 0.01ms kollabiert statt auf `none` gesetzt, damit
+     jede Animation ihren Endzustand noch erreicht. */
+  @media (prefers-reduced-motion: reduce) {
+    .press, .press:active { transition-duration: 0.01ms; }
+    .press:active { transform: translateY(1px); filter: brightness(0.92); }
+    .press:focus-visible { animation-duration: 0.01ms; }
+    .quittung, .quittung--ring .quittung-ring, .bar-fuell {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+    }
+  }
+</style>
+
+<script>
+  // Messwerte sichtbar machen: bleibt eine Rueckmeldung aus, soll man hier
+  // ablesen koennen warum, statt zu raten.
+  const mess = document.getElementById('mess');
+  const feinzeiger = window.matchMedia('(pointer: fine)').matches;
+  const weniger = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (mess) {
+    mess.textContent =
+      `${window.innerWidth} px · ${feinzeiger ? 'Maus' : 'Touch'}` +
+      ` · weniger Bewegung: ${weniger ? 'AN — Übergänge abgeschaltet, Antwort bleibt' : 'aus'}`;
+  }
+
+  // Latenz messen: Zeit vom Zeigerkontakt bis zur ersten Stilaenderung.
+  // Zielwert <= 100ms, idealerweise der naechste Frame.
+  document.querySelectorAll('[data-latenz]').forEach((el) => {
+    el.addEventListener('pointerdown', () => {
+      const t0 = performance.now();
+      requestAnimationFrame(() => {
+        const dt = Math.round(performance.now() - t0);
+        if (mess) {
+          mess.textContent = `Latenz bis erster Frame: ${dt} ms  ${dt <= 100 ? '✓' : '✗ über Budget'}`;
+        }
+      });
+    });
+  });
+
+  // Quittung: neu ausloesen, indem das Element ersetzt wird. Ein blosses
+  // Entfernen und Wiedersetzen der Klasse startet die Animation nicht neu.
+  const quittung = document.getElementById('quittung');
+  document.querySelectorAll('[data-quittung]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!quittung) return;
+      const mitRing = btn.getAttribute('data-quittung') === 'ring';
+      const frisch = quittung.cloneNode(true) as HTMLElement;
+      frisch.hidden = false;
+      frisch.classList.toggle('quittung--ring', mitRing);
+      quittung.replaceWith(frisch);
+      frisch.id = 'quittung';
+    });
+  });
+
+  // Balken neu fuellen — gleiche Technik, gleicher Grund.
+  document.getElementById('bar-neu')?.addEventListener('click', () => {
+    document.querySelectorAll('.bar-fuell').forEach((el) => {
+      const neu = el.cloneNode(true);
+      el.replaceWith(neu);
+    });
+  });
+</script>
