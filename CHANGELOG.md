@@ -22,6 +22,76 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.119.0 (2026-08-17)
+
+- [kunde:sichtbar] Die Fragen im FAQ klappen jetzt weich auf, statt schlagartig zu erscheinen.
+
+**Drei Bausteine, die BESTEHENDE Komponenten anfassen** — anders als v0.118.0, das rein
+additiv war. Deshalb der `[kunde:sichtbar]`-Marker und der erweiterte Canary-Check.
+
+### FAQ-Hoehenuebergang (`FAQHonest`)
+
+Bisher wechselte nur das Zeichen von `+` auf `x`, waehrend die Antwort im selben Frame
+erschien. Das liest sich wie ein Neuaufbau der Seite, nicht wie eine Antwort auf den
+Klick — man verliert kurz, wo man war.
+
+`<details>` laesst sich nicht direkt animieren. Erst `::details-content` zusammen mit
+`interpolate-size: allow-keywords` macht den Weg von `0` nach `auto` interpolierbar.
+Beides steht hinter `@supports`: wo es fehlt, klappt das Element auf wie bisher — kein
+Bruch, nur kein Uebergang. `interpolate-size` steht auf `.fh-item` statt auf `:root`,
+weil es global gesetzt JEDE `height: auto`-Transition der Seite veraendern wuerde, auch
+in Komponenten, die davon nichts wissen.
+
+Gemessen: geschlossen 59 px, nach 90 ms 135 px, offen 149 px — es waechst also ueber
+Zeit. Unter `prefers-reduced-motion` steht es nach 60 ms bereits auf 149 px, das
+Aufklappen bleibt also, nur die Zeit faellt weg.
+
+### `.motion-lift` — Karten-Reaktion
+
+Eine Karte, die auf Annaeherung reagiert, sagt "ich bin anfassbar". Nur hinter
+`@media (hover: hover) and (pointer: fine)`: auf einem Telefon vergibt der Browser den
+Hover-Zustand beim Antippen und behaelt ihn, bis woanders getippt wird — die Karte
+bliebe angehoben stehen, ohne dass jemand darauf zeigt.
+
+`translateY` statt `scale`, weil eine skalierende Karte ihren Text um Subpixel
+verschiebt und ihn flimmern laesst. Opt-in, an keiner Seite aendert sich etwas von
+selbst.
+
+### `motion`-Prop fuer `ContentPage`
+
+Bis hierher kannte nur `LandingPage` die Prop. Auf einer Startseite gab es also einen
+Fortschrittsbalken, auf jeder Unterseite desselben Kunden nicht — dieselbe Website
+verhielt sich je nach Layout anders, ohne dass das jemand entschieden hatte.
+
+`ContentPage` importiert `MotionLayerConfig` per `import type` aus `LandingPage`, statt
+einen zweiten Typ mit gleichem Inhalt zu deklarieren: Zwillinge laufen auseinander, und
+dann heisst dieselbe Prop auf zwei Layouts Verschiedenes. Default bleibt aus.
+
+**Nebenbefund:** `examples/` konnte bis jetzt keine einzige Seite auf einem cw-core-Layout
+bauen. `BaseLayout.astro` importiert fest `@/styles/tokens.css` und setzt damit die
+Kundenstruktur voraus; in examples fehlte der Alias, der Build brach mit
+`Rollup failed to resolve import` ab. Alle bisherigen Beispielseiten bauen deshalb ihren
+HTML-Rahmen selbst. Mit `@`-Alias und einer minimalen `examples/src/styles/tokens.css`
+sind BaseLayout, ContentPage und LandingPage dort erstmals pruefbar.
+
+### Gegenbeweise — zwei Pruefungen fielen dabei durch
+
+| Sabotage | Ergebnis |
+|---|---|
+| Hover-Anhebung entfernt | **rot** (2 Pruefungen) |
+| `@media (hover: hover)` entfernt | **zuerst gruen** — die Pruefung las `window.matchMedia`, also die Testumgebung statt das CSS. Nach Reparatur rot |
+| FAQ-Hoehenuebergang entfernt | **rot** — nach 90 ms bereits am Endwert, also ein Sprung |
+| `motion`-Prop entfernt | **zuerst wortloser Absturz** — Locator-Exception statt roter Meldung. Nach Reparatur rot |
+
+Zwei der vier Sabotagen deckten Fehler in den Pruefungen auf, nicht im Code. Eine
+Pruefung, die die Testumgebung misst, kann nicht rot werden; ein Absturz sieht aus wie
+ein kaputter Testaufbau und nicht wie ein Befund.
+
+528/528 Tests, lint:css sauber, astro check unveraendert bei 2 vorbestehenden Fehlern,
+19 Beispielseiten bauen, Reproduzierbarkeit 31 Dateien byte-identisch, 11/11 Browser-Checks.
+
+---
+
 ## v0.118.0 (2026-08-17)
 
 **Neu:** `motion/ThresholdBar.astro` — ein Zustandsbalken, dessen Aussage die

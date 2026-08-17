@@ -24,6 +24,16 @@ import BaseLayout, { type SchemaProps } from './BaseLayout.astro';
 import Header, { type NavItem } from '../components/layout/Header.astro';
 import Footer, { type FooterLink } from '../components/layout/Footer.astro';
 import TurnstilePreClearance from '../components/forms/TurnstilePreClearance.astro';
+import SmoothScroll from '../components/motion/SmoothScroll.astro';
+import ScrollProgress from '../components/motion/ScrollProgress.astro';
+import CustomCursor from '../components/motion/CustomCursor.astro';
+/*
+ * Derselbe Typ wie in LandingPage, nicht ein zweiter mit gleichem Inhalt:
+ * zwei Deklarationen laufen frueher oder spaeter auseinander, und dann heisst
+ * dieselbe Prop auf zwei Layouts Verschiedenes. `import type` wird zur
+ * Compile-Zeit entfernt, es wird also nichts von LandingPage mitgeladen.
+ */
+import type { MotionLayerConfig } from './LandingPage.astro';
 
 export interface HeaderConfig {
   logoSrc?: string;
@@ -100,6 +110,17 @@ interface Props {
   /** See LandingPage.turnstileSiteKey — site-wide Pre-Clearance widget. */
   turnstileSiteKey?: string;
   /**
+   * Siehe LandingPage.motion — dieselbe Prop, derselbe Typ.
+   *
+   * Bis v0.118.0 kannte ContentPage keine motion-Prop. Auf einer Seite mit
+   * LandingPage gab es also einen Fortschrittsbalken, auf einer Unterseite
+   * desselben Kunden nicht — dieselbe Website verhielt sich je nach Layout
+   * anders, ohne dass jemand das so entschieden hatte.
+   *
+   * Default bleibt aus: wer nichts setzt, bekommt nichts.
+   */
+  motion?: MotionLayerConfig;
+  /**
    * Steuert das `padding-bottom` am Content-Wrapper (Abstand zum Footer).
    * - `undefined` (Default): AUTO — bündig, sobald die Seite einen
    *   `full-width`-Slot nutzt (dort landen CTA-Blöcke). Leistungsdetail-Seiten
@@ -138,6 +159,7 @@ const {
   header = {},
   footer,
   turnstileSiteKey,
+  motion,
   flushBottom,
   showTitle = true,
 } = Astro.props;
@@ -213,6 +235,12 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
     statusBadge={footer.statusBadge}
     psiBadge={footer.psiBadge}
   />
+
+  {/* Reihenfolge und Bedingungen identisch zu LandingPage:242-244 — dieselbe
+      Prop soll auf beiden Layouts dasselbe tun. */}
+  {motion?.smoothScroll && <SmoothScroll />}
+  {motion?.progress && <ScrollProgress />}
+  {motion?.cursor && <CustomCursor />}
 </BaseLayout>
 
 <style>
