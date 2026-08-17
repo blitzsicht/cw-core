@@ -22,6 +22,27 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.121.2 (2026-08-17)
+
+**Fix:** Der `visual`-Slot sprengte das Hero-Layout, sobald sein Inhalt breiter
+war als die Spalte. Der Wrapper ist ein Grid-Item, und Grid-Items haben per
+Default `min-width: auto` — sie lassen sich von unteilbarem Inhalt aufdruecken.
+Weil der Track dadurch breiter wird, wachsen **alle** Items der Spalte mit, auch
+der Text daneben.
+
+Gemessen auf platzfrei.club bei 390 px: `.hero-content` sprang von 342 auf
+389 px und ragte 23 px ueber den Viewport; die Schlagzeile wurde rechts
+abgeschnitten. Gegen `origin/main` gemessen, wo derselbe Hero 342 px breit ist.
+
+Behoben mit `min-width: 0; max-width: 100%` am Wrapper.
+
+**Warum v0.121.0 und .1 das nicht gefangen haben:** Der Slot-Inhalt der
+Beispielseite war schmal genug, um in die Spalte zu passen. Die Seite enthaelt
+jetzt bewusst breiten Inhalt (eine lange, nicht umbrechbare Zeile), und die
+Pruefung schlaegt ohne den Fix an.
+
+---
+
 ## v0.121.1 (2026-08-17)
 
 **Fix:** `visualSwap` blendete das Hero-Bild nicht aus, sobald `motion.parallax`
