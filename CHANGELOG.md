@@ -22,6 +22,67 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.121.0 (2026-08-17)
+
+**Neu:** `Hero.astro` bekommt einen benannten Slot `visual` und die Prop
+`visualSwap`. Damit kann interaktiver Inhalt an die Stelle des Hero-Bildes
+treten — eine Demo, ein Rechner —, ohne dass ohne JavaScript eine leere Flaeche
+neben der Schlagzeile steht.
+
+Bewusst **ohne** `[kunde]`-Zeile: Wer den Slot nicht befuellt, sieht keinen
+Unterschied. `hatVisual` prueft `Astro.slots.has('visual')`, und `visualSwap`
+wirkt nur zusammen damit.
+
+### Warum ueberhaupt
+
+Auf platzfrei.club lagen nach drei Runden Arbeit 26 Motion-Elemente und eine
+spielbare Buchung auf der Seite — alle unterhalb des ersten Bildschirms.
+Gemessen bei 390 px: Der Hero ist 1143 px hoch bei 844 px Schirm, die Demo
+beginnt bei 2138 px. Im Hero selbst greift auf einem Telefon **kein** Effekt
+(TextReveal erst ab 901 px, MagneticButton braucht einen Zeiger, Parallax nur
+beim Scrollen, der Blob laeuft in 18–26-s-Zyklen). Der Operator sagte dazu
+zutreffend: „hat sich nicht wirklich was veraendert, zumindest nicht auf den
+ersten Blick."
+
+Ein Hero, der etwas Interaktives aufnehmen kann, loest das an der Wurzel.
+
+### Der Tausch haengt an `scripting`, nicht an einer Klasse
+
+```css
+.hero--visual-swap .hero-visual-wrap { display: none; }
+@media (scripting: enabled) {
+  .hero--visual-swap .hero-visual-wrap { display: block; }
+  .hero--visual-swap .hero-image-wrap { display: none; }
+}
+```
+
+Ein per Skript gesetzter Umschalter waere ein sichtbarer Sprung — erst Foto,
+dann Demo. So passiert der Wechsel im ersten Frame.
+
+Das Bild bleibt dabei im Markup und verliert nur seine Ladeprioritaet
+(`loading="lazy"`, `fetchpriority="auto"` statt `eager`/`high`). Ohne diese
+Absenkung laedt der Browser ein grosses Foto mit hoher Prioritaet, das
+anschliessend versteckt wird — das Schlechteste aus beiden Welten.
+
+`hero--split` greift jetzt auch, wenn NUR ein Visual da ist und gar kein Bild.
+
+### Gegenprobe
+
+| Zustand | Ergebnis |
+|---|---|
+| mit JS | Slot sichtbar, Foto ausgeblendet |
+| ohne JS | Foto sichtbar, Slot-Container weg |
+| beide Faelle | **genau eines** von beiden sichtbar — nie eine leere Flaeche |
+| Tausch-Regel entfernt | **rot** (2 Pruefungen) |
+
+Examples: `/hero-visual-slot` zeigt es, inklusive Anleitung zum Nachstellen
+ohne JavaScript.
+
+528/528 Tests, lint:css sauber, astro check unveraendert bei 2 vorbestehenden
+Fehlern, 20 Beispielseiten bauen, 6/6 Browser-Checks.
+
+---
+
 ## v0.120.0 (2026-08-17)
 
 - [kunde:sichtbar] Hochzaehlende Zahlen zeigen jetzt auch dann den richtigen Wert, wenn im Browser kein JavaScript laeuft.

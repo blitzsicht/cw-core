@@ -1,0 +1,58 @@
+---
+/**
+ * Hero mit `visual`-Slot und `visualSwap`.
+ *
+ * Zweck: belegen, dass der Tausch an `scripting` haengt und nicht an einer
+ * Klasse, die JavaScript setzt — und dass ohne Skript das Bild stehen bleibt
+ * statt einer leeren Flaeche.
+ *
+ * Zum Nachstellen: Seite laden, dann JavaScript in den DevTools abschalten und
+ * neu laden. Es muss das Foto erscheinen, nicht ein Loch.
+ */
+import Hero from '@cw/core/components/blocks/Hero.astro';
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+---
+<ExampleLayout
+  title="Hero: visual-Slot"
+  description="Interaktiver Inhalt im Hero, mit Bild als Rückfallebene ohne JavaScript."
+>
+  <p>
+    Der Kasten rechts (auf schmalen Schirmen: darunter) kommt aus dem
+    <code>visual</code>-Slot. Mit <code>visualSwap</code> ersetzt er das Foto,
+    sobald JavaScript läuft. <strong>Ohne JavaScript bleibt das Foto stehen</strong> —
+    deshalb steht es weiterhin im Markup und verliert nur seine Ladepriorität.
+  </p>
+
+  <Hero
+    badge="Beispiel"
+    headline="Etwas Interaktives im Hero"
+    subtext="Der Slot nimmt auf, was ohne Skript nichts anzeigen kann: eine Demo, einen Rechner."
+    imageSrc="/beispiel-hero.svg"
+    imageWidth={800}
+    imageHeight={600}
+    imageAlt="Platzhalter-Grafik als Rückfallebene"
+    siteName="cw-core Examples"
+    ctaPrimary={{ label: 'Primär', href: '#' }}
+    visualSwap
+  >
+    <div slot="visual" class="beispiel-visual">
+      <p class="beispiel-visual-titel">Ich bin der Slot-Inhalt</p>
+      <p class="beispiel-visual-text">
+        Sichtbar nur mit JavaScript. Schalte es ab und lade neu — dann steht hier
+        das Foto.
+      </p>
+    </div>
+  </Hero>
+</ExampleLayout>
+
+<style>
+  .beispiel-visual {
+    padding: 1.5rem;
+    border-radius: 1rem;
+    background: rgb(255 255 255 / 0.12);
+    border: 1px solid rgb(255 255 255 / 0.25);
+    color: #fff;
+  }
+  .beispiel-visual-titel { margin: 0 0 0.5rem; font-weight: 700; }
+  .beispiel-visual-text { margin: 0; font-size: 0.9375rem; opacity: 0.85; }
+</style>

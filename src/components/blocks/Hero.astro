@@ -130,6 +130,22 @@ interface Props {
    * the card with `object-fit: cover`.
    */
   transparentImage?: boolean;
+  /**
+   * Ersetzt das Hero-Bild durch den `visual`-Slot, SOBALD JavaScript laeuft.
+   *
+   * Gedacht fuer interaktive Inhalte, die ohne Skript nichts anzeigen koennen —
+   * eine Demo, ein Rechner. Ohne JavaScript bleibt das Bild stehen, es gibt also
+   * nie eine leere Flaeche neben der Schlagzeile.
+   *
+   * Wirkt nur zusammen mit einem befuellten `visual`-Slot. Ist er leer, aendert
+   * das Flag nichts.
+   *
+   * @example
+   *   <Hero image={foto} visualSwap>
+   *     <MeineDemo slot="visual" />
+   *   </Hero>
+   */
+  visualSwap?: boolean;
   /** Site name used as image alt fallback. */
   siteName?: string;
   /** Primary CTA (accent button). */
@@ -155,6 +171,7 @@ const {
   images,
   imageAlt,
   transparentImage = false,
+  visualSwap = false,
   siteName,
   ctaPrimary = { label: 'Kostenlose Beratung anfragen', href: '/kontakt' },
   ctaSecondary,
@@ -165,12 +182,17 @@ const {
 const hasImages = Array.isArray(images) && images.length >= 2;
 const hasImage = !hasImages && (!!image || !!imageSrc);
 const hasMedia = hasImages || hasImage;
+/* Der Slot ersetzt das Bild nur, wenn er auch befuellt ist — sonst stuende bei
+   gesetztem Flag eine leere Flaeche, wo vorher ein Foto war. Gleiches Muster wie
+   `shouldFlush` in ContentPage.astro. */
+const hatVisual = Astro.slots.has('visual');
+const tauscheVisual = visualSwap && hatVisual;
 const motionCfg: HeroMotionConfig =
   motion === true
     ? { blob: true, textReveal: true, stagger: true, parallax: true, magnetic: true }
     : (motion || {});
 ---
-<section class:list={['hero', hasMedia && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image']}>
+<section class:list={['hero', (hasMedia || hatVisual) && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image', tauscheVisual && 'hero--visual-swap']}>
   {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}
   <div class="container">
     <div class="hero-content">
@@ -262,8 +284,8 @@ const motionCfg: HeroMotionConfig =
               alt={imageAlt ?? siteName ?? ''}
               widths={[400, 600, 800]}
               sizes="(max-width: 767px) 100vw, 45vw"
-              loading="eager"
-              fetchpriority="high"
+              loading={tauscheVisual ? 'lazy' : 'eager'}
+              fetchpriority={tauscheVisual ? 'auto' : 'high'}
               formats={['avif', 'webp']}
               fallbackFormat="webp"
               class="hero-img"
@@ -276,8 +298,8 @@ const motionCfg: HeroMotionConfig =
               width={imageWidth}
               height={imageHeight}
               alt={imageAlt ?? siteName ?? ''}
-              loading="eager"
-              fetchpriority="high"
+              loading={tauscheVisual ? 'lazy' : 'eager'}
+              fetchpriority={tauscheVisual ? 'auto' : 'high'}
               decoding="async"
               class="hero-img"
             />
@@ -291,8 +313,8 @@ const motionCfg: HeroMotionConfig =
               alt={imageAlt ?? siteName ?? ''}
               widths={[400, 600, 800]}
               sizes="(max-width: 767px) 100vw, 45vw"
-              loading="eager"
-              fetchpriority="high"
+              loading={tauscheVisual ? 'lazy' : 'eager'}
+              fetchpriority={tauscheVisual ? 'auto' : 'high'}
               formats={['avif', 'webp']}
               fallbackFormat="webp"
               class="hero-img"
@@ -305,14 +327,31 @@ const motionCfg: HeroMotionConfig =
               width={imageWidth}
               height={imageHeight}
               alt={imageAlt ?? siteName ?? ''}
-              loading="eager"
-              fetchpriority="high"
+              loading={tauscheVisual ? 'lazy' : 'eager'}
+              fetchpriority={tauscheVisual ? 'auto' : 'high'}
               decoding="async"
               class="hero-img"
             />
           )}
         </div>
       )
+    )}
+
+    {/*
+      Der Slot steht NEBEN dem Bild, nicht statt seiner: welches von beiden zu
+      sehen ist, entscheidet CSS. Waere das Bild bei gesetztem `visualSwap` gar
+      nicht erst im Markup, gaebe es ohne JavaScript eine leere Flaeche — und
+      genau dafuer ist der Fallback da.
+
+      Das Bild verliert dabei seine Ladepriorität (siehe oben): es ist dann nur
+      noch Rueckfallebene und darf den kritischen Pfad nicht belegen. Ohne das
+      laedt der Browser ein grosses Foto mit `fetchpriority="high"`, das
+      anschliessend versteckt wird — das Schlechteste aus beiden Welten.
+    */}
+    {hatVisual && (
+      <div class="hero-visual-wrap" data-hero-visual>
+        <slot name="visual" />
+      </div>
     )}
 
     {hasImages && (
@@ -374,6 +413,24 @@ const motionCfg: HeroMotionConfig =
     border-radius: 1rem;
     overflow: hidden;
     box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  }
+
+  /* --- visual-Slot ------------------------------------------------------
+   * Ohne `visualSwap` ist der Slot einfach da — der Aufrufer entscheidet, was
+   * darin steht.
+   *
+   * MIT `visualSwap` wird getauscht, und zwar an `scripting`, nicht an einer
+   * Klasse, die JavaScript setzt: der Wechsel passiert dann im ersten Frame
+   * statt nach dem Laden. Ein per Skript gesetzter Umschalter waere ein
+   * sichtbarer Sprung — erst Foto, dann Demo.
+   *
+   * Ohne Skript bleibt es beim Foto und der Slot-Container ist weg. Damit gibt
+   * es nie eine leere Flaeche neben der Schlagzeile. */
+  .hero--visual-swap .hero-visual-wrap { display: none; }
+
+  @media (scripting: enabled) {
+    .hero--visual-swap .hero-visual-wrap { display: block; }
+    .hero--visual-swap .hero-image-wrap { display: none; }
   }
   .hero-img {
     display: block;
