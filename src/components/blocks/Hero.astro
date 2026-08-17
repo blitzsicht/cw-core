@@ -426,6 +426,15 @@ const motionCfg: HeroMotionConfig =
    *
    * Ohne Skript bleibt es beim Foto und der Slot-Container ist weg. Damit gibt
    * es nie eine leere Flaeche neben der Schlagzeile. */
+  /* `min-width: 0` ist Pflicht, nicht Feinschliff: der Wrapper ist ein
+     Grid-Item, und Grid-Items haben per Default `min-width: auto`. Sie lassen
+     sich also von unteilbarem Inhalt aufdruecken — und weil der Track dann
+     breiter wird, wachsen ALLE Items der Spalte mit, auch der Text daneben.
+     Gemessen auf platzfrei.club bei 390 px: `.hero-content` sprang von 342 auf
+     389 px und ragte ueber den Viewport, die Schlagzeile wurde abgeschnitten.
+     Der Slot-Inhalt selbst war unschuldig. */
+  .hero-visual-wrap { min-width: 0; max-width: 100%; }
+
   .hero--visual-swap .hero-visual-wrap { display: none; }
 
   @media (scripting: enabled) {

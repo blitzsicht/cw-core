@@ -45,6 +45,10 @@ import ExampleLayout from '../layouts/ExampleLayout.astro';
         Sichtbar nur mit JavaScript. Schalte es ab und lade neu — dann steht hier
         das Foto.
       </p>
+      {/* Bewusst breit und nicht umbrechbar: ohne `min-width: 0` am Wrapper
+          drueckt so etwas den ganzen Grid-Track auf und schiebt den Hero-Text
+          ueber den Viewport. Genau dieser Fall war in v0.121.0/.1 ungeprueft. */}
+      <pre class="beispiel-visual-breit">breiter_inhalt_der_nicht_umbricht_und_die_spalte_sprengen_wuerde</pre>
     </div>
   </Hero>
 </ExampleLayout>
@@ -59,4 +63,9 @@ import ExampleLayout from '../layouts/ExampleLayout.astro';
   }
   .beispiel-visual-titel { margin: 0 0 0.5rem; font-weight: 700; }
   .beispiel-visual-text { margin: 0; font-size: 0.9375rem; opacity: 0.85; }
+  .beispiel-visual-breit {
+    margin: 0.75rem 0 0;
+    font-size: 0.75rem;
+    overflow-x: auto;
+  }
 </style>
