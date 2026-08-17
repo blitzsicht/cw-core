@@ -22,6 +22,69 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.118.0 (2026-08-17)
+
+**Neu:** `motion/ThresholdBar.astro` — ein Zustandsbalken, dessen Aussage die
+**Schwellenmarke** ist, nicht die Füllbewegung. Dazu die Utility-Klasse
+`.motion-focus-glow` für einen Fokusring, der sofort da ist und nur außen
+nachglüht.
+
+Bewusst **ohne** `[kunde]`-Zeile: beides sind neue, opt-in Bausteine. An keiner
+der 24 ausgelieferten Seiten ändert sich etwas — wer sie nicht importiert bzw.
+die Klasse nicht setzt, sieht keinen Unterschied. Die Regeln in `tokens-base.css`
+sind additiv und greifen an keinem bestehenden Element.
+
+Beide Bausteine waren seit dem 06.08. in `customer-platzfrei/src/pages/motion-lab.astro`
+erprobt und nie geerntet — sie lagen zehn Tage lang in einem Kundenrepo statt im Kern.
+
+### Warum die Marke der Punkt ist
+
+Ein Balken ohne Bezugspunkt ist ein Ladebalken: er sagt „etwas füllt sich", aber
+nicht, worauf es hinausläuft. Der Strich sagt, ab wann es kippt — ab wann der Kurs
+stattfindet, ab wann die Mindestmenge erreicht ist. Er bewegt sich deshalb nie.
+
+### § 5a UWG steht an der Komponente, nicht nur im Plan
+
+Füllstand und Schwelle müssen aus einer echten Datenquelle kommen. Ein Balken mit
+ausgedachten Zahlen ist erfundene Dringlichkeit und damit eine irreführende
+geschäftliche Handlung. Die Auflage steht als Kommentar im JSDoc der Komponente,
+in `tokens-base.css` und in der Examples-Seite — dort, wo sie jemand liest, der
+den Balken einbaut. Beispielwerte müssen am Bauteil selbst gekennzeichnet sein.
+
+### Reduced Motion: nachgemessen statt behauptet
+
+Der erste Kommentar an der Reduced-Motion-Regel behauptete, ohne den Dauer-Kollaps
+bliebe der Balken auf Keyframe 1 stehen, also leer. Drei Sabotageläufe haben das
+widerlegt und die Lage geklärt:
+
+| Sabotage | Ergebnis |
+|---|---|
+| `animation: none` statt Dauer-Kollaps | **grün** — der Balken steht weiterhin richtig |
+| Basisregel `transform: scaleX(var(--fill))` entfernt | **rot** — `transform: none`, der Balken zeigt 100 % statt 25 % |
+| Dauer-Kollaps entfernt | **rot** — Füllung läuft 700 ms trotz `prefers-reduced-motion` |
+
+Den Standzustand trägt also die Basisregel, nicht der Dauer-Kollaps; der Kollaps
+hält die Bewegung an. Beides ist nötig, aber aus verschiedenen Gründen — und der
+Kommentar sagt das jetzt richtig. Die dritte Sabotage deckte zugleich eine Lücke
+in der Prüfung auf: sie wartete 1,2 s und sah deshalb in beiden Fällen nur den
+Endzustand. Sie prüft jetzt zusätzlich die `animation-duration`.
+
+### Guard-Registrierung
+
+`ThresholdBar` steht in `IMPORT_ONLY_MOTION` und setzt `data-motion-threshold`.
+Ohne den Marker wäre die Füllanimation für den Motion-Consent-Guard unsichtbar
+gewesen — der Test `jede Motion-Komponente setzt einen erkennbaren Marker` hat
+das beim ersten Lauf gefangen, bevor es jemand hätte übersehen können.
+
+Die Styles liegen auf Klassen statt auf dem Attribut, damit sie auch für Elemente
+gelten, die JavaScript nachträglich einfügt. Grund ist ein Fehler aus derselben
+Woche in `customer-platzfrei`: ein per `document.createElement` erzeugtes Element
+trägt Astros Scope-Kennung nicht, und gescopte Regeln greifen dann an ihm nicht.
+
+Examples: `/motion` zeigt beide unter Nr. 13 und 14.
+
+---
+
 ## v0.117.0 (2026-08-13)
 
 **Fix:** Der `smoke-test`-Job überspringt sich nicht mehr stillschweigend, wenn
