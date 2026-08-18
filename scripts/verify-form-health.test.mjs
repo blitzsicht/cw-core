@@ -10,6 +10,14 @@
  *   (c) Negativ: Customer MIT Form, kein Opt-out → SITE_URL-FATAL (prüft normal)
  *   (d) Fail-open: site-data.ts fehlt → kein Crash, weiter bis SITE_URL-Check
  *   (e) contactForm: true (kein Opt-out) → weiter bis SITE_URL-Check
+ *   (f) FORM_PAGE_PATH steuert die geprüfte Seite (One-Pager)
+ *   (g) Formular MIT Turnstile-Widget → Exit 0
+ *   (h) Formular OHNE Turnstile-Widget → Exit 1   ← neu 18.08.2026, vorher Exit 0
+ *   (i) Formular ohne Widget + turnstile: false → Exit 0 (Opt-out im Repo)
+ *
+ * Gegenprobe zu (h)/(i), gefahren am 18.08.2026: dieselbe Testdatei gegen den
+ * Skriptstand v0.121.2 ergibt 7 pass / 2 fail — genau (h) und (i) fallen um.
+ * (g) bleibt in beiden Ständen grün, prüft also unverändertes Verhalten.
  */
 
 import { test } from 'node:test';
@@ -143,9 +151,12 @@ import { promisify } from 'node:util';
 const execFileAsync = promisify(execFile);
 
 /** Wie runScript, aber asynchron (für Tests mit lokalem HTTP-Server). */
-async function runScriptAsync({ env = {} } = {}) {
+async function runScriptAsync({ env = {}, siteDataContent = null } = {}) {
   const cwd = join(tmpdir(), `cwcore-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   mkdirSync(join(cwd, 'src', 'data'), { recursive: true });
+  if (siteDataContent !== null) {
+    writeFileSync(join(cwd, 'src', 'data', 'site-data.ts'), siteDataContent, 'utf-8');
+  }
   try {
     const { stdout } = await execFileAsync(process.execPath, [SCRIPT], {
       env: { ...process.env, ...env },
@@ -189,4 +200,82 @@ test('FORM_PAGE_PATH steuert die geprüfte Seite (One-Pager-Support)', async () 
   } finally {
     await new Promise((r) => server.close(r));
   }
+});
+
+// --- Test (g/h/i): Turnstile ist Pflicht, sobald ein Formular gerendert wird ---
+// Hintergrund: bis 18.08.2026 war ein fehlendes Turnstile-Widget ein ℹ️-Hinweis und der
+// Lauf blieb grün (5/5 statt 6/6). Gemessen am 18.08.2026 lieferten elektro-mika.com und
+// donau-profi.de — beide ohne Bot-Schutz, beide mit Fake-Leads — exit 0. Der Check konnte
+// beim Defekt nicht rot werden. Diese drei Tests halten das Gegenteil fest.
+
+/** Baut einen Test-Server, der /kontakt/ mit oder ohne Turnstile-Widget ausliefert. */
+function formServer({ withTurnstile }) {
+  const widget = withTurnstile
+    ? '<div class="cf-turnstile" data-sitekey="0x4AAAAAADKJWXjyXwAEwXtd"></div>'
+      + '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js"></script>'
+    : '';
+  return createServer((req, res) => {
+    const path = (req.url || '').split('?')[0];
+    if (path === '/kontakt/' || path === '/kontakt') {
+      res.writeHead(200, { 'content-type': 'text/html' });
+      res.end(`<html><body><form action="/api/contact" method="post">${widget}`
+        + '<button type="submit">Senden</button></form></body></html>');
+    } else if (path === '/api/contact') {
+      // Existiert (kein 404) und crasht nicht (kein 5xx) — 400 ist der saubere Fall.
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end('{"ok":false}');
+    } else {
+      res.writeHead(404, { 'content-type': 'text/plain' });
+      res.end('not found');
+    }
+  });
+}
+
+/** Startet den Server, ruft fn(SITE_URL) auf, schließt ihn zuverlässig wieder. */
+async function withFormServer({ withTurnstile }, fn) {
+  const server = formServer({ withTurnstile });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = /** @type {import('node:net').AddressInfo} */ (server.address()).port;
+  try {
+    return await fn(`http://127.0.0.1:${port}`);
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+}
+
+test('Formular MIT Turnstile-Widget → Exit 0 (Positivfall bleibt grün)', async () => {
+  await withFormServer({ withTurnstile: true }, async (SITE_URL) => {
+    const r = await runScriptAsync({ env: { SITE_URL, SKIP_FORM_HEALTH: '', FORM_PAGE_PATH: '' } });
+    assert.equal(r.code, 0, 'mit gerendertem Widget muss der Check grün sein');
+    assert.ok(r.stdout.includes('Turnstile-Script geladen'), 'Turnstile-Check muss gelaufen sein');
+  });
+});
+
+test('Formular OHNE Turnstile-Widget → Exit 1 (der Fall, der vorher grün war)', async () => {
+  await withFormServer({ withTurnstile: false }, async (SITE_URL) => {
+    const r = await runScriptAsync({ env: { SITE_URL, SKIP_FORM_HEALTH: '', FORM_PAGE_PATH: '' } });
+    assert.equal(r.code, 1, 'fehlendes Turnstile-Widget MUSS fehlschlagen (vorher: Exit 0)');
+    assert.ok(
+      r.stdout.includes('Turnstile-Widget gerendert'),
+      'der fehlgeschlagene Check muss namentlich in der Ausgabe stehen',
+    );
+    assert.ok(
+      r.stdout.includes('PUBLIC_TURNSTILE_SITE_KEY'),
+      'die Meldung muss die fehlende Env-Var nennen, sonst ist sie nicht handlungsfähig',
+    );
+  });
+});
+
+test('Formular ohne Widget + turnstile: false → Exit 0 (bewusster Opt-out im Repo)', async () => {
+  await withFormServer({ withTurnstile: false }, async (SITE_URL) => {
+    const r = await runScriptAsync({
+      env: { SITE_URL, SKIP_FORM_HEALTH: '', FORM_PAGE_PATH: '' },
+      siteDataContent: 'export const siteData = {\n  contactForm: true,\n  turnstile: false,\n};\n',
+    });
+    assert.equal(r.code, 0, 'expliziter Opt-out im Repo muss den Turnstile-Check abschalten');
+    assert.ok(r.stdout.includes('bewusster Opt-out'), 'Opt-out muss sichtbar geloggt werden');
+    // Gegenprobe: der Rest des Checks läuft weiter, es ist kein Voll-Skip.
+    assert.ok(r.stdout.includes('Submit-Button vorhanden'), 'übrige Checks müssen weiterlaufen');
+    assert.ok(!r.stdout.includes('skipped (no form on page)'), 'kein Voll-Skip erwartet');
+  });
 });
