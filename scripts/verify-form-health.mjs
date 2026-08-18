@@ -5,12 +5,17 @@
  * Curl-basierter Live-Check für Customer-Kontaktformular. Soll catchen wenn:
  *   - die Formular-Seite (FORM_PAGE_PATH, Default /kontakt/) nicht 200 liefert
  *   - <form> nicht im HTML
- *   - Turnstile-Widget (data-sitekey) nicht gerendert
+ *   - Turnstile-Widget (data-sitekey) nicht gerendert  ← seit 18.08.2026 FAIL, vorher nur ℹ️
  *   - Turnstile-Script nicht geladen
  *   - /api/contact crasht (5xx) statt sauber 4xx
  *
  * Optional: FORM_PAGE_PATH — Pfad der Seite mit dem Formular (Default '/kontakt/').
  * One-Pager mit Formular auf der Startseite setzen FORM_PAGE_PATH=/ (z.B. platzfrei).
+ *
+ * Opt-outs (gestaffelt, s. Kommentare unten):
+ *   (a) SKIP_FORM_HEALTH=true          — ganzer Check aus (Repository-Variable)
+ *   (b) contactForm: false             — ganzer Check aus (Customer ohne Formular)
+ *   (c) turnstile: false               — nur der Turnstile-Check aus, Rest läuft
  *
  * Usage (lokal):
  *   SITE_URL=https://soleno-energie.com node scripts/verify-form-health.mjs
@@ -39,17 +44,30 @@ if (process.env.SKIP_FORM_HEALTH === 'true') {
 // Fail-open: wenn die Datei nicht existiert oder nicht lesbar ist, wird weitergemacht.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+let siteData = '';
 try {
   const siteDataPath = resolve(process.cwd(), 'src/data/site-data.ts');
-  const siteDataContent = readFileSync(siteDataPath, 'utf-8');
-  if (/\bcontactForm\s*:\s*false\b/.test(siteDataContent)) {
+  siteData = readFileSync(siteDataPath, 'utf-8');
+  if (/\bcontactForm\s*:\s*false\b/.test(siteData)) {
     console.log('ℹ️  contactForm: false in src/data/site-data.ts → Form-Health-Check übersprungen.');
     console.log('✅ Form-Health: skipped (via contactForm: false in site-data.ts)');
     process.exit(0);
   }
 } catch {
-  // Datei nicht gefunden oder nicht lesbar → fail-open, weiterprüfen
+  // Datei nicht gefunden oder nicht lesbar → fail-open, weiterprüfen (siteData bleibt '')
 }
+
+// --- Opt-out (c): turnstile: false in src/data/site-data.ts ---
+// NUR für den Turnstile-Teilcheck, nicht für den ganzen Skript-Lauf. Für einen Customer,
+// der bewusst ohne Bot-Schutz fährt — muss dann aber als Entscheidung IM REPO stehen,
+// nicht als stilles Fehlen einer Env-Var (genau das war der Blind-Spot, s. Turnstile-Block).
+//
+// Verhältnis zu (a) und (b) — die drei Opt-outs sind gestaffelt, nicht konkurrierend:
+//   (a) SKIP_FORM_HEALTH=true  → überspringt ALLES, greift zuerst (Repository-Variable)
+//   (b) contactForm: false     → überspringt ALLES (Customer ohne Formular)
+//   (c) turnstile: false       → überspringt NUR den Turnstile-Check, Rest läuft weiter
+// Wer (a) oder (b) gesetzt hat, kommt hier gar nicht an — (c) ist damit konfliktfrei.
+const turnstileOptOut = /\bturnstile\s*:\s*false\b/.test(siteData);
 
 const url = process.env.SITE_URL;
 if (!url) {
@@ -119,17 +137,33 @@ checks.push({
   detail: 'data-action-Attribut sichtbar?',
 });
 
-// Turnstile ist OPTIONAL (Handler erzwingt es nur mit gesetztem Secret). Wenn das Widget
-// gerendert ist, prüfen wir Konsistenz (Script/CSP); fehlt es, ist das ein valider Zustand.
+// Turnstile ist PFLICHT, sobald ein Formular gerendert wird.
+//
+// Bis 18.08.2026 galt hier „fehlt das Widget, ist das ein valider Zustand" — der Check
+// meldete das fehlende Turnstile als ℹ️-Zeile und lief mit 5/5 statt 6/6 grün durch.
+// Damit konnte er bei genau den Customern nie rot werden, bei denen der Bot-Schutz fehlte:
+// gemessen am 18.08.2026 rendern elektro-mika.com und donau-profi.de 0× `cf-turnstile`,
+// beide bekamen Fake-Leads über das Formular, beide Läufe waren grün (exit 0).
+// Ein Check, der beim Defekt nicht rot wird, ist kein Nachweis — deshalb jetzt FAIL.
+//
+// Opt-out ist bewusst NUR im Repo möglich (`turnstile: false` in site-data.ts, s. oben):
+// eine fehlende Env-Var soll nie wieder wie eine Entscheidung aussehen.
 const hasTurnstile = /data-sitekey="0x4AAAA[A-Za-z0-9_-]+"/.test(contact.body);
-if (hasTurnstile) {
+if (turnstileOptOut) {
+  console.log('ℹ️  turnstile: false in src/data/site-data.ts → Turnstile-Check übersprungen (bewusster Opt-out).');
+} else if (hasTurnstile) {
   checks.push({
     name: 'Turnstile-Script geladen (Widget ist gerendert)',
     ok: /challenges\.cloudflare\.com\/turnstile/.test(contact.body),
     detail: 'CSP erlaubt cf-Turnstile?',
   });
 } else {
-  console.log('ℹ️  Kein Turnstile-Widget — optionaler Bot-Schutz (Honeypot + Rate-Limit + Origin + Content-Filter bleiben aktiv).');
+  checks.push({
+    name: 'Turnstile-Widget gerendert (Bot-Schutz aktiv)',
+    ok: false,
+    detail: 'kein data-sitekey im HTML — PUBLIC_TURNSTILE_SITE_KEY in der Vercel-Env gesetzt und neu deployt? '
+      + 'Bewusst ohne Bot-Schutz: `turnstile: false` in src/data/site-data.ts eintragen.',
+  });
 }
 
 checks.push({
