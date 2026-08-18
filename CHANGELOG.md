@@ -22,6 +22,51 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.122.0 (2026-08-18)
+
+**Fix:** `verify-form-health.mjs` — fehlendes Turnstile-Widget failt jetzt, statt gruen
+durchzulaufen.
+
+Kontext: Der Check behandelte ein fehlendes Widget als gueltigen Zustand — er gab eine
+ℹ️-Zeile aus, zaehlte einen Check weniger (5/5 statt 6/6) und endete mit Exit 0. Damit
+konnte er genau bei den Customern nie rot werden, bei denen der Bot-Schutz fehlte.
+
+Messung am 18.08.2026: elektro-mika.com und donau-profi.de renderten 0x `cf-turnstile`
+und hatten weder `TURNSTILE_SECRET_KEY` noch `PUBLIC_TURNSTILE_SITE_KEY` in der
+Vercel-Env. Beide bekamen Fake-Leads ueber das Kontaktformular. Beide Laeufe: Exit 0.
+Ein Check, der beim Defekt nicht rot wird, ist kein Nachweis.
+
+Neu: Formular gerendert + kein `data-sitekey` im HTML → **Exit 1**.
+
+Dritter, feiner Opt-out ergaenzt — die drei sind gestaffelt, nicht konkurrierend:
+
+| Opt-out | Wirkung | Ort |
+| --- | --- | --- |
+| `SKIP_FORM_HEALTH=true` | ganzer Check aus | Repository-Variable |
+| `contactForm: false` | ganzer Check aus | `site-data.ts` |
+| `turnstile: false` | **nur** der Turnstile-Check aus | `site-data.ts` |
+
+Bewusst keine Env-Variable fuer den neuen Opt-out: eine fehlende Env-Var soll nie wieder
+wie eine bewusste Entscheidung aussehen.
+
+Gegenprobe aus echten Laeufen — vorher (v0.121.2) / nachher:
+
+```
+elektro-mika.com     5/5 Exit 0  →  5/6 Exit 1
+donau-profi.de       5/5 Exit 0  →  5/6 Exit 1
+soleno-energie.com   6/6 Exit 0  →  6/6 Exit 0
+```
+
+Tests: 3 neue Faelle (Widget vorhanden / fehlt / Opt-out) gegen einen lokalen
+HTTP-Server. Dieselbe Testdatei gegen v0.121.2 ergibt 7 pass / 2 fail — genau die beiden
+neuen Verhaltenstests fallen um.
+
+**Migrations-Hinweis:** Customer ohne Turnstile, die bewusst keinen Bot-Schutz wollen,
+tragen `turnstile: false` in `src/data/site-data.ts` ein. Alle anderen setzen
+`PUBLIC_TURNSTILE_SITE_KEY` + `TURNSTILE_SECRET_KEY` in der Vercel-Env und deployen neu.
+
+---
+
 ## v0.121.2 (2026-08-17)
 
 **Fix:** Der `visual`-Slot sprengte das Hero-Layout, sobald sein Inhalt breiter
