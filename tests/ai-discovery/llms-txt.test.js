@@ -19,6 +19,8 @@
  *   5. Label-Fallback: unbekannter Slug → Title-Case
  *   6. Nur Homepage → leeres Ergebnis (Section wird in llms.txt weggelassen)
  *   7. Deterministische alphabetische Sortierung
+ *   8.-10. importantPageDepth: Standort-/Katalogseiten unterhalb der ersten
+ *      Ebene, Label aus <title>, noindex greift auch in der Tiefe
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,7 +33,7 @@ const BASE = 'https://example.com';
 
 /**
  * Legt eine temporäre dist/ mit index.html je Route an.
- * @param {Array<{route: string, noindex?: boolean}>} pages
+ * @param {Array<{route: string, noindex?: boolean, title?: string}>} pages
  * @returns {{ dir: string, files: string[] }}
  */
 function makeDist(pages) {
@@ -42,8 +44,13 @@ function makeDist(pages) {
     const routeDir = sub ? join(dir, sub) : dir;
     mkdirSync(routeDir, { recursive: true });
     const robots = p.noindex ? '<meta name="robots" content="noindex, nofollow">' : '';
+    const title = p.title ? `<title>${p.title}</title>` : '';
     const file = join(routeDir, 'index.html');
-    writeFileSync(file, `<!doctype html><html><head>${robots}</head><body></body></html>`, 'utf-8');
+    writeFileSync(
+      file,
+      `<!doctype html><html><head>${robots}${title}</head><body></body></html>`,
+      'utf-8',
+    );
     files.push(file);
   }
   return { dir, files };
@@ -214,4 +221,72 @@ test('generateLlmsTxt: leere USt-IdNr. wird weggelassen (zink pflegt sie als "")
   const legal = { ...SITE.legal, ustIdNr: '' };
   const out = generateLlmsTxt({ ...SITE, legal }, undefined, []);
   assert.doesNotMatch(out, /USt-IdNr/);
+});
+
+// ── importantPageDepth ────────────────────────────────────────────────────────
+//
+// Ausloeser: platzfrei.club (19.08.2026). Der gesamte inhaltliche Wert der Site
+// liegt unter /studios/<studio>/ und /studios/<studio>/kurse/<kursart>/. Die
+// llms.txt nannte davon nichts — aufgefuehrt waren Datenschutz und Impressum,
+// null Treffer fuer Studio oder Kursart. Der Default (nur Top-Level) unterstellt,
+// dass Detailseiten Leistungen sind; fuer Standort- und Katalogstrukturen
+// stimmt das nicht.
+
+test('8. Default-Tiefe laesst verschachtelte Seiten weiterhin draussen', () => {
+  const { dir, files } = makeDist([
+    { route: '/' },
+    { route: '/impressum/' },
+    { route: '/studios/victory-gym/', title: 'Kurse & Kursplan – Victory Gym | Marke' },
+  ]);
+  try {
+    // Ohne viertes Argument muss sich nichts aendern — 23 bestehende Sites
+    // haengen an diesem Verhalten.
+    const pages = resolveImportantPages(files, dir, BASE);
+    assert.equal(pages.length, 1, 'nur /impressum/');
+    assert.ok(!pages.some((p) => p.href.includes('/studios/')), 'Tiefe 2 bleibt aussen vor');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('9. importantPageDepth nimmt tiefe Seiten auf, Label kommt aus dem <title>', () => {
+  const { dir, files } = makeDist([
+    { route: '/' },
+    { route: '/impressum/' },
+    { route: '/studios/victory-gym/', title: 'Kurse & Kursplan – Victory Gym | Marke' },
+    {
+      route: '/studios/victory-gym/kurse/spinning/',
+      title: 'Spinning in Neutraubling bei Regensburg buchen | Marke',
+    },
+  ]);
+  try {
+    const pages = resolveImportantPages(files, dir, BASE, 4);
+    const byHref = Object.fromEntries(pages.map((p) => [p.href, p.label]));
+
+    assert.equal(byHref[`${BASE}/impressum/`], 'Impressum', 'Top-Level weiter per Slug-Label');
+    // Das Marken-Suffix faellt weg: es steht in llms.txt schon in der H1.
+    assert.equal(byHref[`${BASE}/studios/victory-gym/`], 'Kurse & Kursplan – Victory Gym');
+    // „Spinning" allein waere wertlos — der Ort steht nur im Titel.
+    assert.equal(
+      byHref[`${BASE}/studios/victory-gym/kurse/spinning/`],
+      'Spinning in Neutraubling bei Regensburg buchen',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('10. noindex greift auch unterhalb der ersten Ebene', () => {
+  const { dir, files } = makeDist([
+    { route: '/' },
+    { route: '/studios/geheim/', title: 'Nicht fuer den Index | Marke', noindex: true },
+    { route: '/studios/offen/', title: 'Oeffentlich | Marke' },
+  ]);
+  try {
+    const pages = resolveImportantPages(files, dir, BASE, 4);
+    assert.equal(pages.length, 1, 'nur die indexierbare Seite');
+    assert.equal(pages[0].href, `${BASE}/studios/offen/`);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

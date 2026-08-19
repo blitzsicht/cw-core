@@ -22,6 +22,43 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.123.0 (2026-08-19)
+
+**Feature:** `aiDiscovery`-Option `importantPageDepth` — llms.txt kann Seiten unterhalb der ersten Pfadebene aufnehmen
+
+Kontext: Die „Wichtige Seiten"-Liste in llms.txt kam bisher ausschliesslich aus
+Top-Level-Routen. Dahinter steckt die Annahme, dass Detailseiten Leistungen sind
+und damit ohnehin unter „Was wir anbieten" auftauchen. Fuer die meisten
+Kundenseiten stimmt das. Fuer Sites mit Standort- oder Katalogstruktur stimmt es
+nicht — dort liegt der gesamte inhaltliche Wert unterhalb der ersten Ebene.
+
+Belegt an platzfrei.club (19.08.2026): llms.txt und llms-full.txt nannten weder
+das Studio noch eine einzige Kursart. Die vier Landingpages, fuer die die Site
+gebaut wurde, kamen mit null Treffern gar nicht vor; aufgefuehrt waren
+Datenschutz und Impressum. Eine Datei, deren Zweck es ist, KI-Agenten zu sagen
+worum es auf der Site geht, beschrieb damit eine Site, die es so nicht gibt.
+
+Neue Option:
+
+- `importantPageDepth?: number` — Default `1` (nur Top-Level, Verhalten
+  unveraendert). Hoehere Werte nehmen tiefere Routen auf.
+- Ab Tiefe 2 wird als Label der `<title>` der Seite genommen statt des ersten
+  Slugs: `/studios/x/` und `/studios/x/kurse/y/` hiessen sonst beide „Studios".
+  Das Marken-Suffix faellt weg (getrennt wird nur an `|` und `·` — Gedanken-
+  striche gehoeren zum Titel und werden nicht angeschnitten).
+- Seiten bleiben aus REAL gebauten dist-Dateien abgeleitet, es entstehen also
+  weiterhin keine toten Links. Der noindex-Ausschluss gilt auch in der Tiefe.
+
+Tests: 3 neue Faelle in `tests/ai-discovery/llms-txt.test.js` (Default-Tiefe
+bleibt unveraendert, Tiefe nimmt auf und labelt aus dem Titel, noindex greift
+auch verschachtelt). Volle Suite 534/534 gruen. Gegenprobe gefahren: mit der
+alten Bedingung fallen die beiden neuen Verhaltens-Tests.
+
+**Migrations-Hinweis:** Keiner. Ohne gesetzte Option ist das Verhalten
+identisch zu v0.122.0 — der Default entspricht exakt der bisherigen Bedingung.
+
+---
+
 ## v0.122.0 (2026-08-18)
 
 **Fix:** `verify-form-health.mjs` — fehlendes Turnstile-Widget failt jetzt, statt gruen

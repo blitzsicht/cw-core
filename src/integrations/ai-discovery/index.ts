@@ -162,6 +162,29 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   maxDescriptionLength?: number;
 
   /**
+   * Bis zu welcher Pfadtiefe Seiten in die „Wichtige Seiten"-Liste von
+   * llms.txt aufgenommen werden. Default 1 = nur Top-Level.
+   *
+   * Warum das überhaupt einstellbar sein muss: Der Default unterstellt, dass
+   * Detailseiten Leistungen sind und damit ohnehin unter „Was wir anbieten"
+   * stehen. Für die meisten Kundenseiten stimmt das. Für Seiten mit
+   * Standort- oder Katalogstruktur stimmt es nicht — dort liegt der gesamte
+   * inhaltliche Wert unterhalb der ersten Ebene, und llms.txt beschrieb
+   * bis dahin eine Site, die es so nicht gibt.
+   *
+   * Belegt an platzfrei.club (19.08.2026): llms.txt und llms-full.txt nannten
+   * weder das Studio noch eine einzige Kursart — die vier Landingpages, für
+   * die die Site gebaut wurde, kamen mit null Treffern gar nicht vor.
+   * Aufgeführt waren Datenschutz und Impressum.
+   *
+   * Seiten bleiben aus REAL gebauten Dateien abgeleitet, es entstehen also
+   * weiterhin keine toten Links. Ab Tiefe 2 wird als Label der `<title>` der
+   * Seite genommen (ohne Marken-Suffix) statt des Slugs: „Spinning" wäre ohne
+   * seinen Ort wertlos, und der steht nur im Titel.
+   */
+  importantPageDepth?: number;
+
+  /**
    * Default false. Bei true → Build-Fail wenn der Brand-Name-Linter hartkodierte
    * Marken-Literale in siteData-Prosa-Feldern (description, tagline, FAQs,
    * Leistungen) oder in statischen Assets (robots.txt) findet.
@@ -471,6 +494,7 @@ export function resolveImportantPages(
   htmlFiles: readonly string[],
   distDir: string,
   baseUrl: string,
+  maxDepth = 1,
 ): Array<{ label: string; href: string }> {
   const base = distDir.replace(/\\/g, '/').replace(/\/$/, '');
   const pages: Array<{ label: string; href: string }> = [];
@@ -479,7 +503,10 @@ export function resolveImportantPages(
     const route = rel.replace(/index\.html$/, '').replace(/\/+$/, '');
     if (route === '') continue; // Homepage — steckt bereits in H1
     const segments = route.replace(/^\//, '').split('/').filter(Boolean);
-    if (segments.length !== 1) continue; // nur Top-Level (Detailseiten stehen in "Was wir anbieten")
+    // Default 1 = nur Top-Level; Detailseiten stehen dann in "Was wir anbieten".
+    // Höhere Tiefe für Sites, deren Inhalt unterhalb der ersten Ebene liegt
+    // (Standorte, Kataloge) — siehe importantPageDepth in den Options.
+    if (segments.length > maxDepth) continue;
     const slug = segments[0];
     let content = '';
     try {
@@ -490,13 +517,30 @@ export function resolveImportantPages(
     if (/<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(content)) {
       continue; // noindex-Seiten (z.B. /review) nicht bewerben
     }
-    const label =
-      IMPORTANT_PAGE_LABELS[slug] ??
-      slug
-        .split('-')
-        .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
-        .join(' ');
-    pages.push({ label, href: `${baseUrl}/${slug}/` });
+    // Ab Tiefe 2 ist der erste Slug nicht mehr aussagekräftig — /studios/x und
+    // /studios/x/kurse/y hießen beide „Studios". Der <title> trägt die
+    // Unterscheidung ohnehin schon, also wird er genommen; das Marken-Suffix
+    // („… | Marke") fällt weg, weil es in llms.txt schon in der H1 steht.
+    let label: string;
+    if (segments.length === 1) {
+      label =
+        IMPORTANT_PAGE_LABELS[slug] ??
+        slug
+          .split('-')
+          .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+          .join(' ');
+    } else {
+      const titleMatch = content.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      const rawTitle = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+      // NUR `|` und `·` trennen den Markennamen ab. Gedankenstriche gehören zum
+      // Titel selbst — „Kurse & Kursplan – Victory Gym" waere sonst nach dem
+      // ersten Strich abgeschnitten. Entfernt wird das LETZTE Trenner-Segment,
+      // nicht alles ab dem ersten.
+      const stripped = rawTitle.replace(/\s*[|·]\s*[^|·]*$/, '').trim();
+      // Ohne Titel lieber den Pfad zeigen als eine leere Zeile.
+      label = stripped || segments[segments.length - 1];
+    }
+    pages.push({ label, href: `${baseUrl}/${segments.join('/')}/` });
   }
   pages.sort((a, b) => a.href.localeCompare(b.href));
   return pages;
@@ -2133,7 +2177,12 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // Seiten" UND den Schema-Linter weiter unten.
         const distDir = outDir.replace(/\/$/, '');
         const htmlFiles = walkHtml(distDir);
-        const importantPages = resolveImportantPages(htmlFiles, distDir, data.url);
+        const importantPages = resolveImportantPages(
+          htmlFiles,
+          distDir,
+          data.url,
+          options.importantPageDepth ?? 1,
+        );
 
         // Alles, was vor diesem Hook ein llms.txt nach dist/ legt, ist wirkungslos —
         // die Zeile darunter überschreibt es. Das ist entweder toter Ballast oder,
