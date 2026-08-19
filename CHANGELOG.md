@@ -22,6 +22,24 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.123.1 (2026-08-19)
+
+**Fix:** llms.txt — HTML-Entitaeten im Titel-Label zurueck in Text wandeln
+
+Direkt nach v0.123.0 im ersten echten Lauf aufgefallen: Der Eintrag lautete
+`Kurse &amp; Kursplan – Victory Gym Neutraubling`. Das Label kommt ab Tiefe 2
+aus dem `<title>`, und dort ist der Text korrekt HTML-escaped — llms.txt ist
+aber eine Textdatei, keine Auszeichnungssprache. Betroffen waren nur die in
+v0.123.0 neu hinzugekommenen Labels; Top-Level-Labels stammen aus Slugs und
+hatten das Problem nie.
+
+Dekodiert werden `&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`, `&#39;`/`&#x27;`
+und `&nbsp;` — die Entitaeten, die in einem Seitentitel real vorkommen.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.123.0 (2026-08-19)
 
 **Feature:** `aiDiscovery`-Option `importantPageDepth` — llms.txt kann Seiten unterhalb der ersten Pfadebene aufnehmen

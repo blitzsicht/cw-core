@@ -490,6 +490,29 @@ const IMPORTANT_PAGE_LABELS: Record<string, string> = {
  * ohne noindex-Seiten. Label via Slug-Map mit Title-Case-Fallback. Alphabetisch
  * sortiert (deterministisch). Exportiert für Unit-Tests.
  */
+/**
+ * Die HTML-Entitäten, die in einem `<title>` real vorkommen, zurück in Text.
+ *
+ * llms.txt ist eine Textdatei, kein HTML. „Kurse &amp; Kursplan" ist dort
+ * schlicht falsch — der Titel im Markup ist korrekt escaped, das Label darf es
+ * nicht bleiben. Betrifft nur Labels ab Tiefe 2; Top-Level-Labels kommen aus
+ * Slugs und hatten das Problem nie.
+ */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&(amp|lt|gt|quot|apos|nbsp|#0*39|#x0*27);/gi, (_, e) => {
+      const key = e.toLowerCase();
+      if (key === 'amp') return '&';
+      if (key === 'lt') return '<';
+      if (key === 'gt') return '>';
+      if (key === 'quot') return '"';
+      if (key === 'apos' || key === '#039' || key === '#39' || key === '#x27') return "'";
+      return ' '; // nbsp
+    })
+    // &amp;amp; → doppelt kodiert; nach dem ersten Durchgang bleibt &amp; stehen.
+    .replace(/&amp;/g, '&');
+}
+
 export function resolveImportantPages(
   htmlFiles: readonly string[],
   distDir: string,
@@ -536,7 +559,7 @@ export function resolveImportantPages(
       // Titel selbst — „Kurse & Kursplan – Victory Gym" waere sonst nach dem
       // ersten Strich abgeschnitten. Entfernt wird das LETZTE Trenner-Segment,
       // nicht alles ab dem ersten.
-      const stripped = rawTitle.replace(/\s*[|·]\s*[^|·]*$/, '').trim();
+      const stripped = decodeEntities(rawTitle.replace(/\s*[|·]\s*[^|·]*$/, '')).trim();
       // Ohne Titel lieber den Pfad zeigen als eine leere Zeile.
       label = stripped || segments[segments.length - 1];
     }

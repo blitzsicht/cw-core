@@ -290,3 +290,20 @@ test('10. noindex greift auch unterhalb der ersten Ebene', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('11. Titel-Label wird aus HTML-Entitaeten zurueck in Text gewandelt', () => {
+  // llms.txt ist eine Textdatei. „Kurse &amp; Kursplan" ist dort schlicht
+  // falsch — im Markup ist der Titel korrekt escaped, im Label darf er es
+  // nicht bleiben. Aufgefallen an platzfrei.club beim ersten echten Lauf.
+  const { dir, files } = makeDist([
+    { route: '/' },
+    { route: '/studios/x/', title: 'Kurse &amp; Kursplan &#39;26 | Marke' },
+  ]);
+  try {
+    const pages = resolveImportantPages(files, dir, BASE, 4);
+    assert.equal(pages[0].label, "Kurse & Kursplan '26");
+    assert.ok(!pages[0].label.includes('&amp;'), 'keine rohe Entitaet im Label');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
