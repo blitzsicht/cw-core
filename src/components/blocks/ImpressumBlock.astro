@@ -74,7 +74,15 @@ interface Props {
   editorialVertreter?: string | undefined;
   /** Optional: Kontaktformular-Pfad. Default: '/kontakt'. */
   contactFormPath?: string;
-  /** OS-Plattform-Verweis + VSBG-Standard-Klausel anzeigen. Default: true. */
+  /**
+   * Abschnitt „Streitbeilegung" anzeigen (VSBG-Standard-Klausel nach § 36).
+   * Default: true.
+   *
+   * Der Name stammt aus der Zeit, als dieser Zweig zusaetzlich die OS-Plattform
+   * verlinkte; die ist seit 20.07.2025 eingestellt (blitzsicht-ops#702). Der Prop
+   * heisst weiter so, weil ihn 6 Repos setzen — umbenannt wuerde er dort still
+   * auf den Default zurueckfallen und die VSBG-Klausel wieder einblenden.
+   */
   osPlatformDisclaimer?: boolean;
   /** Urheberrecht-Standard-Block am Ende anzeigen. Default: true. */
   copyrightBlock?: boolean;
@@ -235,12 +243,33 @@ const showRepresentatives =
     </>
   )}
 
+  {/*
+    * KEIN Verweis auf die OS-Plattform mehr — sie existiert nicht mehr.
+    *
+    * Die EU-Plattform zur Online-Streitbeilegung wurde am 20.07.2025 durch
+    * VO (EU) 2024/3228 eingestellt. `https://ec.europa.eu/consumers/odr/` liefert
+    * weiterhin HTTP 200 und leitet auf `consumer-redress.ec.europa.eu/site-relocation_en`
+    * mit dem Satz „The Online dispute resolution (ODR) platform is now closed"
+    * (direkt nachgeprueft am 19.08.2026, blitzsicht-ops#702).
+    *
+    * Kein toter Link im technischen Sinn, und genau deshalb faellt er niemandem auf:
+    * eine Rechtsangabe, die nicht mehr stimmt. Gemessen trugen ihn 11 von 14 Impressen
+    * der Flotte.
+    *
+    * 🔴 DER ZWEITE SATZ BLEIBT. Dieser Zweig traegt ZWEI Aussagen, und nur eine ist
+    * hinfaellig: Die Erklaerung nach § 36 VSBG („nicht bereit oder verpflichtet") ist
+    * davon unberuehrt. Sie beim Entfernen des Links mitzuloeschen ist der naheliegende
+    * Fehler — der Prop-Name legt nahe, hier ginge es nur um die OS-Plattform.
+    *
+    * Wortlaut nicht neu erfunden: customer-hausamlago fuehrt ihn seit 25.05.2026,
+    * customer-schiller-gartenbau ebenso. `tests/blocks/impressum-os-plattform.test.js`
+    * haelt beides fest.
+    */}
   {osPlatformDisclaimer && (
     <>
       <h2>Streitbeilegung</h2>
       <p>
-        Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
-        <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr/</a>.
+        Die EU-Online-Streitbeilegungs-Plattform wurde am 20.07.2025 eingestellt.
         Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
         Verbraucherschlichtungsstelle teilzunehmen.
       </p>

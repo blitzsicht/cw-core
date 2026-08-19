@@ -22,6 +22,57 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.125.0 (2026-08-19)
+
+**Fix:** Impressum verweist nicht mehr auf die eingestellte EU-Streitbeilegungsplattform
+
+- [kunde:sichtbar] Im Impressum stand ein Verweis auf eine Schlichtungsplattform der EU, die
+  es seit Juli 2025 nicht mehr gibt. Der Verweis ist durch einen Hinweis auf die Abschaltung
+  ersetzt; die gesetzlich vorgeschriebene Erklärung zur Verbraucherschlichtung bleibt
+  unverändert stehen.
+
+blitzsicht-ops#702. Der Zweig `osPlatformDisclaimer` verlinkte
+`https://ec.europa.eu/consumers/odr/`. Die Plattform wurde am **20.07.2025** durch
+VO (EU) 2024/3228 eingestellt.
+
+**Kein toter Link, und genau deshalb fiel er nicht auf.** Die URL liefert weiterhin HTTP 200
+und leitet auf `consumer-redress.ec.europa.eu/site-relocation_en` mit dem Satz *„The Online
+dispute resolution (ODR) platform is now closed"* — direkt nachgeprüft am 19.08.2026, nicht
+aus einem Werkzeug übernommen. Ein Link-Checker meldet hier nichts; hinfällig ist die
+Rechtsangabe, nicht die Erreichbarkeit.
+
+Gemessen über die Flotte: **11 von 14 Impressen** trugen den Verweis. Die drei ohne sind
+zugleich die Gegenprobe, dass das Suchmuster unterscheiden kann.
+
+**Der zweite Satz bleibt — das ist der eigentliche Punkt.** Der Zweig trägt ZWEI Aussagen,
+und nur eine ist hinfällig: Die Erklärung nach § 36 VSBG („Wir sind nicht bereit oder
+verpflichtet…") ist von der Abschaltung unberührt. Sie beim Entfernen des Links mitzulöschen
+ist der naheliegende Fehler, weil der Prop-Name nahelegt, hier ginge es nur um die
+OS-Plattform. `tests/blocks/impressum-os-plattform.test.js` hält beide Hälften fest.
+
+**Der Prop heisst weiter `osPlatformDisclaimer`,** obwohl der Name jetzt schief ist: Sechs
+Repos setzen ihn. Umbenannt fielen sie still auf den Default zurück und blendeten die
+VSBG-Klausel wieder ein — ein Rename wäre hier kein Aufräumen, sondern eine stille
+Verhaltensänderung auf sechs Live-Seiten.
+
+**Wortlaut nicht neu erfunden:** `customer-hausamlago` führt ihn seit dem 25.05.2026
+(Kommentar dort: „osPlatformDisclaimer=false (ODR-Link eingestellt 2025-07)"),
+`customer-schiller-gartenbau` ebenso. Die Entscheidung war getroffen und nur nie flottenweit
+nachgezogen.
+
+**Gegenproben gefahren:**
+- alten Zustand wiederhergestellt → 2 Tests rot (Link-Test und Kommentar-Test)
+- VSBG-Satz mitgelöscht → der VSBG-Test rot
+- Das Suchmuster prüft `<a href>`, nicht die Zeichenkette: Die URL steht bewusst im
+  Erklär-Kommentar der Komponente. Ein Substring-Zähler wäre dort immer rot — genau der
+  Fehler aus blitzsicht-ops#659, hier bewusst vermieden.
+
+**Migrations-Hinweis:** Keiner. Repos, die `osPlatformDisclaimer={false}` setzen, sind
+unverändert — sie zeigen den Abschnitt weiterhin gar nicht und tragen ihre Fassung im
+`slot="extra"`.
+
+---
+
 ## v0.124.0 (2026-08-19)
 
 **Feature:** `verify-touchpoints` meldet eager geladene Drittanbieter-Skripte — `eagerScriptChecks`
