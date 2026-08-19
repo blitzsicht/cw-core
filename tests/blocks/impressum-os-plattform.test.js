@@ -66,6 +66,70 @@ test('die VSBG-Klausel steht weiterhin im Baustein', () => {
   );
 });
 
+/**
+ * Nur der GERENDERTE Zweig, ohne Kommentare.
+ *
+ * 🔴 Die erste Fassung des Tests unten pruefte `src` als Ganzes — und blieb
+ * beim Gegenbeweis GRUEN, weil das Datum auch im Erklaer-Kommentar der
+ * Komponente steht. Der Test konnte damit „der Absatz nennt die Abschaltung"
+ * nicht von „ein Kommentar erwaehnt sie" trennen. Dieselbe fehlende
+ * Trennschaerfe wie in blitzsicht-ops#659, nur eine Ebene weiter innen.
+ */
+function gerenderterZweig() {
+  const i = src.indexOf('{osPlatformDisclaimer && (');
+  assert.ok(i >= 0, 'Zweig nicht gefunden — der Test hat seinen Gegenstand verloren');
+  const ende = src.indexOf(')}', i);
+  assert.ok(ende > i, 'Zweig-Ende nicht gefunden');
+  return src.slice(i, ende).replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
+}
+
 test('der Abschnitt nennt die Abschaltung, statt sie zu verschweigen', () => {
-  assert.match(src, /20\.07\.2025 eingestellt/);
+  assert.match(gerenderterZweig(), /20\.07\.2025 eingestellt/);
+});
+
+test('der Gegenstand des Tests oben ist wirklich der gerenderte Text', () => {
+  // Gegenprobe zur Abgrenzung selbst: Der Erklaer-Kommentar nennt die URL, der
+  // gerenderte Zweig darf sie nicht enthalten. Faellt die Abgrenzung weg,
+  // faellt auch dieser Test.
+  assert.ok(src.includes('consumers/odr'), 'Erklaer-Kommentar fehlt');
+  assert.ok(!gerenderterZweig().includes('consumers/odr'), 'Abgrenzung greift nicht');
+});
+
+/*
+ * Die beiden folgenden ACs hatten im ersten Anlauf keinen Gegenbeweis, und das
+ * Label `evidence/gegenbeweis` an ops#706 verlangt ihn fuer JEDE AC. Das
+ * Verdict war formal FAIL — inhaltlich hatte der Grader alles bestaetigt.
+ *
+ * Statt ein Opt-out (K1/K2/K3) zu deklarieren, sind hier echte Gegenbeweise
+ * moeglich. Das ist die bessere Antwort: ein Opt-out sagt "hier laesst sich
+ * nichts kaputtmachen", und das stimmte in beiden Faellen nicht.
+ */
+
+test('AC 5: der Prop heisst weiterhin osPlatformDisclaimer', () => {
+  /*
+   * Eine Unterlassung, und trotzdem pruefbar. Sechs Repos setzen diesen Prop
+   * (allstargirls, braustall, hausamlago, hausammincio, mazterplan, preshot).
+   * Umbenannt fielen sie still auf den Default `true` zurueck und blendeten die
+   * VSBG-Klausel wieder ein — auf sechs Live-Seiten, ohne dass ein Build bricht:
+   * ein unbekannter Prop ist in Astro kein Fehler, er landet in `Astro.props`
+   * und wird ignoriert. Genau deshalb faengt es sonst niemand.
+   */
+  assert.match(src, /osPlatformDisclaimer\?:\s*boolean/, 'Prop-Deklaration fehlt oder heisst anders');
+  assert.match(src, /osPlatformDisclaimer\s*=\s*true/, 'Default-Zuweisung fehlt oder heisst anders');
+  assert.match(src, /\{osPlatformDisclaimer\s*&&/, 'Verwendung im Template fehlt oder heisst anders');
+});
+
+test('AC 6: der CHANGELOG-Eintrag ist als kundenwirksam erkennbar', async () => {
+  /*
+   * Nicht "steht eine [kunde]-Zeile im Text", sondern: erkennt der Mechanismus
+   * sie, der daran haengt? `kundenwirkung()` entscheidet im Release-Train, ob
+   * ein Bump dem Kunden gemeldet wird. Eine Zeile, die der Parser nicht sieht,
+   * ist so gut wie keine.
+   */
+  const { readFileSync } = await import('node:fs');
+  const { kundenwirkung } = await import('../../scripts/lib/changelog-kunde.mjs');
+  const md = readFileSync(resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf-8');
+
+  const w = kundenwirkung(md, 'v0.124.0', 'v0.125.0');
+  assert.equal(w.status, 'kundenwirksam', `erwartet kundenwirksam, bekam ${w.status}: ${w.grund}`);
 });
