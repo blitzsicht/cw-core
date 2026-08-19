@@ -33,12 +33,16 @@
  *     "extraEmails": [],
  *     "allowExternalMailto": ["poststelle@lda.bayern.de"],
  *     "adsFinalUrls": ["https://kunde.de/leistungen/x/"],
- *     "distLinkChecks": "fail",  // "fail" (Default seit v0.109.0) | "warn" | "off"
- *     "assetRefChecks": "fail"   // "fail" (Default seit v0.112.0) | "warn" | "off"
+ *     "distLinkChecks": "fail",    // "fail" (Default seit v0.109.0) | "warn" | "off"
+ *     "assetRefChecks": "fail",    // "fail" (Default seit v0.112.0) | "warn" | "off"
+ *     "eagerScriptChecks": "fail"  // "fail" (Default seit v0.124.0) | "warn" | "off"
  *   }
  *
  * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung, assetRefChecks NUR die
- * Asset-Referenzen (src/srcset/CSS-url()). Der tel:/mailto:-Check bleibt davon
+ * Asset-Referenzen (src/srcset/CSS-url()), eagerScriptChecks NUR die eager geladenen
+ * Drittanbieter-Skripte. Die drei sind getrennt, weil ein Repo das eine abschalten
+ * wollen kann und das andere nicht: tote Verweise sind ein anderer Schaden als
+ * Verweise, die zu frueh ins Ziel treffen. Der tel:/mailto:-Check bleibt davon
  * unberührt hart — er war der Anlass des Scripts und darf nicht mit abgeschaltet
  * werden, wenn ein Repo seine Altlinks noch abarbeitet.
  *
@@ -332,6 +336,67 @@ export function extractAssetRefs(source, origin, opts = {}) {
   return { refs: [...refs], skippedRelative };
 }
 
+/**
+ * Eager geladene Drittanbieter-Skripte aus HTML — `<script src>` auf fremdem Origin.
+ *
+ * blitzsicht-ops#659. Zwei Live-Seiten trugen ein eigenes
+ * `<script src="https://challenges.cloudflare.com/turnstile/v0/api.js">`, gegen den
+ * Performance-Standard in `customer-websites/CLAUDE.md`: Turnstile soll lazy laden,
+ * cw-core macht das selbst.
+ *
+ * 🔴 WARUM NICHT `grep -c 'turnstile/v0/api.js'`, WOMIT DAS ISSUE GEMESSEN HAT:
+ * Der Lazy-Loader trägt dieselbe URL als Zeichenkette im Skriptkörper
+ * (`s.src = 'https://challenges.cloudflare.com/…'`). Ein Substring-Zähler trifft sie
+ * dort genauso und meldet für die BEHOBENE Seite eine 1 — platzfrei.club war nie
+ * eager und stand trotzdem in der Befundtabelle. Ein Zähler, der den behobenen vom
+ * kaputten Zustand nicht unterscheiden kann, ist keine Messung. Diese Funktion liest
+ * Tag-Attribute, nie den Inhalt eines Skripts, und kann es deshalb.
+ *
+ * `async`/`defer` ändern nichts: sie steuern, wann AUSGEFÜHRT wird, nicht ob geladen
+ * wird. Der Request an den Drittanbieter geht in jedem Fall raus, bevor irgendwer
+ * irgendetwas angefasst hat — genau das ist der Schaden.
+ *
+ * Ohne `origin` bleibt eine absolute Same-Site-URL (`https://kunde.de/x.js`)
+ * ununterscheidbar von einer fremden. Sie wird dann NICHT gemeldet, sondern gezählt:
+ * ein Fehlalarm gegen den eigenen Host wäre teurer als eine sichtbare Lücke.
+ *
+ * @param {string} html
+ * @param {string | null} origin z. B. https://kunde.de, optional
+ * @returns {{treffer: {src: string, host: string}[], scriptTags: number, unentscheidbar: number}}
+ */
+export function extractEagerThirdPartyScripts(html, origin = null) {
+  const treffer = [];
+  let scriptTags = 0;
+  let unentscheidbar = 0;
+  const eigenerHost = origin ? origin.replace(/^https?:\/\//i, '').replace(/\/.*$/, '') : null;
+  const gleicherHost = (h) =>
+    !!eigenerHost && (h === eigenerHost || h === `www.${eigenerHost}` || `www.${h}` === eigenerHost);
+
+  for (const m of html.matchAll(ASSET_TAG_RE)) {
+    const tag = m[0];
+    if (!/^<script\b/i.test(tag)) continue;
+    scriptTags++;
+    const src = tag.match(/\ssrc=["']([^"']+)["']/i)?.[1]?.trim();
+    if (!src) continue; // Inline-Skript — hat kein Ziel, das geladen würde.
+    if (/^(data:|blob:|about:|javascript:)/i.test(src)) continue;
+    if (src.startsWith('//')) {
+      // Protokoll-relativ: der Host steht da, das Schema erbt die Seite.
+      treffer.push({ src, host: src.slice(2).split('/')[0] });
+      continue;
+    }
+    if (!/^https?:\/\//i.test(src)) continue; // root- oder dokumentrelativ = eigene Datei
+    const host = src.replace(/^https?:\/\//i, '').split('/')[0];
+    if (gleicherHost(host)) continue;
+    if (!eigenerHost) {
+      unentscheidbar++;
+      continue;
+    }
+    treffer.push({ src, host });
+  }
+
+  return { treffer, scriptTags, unentscheidbar };
+}
+
 // ─── dist-Modus: Links gegen das gebaute Verzeichnis auflösen ───────────────
 //
 // Bis v0.107.x liefen Link- und Ads-URL-Check ausschliesslich live, also erst
@@ -514,7 +579,7 @@ async function main() {
   }
 
   // Optionale Per-Customer-Config
-  /** @type {{ extraPhones?: string[], extraEmails?: string[], allowExternalMailto?: string[], adsFinalUrls?: string[], distLinkChecks?: string, assetRefChecks?: string }} */
+  /** @type {{ extraPhones?: string[], extraEmails?: string[], allowExternalMailto?: string[], adsFinalUrls?: string[], distLinkChecks?: string, assetRefChecks?: string, eagerScriptChecks?: string }} */
   let cfg = {};
   const cfgPath = join(root, 'touchpoint-audit.config.json');
   if (existsSync(cfgPath)) {
@@ -671,10 +736,16 @@ async function main() {
   // Eine saubere Flotte, die nur gewarnt wird, driftet zurück.
   const distMode = cfg.distLinkChecks ?? 'fail';
   const assetMode = cfg.assetRefChecks ?? 'fail';
-  if (distDir && (distMode !== 'off' || assetMode !== 'off')) {
+  // Default 'fail' wie die beiden darueber, und aus demselben Grund belegt statt
+  // geraten: Vormessung am 19.08.2026 ueber alle 13 Live-Seiten — 191 <script>-Tags
+  // insgesamt, davon 0 mit fremdem src. Die Flotte steht bereits auf null; ein
+  // blosses Warnen liesse sie zurueckdriften (blitzsicht-ops#659).
+  const eagerMode = cfg.eagerScriptChecks ?? 'fail';
+  if (distDir && (distMode !== 'off' || assetMode !== 'off' || eagerMode !== 'off')) {
     for (const [key, value] of [
       ['distLinkChecks', distMode],
       ['assetRefChecks', assetMode],
+      ['eagerScriptChecks', eagerMode],
     ]) {
       if (!['warn', 'fail', 'off'].includes(value)) {
         console.error(`FATAL: ${key}="${value}" unbekannt — erlaubt: "warn", "fail", "off".`);
@@ -683,6 +754,7 @@ async function main() {
     }
     const flag = distMode === 'fail' ? fail : warn;
     const assetFlag = assetMode === 'fail' ? fail : warn;
+    const eagerFlag = eagerMode === 'fail' ? fail : warn;
 
     /** @type {{redirects?: object[], rewrites?: object[]}} */
     let vercelJson = {};
@@ -798,6 +870,43 @@ async function main() {
         // Dokument-relative Pfade bräuchten den Ort der Quelldatei. Ungeprüft —
         // aber sichtbar ungeprüft, statt still als „sauber" durchzugehen.
         console.log(`ℹ️  ${skippedRelative} dokument-relative Asset-Referenz(en) übersprungen (nicht geprüft).`);
+      }
+    }
+
+    // ── Eager geladene Drittanbieter-Skripte ──
+    //
+    // blitzsicht-ops#659. Nicht Teil des Asset-Checks: dort geht es um Verweise, die
+    // ins Leere laufen, hier um welche, die zu frueh ins Ziel treffen. Ein Repo kann
+    // das eine abschalten wollen und das andere nicht.
+    if (eagerMode !== 'off') {
+      let eagerTags = 0;
+      let unentscheidbar = 0;
+      /** @type {Map<string, string>} src → Seite, in der er zuerst stand */
+      const eagerSeen = new Map();
+      for (const page of pages) {
+        if (/(^|\/)email\//.test(page.name)) continue; // Mail-Markup laedt nichts nach
+        const r = extractEagerThirdPartyScripts(page.html, origin);
+        eagerTags += r.scriptTags;
+        unentscheidbar += r.unentscheidbar;
+        for (const t of r.treffer) if (!eagerSeen.has(t.src)) eagerSeen.set(t.src, page.name);
+      }
+      for (const [src, firstIn] of eagerSeen) {
+        eagerFlag(
+          `eager geladenes Drittanbieter-Skript ${src} · zuerst in ${firstIn} — ` +
+            `Request vor jeder Interaktion; lazy nachladen (cw-core tut das fuer Turnstile selbst)`,
+        );
+      }
+      // Der Zaehlwert steht IMMER da, wie beim Link- und Asset-Check: eine Null ohne
+      // Bezugsgroesse daneben belegt nicht, dass ueberhaupt etwas geprueft wurde.
+      const gezaehlt = `${eagerTags} <script>-Tag(s) im dist`;
+      if (eagerSeen.size === 0) ok(`${gezaehlt}: keines laedt von fremdem Origin`);
+      else console.log(`ℹ️  ${gezaehlt} — ${eagerSeen.size} mit fremdem src (oben gemeldet).`);
+      if (unentscheidbar > 0) {
+        // Ohne canonical fehlt der eigene Host; absolute Same-Site-URLs waeren von
+        // fremden nicht zu trennen. Sichtbar ungeprueft statt still sauber.
+        console.log(
+          `ℹ️  ${unentscheidbar} absolute <script src> ohne bekanntes Origin uebersprungen (nicht geprüft).`,
+        );
       }
     }
 

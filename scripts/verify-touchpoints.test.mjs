@@ -27,6 +27,7 @@ import {
   postsToContactApi,
   extractInternalLinks,
   extractAssetRefs,
+  extractEagerThirdPartyScripts,
   detectOriginFromHtml,
   pickDistRoot,
   normalizeUrlPath,
@@ -842,4 +843,159 @@ test('E2E: Fragment-Strip — /kontakt#formular wird endlich geprüft', () => {
     config: { distLinkChecks: 'fail' },
   });
   assert.equal(gruen.code, 0, `reiner Anker darf nichts auslösen, out:\n${gruen.out}`);
+});
+
+// ─── Eager geladene Drittanbieter-Skripte (blitzsicht-ops#659) ──────────────
+//
+// Die beiden ersten Tests sind das Paar, ohne das die Prüfung wertlos wäre: einer
+// muss den kaputten Zustand finden, der andere darf den behobenen NICHT melden.
+// Genau daran ist die Messung im Issue gescheitert — sie konnte die beiden nicht
+// auseinanderhalten und hat platzfrei.club fälschlich angezeigt.
+
+/** Das Markup, das customer-gympanzen#34 entfernt hat — wörtlich aus dem Diff. */
+const GYMPANZEN_VORHER = `<!doctype html><html><head>
+<link rel="canonical" href="https://gympanzen.com/">
+</head><body>
+<form class="contact-form"><div class="cf-turnstile" data-sitekey="0x4A"></div></form>
+<script
+  src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+  is:inline></script>
+</body></html>`;
+
+/** Der cw-core-Lazy-Loader, wie platzfrei.club ihn am 19.08.2026 ausliefert. */
+const PLATZFREI_LAZY = `<!doctype html><html><head>
+<link rel="canonical" href="https://platzfrei.club/">
+<link rel="preconnect" href="https://challenges.cloudflare.com">
+</head><body>
+<form class="contact-form"><div class="cf-turnstile" data-sitekey="0x4A"></div></form>
+<script type="module" src="/_astro/hoisted.abc123.js"></script>
+<script>
+  (function () {
+    var w = window;
+    var load = (w.__cwTsLoad = w.__cwTsLoad || function () {
+      if (load.done) return;
+      load.done = true;
+      var s = document.createElement('script');
+      s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+      s.async = true;
+      document.head.appendChild(s);
+    });
+    var el = document.querySelector('.cf-turnstile');
+    if (!el) return;
+    var form = el.closest('form');
+    if (form) form.addEventListener('focusin', load, { once: true });
+  })();
+</script>
+</body></html>`;
+
+test('extractEagerThirdPartyScripts: findet das eager-Tag, das gympanzen#34 entfernt hat', () => {
+  const r = extractEagerThirdPartyScripts(GYMPANZEN_VORHER, 'https://gympanzen.com');
+  assert.equal(r.treffer.length, 1);
+  assert.equal(r.treffer[0].host, 'challenges.cloudflare.com');
+  // Vorbedingung sichtbar: es wurde wirklich ein Tag angesehen, nicht nichts.
+  assert.ok(r.scriptTags >= 1, 'kein <script>-Tag gefunden — die Fixture greift nicht');
+});
+
+test('extractEagerThirdPartyScripts: der Lazy-Loader ist KEIN Befund — grep -c wäre hier 1', () => {
+  const r = extractEagerThirdPartyScripts(PLATZFREI_LAZY, 'https://platzfrei.club');
+  assert.deepEqual(r.treffer, [], 'behobene Seite als Befund gemeldet — genau der Fehlalarm aus #659');
+  // Der Gegenbeweis zur alten Methode, im selben Test: die Zeichenkette IST da.
+  // Ein Substring-Zähler meldet 1, diese Funktion 0 — das ist der ganze Unterschied.
+  const substringTreffer = PLATZFREI_LAZY.split('turnstile/v0/api.js').length - 1;
+  assert.equal(substringTreffer, 1, 'Fixture trägt die URL nicht mehr — der Vergleich verliert seinen Sinn');
+  assert.ok(r.scriptTags >= 2, 'zu wenige <script>-Tags — die Fixture bildet die Live-Seite nicht ab');
+});
+
+test('extractEagerThirdPartyScripts: eigene Dateien und Same-Site-Absolutes zählen nicht', () => {
+  const html = `<link rel="canonical" href="https://kunde.de/">
+    <script src="/_astro/a.js"></script>
+    <script src="https://kunde.de/js/script.js"></script>
+    <script src="https://www.kunde.de/js/b.js"></script>
+    <script>console.log('inline')</script>`;
+  const r = extractEagerThirdPartyScripts(html, 'https://kunde.de');
+  assert.deepEqual(r.treffer, []);
+  assert.equal(r.scriptTags, 4);
+});
+
+test('extractEagerThirdPartyScripts: async/defer schützen nicht — der Request geht trotzdem raus', () => {
+  const html = '<script src="https://cdn.fremd.io/x.js" async defer></script>';
+  const r = extractEagerThirdPartyScripts(html, 'https://kunde.de');
+  assert.equal(r.treffer.length, 1, 'async/defer steuern die Ausführung, nicht das Laden');
+});
+
+test('extractEagerThirdPartyScripts: protokoll-relativ ist immer fremd, auch ohne Origin', () => {
+  const r = extractEagerThirdPartyScripts('<script src="//cdn.fremd.io/x.js"></script>', null);
+  assert.equal(r.treffer.length, 1);
+  assert.equal(r.treffer[0].host, 'cdn.fremd.io');
+});
+
+test('extractEagerThirdPartyScripts: ohne Origin wird nicht geraten, sondern gezählt', () => {
+  // Ohne canonical ist https://irgendwo.de/x.js nicht von der eigenen Domain zu
+  // trennen. Lieber eine sichtbar ungeprüfte Stelle als ein Fehlalarm gegen sich selbst.
+  const r = extractEagerThirdPartyScripts('<script src="https://irgendwo.de/x.js"></script>', null);
+  assert.deepEqual(r.treffer, []);
+  assert.equal(r.unentscheidbar, 1);
+});
+
+test('E2E blitzsicht-ops#659: eager-Tag rot, Lazy-Loader gruen — im echten Prueflauf', () => {
+  const eager = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/').replace(
+        '<body>',
+        '<body><script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>',
+      ),
+    },
+  });
+  assert.equal(eager.code, 1, `Default ist fail, out:\n${eager.out}`);
+  assert.match(eager.out, /✗ eager geladenes Drittanbieter-Skript https:\/\/challenges\.cloudflare\.com/);
+
+  // Der gruene Zweig ist die Haelfte, die zaehlt: dieselbe URL, aber im
+  // Skriptkoerper des Lazy-Loaders. `grep -c` sieht hier dasselbe wie oben.
+  const lazy = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/').replace(
+        '<body>',
+        `<body><script>var s=document.createElement('script');` +
+          `s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';</script>`,
+      ),
+    },
+  });
+  assert.equal(lazy.code, 0, `Lazy-Loader darf nicht rot werden, out:\n${lazy.out}`);
+  assert.match(lazy.out, /keines laedt von fremdem Origin/);
+  // Zaehlwert > 0: belegt, dass ueberhaupt Tags angesehen wurden. Ohne das waere
+  // "0 Befunde" von "nicht geprueft" nicht zu unterscheiden.
+  assert.match(lazy.out, /[1-9]\d* <script>-Tag\(s\) im dist/);
+});
+
+test('E2E: eagerScriptChecks — "warn" weich, "off" still, Unsinn → Exit 2', () => {
+  const files = {
+    'index.html': PAGE('https://kunde.de/').replace(
+      '<body>',
+      '<body><script src="https://cdn.fremd.io/x.js"></script>',
+    ),
+  };
+  const weich = runTree({ files, config: { eagerScriptChecks: 'warn' } });
+  assert.equal(weich.code, 0, `out:\n${weich.out}`);
+  assert.match(weich.out, /⚠ eager geladenes Drittanbieter-Skript/);
+
+  const aus = runTree({ files, config: { eagerScriptChecks: 'off' } });
+  assert.equal(aus.code, 0);
+  assert.doesNotMatch(aus.out, /cdn\.fremd\.io/);
+
+  assert.equal(runTree({ files, config: { eagerScriptChecks: 'vielleicht' } }).code, 2);
+});
+
+test('E2E: eagerScriptChecks laeuft auch, wenn distLinkChecks und assetRefChecks aus sind', () => {
+  const { code, out } = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/', ['/toter-link/']).replace(
+        '<body>',
+        '<body><img src="/fehlt.png"><script src="https://cdn.fremd.io/x.js"></script>',
+      ),
+    },
+    config: { distLinkChecks: 'off', assetRefChecks: 'off' },
+  });
+  assert.equal(code, 1, `out:\n${out}`);
+  assert.match(out, /cdn\.fremd\.io/);
+  assert.doesNotMatch(out, /fehlt\.png/, 'die anderen Checks muessen wirklich aus sein');
 });

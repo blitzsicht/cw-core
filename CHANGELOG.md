@@ -22,6 +22,54 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.124.0 (2026-08-19)
+
+**Feature:** `verify-touchpoints` meldet eager geladene Drittanbieter-Skripte — `eagerScriptChecks`
+
+- [kunde] Ein neuer Prüfschritt beim Bauen erkennt Skripte, die beim Seitenaufruf sofort
+  von einem fremden Anbieter geladen werden, obwohl sie erst bei Bedarf gebraucht werden.
+  Das hält Ladezeit und Fremdkontakte klein.
+
+blitzsicht-ops#659 meldete zwei Live-Seiten mit einem eigenen
+`<script src="https://challenges.cloudflare.com/turnstile/v0/api.js">` — gegen den
+Performance-Standard, denn cw-core lädt Turnstile seit dem Speed-Rollout 09.07.2026 lazy.
+Eine der beiden war ein Fehlalarm, und daran hängt der eigentliche Punkt dieses Releases.
+
+**Warum der bisherige Weg das nicht messen konnte.** Gemessen wurde mit
+`grep -c 'turnstile/v0/api.js'` über das ausgelieferte HTML. Der Lazy-Loader trägt dieselbe
+URL als Zeichenkette in seinem Skriptkörper (`s.src = 'https://challenges…'`). Der Zähler
+trifft sie dort genauso und meldet für die **behobene** Seite eine 1. platzfrei.club war nie
+eager und stand trotzdem in der Befundtabelle; die Acceptance Criteria des Issues forderten
+damit einen Zustand, den nur das Entfernen des Lazy-Loaders hergestellt hätte. Ein Zähler,
+der den behobenen vom kaputten Zustand nicht unterscheiden kann, ist keine Messung.
+
+`extractEagerThirdPartyScripts(html, origin)` liest ausschließlich Tag-Attribute, nie den
+Inhalt eines Skripts, und kann die beiden Fälle deshalb trennen. `async`/`defer` gelten
+nicht als Entschuldigung: sie steuern, wann ausgeführt wird, nicht ob geladen wird.
+
+**Default `fail`, und zwar belegt statt geraten.** Vormessung am 19.08.2026 über alle
+13 Live-Seiten: 191 `<script>`-Tags insgesamt, davon **0** mit fremdem `src`. Die Flotte
+steht bereits auf null; blosses Warnen liesse sie zurückdriften — dieselbe Begründung wie
+beim Link-Check in v0.109.0 und beim Asset-Check in v0.112.0.
+
+**Drei Zustände, nicht zwei.** Der Zählwert der angesehenen `<script>`-Tags steht immer im
+Log, auch bei Befunden — sonst wäre „0 gefunden" von „gar nicht gelaufen" nicht zu
+unterscheiden. Fehlt `<link rel="canonical">`, ist eine absolute Same-Site-URL nicht von
+einer fremden zu trennen; solche Fälle werden sichtbar als ungeprüft gezählt statt still
+als sauber durchgewunken.
+
+**Gegenproben gefahren**, weil grüne Tests allein nichts belegen:
+- Implementierung liest Skriptinhalt statt Attribute → der Lazy-Loader-Test wird rot
+  („behobene Seite als Befund gemeldet")
+- Fremd-Origin-Erkennung entfernt → der gympanzen-Test wird rot
+- Default auf `off` gesetzt → beide E2E-Tests der Verdrahtung werden rot
+
+**Migrations-Hinweis:** Repos, die bewusst ein Drittanbieter-Skript eager laden, setzen
+`eagerScriptChecks: 'warn'` oder `'off'` in der Touchpoint-Config. Heute betrifft das kein
+einziges Live-Repo.
+
+---
+
 ## v0.123.1 (2026-08-19)
 
 **Fix:** llms.txt — HTML-Entitaeten im Titel-Label zurueck in Text wandeln
