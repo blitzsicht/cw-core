@@ -24,6 +24,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   buildCommonTags,
   withImageRights,
+  withDigitalSourceType,
   buildDescByStem,
   descForFile,
   walkImages,
@@ -80,7 +81,11 @@ export async function geotagDist(distDir, data, logger) {
       const desc = descForFile(basename(file), descByStem);
       // Fremdmaterial (Partner-/Lieferantenfotos) bekommt den richtigen Rechteinhaber
       // statt unseres Default-Stempels — Nutzungserlaubnis ist keine Urheberschaft.
-      const tags = withImageRights(common, data, relative(distDir, file));
+      const rel = relative(distDir, file);
+      // Zwei Per-Bild-Fragen, zwei Haken auf derselben Ebene: wem gehoert es (imageRights)
+      // und wie ist es entstanden (bildHerkunft). Beide muessen hier stehen und nicht in
+      // buildCommonTags — dort waeren sie fuer die ganze Site gleich.
+      const tags = withDigitalSourceType(withImageRights(common, data, rel), data, rel);
       if (desc) {
         tags.ImageDescription = desc;
         tags['XMP:Description'] = desc;

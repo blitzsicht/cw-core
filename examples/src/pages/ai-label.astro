@@ -1,0 +1,85 @@
+---
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import AiLabel from '@cw/core/components/blocks/AiLabel.astro';
+import { resolveBildHerkunft } from '@cw/core/utils/bildherkunft';
+
+// Ein Regelwerk, wie es in einer Kunden-`site-data.ts` stünde.
+const siteData = {
+  bildHerkunft: [
+    { pathPrefix: 'images/', herkunft: 'mensch' },
+    {
+      pathPrefix: 'images/team/',
+      herkunft: 'ki-erzeugt',
+      deepfake: 'ja',
+      begruendung: 'Fotorealistisches Team, das so nie existiert hat',
+    },
+    {
+      pathPrefix: 'images/render/',
+      herkunft: 'ki-erzeugt',
+      deepfake: 'nein',
+      begruendung: 'Erkennbar illustratives Rendering, wirkt nicht als Aufnahme',
+    },
+  ],
+};
+
+const faelle = [
+  ['images/team/gruppe.webp', 'KI-Bild, wirkt echt → Pflicht, Label erscheint'],
+  ['images/render/produkt.webp', 'KI-Rendering, wirkt nicht echt → keine Pflicht, kein Label'],
+  ['images/halle/aussen.webp', 'Menschliches Foto → kein Label'],
+  ['bilder/unbekannt.webp', 'Keine Regel → ungeklaert, kein Label, aber ein Befund'],
+];
+---
+<ExampleLayout
+  title="AiLabel"
+  description="Offenlegung nach Art. 50 Abs. 4 UAbs. 1 AI Act. Rendert nur, wo beide Merkmale der Legaldefinition zusammenkommen."
+>
+  <div class="example-section">
+    <h2>Aus der Deklaration abgeleitet</h2>
+    <p>
+      Die Komponente entscheidet nicht selbst — sie rendert, was
+      <code>resolveBildHerkunft</code> ergibt. Wo keine Pflicht besteht, erscheint nichts.
+    </p>
+    <table>
+      <thead>
+        <tr><th>Bildpfad</th><th>Erwartung</th><th>Label</th><th>Befund</th></tr>
+      </thead>
+      <tbody>
+        {faelle.map(([pfad, erwartung]) => {
+          const h = resolveBildHerkunft(siteData, pfad);
+          return (
+            <tr>
+              <td><code>{pfad}</code></td>
+              <td>{erwartung}</td>
+              <td><AiLabel ergebnis={h} /></td>
+              <td>{h.problem ? <small>{h.problem}</small> : '—'}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="example-section">
+    <h2>Explizit gesetzt</h2>
+    <p>Für Fälle, in denen die Einordnung nicht aus der Deklaration kommt.</p>
+    <p><AiLabel variante="erzeugt" /></p>
+    <p><AiLabel variante="bearbeitet" /></p>
+    <p><AiLabel variante="erzeugt" text="Hintergrund mit KI ersetzt" /></p>
+  </div>
+
+  <div class="example-section" style="background:#1f2328;padding:1rem;border-radius:.5rem">
+    <h2 style="color:#f5f6f7">Auf dunklem Grund</h2>
+    <p><AiLabel variante="erzeugt" theme="dunkel" /></p>
+  </div>
+
+  <div class="example-section">
+    <h2>Am Bild, wo es hingehört</h2>
+    <figure style="max-width:22rem;margin:0">
+      <div style="aspect-ratio:3/2;background:#dfe3e8;border-radius:.375rem"></div>
+      <figcaption style="margin-top:.5rem;font-size:.875rem;color:#57606a">
+        Unser Team in der Werkstatt
+        <AiLabel variante="erzeugt" style="margin-left:.5rem" />
+      </figcaption>
+    </figure>
+  </div>
+</ExampleLayout>

@@ -1,0 +1,879 @@
+{
+ "blitzsicht::public/images/agentic/agentic-browsing-og.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/agentic/agentic-browsing.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/blog/og-images-og.png": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/blog/og-images-og.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/elementor-agentur-regensburg.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/jimdo-alternative.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/jimdo-vs-wix.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/pakete.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/performance-speed.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/so-funktionierts.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/website-anforderungen-sicherheit.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/hero/website-speed-regensburg.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/images/team/johannes-og.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "blitzsicht::public/images/team/johannes.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "blitzsicht::public/lead-mail/logo-white.png": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/logo.png": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::public/logo.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::src/assets/images/dfy-illustration.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "blitzsicht::src/assets/images/johannes-portrait.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "gottl-richter-gomeier::public/images/icon_team.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gottl-richter-gomeier::public/images/team-foto-sm.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "gottl-richter-gomeier::public/images/team-foto.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "gottl-richter-gomeier::public/images/zertifikate-banner.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/adf.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/bypass.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/druckertreiber.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/dual-scan.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/falzen.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/finisher.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/kopieren.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/papierformat.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/pcl.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/plotter.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/rip.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/schnittstelle.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/sortieren.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/transferband-transfereinheit-belt-unit.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "digital-direkt::src/assets/images/glossar/verbrauchsmaterial.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "soleno::public/images/team/nico-poeppl-card.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "soleno::public/images/team/nico-poeppl.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "zink-baeckerei::src/assets/images/produkte/amerikaner.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/apfeltasche.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/bauernbrot-1kg-gewuerzt.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/bauernbrot-1kg-ungewuerzt.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/bauernbrot-6-pfund.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/bienenstich.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/blaetterteigbreze.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/brezenknopf.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/brezenzopf.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/butter-croissant.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/chia-brot.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/ciabatta.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/dinkelberger-vollkornbrot.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/donut-schoko-dunkel.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/donut-schoko-weiss.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/dorfsemmel.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/eiszopf.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/feines-dinkelbrot.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/franzen.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/kaesestangerl.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/kaisersemmel.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/kipferl.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/kirschtasche.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/koenig-ludwig-vollkorn.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/koenig-ludwig.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/kokosschleife.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/kornspitz.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/krapfen.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/kuerbiskernsemmel.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/mohnschnecke.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/mohnsemmel.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/muenchner-zuckerbreze.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/nuss-vollkornbrot.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/nusshoernchen.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/nussschnecke.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/quarktasche.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/schoko-croissant.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/sesamsemmel.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/speckstangerl.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/straube.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/teezunge.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/vilstaler.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/vollkorn-franzen.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/vollkornsemmel.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/weissbrot.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/weltmeister.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/produkte/zwiebelstangerl.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/festtagstorte-rund.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/hochzeitstorte-anthurien.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/hochzeitstorte-trockenblumen.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/kindertorte-loewe.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/kommunionstorte-kreuz.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/macarontorte.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/naked-cake-beeren.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "zink-baeckerei::src/assets/images/torten/petit-fours.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "donau-profi::public/logo-original.png": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "donau-profi::public/logo-original.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "donau-profi::public/logo.png": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "donau-profi::public/logo.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "donau-profi::public/videos/erklaervideo-poster.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "schiller-gartenbau::public/images/garten-1.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::public/images/garten-3.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::public/images/garten-4.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::src/assets/images/galerie/garten-2.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::src/assets/images/galerie/garten-mit-holzterrasse.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::src/assets/images/galerie/holzterrasse.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::src/assets/images/galerie/pflasterung.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::src/assets/images/galerie/rollrasen.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::src/assets/images/galerie/zaun.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "schiller-gartenbau::src/assets/images/hero.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "mika-elektrotechnik::public/team/kewin.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "mika-elektrotechnik::public/team/nadine.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "mika-elektrotechnik::src/assets/images/og.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-01-1024.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-01-512.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-01-512.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-01-768.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-01-768.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-02-1024.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-02-512.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-02-512.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-02-768.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-02-768.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-03-1024.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-03-512.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-03-512.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-03-768.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-03-768.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-04-1024.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-04-512.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-04-512.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-04-768.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/drop-04-768.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/mascot-cut-512.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/mascot-cut-512.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/mascot-cut-768.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/mascot-cut-768.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/mascot-cut-984.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/roar-512.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/roar-512.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/roar-644.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/roar-644.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/wordmark-cut-512.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/wordmark-cut-512.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "gympanzen::public/assets/wordmark-cut-794.avif": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "platzfrei::public/images/hero/platzfrei-hero.webp": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "platzfrei::public/images/studios/victory-gym-halle.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "platzfrei::public/images/studios/victory-gym-logo.png": {
+  "h": "ungeklaert",
+  "d": "nein",
+  "art": "grafik",
+  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
+ },
+ "platzfrei::public/images/studios/victory-gym-spinning.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ },
+ "platzfrei::public/images/studios/victory-gym-trainingsflaeche.webp": {
+  "h": "mensch",
+  "art": "foto",
+  "b": ""
+ }
+}

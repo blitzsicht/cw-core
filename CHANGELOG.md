@@ -22,6 +22,68 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.128.0 (2026-08-24)
+
+- [kunde] KI-erzeugte Bilder auf der Website tragen ab dem nächsten Build eine maschinenlesbare Herkunftsangabe in den Bilddaten. Grundlage für die Kennzeichnung nach dem EU-KI-Gesetz, die seit dem 2. August 2026 gilt.
+
+**Feature:** Bild-Herkunft deklarieren und kennzeichnen — Art. 50 AI Act
+
+Art. 50 Abs. 4 UAbs. 1 der KI-Verordnung (EU) 2024/1689 verlangt vom **Betreiber** eine
+Offenlegung, wenn er KI-erzeugte Bild-, Ton- oder Videoinhalte veröffentlicht, die ein
+**Deepfake** sind. Die Norm gilt seit dem 02.08.2026 — Art. 113 nimmt Kapitel IV in keiner
+seiner Ausnahmen aus. Verstöße: bis 15 Mio EUR oder 3 % des weltweiten Jahresumsatzes,
+für KMU der jeweils niedrigere Betrag (Art. 99 Abs. 4 lit. g, Abs. 6).
+
+Rechtstext im Spiegel: `cw-recht` → `texte/eu/ai-act/ai-act.md`, Abschnitt „## Artikel 50".
+Bewertung: `cw-legal` → `04-betroffenheit/D1-art50-ki-kennzeichnung.md`.
+**Keine amtliche Fassung, keine Rechtsberatung.**
+
+Neue APIs:
+
+- `@cw/core/utils/bildherkunft` — `resolveBildHerkunft`, `istKennzeichnungspflichtig`,
+  `pruefeBildHerkunftRegeln`. Deklaration über `siteData.bildHerkunft` nach dem Vorbild von
+  `imageRights`: `pathPrefix` für Bilder aus `public/`, `stem` für Bilder aus
+  `src/assets/` (die Astro-Assetpipeline hängt einen Content-Hash an, ein Pfad-Präfix
+  träfe sie nie).
+- `components/blocks/AiLabel.astro` — die Offenlegung am Bild. Rendert **immer auch Text**,
+  das EU-Symbol ist `aria-hidden`: Abs. 5 verlangt Barrierefreiheit, ein Piktogramm allein
+  erfüllt sie nicht. Sichtbar ohne JavaScript und nicht hinter Hover — Abs. 5 verlangt die
+  Information „spätestens zum Zeitpunkt der ersten Interaktion".
+- `src/assets/ai-labels/` — die zwölf EU-Kennzeichnungssymbole der Kommission.
+  Verwendung fakultativ und ohne Attributionspflicht; die Pflicht aus Art. 50 dagegen nicht.
+- `withDigitalSourceType` (`ai-discovery/geotag-core.js`) — schreibt
+  `XMP-iptcExt:DigitalSourceType` je Bild, eingehängt neben `withImageRights` im
+  Post-Build-Hook.
+- `scripts/bild-einbauen.mjs` — legt ein neues Bild ab und deklariert es im selben Zug.
+- `scripts/bildherkunft-arbeitsliste.mjs` / `-übernehmen.mjs` — Kontaktbogen für den
+  Bestandsdurchgang und Übernahme in die Repos.
+
+Zwei Festlegungen, die aus der Norm folgen und nicht aus dem Geschmack:
+
+**Herkunft und Deepfake-Einordnung stehen getrennt.** Die Legaldefinition (Art. 3 Nr. 60)
+verlangt zwei Merkmale **kumulativ**: der Inhalt ähnelt wirklichen Personen, Gegenständen,
+Orten, Einrichtungen oder Ereignissen — **und** würde fälschlicherweise als echt
+erscheinen. Ein einzelnes Feld „istKI" hätte beides vermengt: dann wäre entweder jedes
+KI-Bild gekennzeichnet (falsch, und es entwertet das Label dort, wo es Pflicht ist) oder die
+Einordnung verschwände in einem Kopf statt im Repo. Die `begründung` ist Pflicht, sobald
+die Einordnung entschieden ist — gerade beim „Nein", denn darauf beruht der Verzicht.
+
+**Ohne passende Regel ist das Ergebnis `ungeklaert` mit Befund, nie ein stiller Fallback auf
+„menschliches Foto".** Sonst meldete der Guard jedes undeklarierte Bild grün und verdeckte
+die Pflicht dauerhaft. `problem === null` heißt damit wirklich „nichts zu tun".
+
+Warum deklariert und nicht erkannt: Gemessen am 24.08.2026 trägt **kein einziges** Bild der
+Live-Flotte einen KI-Herkunftsmarker (0 von 54 Stichproben) — `astro:assets` (sharp) strippt
+EXIF beim Transform. Ein Detektor über den Altbestand würde raten und dabei grün melden.
+Beim **Einbau** dagegen ist der Marker noch da; genau dort setzt `bild-einbauen.mjs` an.
+
+**Migrations-Hinweis:** Keiner. Ohne `siteData.bildHerkunft` ändert sich nichts —
+fleet-neutral wie `imageRights`. Ein Repo mit Deklaration braucht zwei Zeilen in
+`site-data.ts`: `import { bildHerkunft } from './bild-herkunft';` und `bildHerkunft,` im
+Objekt. Das Label selbst wird noch nicht automatisch platziert; das ist der nächste Schritt.
+
+---
+
 ## v0.127.2 (2026-08-24)
 
 **Fix:** Auch die Prop-Defaults zeigen auf die kanonische Adressform — Nachtrag zu v0.127.1

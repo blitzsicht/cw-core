@@ -18,6 +18,7 @@ import { join } from 'node:path';
 // damit EXIF (hier) und JSON-LD (SchemaOrg) dieselbe Logik nutzen (Single Source of
 // Truth). Import bleibt plain-node-tauglich (kein `.ts`) für den CLI-Twin geotag-dist.mjs.
 import { isTodo, resolveCopyrightHolder, resolveImageCopyrightHolder } from '../../utils/copyright.js';
+import { resolveBildHerkunft } from '../../utils/bildherkunft.js';
 
 // Öffentliche API stabil halten: bestehende Importer (geotag.js, Tests) beziehen
 // resolveCopyrightHolder weiterhin aus geotag-core.
@@ -38,6 +39,53 @@ export function withImageRights(common, data, relPath) {
   const holder = resolveImageCopyrightHolder(data, relPath);
   if (!holder) return common;
   return { ...common, Copyright: `© ${holder}`, Artist: holder };
+}
+
+/**
+ * IPTC-NewsCodes fuer `XMP-iptcExt:DigitalSourceType`.
+ *
+ * Volle Vokabular-URIs, nicht die Kurzformen: Das Feld verweist auf das IPTC-Vokabular,
+ * ein blosses "trainedAlgorithmicMedia" sieht richtig aus und ist von keinem Leser
+ * auswertbar.
+ */
+export const DIGITAL_SOURCE_TYPE = {
+  erzeugt: 'http://cv.iptc.org/newscodes/digitalsourcetype/trainedAlgorithmicMedia',
+  veraendert: 'http://cv.iptc.org/newscodes/digitalsourcetype/compositeWithTrainedAlgorithmicMedia',
+};
+
+/**
+ * Maschinenlesbare Herkunft fuer EIN konkretes Bild ergaenzen.
+ *
+ * Gegenstueck zu `withImageRights`: derselbe Per-Bild-Hook, andere Frage. Gespeist aus
+ * `siteData.bildHerkunft` (siehe utils/bildherkunft.js), das die Herkunft ueber Pfad-Praefix
+ * oder Stem aufloest — Letzteres, weil die Astro-Assetpipeline einen Content-Hash anhaengt.
+ *
+ * Nur `ki-erzeugt` und `ki-veraendert` bekommen einen Tag. `mensch` bekommt bewusst keinen:
+ * ein Tag, der Abwesenheit von KI behauptet, existiert im Vokabular nicht, und eine falsche
+ * KI-Behauptung auf einem echten Foto waere ein Fehler, den wir selbst ausliefern wuerden.
+ * `ungeklaert` bekommt ebenfalls keinen — es gibt nichts zu behaupten.
+ *
+ * Ohne `bildHerkunft` aendert sich nichts (fleet-neutral), wie bei `imageRights`.
+ *
+ * **Nicht unsere Pflicht:** Die maschinenlesbare Markierung schuldet nach Art. 50 Abs. 2 der
+ * Anbieter des KI-Systems, nicht der Betreiber. Dies ist die Antwort auf die EU-Forderung,
+ * dass eine Kennzeichnung das Herunterladen ueberlebt — und weil `astro:assets` (sharp) beim
+ * Transform alles strippt, ist dieser Post-Build-Hook die einzige Stelle, an der ein Tag
+ * ueberhaupt ueberlebt.
+ *
+ * @param {Record<string, any>} tags  Tags aus buildCommonTags()/withImageRights()
+ * @param {any} data                  aufgeloestes siteData
+ * @param {string} relPath            dist-relativer Bildpfad
+ * @returns {Record<string, any>}
+ */
+export function withDigitalSourceType(tags, data, relPath) {
+  const h = resolveBildHerkunft(data, relPath);
+  const wert =
+    h.herkunft === 'ki-erzeugt' ? DIGITAL_SOURCE_TYPE.erzeugt :
+    h.herkunft === 'ki-veraendert' ? DIGITAL_SOURCE_TYPE.veraendert :
+    null;
+  if (!wert) return tags;
+  return { ...tags, 'XMP-iptcExt:DigitalSourceType': wert };
 }
 
 /** Endungen, die exiftool taggen kann (WebP + PNG + JPEG unterstützen EXIF/XMP). */

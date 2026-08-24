@@ -1,0 +1,145 @@
+---
+/**
+ * AiLabel — Offenlegung nach Art. 50 Abs. 4 UAbs. 1 AI Act.
+ *
+ * Kennzeichnet ein Bild als KI-erzeugt oder KI-bearbeitet. Rechtstext im Spiegel:
+ * `cw-recht: texte/eu/ai-act/ai-act.md`, Abschnitt „## Artikel 50".
+ * **Keine amtliche Fassung, keine Rechtsberatung.**
+ *
+ * Drei Festlegungen, die aus der Norm folgen und nicht verhandelbar sind:
+ *
+ * 1. **Immer auch Text, nie nur das Symbol.** Abs. 5 verlangt, dass die Information den
+ *    geltenden Barrierefreiheitsanforderungen entspricht. Ein Piktogramm allein erfüllt
+ *    das nicht — es hat für Screenreader keinen Inhalt und für Sehende keine eindeutige
+ *    Bedeutung. Das Symbol ist deshalb `aria-hidden`, der Text trägt die Aussage.
+ * 2. **Ohne JavaScript sichtbar, nicht hinter Hover oder Klick.** Abs. 5 verlangt die
+ *    Information „spätestens zum Zeitpunkt der ersten Interaktion oder Aussetzung in
+ *    klarer und eindeutiger Weise". Ein Tooltip erfüllt das nicht.
+ * 3. **Am Bild, nicht in einer Fußnote.** Die EU-Vorgabe verlangt die Einbettung in den
+ *    Inhalt. Die Komponente gehört an die Bildunterschrift, nicht ans Seitenende.
+ *
+ * Zwei Wege, sie zu benutzen — der erste ist der sichere:
+ *
+ *   // aus der Deklaration: rendert von selbst nichts, wo keine Pflicht besteht
+ *   const h = resolveBildHerkunft(siteData, 'images/team/gruppe.webp');
+ *   <AiLabel ergebnis={h} />
+ *
+ *   // explizit, wenn die Einordnung anderswo herkommt
+ *   <AiLabel variante="erzeugt" />
+ */
+import { istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
+import type { BildHerkunftErgebnis } from '../../utils/bildherkunft.js';
+
+import aiGeneratedBlack from '../../assets/ai-labels/ai-generated-black-transparent.svg';
+import aiGeneratedWhite from '../../assets/ai-labels/ai-generated-white-transparent.svg';
+import aiModifiedBlack from '../../assets/ai-labels/ai-modified-black-transparent.svg';
+import aiModifiedWhite from '../../assets/ai-labels/ai-modified-white-transparent.svg';
+
+interface Props {
+  /** Ergebnis aus `resolveBildHerkunft`. Besteht keine Pflicht, rendert die Komponente nichts. */
+  ergebnis?: Pick<BildHerkunftErgebnis, 'herkunft' | 'deepfake'> | null;
+  /** Explizite Variante, wenn die Einordnung nicht aus der Deklaration kommt. */
+  variante?: 'erzeugt' | 'bearbeitet';
+  /** Eigener Text. Ersetzt den Standard — muss weiterhin klar sagen, dass KI im Spiel war. */
+  text?: string;
+  /** Untergrund. `auto` schaltet per `prefers-color-scheme`, ohne JavaScript. */
+  theme?: 'hell' | 'dunkel' | 'auto';
+  class?: string;
+}
+
+const {
+  ergebnis = null,
+  variante,
+  text,
+  theme = 'hell',
+  class: className,
+} = Astro.props;
+
+// Aus dem Deklarations-Ergebnis ableiten, wenn keine Variante gesetzt ist. Besteht keine
+// Pflicht, wird nichts gerendert — ein Label auf einem menschlichen Foto wäre nicht bloß
+// überflüssig, es entwertet das Label dort, wo es Pflicht ist.
+const ausErgebnis = ergebnis && istKennzeichnungspflichtig(ergebnis)
+  ? (ergebnis.herkunft === 'ki-veraendert' ? 'bearbeitet' : 'erzeugt')
+  : null;
+
+const art = variante ?? ausErgebnis;
+const zeigen = art !== null && art !== undefined;
+
+const standardText = art === 'bearbeitet' ? 'Mit KI bearbeitet' : 'Mit KI erzeugt';
+const beschriftung = text?.trim() || standardText;
+
+const schwarz = art === 'bearbeitet' ? aiModifiedBlack : aiGeneratedBlack;
+const weiss = art === 'bearbeitet' ? aiModifiedWhite : aiGeneratedWhite;
+---
+
+{zeigen && (
+  <span class:list={['ai-label', `ai-label--${theme}`, className]}>
+    {theme !== 'dunkel' && (
+      <img class="ai-label__icon ai-label__icon--hell" src={schwarz.src} alt="" aria-hidden="true" width="48" height="24" loading="lazy" decoding="async" />
+    )}
+    {theme !== 'hell' && (
+      <img class="ai-label__icon ai-label__icon--dunkel" src={weiss.src} alt="" aria-hidden="true" width="48" height="24" loading="lazy" decoding="async" />
+    )}
+    <span class="ai-label__text">{beschriftung}</span>
+  </span>
+)}
+
+<style>
+  .ai-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    /* Eigene Größenangaben statt geerbter: das Label muss lesbar bleiben, auch wenn es in
+       einer sehr klein gesetzten Bildunterschrift steht. Nicht kleiner als 0.75rem. */
+    font-size: max(0.75rem, 0.8em);
+    line-height: 1.3;
+    /* Kein `color: inherit`: auf hellem Grund muss der Text den Kontrast halten, auch wenn
+       die Umgebung mit hellgrauer Bildunterschrift arbeitet. */
+    color: #1f2328;
+  }
+
+  .ai-label--dunkel,
+  .ai-label--dunkel .ai-label__text {
+    color: #f5f6f7;
+  }
+
+  .ai-label__icon {
+    /* Höhe an die Textzeile binden, damit das Symbol bei jeder Schriftgröße mitwächst und
+       die von der EU geforderte „sichtbare Größe" nicht von der Umgebung wegskaliert wird. */
+    height: 1.15em;
+    width: auto;
+    flex: 0 0 auto;
+  }
+
+  /* `auto`: beide Symbole liegen im Markup, die Anzeige entscheidet die Systemeinstellung.
+     Bewusst über CSS und nicht über JavaScript — die Offenlegung darf nicht davon abhängen,
+     dass ein Skript lädt. */
+  .ai-label--hell .ai-label__icon--dunkel,
+  .ai-label--dunkel .ai-label__icon--hell {
+    display: none;
+  }
+
+  .ai-label--auto .ai-label__icon--dunkel {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .ai-label--auto {
+      color: #f5f6f7;
+    }
+    .ai-label--auto .ai-label__icon--hell {
+      display: none;
+    }
+    .ai-label--auto .ai-label__icon--dunkel {
+      display: inline;
+    }
+  }
+
+  /* Fällt das Symbol aus (blockierter Request, kaputter Pfad), bleibt der Text stehen und
+     die Offenlegung trägt weiter. Deshalb ist der Text nie `sr-only`. */
+  @media print {
+    .ai-label__icon {
+      display: none;
+    }
+  }
+</style>
