@@ -22,6 +22,27 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.127.1 (2026-08-24)
+
+**Fix:** Interne Links in den Rechtstext-Bloecken zeigen auf die kanonische Adressform
+
+`DatenschutzBlock` und `InformationspflichtBlock` verlinkten intern auf `/impressum`,
+`/datenschutz` und `/agb` — ohne abschließenden Schrägstrich. Wo ein Repo die Slash-Form
+als kanonisch führt (`canonical` und Sitemap tun das standardmäßig), lief damit jeder
+dieser Klicks über eine 308-Weiterleitung, und Google folgte beim Crawlen einem Umweg
+statt dem Ziel.
+
+Aufgefallen in customer-zink-baeckerei: Dort zeigten **22 von 22** internen Links auf die
+Nicht-Slash-Form. Nach dem Nachziehen im Kundenrepo blieben genau zwei übrig — beide aus
+diesen Blöcken.
+
+Zehn Links in zwei Dateien. Doku-Kommentare in denselben Dateien blieben unangetastet.
+
+**Migrations-Hinweis:** Keiner. Repos ohne Slash-Konvention sind nicht betroffen, dort
+lösen beide Formen auf dieselbe Seite auf.
+
+---
+
 ## v0.127.0 (2026-08-24)
 
 **Fix:** E-Mail-Signatur nannte bei GmbH-Kunden die Firma als Geschäftsführer
