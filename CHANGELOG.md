@@ -408,7 +408,7 @@ Fehlern, 20 Beispielseiten bauen, 6/6 Browser-Checks.
 
 ## v0.120.0 (2026-08-17)
 
-- [kunde:sichtbar] Hochzaehlende Zahlen zeigen jetzt auch dann den richtigen Wert, wenn im Browser kein JavaScript laeuft.
+- [kunde:sichtbar] Hochzählende Zahlen zeigen jetzt auch dann den richtigen Wert, wenn im Browser kein JavaScript läuft.
 
 **Fix:** `CountUp` liess ohne JavaScript den **Startwert** stehen. Der Zaehler haengt
 dann auf `from` und behauptet damit etwas anderes als gemeint.
@@ -1213,7 +1213,7 @@ Kein Code-Change, kein Kunden-Pin-Bump nötig.
   werden. Das ist gewollt: es verhindert das kurze Verspringen des Layouts beim Laden.
 - [kunde:sichtbar] Bei gestaffelt einfliegenden Kachelreihen startet die Bewegung jetzt für
   die ganze Reihe gemeinsam, sobald sie ins Bild kommt — vorher zählte jede Kachel für
-  sich. Betrifft blitzsicht.
+  sich.
 
 **Fix + Feature:** Das HTML ist wieder reproduzierbar — und ein Guard, der das offen hält
 
@@ -1778,7 +1778,7 @@ In `Hero.astro` und `CTABlock.astro` gibt es jetzt keinen mehr.
 
 ## v0.101.0 (2026-08-10)
 
-- [kunde:sichtbar] Erklaertexte auf den farbigen Blöcken (Hero und der Kontakt-Block am Seitenende) waren leicht durchscheinend und dadurch schwer zu lesen. Sie stehen jetzt in vollem Weiß. Das kleine Etikett über der Hauptüberschrift hat einen dunkleren Hintergrund bekommen, damit die Schrift darauf deutlich absteht.
+- [kunde:sichtbar] Erklärtexte auf den farbigen Blöcken (Hero und der Kontakt-Block am Seitenende) waren leicht durchscheinend und dadurch schwer zu lesen. Sie stehen jetzt in vollem Weiß. Das kleine Etikett über der Hauptüberschrift hat einen dunkleren Hintergrund bekommen, damit die Schrift darauf deutlich absteht.
 
 **Fix:** Weisse Schrift mit reduzierter Deckkraft riss auf farbigem Grund die AA-Grenze
 
@@ -1904,7 +1904,7 @@ er will ihn (dann `acknowledgedMotion`). Der Build bricht in keinem Fall.
 
 ## v0.99.1 (2026-08-09)
 
-- [kunde:sichtbar] Die Rueckmeldung beim Antippen von Schaltflaechen wirkt jetzt auf allen Buttons der Website, nicht nur auf einzelnen. Auf Mobilgeraeten passierte beim Druecken bisher nichts Sichtbares.
+- [kunde:sichtbar] Die Rückmeldung beim Antippen von Schaltflächen wirkt jetzt auf allen Buttons der Website, nicht nur auf einzelnen. Auf Mobilgeräten passierte beim Drücken bisher nichts Sichtbares.
 
 **Fix:** Druckpunkt lag an der falschen Stelle
 
@@ -1931,7 +1931,7 @@ betroffen; die Tokens tragen Fallback-Werte.
 
 ## v0.99.0 (2026-08-09)
 
-- [kunde:sichtbar] Schaltflaechen reagieren jetzt spuerbar auf Beruehrung: sie sinken beim Antippen kurz ein und federn zurueck. Auf Mobilgeraeten passierte dabei bisher gar nichts. Nach dem Absenden eines Formulars springt die Bestaetigung sichtbar auf.
+- [kunde:sichtbar] Schaltflächen reagieren jetzt spürbar auf Berührung: sie sinken beim Antippen kurz ein und federn zurück. Auf Mobilgeräten passierte dabei bisher gar nichts. Nach dem Absenden eines Formulars springt die Bestätigung sichtbar auf.
 
 **Feature:** Interaktions-Rueckmeldung — Druckpunkt und Erfolgs-Quittung
 
@@ -2033,7 +2033,7 @@ Seiten; der Bump allein behebt dort nichts.
 
 ## v0.97.3 (2026-08-08)
 
-- [kunde:sichtbar] Kurze Textstellen in Schreibmaschinenschrift (Jahreszahlen, Domainnamen, technische Angaben) wurden auf Android- und Linux-Geraeten in einer zufaelligen Schriftart angezeigt, teils sogar in einer fuer asiatische Schriftzeichen gedachten. Sie nutzen jetzt ueberall dieselbe, festgelegte Schrift.
+- [kunde:sichtbar] Kurze Textstellen in Schreibmaschinenschrift (Jahreszahlen, Domainnamen, technische Angaben) wurden auf Android- und Linux-Geräten in einer zufälligen Schriftart angezeigt, teils sogar in einer für asiatische Schriftzeichen gedachten. Sie nutzen jetzt überall dieselbe, festgelegte Schrift.
 
 **Fix:** monospace-Stacks nannten nur Apple-Schriften
 
@@ -2097,7 +2097,7 @@ Prosa-Links behalten `--color-accent-text` unveraendert.
 
 ## v0.97.1 (2026-08-07)
 
-- [kunde:sichtbar] Der Markenname im Fussbereich laesst sich jetzt tatsaechlich ausblenden — in v0.97.0 kam die Einstellung nicht an.
+- [kunde:sichtbar] Der Markenname im Fussbereich lässt sich jetzt tatsächlich ausblenden — in v0.97.0 kam die Einstellung nicht an.
 
 **Fix:** `footer.hideBrandName` erreichte den Footer nicht
 
@@ -2119,8 +2119,8 @@ Beide Layouts reichen den Prop jetzt durch, `FooterConfig` kennt ihn in beiden.
 
 ## v0.97.0 (2026-08-07)
 
-- [kunde:sichtbar] Der Kopfbereich der Website kann jetzt eine eigene Hintergrundfarbe bekommen, unabhaengig von der Hauptfarbe der Marke.
-- [kunde:sichtbar] Steht der Markenname schon als Schrift im Logo, laesst er sich im Fussbereich ausblenden — er stand dort bisher zwangslaeufig doppelt.
+- [kunde:sichtbar] Der Kopfbereich der Website kann jetzt eine eigene Hintergrundfarbe bekommen, unabhängig von der Hauptfarbe der Marke.
+- [kunde:sichtbar] Steht der Markenname schon als Schrift im Logo, lässt er sich im Fussbereich ausblenden — er stand dort bisher zwangsläufig doppelt.
 
 **Feature:** `--color-header-bg` — Header-Hintergrund unabhaengig von `--color-primary`
 
@@ -2197,7 +2197,7 @@ einen Endwert-Anker. Ein Zwischenwert, der stehen bleibt, behauptet etwas.
 
 ## v0.95.0 (2026-08-06)
 
-- [kunde:sichtbar] Aufzaehlungen auf den Textseiten haben wieder Punkte und Nummern.
+- [kunde:sichtbar] Aufzählungen auf den Textseiten haben wieder Punkte und Nummern.
 
 **Fix:** Listen ohne Marker auf allen Content-Seiten
 
