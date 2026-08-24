@@ -22,6 +22,33 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.129.0 (2026-08-24)
+
+- [kunde] Auch Bilder im modernen AVIF-Format tragen jetzt die maschinenlesbare Herkunftsangabe. Vorher blieben sie als Einzige ohne — auf manchen Seiten war das die Mehrheit der Bilder.
+
+**Feature:** AVIF wird getaggt — der Ausschluss war überholt
+
+`TAGGABLE_EXT` schloss AVIF aus, mit der Begründung, exiftool könne damit nichts anfangen
+(blitzsicht-ops#660). Das stimmte einmal und stimmt nicht mehr: **exiftool 13.50 schreibt
+XMP in AVIF.** An einer echten Datei gemessen — Tag gesetzt, zurückgelesen, Datei danach
+weiterhin gültiges AVIF.
+
+Aufgefallen ist es beim Rollout von v0.128.0: Bei `gympanzen` sind **19 der 32** als
+KI deklarierten Bilder AVIF und blieben deshalb ohne `DigitalSourceType`. Kein
+Rechtsverstoß — die maschinenlesbare Markierung schuldet nach Art. 50 Abs. 2 der Anbieter,
+nicht der Betreiber — aber eine Lücke ohne Grund, und AVIF wird mehr statt weniger.
+
+`BUDGET_EXT` ist dadurch mit `TAGGABLE_EXT` deckungsgleich geworden und wurde entdoppelt.
+Beide bleiben getrennt benannt: sie beantworten verschiedene Fragen („was kann exiftool
+taggen" vs. „was zählt fürs Größen-Budget") und können wieder auseinanderlaufen.
+
+Sollte exiftool das je wieder verlernen, ist es sichtbar und nicht still: `geotag.js` fängt
+jeden fehlgeschlagenen Schreibversuch, zählt ihn und schreibt eine Warnung ins Build-Log.
+
+**Migrations-Hinweis:** Keiner. Wirkt beim nächsten Build.
+
+---
+
 ## v0.128.0 (2026-08-24)
 
 - [kunde] KI-erzeugte Bilder auf der Website tragen ab dem nächsten Build eine maschinenlesbare Herkunftsangabe in den Bilddaten. Grundlage für die Kennzeichnung nach dem EU-KI-Gesetz, die seit dem 2. August 2026 gilt.

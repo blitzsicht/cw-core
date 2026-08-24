@@ -88,8 +88,18 @@ export function withDigitalSourceType(tags, data, relPath) {
   return { ...tags, 'XMP-iptcExt:DigitalSourceType': wert };
 }
 
-/** Endungen, die exiftool taggen kann (WebP + PNG + JPEG unterstützen EXIF/XMP). */
-export const TAGGABLE_EXT = ['.webp', '.png', '.jpg', '.jpeg'];
+/**
+ * Endungen, die exiftool taggen kann.
+ *
+ * AVIF kam am 24.08.2026 dazu. Bis dahin war es ausgeschlossen mit der Begründung, exiftool
+ * könne damit nichts anfangen — das stimmte einmal und stimmt nicht mehr: **exiftool 13.50
+ * schreibt XMP in AVIF.** An einer echten Datei gemessen (Tag gesetzt, zurückgelesen, Datei
+ * danach weiterhin gültiges AVIF).
+ *
+ * Anlass war Art. 50 AI Act: 19 der 32 als KI deklarierten Bilder einer Kundenseite sind
+ * AVIF und blieben deshalb ohne `DigitalSourceType`. Siehe Test 5b für die Historie.
+ */
+export const TAGGABLE_EXT = ['.webp', '.png', '.jpg', '.jpeg', '.avif'];
 
 /** Max. Anzahl Keyword-Tags pro Bild (SERP/IPTC-Hygiene). */
 export const MAX_KEYWORDS = 20;
@@ -121,7 +131,12 @@ export const TAG_DENY_RE = /(^|\/)(og|icons|email|social)\/|(^|\/)favicon[^/]*$|
  * Format, das sie anschliessend nicht mass. Cluster-Scan über alle customer-Repos:
  * ausser gympanzen hat keines ein AVIF über 200 KB.
  */
-export const BUDGET_EXT = [...TAGGABLE_EXT, '.avif'];
+// Seit AVIF in TAGGABLE_EXT steht (24.08.2026) sind beide Listen deckungsgleich. Sie
+// bleiben trotzdem getrennt benannt: die eine beantwortet „was kann exiftool taggen", die
+// andere „was zählt fürs Größen-Budget". Das sind verschiedene Fragen, und sie können
+// wieder auseinanderlaufen — ein Alias hier würde die nächste Divergenz stillschweigend
+// verhindern statt sie sichtbar zu machen.
+export const BUDGET_EXT = [...TAGGABLE_EXT];
 
 /** Ob ein Pfad vom Tagging ausgeschlossen ist (OG/Icons/Favicons/Email/Social). */
 export function isDenied(p) {

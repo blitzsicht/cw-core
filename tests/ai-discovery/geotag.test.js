@@ -33,6 +33,7 @@ import {
   synthesizeKeywords,
   walkImages,
   BUDGET_EXT,
+  TAGGABLE_EXT,
   descForFile,
   resolveCopyrightHolder,
   isDenied,
@@ -114,14 +115,26 @@ test('5. walkImages findet .webp UND .png (Negativ gegen echten Bug)', () => {
   }
 });
 
-test('5b. Geotag-Walk sammelt KEIN .avif, der Budget-Walk schon', () => {
-  // blitzsicht-ops#660: das Größen-Budget lieh sich TAGGABLE_EXT — die Liste dessen,
-  // was exiftool taggen kann — und übersah AVIF damit vollständig. Bei gympanzen
-  // lagen 5 AVIF zwischen 215 und 348 KB unbemerkt über Budget, und bei <picture>
-  // lädt der Browser genau die zuerst.
+test('5b. Geotag-Walk sammelt .avif — seit exiftool es schreiben kann', () => {
+  // HISTORIE. blitzsicht-ops#660: das Größen-Budget lieh sich TAGGABLE_EXT — die Liste
+  // dessen, was exiftool taggen kann — und übersah AVIF damit vollständig. Bei gympanzen
+  // lagen 5 AVIF zwischen 215 und 348 KB unbemerkt über Budget, und bei <picture> lädt der
+  // Browser genau die zuerst. Der Fix trennte die beiden Listen, und dieser Test sicherte
+  // ab, dass AVIF NICHT in den Geotag-Pfad wandert — „sonst schickt er AVIF an exiftool,
+  // das damit nichts anfangen kann".
   //
-  // Beide Richtungen absichern: der Fix darf NICHT in den Geotag-Pfad wandern,
-  // sonst schickt er AVIF an exiftool, das damit nichts anfangen kann.
+  // UMGEDREHT am 24.08.2026. Diese Begründung ist überholt: **exiftool 13.50 schreibt XMP
+  // in AVIF.** Gemessen an einer echten Datei (gympanzen `drop-01-1024.avif`) — Tag gesetzt,
+  // zurückgelesen, Datei danach weiterhin gültiges „ISO Media, AVIF Image".
+  //
+  // Anlass war Art. 50 AI Act: 19 der 32 als KI deklarierten Bilder bei gympanzen sind AVIF
+  // und blieben deshalb ohne `DigitalSourceType`. Kein Rechtsverstoß — die maschinenlesbare
+  // Markierung schuldet nach Abs. 2 der Anbieter, nicht der Betreiber — aber eine Lücke
+  // ohne Grund, und AVIF wird mehr statt weniger.
+  //
+  // Sollte exiftool das je wieder verlernen, ist es sichtbar und nicht still: geotag.js
+  // fängt jeden fehlgeschlagenen Schreibversuch, zählt ihn und schreibt eine Warnung
+  // ins Build-Log.
   const dir = mkdtempSync(join(tmpdir(), 'geotag-avif-'));
   try {
     writeFileSync(join(dir, 'drop-02-1024.avif'), 'x');
@@ -129,13 +142,25 @@ test('5b. Geotag-Walk sammelt KEIN .avif, der Budget-Walk schon', () => {
     writeFileSync(join(dir, 'mascot.AVIF'), 'x'); // case-insensitiv
 
     const getagged = walkImages(dir).map((p) => p.split('/').pop()).sort();
-    assert.deepEqual(getagged, ['drop-02-1024.webp'], `AVIF darf nicht getaggt werden: ${getagged}`);
+    assert.deepEqual(getagged, ['drop-02-1024.avif', 'drop-02-1024.webp', 'mascot.AVIF'],
+      `AVIF gehört jetzt in den Geotag-Pfad: ${getagged}`);
 
+    // Der Budget-Walk sammelt weiterhin dasselbe — die beiden Listen sind seit dieser
+    // Änderung deckungsgleich, bleiben aber getrennt benannt: sie beantworten verschiedene
+    // Fragen und können wieder auseinanderlaufen.
     const budget = walkImages(dir, [], BUDGET_EXT).map((p) => p.split('/').pop()).sort();
     assert.deepEqual(budget, ['drop-02-1024.avif', 'drop-02-1024.webp', 'mascot.AVIF']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('5b2. BUDGET_EXT enthält keine Duplikate', () => {
+  // Beim Aufheben des AVIF-Ausschlusses wäre `[...TAGGABLE_EXT, '.avif']` zu einem
+  // doppelten '.avif' geworden. Harmlos in der Wirkung, aber ein Hinweis darauf, dass
+  // jemand die eine Liste geändert und die andere nicht mitgelesen hat.
+  assert.deepEqual([...new Set(BUDGET_EXT)], BUDGET_EXT);
+  assert.ok(TAGGABLE_EXT.includes('.avif'), 'AVIF ist taggbar');
 });
 
 test('5c. Budget-Walk respektiert weiterhin die Denylist', () => {
