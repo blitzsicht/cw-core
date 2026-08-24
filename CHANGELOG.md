@@ -86,8 +86,16 @@ Drei Ursachen, alle rein deklarativ — kein Verhalten und keine Ausgabe ändert
   Prop-Dokumentation empfiehlt ausdrücklich, genau diese Funktion zu übergeben. Der Body
   verarbeitet `null` seit jeher korrekt (`copyrightHolder || name`) — nur die Deklaration
   schloss es aus. Das war unsichtbar, solange `copyright.js` als `any` ankam: **der erste
-  Fix legt diesen dritten frei.** Ohne ihn hätte dieses Release in jedem Customer-Repo
+  Fix legt diesen dritten frei.** Ohne ihn hätte dieses Release in den betroffenen Repos
   sechs neue Fehler erzeugt statt zwei alte zu beheben.
+
+**Nachtrag 24.08.2026 — Reichweite nachgemessen, erste Fassung war zu weit gefasst.**
+Hier stand „in jedem Customer-Repo". Das stimmt nicht: die beiden Lücken schlagen nur
+zu, wo die betroffenen Stellen überhaupt benutzt werden. Gezählt über alle 21 Repos mit
+cw-core-Pin: **11 importieren `utils/copyright`, 11 setzen `legal.representatives`.**
+Gegenprobe an customer-platzfrei, dem einzigen anderen Repo auf v0.125.0: **0 Fehler** —
+es tut beides nicht. Für die übrigen zehn gilt die Aussage; für den Rest der Flotte war
+v0.125.0 unauffällig.
 
 Belegt in customer-zink-baeckerei: 5 Fehler → 2 nach den kundenseitigen Fixes → **0** mit
 diesem Release. Gegenprobe mit ungepatchtem v0.125.0-Tarball in derselben Umgebung: 2.
