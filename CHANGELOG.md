@@ -22,6 +22,42 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.126.0 (2026-08-24)
+
+**Fix:** `astro check` in den Customer-Repos wieder fehlerfrei — Typlücken an drei Stellen
+
+Der Bump auf v0.125.0 hinterließ in customer-zink-baeckerei fünf `astro check`-Fehler,
+zwei davon aus cw-core. Gemessen mit einer Gegenprobe gegen den v0.125.0-Tag in
+derselben Umgebung: dieselben Fehler, gleiche Zeilen — sie kamen mit dem Release, nicht
+aus dem Kundencode. `pnpm build` blieb dabei grün, `astro check` läuft in keinem Gate;
+deshalb ist es beim Release nicht aufgefallen.
+
+Drei Ursachen, alle rein deklarativ — kein Verhalten und keine Ausgabe ändert sich:
+
+- **`src/utils/copyright.js` hatte keine Typen** (ts7016). Die Datei bleibt bewusst reines
+  `.js`, weil sie sowohl per `node:test` geprüft als auch vom plain-node-CLI-Twin
+  importiert wird. Neu daneben: `src/utils/copyright.d.ts`, plus eine `types`-Condition
+  im `exports`-Mapping.
+- **`ImpressumBlock.astro`: `representatives?: string[]`** (ts2322). Kundendaten stehen in
+  `site-data.ts` unter `as const`, sind also `readonly` — der mutable Typ war die Lücke.
+  Jetzt `readonly string[]`. `ai-discovery/index.ts` hatte das bereits richtig.
+- **`copyrightHolder?: string`** in `SchemaOrg.astro` und `BaseLayout.astro` (ts2322).
+  `resolveCopyrightHolder()` liefert laut eigener JSDoc `string | null`, und die
+  Prop-Dokumentation empfiehlt ausdrücklich, genau diese Funktion zu übergeben. Der Body
+  verarbeitet `null` seit jeher korrekt (`copyrightHolder || name`) — nur die Deklaration
+  schloss es aus. Das war unsichtbar, solange `copyright.js` als `any` ankam: **der erste
+  Fix legt diesen dritten frei.** Ohne ihn hätte dieses Release in jedem Customer-Repo
+  sechs neue Fehler erzeugt statt zwei alte zu beheben.
+
+Belegt in customer-zink-baeckerei: 5 Fehler → 2 nach den kundenseitigen Fixes → **0** mit
+diesem Release. Gegenprobe mit ungepatchtem v0.125.0-Tarball in derselben Umgebung: 2.
+552 Tests grün, Build 30 Seiten, `copyrightNotice` im JSON-LD unverändert.
+
+**Migrations-Hinweis:** Keiner. Reine Typerweiterungen, kein Prop entfällt oder wechselt
+die Bedeutung. Repos, die heute `astro check`-sauber sind, bleiben es.
+
+---
+
 ## v0.125.0 (2026-08-19)
 
 **Fix:** Impressum verweist nicht mehr auf die eingestellte EU-Streitbeilegungsplattform

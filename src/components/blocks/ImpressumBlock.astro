@@ -51,7 +51,7 @@ export interface LegalProps {
   /** Englische SSOT-Schreibweise — Vorrang bei Doppel-Setzung. */
   registerCourt?: string | undefined;
   /** Vertretungsberechtigte gemäß § 35 GmbHG (Pflicht für GmbH/UG/AG/GmbH-Co-KG). */
-  representatives?: string[] | undefined;
+  representatives?: readonly string[] | undefined;
   hasUstId: boolean;
   aufsichtspflichtig: boolean;
   aufsichtsbehoerde?: { name: string; url: string } | undefined;
