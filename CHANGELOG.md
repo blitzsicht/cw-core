@@ -22,6 +22,33 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.127.2 (2026-08-24)
+
+**Fix:** Auch die Prop-Defaults zeigen auf die kanonische Adressform — Nachtrag zu v0.127.1
+
+v0.127.1 hat die internen Links in den Rechtstext-Blöcken gezogen, aber nur die im Markup
+(`<a href="…">`). Vier **Prop-Defaults** blieben dabei übersehen und erzeugten in jedem
+Repo, das den Prop nicht selbst setzt, weiterhin eine 308-Weiterleitung:
+
+| Datei | Default |
+|---|---|
+| `ImpressumBlock.astro` | `contactFormPath = '/kontakt'` |
+| `CTABlock.astro` | `primaryHref = '/kontakt'` |
+| `Header.astro` | `karriereHref = '/karriere'` |
+| `Footer.astro` | `karriereHref = '/karriere'` |
+
+Der `ImpressumBlock` zeigt den Pfad zusätzlich als **Linktext** an — dort steht jetzt
+sichtbar „/kontakt/". Das ist gewollt: die angezeigte Adresse ist die, die auch aufgerufen
+wird.
+
+Gefunden, weil nach v0.127.1 in customer-zink-baeckerei genau **ein** nicht-kanonischer
+Link übrig blieb. Die Lehre für den nächsten Sweep dieser Art: Prop-Defaults gehören in die
+Suche, nicht nur das Markup.
+
+**Migrations-Hinweis:** Keiner. Repos, die diese Props selbst setzen, sind nicht betroffen.
+
+---
+
 ## v0.127.1 (2026-08-24)
 
 **Fix:** Interne Links in den Rechtstext-Bloecken zeigen auf die kanonische Adressform
