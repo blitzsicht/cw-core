@@ -65,10 +65,23 @@ ust_id = kv(legal, "ustIdNr") or kv(legal, "taxId")
 hrb = kv(legal, "handelsregister")
 if not hrb:
     reg = kv(legal, "register")
-    nr = kv(legal, "registerNummer")
+    # customer-site-data.ts fuehrt die englische Schreibweise als SSOT
+    # (registerNumber/registerCourt); die deutsche ist Bestand. ImpressumBlock
+    # kennt beide seit jeher — hier fehlte die englische, weshalb bei
+    # customer-zink-baeckerei und customer-mika-elektrotechnik die
+    # Handelsregister-Zeile still ausfiel (35a HGB-Pflichtangabe).
+    nr = kv(legal, "registerNummer") or kv(legal, "registerNumber")
     if reg and nr:
-        hrb = f"{reg.upper()} {nr}"
-registergericht = kv(legal, "registergericht") or kv(legal, "registry")
+        # Die beiden Schreibweisen sind unterschiedlich befuellt: registerNummer
+        # (deutsch) traegt nur die Ziffern ("11164"), registerNumber (englisch)
+        # das Praefix gleich mit ("HRB 2749"). Ohne diese Pruefung stand in der
+        # Signatur "HRB HRB 2749".
+        hrb = nr if nr.upper().startswith(reg.upper()) else f"{reg.upper()} {nr}"
+registergericht = (
+    kv(legal, "registergericht")
+    or kv(legal, "registerCourt")
+    or kv(legal, "registry")
+)
 
 # representatives[] (GbR/OHG/KG): alle vertretungsberechtigten Gesellschafter
 representatives = ""

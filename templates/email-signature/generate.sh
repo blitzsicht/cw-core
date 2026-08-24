@@ -114,8 +114,15 @@ build_compliance_block() {
       ;;
     *)
       # GmbH, AG, UG, GmbH & Co. KG, …
+      # Wie im GbR-Zweig: REPRESENTATIVES zuerst, GF_NAME nur als Fallback.
+      # GF_NAME kommt aus legal.owner — bei einer GmbH ist das der FIRMENname,
+      # nicht die Geschaeftsfuehrung. Ohne diesen Vorrang stand in der Signatur
+      # "GF: <Firma> GmbH" statt der Personen (35a HGB verlangt sie namentlich).
+      # Betraf am 24.08.2026 alle acht GmbH-Kunden; representatives war bei
+      # allen gepflegt und wurde nur nicht gelesen.
       local gf_line="${LEGAL_FORM}"
-      [ -n "$GF_NAME" ] && gf_line="${gf_line} &middot; GF: ${GF_NAME}"
+      local gf_vertreter="${REPRESENTATIVES:-$GF_NAME}"
+      [ -n "$gf_vertreter" ] && gf_line="${gf_line} &middot; GF: ${gf_vertreter}"
       lines+=("$gf_line")
 
       if [ -n "$REGISTERGERICHT" ] && [ -n "$HRB" ]; then

@@ -22,6 +22,46 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.127.0 (2026-08-24)
+
+**Fix:** E-Mail-Signatur nannte bei GmbH-Kunden die Firma als Geschäftsführer
+
+Aufgefallen beim Erzeugen der Signaturen für customer-zink-baeckerei: im
+Compliance-Block stand `GmbH · GF: Zink GmbH Bäckerei und Konditorei` — die Firma
+als ihr eigener Geschäftsführer. Nachgemessen über alle Customer-Repos: **alle acht
+GmbH-Kunden** betroffen (digital-direkt, donau-profi, itk-regensburg,
+mika-elektrotechnik, schiller-gartenbau, soleno, weinkontor-sinzing,
+zink-baeckerei). Bei allen acht war `legal.representatives` gepflegt und wurde nur
+nicht gelesen.
+
+Ursache: `generate.sh` nutzte `REPRESENTATIVES` ausschließlich im GbR-Zweig; der
+Zweig für GmbH/AG/UG/GmbH & Co. KG griff auf `GF_NAME` zurück, und das ist
+`legal.owner` — bei einer GmbH der Firmenname. Der GmbH-Zweig hat jetzt dieselbe
+Reihenfolge wie der GbR-Zweig: Vertretungsberechtigte zuerst, `owner` nur als
+Fallback. § 35a HGB verlangt die Geschäftsführer namentlich.
+
+**Zweiter Fund derselben Runde:** `read-customer-data.py` las die Registerangaben
+nur in der deutschen Schreibweise (`registerNummer`, `registergericht`). Repos mit
+der englischen SSOT-Form (`registerNumber`, `registerCourt`) — zink-baeckerei und
+mika-elektrotechnik — lieferten deshalb **gar keine Handelsregister-Zeile**, ebenfalls
+eine Pflichtangabe. Beide Schreibweisen werden jetzt gelesen, `ImpressumBlock` kann
+das seit jeher.
+
+Dabei kam ein dritter Unterschied heraus, der ohne Prüfung eine Dopplung erzeugt
+hätte: `registerNummer` (deutsch) enthält nur die Ziffern (`11164`),
+`registerNumber` (englisch) das Präfix gleich mit (`HRB 2749`). Ohne Abfangen stand
+dort `HRB HRB 2749`. Gegengeprüft über beide Konventionen: zink `HRB 2749`, mika
+`HRB 21336`, donau-profi `HRB 11755`, weinkontor `HRA 5928, Amtsgericht Regensburg`.
+
+**Migrations-Hinweis:** Keiner für den Build — die Änderung betrifft nur den
+Signatur-Generator. Aber: **wer die Signaturen eines GmbH-Kunden neu erzeugt, ändert
+damit den Compliance-Block.** Sechs der acht Kunden haben ihre Signatur bereits
+installiert; ein Neuversand ist eine Kundenentscheidung, kein Nebeneffekt eines
+Bumps. Für customer-zink-baeckerei am 24.08.2026 bewusst neu erzeugt (die Signatur
+war dort noch nie ausgeliefert).
+
+---
+
 ## v0.126.0 (2026-08-24)
 
 **Fix:** `astro check` in den Customer-Repos wieder fehlerfrei — Typlücken an drei Stellen
