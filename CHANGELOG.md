@@ -22,6 +22,32 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.130.1 (2026-08-25)
+
+**Fix:** `utils/labelfarbe` war ausgeliefert, aber nicht exportiert
+
+Kontext: v0.130.0 brachte `src/utils/labelfarbe.js` mit — die Datei lag im Tarball, der
+Import brach trotzdem: `Rollup failed to resolve import "@cw/core/utils/labelfarbe"`. Der
+Sammel-Eintrag `./utils/*` zeigt auf `./src/utils/*.ts` und trifft JavaScript nicht; deshalb
+haben `bildherkunft` und `copyright` eigene Einträge. `labelfarbe` fehlte dieser Eintrag.
+
+Auffallen konnte das erst im Kundenrepo: cw-core importiert intern über relative Pfade, und
+`examples/` bindet die Bibliothek als `link:..` ein, wo die exports-Map großzügiger greift.
+Ein Release ohne Consumer-Build zeigt den Fehler nicht.
+
+- `./utils/labelfarbe` mit `types` + `default` ergänzt, dazu `src/utils/labelfarbe.d.ts`
+- `./utils/image-format` ergänzt — Nachbefund: die Datei nennt sich im Kopfkommentar
+  `@cw/core/utils/image-format`, war aber seit ihrer Einführung nie exportiert. Bisher
+  folgenlos, weil sie nur intern über relative Pfade benutzt wird.
+- Neuer Wächter `tests/exports-map.test.js`: jede `.js` in `src/utils/` muss über die
+  exports-Map auflösbar sein. Gegen den Zustand vor dem Fix gefahren — er meldet dort beide
+  Lücken.
+
+**Migrations-Hinweis:** Keiner. Wer v0.130.0 gepinnt hat und `utils/labelfarbe` importiert,
+muss auf v0.130.1 gehen.
+
+---
+
 ## v0.130.0 (2026-08-25)
 
 - [kunde:sichtbar] Bilder, die mit KI erzeugt wurden, tragen jetzt das offizielle EU-Kennzeichen — ein kleines Symbol in der unteren linken Ecke des Bildes. Es erscheint nur dort, wo die Kennzeichnung rechtlich verlangt ist, und passt seine Farbe automatisch an das jeweilige Motiv an.
