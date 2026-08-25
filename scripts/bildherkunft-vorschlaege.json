@@ -1,879 +1,1754 @@
 {
- "blitzsicht::public/images/agentic/agentic-browsing-og.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/agentic/agentic-browsing.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/blog/og-images-og.png": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/blog/og-images-og.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/elementor-agentur-regensburg.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/jimdo-alternative.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/jimdo-vs-wix.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/pakete.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/performance-speed.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/so-funktionierts.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/website-anforderungen-sicherheit.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/hero/website-speed-regensburg.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/images/team/johannes-og.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "blitzsicht::public/images/team/johannes.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "blitzsicht::public/lead-mail/logo-white.png": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/logo.png": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::public/logo.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::src/assets/images/dfy-illustration.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "blitzsicht::src/assets/images/johannes-portrait.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "gottl-richter-gomeier::public/images/icon_team.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gottl-richter-gomeier::public/images/team-foto-sm.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "gottl-richter-gomeier::public/images/team-foto.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "gottl-richter-gomeier::public/images/zertifikate-banner.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/adf.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/bypass.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/druckertreiber.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/dual-scan.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/falzen.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/finisher.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/kopieren.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/papierformat.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/pcl.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/plotter.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/rip.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/schnittstelle.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/sortieren.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/transferband-transfereinheit-belt-unit.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "digital-direkt::src/assets/images/glossar/verbrauchsmaterial.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "soleno::public/images/team/nico-poeppl-card.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "soleno::public/images/team/nico-poeppl.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "zink-baeckerei::src/assets/images/produkte/amerikaner.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/apfeltasche.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/bauernbrot-1kg-gewuerzt.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/bauernbrot-1kg-ungewuerzt.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/bauernbrot-6-pfund.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/bienenstich.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/blaetterteigbreze.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/brezenknopf.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/brezenzopf.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/butter-croissant.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/chia-brot.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/ciabatta.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/dinkelberger-vollkornbrot.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/donut-schoko-dunkel.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/donut-schoko-weiss.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/dorfsemmel.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/eiszopf.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/feines-dinkelbrot.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/franzen.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/kaesestangerl.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/kaisersemmel.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/kipferl.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/kirschtasche.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/koenig-ludwig-vollkorn.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/koenig-ludwig.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/kokosschleife.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/kornspitz.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/krapfen.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/kuerbiskernsemmel.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/mohnschnecke.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/mohnsemmel.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/muenchner-zuckerbreze.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/nuss-vollkornbrot.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/nusshoernchen.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/nussschnecke.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/quarktasche.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/schoko-croissant.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/sesamsemmel.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/speckstangerl.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/straube.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/teezunge.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/vilstaler.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/vollkorn-franzen.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/vollkornsemmel.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/weissbrot.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/weltmeister.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/produkte/zwiebelstangerl.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/festtagstorte-rund.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/hochzeitstorte-anthurien.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/hochzeitstorte-trockenblumen.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/kindertorte-loewe.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/kommunionstorte-kreuz.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/macarontorte.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/naked-cake-beeren.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "zink-baeckerei::src/assets/images/torten/petit-fours.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "donau-profi::public/logo-original.png": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "donau-profi::public/logo-original.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "donau-profi::public/logo.png": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "donau-profi::public/logo.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "donau-profi::public/videos/erklaervideo-poster.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "schiller-gartenbau::public/images/garten-1.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::public/images/garten-3.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::public/images/garten-4.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::src/assets/images/galerie/garten-2.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::src/assets/images/galerie/garten-mit-holzterrasse.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::src/assets/images/galerie/holzterrasse.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::src/assets/images/galerie/pflasterung.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::src/assets/images/galerie/rollrasen.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::src/assets/images/galerie/zaun.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "schiller-gartenbau::src/assets/images/hero.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "mika-elektrotechnik::public/team/kewin.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "mika-elektrotechnik::public/team/nadine.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "mika-elektrotechnik::src/assets/images/og.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-01-1024.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-01-512.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-01-512.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-01-768.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-01-768.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-02-1024.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-02-512.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-02-512.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-02-768.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-02-768.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-03-1024.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-03-512.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-03-512.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-03-768.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-03-768.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-04-1024.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-04-512.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-04-512.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-04-768.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/drop-04-768.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/mascot-cut-512.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/mascot-cut-512.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/mascot-cut-768.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/mascot-cut-768.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/mascot-cut-984.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/roar-512.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/roar-512.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/roar-644.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/roar-644.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/wordmark-cut-512.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/wordmark-cut-512.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "gympanzen::public/assets/wordmark-cut-794.avif": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "platzfrei::public/images/hero/platzfrei-hero.webp": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "platzfrei::public/images/studios/victory-gym-halle.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "platzfrei::public/images/studios/victory-gym-logo.png": {
-  "h": "ungeklaert",
-  "d": "nein",
-  "art": "grafik",
-  "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)"
- },
- "platzfrei::public/images/studios/victory-gym-spinning.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- },
- "platzfrei::public/images/studios/victory-gym-trainingsflaeche.webp": {
-  "h": "mensch",
-  "art": "foto",
-  "b": ""
- }
+  "blitzsicht::images/hero/referenzen.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "referenz",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/b2b-dienstleister.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/dachdecker.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "branchenseite",
+    "quelle": "kontext:branchenseite"
+  },
+  "blitzsicht::images/hero/elektriker.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "branchenseite",
+    "quelle": "kontext:branchenseite"
+  },
+  "blitzsicht::images/hero/elementor-agentur-regensburg.webp": {
+    "h": "ungeklaert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)",
+    "verwendung": "hero",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/handwerker-maler.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "branchenseite",
+    "quelle": "kontext:branchenseite"
+  },
+  "blitzsicht::images/hero/handwerker-sanitaer.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "branchenseite",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/jimdo-alternative.webp": {
+    "h": "ungeklaert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/jimdo-vs-wix.webp": {
+    "h": "ungeklaert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)",
+    "verwendung": "hero",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/pakete.webp": {
+    "h": "ungeklaert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Grafik ohne fotografischen Inhalt — ähnelt nichts Wirklichem, kann kein Deepfake sein (Art. 3 Nr. 60)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/performance-speed.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "blog",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/regensburg-abend.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/schreiner.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "branchenseite",
+    "quelle": "kontext:branchenseite"
+  },
+  "blitzsicht::images/hero/so-funktionierts.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/webdesign-regensburg.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/website-anforderungen-datenschutz.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/website-anforderungen-handy.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/website-anforderungen-sicherheit.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/website-anforderungen.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/website-audit.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/website-handwerker.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/website-speed-regensburg.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/hero/wix-alternative.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/team/johannes-og.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/team/johannes.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "team",
+    "quelle": "bestand"
+  },
+  "blitzsicht::src/assets/images/johannes-portrait.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "foto",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "blitzsicht::src/assets/images/handwerker-hero.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Liegt in src/assets/, wird aber von keiner Seite importiert und landet deshalb nicht im Build — erreicht keinen Betrachter, weshalb die Offenlegungspflicht nach Abs. 4 nicht ausgelöst wird",
+    "verwendung": "ungenutzt",
+    "quelle": "kontext:ungenutzt"
+  },
+  "blitzsicht::src/assets/images/craftsman-laptop.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::src/assets/images/dfy-illustration.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "blitzsicht::src/assets/images/webdesign-regensburg.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "referenz",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/hero/originals/craftsman-laptop.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "blitzsicht::images/agentic/agentic-browsing-og.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "blog",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/agentic/agentic-browsing.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/blog/og-images-og.png": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "blog",
+    "quelle": "bestand"
+  },
+  "blitzsicht::images/blog/og-images-og.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "blitzsicht::lead-mail/logo-white.png": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "blitzsicht::logo.png": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "blitzsicht::logo.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gottl-richter-gomeier::images/hero/bauschaden.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/beleihungswert.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/beratung.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/betriebskosten.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/bodenrichtwerte.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/donaustauf.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/fuer-anwaelte.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/fuer-steuerberater.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/honorare.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/mieten.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/uebersee.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "gottl-richter-gomeier::images/hero/wertermittlung.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "einzelfall"
+  },
+  "steller-sanierungen::src/assets/images/referenzen/fassadensanierung-illustration.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Steht als Referenz für ausgeführte Arbeit — behauptet ein tatsächlich durchgeführtes Projekt (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "referenz",
+    "quelle": "einzelfall"
+  },
+  "steller-sanierungen::src/assets/images/referenzen/innenarbeiten-illustration.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Steht als Referenz für ausgeführte Arbeit — behauptet ein tatsächlich durchgeführtes Projekt (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "referenz",
+    "quelle": "einzelfall"
+  },
+  "steller-sanierungen::src/assets/images/referenzen/komplettsanierung-illustration.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Steht als Referenz für ausgeführte Arbeit — behauptet ein tatsächlich durchgeführtes Projekt (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "referenz",
+    "quelle": "einzelfall"
+  },
+  "steller-sanierungen::src/assets/images/hero/hero.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Titelbild der Startseite und damit das geteilte Vorschaubild — im Zweifel gekennzeichnet, weil es das prominenteste und am weitesten weitergereichte Bild der Site ist (D5, „Im Zweifel kennzeichnen\")",
+    "verwendung": "team",
+    "quelle": "aushaengeschild"
+  },
+  "steller-sanierungen::src/assets/images/leistungen/fassadensanierung.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Steht als Referenz für ausgeführte Arbeit — behauptet ein tatsächlich durchgeführtes Projekt (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "referenz",
+    "quelle": "einzelfall"
+  },
+  "steller-sanierungen::src/assets/images/leistungen/komplettsanierung.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Steht als Referenz für ausgeführte Arbeit — behauptet ein tatsächlich durchgeführtes Projekt (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "referenz",
+    "quelle": "einzelfall"
+  },
+  "digital-direkt::src/assets/images/leistungen/dokumentmanagement.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "einzelfall"
+  },
+  "digital-direkt::src/assets/images/leistungen/druck-kopierloesungen.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "einzelfall"
+  },
+  "digital-direkt::src/assets/images/leistungen/drucker-leasing.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "einzelfall"
+  },
+  "digital-direkt::src/assets/images/leistungen/kuvertier-frankierkonzepte.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "einzelfall"
+  },
+  "digital-direkt::src/assets/images/leistungen/managed-print.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "einzelfall"
+  },
+  "digital-direkt::src/assets/images/leistungen/service-wartung.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert ein Thema im redaktionellen Umfeld (Blog, Ratgeber, Glossar) — dient der Veranschaulichung, behauptet keinen bestimmten Sachverhalt über das Unternehmen (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "einzelfall"
+  },
+  "digital-direkt::src/assets/images/glossar/adf.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/bypass.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/druckertreiber.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/dual-scan.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/falzen.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/finisher.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/kopieren.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/papierformat.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/pcl.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/plotter.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/rip.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "team",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/schnittstelle.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/sortieren.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/transferband-transfereinheit-belt-unit.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "digital-direkt::src/assets/images/glossar/verbrauchsmaterial.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "soleno::images/team/nico-poeppl-card.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "team",
+    "quelle": "bestand"
+  },
+  "soleno::images/team/nico-poeppl.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "team",
+    "quelle": "bestand"
+  },
+  "soleno::images/hero/hero-poster.webp": {
+    "h": "ki-veraendert",
+    "d": "ja",
+    "art": "foto",
+    "b": "Titelbild der Startseite und damit das geteilte Vorschaubild — im Zweifel gekennzeichnet, weil es das prominenteste und am weitesten weitergereichte Bild der Site ist (D5, „Im Zweifel kennzeichnen\")",
+    "verwendung": "hero",
+    "quelle": "aushaengeschild"
+  },
+  "soleno::staedte/barbing.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/cham.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/lappersdorf.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/neutraubling.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/regensburg.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/regenstauf.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/schwandorf.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/tegernheim.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/wenzenbach.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "soleno::staedte/zeitlarn.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "zink-baeckerei::src/assets/images/hero.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Titelbild der Startseite und damit das geteilte Vorschaubild — im Zweifel gekennzeichnet, weil es das prominenteste und am weitesten weitergereichte Bild der Site ist (D5, „Im Zweifel kennzeichnen\")",
+    "verwendung": "hero",
+    "quelle": "aushaengeschild"
+  },
+  "zink-baeckerei::src/assets/images/backstube.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "blog",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/brot.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "blog",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/cafe.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "blog",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/konditorei.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/snacks.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/cafe-zink-donau-einkaufszentrum.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "blog",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/geiselhoering.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/koefering.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/obertraubling.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/pfakofen-zentrale.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "blog",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/regensburg-pruefening.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "blog",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/schierling.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/filialen/sinzing.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Räume, Einrichtung oder Erzeugnisse des Unternehmens selbst — behauptet den eigenen Betrieb (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "zink-baeckerei::src/assets/images/produkte/amerikaner.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/apfeltasche.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/bauernbrot-1kg-gewuerzt.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/bauernbrot-1kg-ungewuerzt.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/bauernbrot-6-pfund.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/bienenstich.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/blaetterteigbreze.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/brezenknopf.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/brezenzopf.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/butter-croissant.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/chia-brot.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/ciabatta.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/dinkelberger-vollkornbrot.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/donut-schoko-dunkel.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/donut-schoko-weiss.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/dorfsemmel.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/eiszopf.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/feines-dinkelbrot.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/franzen.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/kaesestangerl.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/kaisersemmel.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/kipferl.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/kirschtasche.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/koenig-ludwig-vollkorn.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/koenig-ludwig.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/kokosschleife.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/kornspitz.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/krapfen.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/kuerbiskernsemmel.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/mohnschnecke.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/mohnsemmel.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/muenchner-zuckerbreze.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/nuss-vollkornbrot.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/nusshoernchen.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/nussschnecke.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/quarktasche.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/schoko-croissant.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/sesamsemmel.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/speckstangerl.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/straube.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/teezunge.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/vilstaler.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/vollkorn-franzen.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/vollkornsemmel.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/weissbrot.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/weltmeister.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/produkte/zwiebelstangerl.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/festtagstorte-rund.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/hochzeitstorte-anthurien.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/hochzeitstorte-trockenblumen.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/kindertorte-loewe.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/kommunionstorte-kreuz.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/macarontorte.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/naked-cake-beeren.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Freigestellte bzw. retuschierte Aufnahme eines tatsächlich vorhandenen Produkts — KI nur zur Bearbeitung, das Bild zeigt, was existiert",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "zink-baeckerei::src/assets/images/torten/petit-fours.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "foto",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "seite",
+    "quelle": "bestand"
+  },
+  "donau-profi::src/assets/images/hero/hero.png": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Titelbild der Startseite und damit das geteilte Vorschaubild — im Zweifel gekennzeichnet, weil es das prominenteste und am weitesten weitergereichte Bild der Site ist (D5, „Im Zweifel kennzeichnen\")",
+    "verwendung": "hero",
+    "quelle": "aushaengeschild"
+  },
+  "donau-profi::leistungen/_overview.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "einzelfall"
+  },
+  "donau-profi::leistungen/desinfektion-hygiene.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::leistungen/fassadenreinigung.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::leistungen/glasreinigung.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::leistungen/gruenanlagenpflege.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::leistungen/hausmeisterservice.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::leistungen/teppichreinigung.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::leistungen/unterhaltsreinigung.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::leistungen/winterdienst.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "leistungsseite",
+    "quelle": "kontext:leistungsseite"
+  },
+  "donau-profi::staedte/lappersdorf.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "donau-profi::staedte/neutraubling.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "donau-profi::staedte/pentling.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "donau-profi::staedte/regensburg.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "donau-profi::staedte/sinzing.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "donau-profi::staedte/wenzenbach.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt einen benannten, identifizierbaren Ort und steht auf der Seite zu genau diesem Ort — wird als echte Aufnahme dieses Ortes gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "stadtseite",
+    "quelle": "kontext:stadtseite"
+  },
+  "mika-elektrotechnik::team/kewin.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "team",
+    "quelle": "bestand"
+  },
+  "mika-elektrotechnik::team/nadine.webp": {
+    "h": "ki-veraendert",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Bearbeitete Aufnahme eines tatsächlich vorhandenen Motivs — zeigt, was war; keine erfundene Wirklichkeit",
+    "verwendung": "team",
+    "quelle": "bestand"
+  },
+  "mika-elektrotechnik::src/assets/images/team.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Menschen im Zusammenhang mit diesem Unternehmen — wird als Darstellung realer Mitarbeiter gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "team",
+    "quelle": "einzelfall"
+  },
+  "mika-elektrotechnik::src/assets/images/hero.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Titelbild der Startseite und damit das geteilte Vorschaubild — im Zweifel gekennzeichnet, weil es das prominenteste und am weitesten weitergereichte Bild der Site ist (D5, „Im Zweifel kennzeichnen\")",
+    "verwendung": "team",
+    "quelle": "aushaengeschild"
+  },
+  "mika-elektrotechnik::src/assets/images/gebaeudetechnik.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "mika-elektrotechnik::src/assets/images/installation.webp": {
+    "h": "ki-erzeugt",
+    "d": "ja",
+    "art": "foto",
+    "b": "Zeigt Menschen im Zusammenhang mit diesem Unternehmen — wird als Darstellung realer Mitarbeiter gelesen (Art. 3 Nr. 60, beide Merkmale erfüllt)",
+    "verwendung": "team",
+    "quelle": "einzelfall"
+  },
+  "mika-elektrotechnik::src/assets/images/notdienst.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "mika-elektrotechnik::src/assets/images/og.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "team",
+    "quelle": "bestand"
+  },
+  "mika-elektrotechnik::src/assets/images/photovoltaik.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "mika-elektrotechnik::src/assets/images/smart-home.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "mika-elektrotechnik::src/assets/images/wallbox.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "foto",
+    "b": "Illustriert eine Leistungsart auf der zugehörigen Leistungs- oder Branchenseite, ohne einen bestimmten Ort, ein bestimmtes Projekt oder benannte Personen zu zeigen — sagt über keinen bestimmten Sachverhalt etwas aus (Art. 3 Nr. 60, 2. Merkmal nicht erfüllt)",
+    "verwendung": "site-data",
+    "quelle": "einzelfall"
+  },
+  "gympanzen::assets/drop-01-1024.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-01-512.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-01-512.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-01-768.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-01-768.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-02-1024.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-02-512.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-02-512.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-02-768.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-02-768.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-03-1024.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-03-512.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-03-512.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-03-768.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-03-768.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-04-1024.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-04-512.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-04-512.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-04-768.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/drop-04-768.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/mascot-cut-512.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/mascot-cut-512.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/mascot-cut-768.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/mascot-cut-768.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/mascot-cut-984.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/roar-512.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/roar-512.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/roar-644.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/roar-644.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/wordmark-cut-512.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/wordmark-cut-512.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "gympanzen::assets/wordmark-cut-794.avif": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "ungenutzt",
+    "quelle": "bestand"
+  },
+  "platzfrei::images/hero/platzfrei-hero.webp": {
+    "h": "ki-erzeugt",
+    "d": "nein",
+    "art": "grafik",
+    "b": "Illustration ohne fotografischen Realitaetsanspruch — ähnelt keiner wirklichen Person, keinem Ort und keinem Ereignis (Art. 3 Nr. 60, 1. Merkmal nicht erfüllt)",
+    "verwendung": "hero",
+    "quelle": "bestand"
+  }
 }
