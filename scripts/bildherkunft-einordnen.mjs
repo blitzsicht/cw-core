@@ -24,6 +24,20 @@
  *           pflichtigen) — sie liefert je Bild die Fundstelle als Nachweis.
  * Ausgabe:  `scripts/bildherkunft-vorschlaege.json`, vollständig für den ganzen Bestand.
  *
+ * **Videos sind hier nicht erfasst — geklärt, nicht vergessen.** Art. 50 Abs. 4 nennt
+ * ausdrücklich „Bild-, Ton- oder Videoinhalte", und die Flotte enthält sieben MP4-Dateien
+ * (`customer-soleno` fünf, `customer-donau-profi` zwei). Keine davon steht in einer
+ * Deklaration, weil die Arbeitsliste nur Bildformate scannt.
+ *
+ * Operator-Auskunft vom 25.08.2026: **Diese Videos sind nicht KI-erzeugt, sie stammen vom
+ * Kunden.** Damit besteht für sie keine Offenlegungspflicht. Die zugehörigen Poster-Frames
+ * sind als `mensch` deklariert und damit konsistent — mit einer bewussten Ausnahme:
+ * `soleno::images/hero/hero-poster.webp` steht auf `ki-veraendert` + pflichtig, weil an
+ * diesem einen Standbild mit KI gearbeitet wurde (bestätigt am 25.08.2026).
+ *
+ * Kommen neue Videos hinzu, gilt die Auskunft nicht automatisch weiter — sie betraf den
+ * Bestand an diesem Tag. Ein Werkzeug, das Videos miterfasst, gibt es bislang nicht.
+ *
  * Rechtlicher Rahmen: Art. 50 Abs. 4 UAbs. 1 AI Act, Legaldefinition Art. 3 Nr. 60.
  * Volltext: cw-recht → texte/eu/ai-act/ai-act.md. Keine Rechtsberatung.
  *
@@ -167,6 +181,12 @@ const EINZELFAELLE = {
 
   // Übersichtskachel der Leistungsseite — Leistungsart, kein bestimmtes Objekt.
   'donau-profi::leistungen/_overview.webp': ['nein', GRUND.leistungsart],
+
+  // Liegt in src/assets/, wird von keiner Seite importiert und fehlt im Build — die
+  // Startseite zeigt stattdessen ein Video. Der Textsuche entging das, weil das Wort
+  // „hero" im Code an Dutzenden Stellen vorkommt; der Build-Check in
+  // bildherkunft-verwendung.mjs fängt solche Fälle jetzt.
+  'donau-profi::hero': ['nein', GRUND.nicht_ausgeliefert],
 };
 
 // Titelbilder der Startseite: bleiben gekennzeichnet. Sie sind das og:image und damit
