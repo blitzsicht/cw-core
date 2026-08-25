@@ -8,15 +8,49 @@
  *
  * Drei Festlegungen, die aus der Norm folgen und nicht verhandelbar sind:
  *
- * 1. **Immer auch Text, nie nur das Symbol.** Abs. 5 verlangt, dass die Information den
- *    geltenden Barrierefreiheitsanforderungen entspricht. Ein Piktogramm allein erfüllt
- *    das nicht — es hat für Screenreader keinen Inhalt und für Sehende keine eindeutige
- *    Bedeutung. Das Symbol ist deshalb `aria-hidden`, der Text trägt die Aussage.
+ * 1. **Immer auch Text im DOM — sichtbar oder vorlesbar.** Abs. 5 verlangt, dass die
+ *    Information den geltenden Barrierefreiheitsanforderungen entspricht. Das Symbol allein
+ *    erfüllt das nicht: nachgemessen enthält die EU-SVG **0 `<text>`-Elemente und 12 Pfade**
+ *    — „AI GENERATED" ist in Vektoren umgewandelt und für Screenreader, Übersetzung und
+ *    Textsuche nicht vorhanden. Das Symbol ist deshalb `aria-hidden`, der Text trägt die
+ *    Aussage.
+ *
+ *    Mit `beschriftung="nur-vorlesbar"` verschwindet der Text **visuell**, bleibt aber im
+ *    DOM und wird vorgelesen (`clip`-Technik, nie `display:none`). Sehende sehen dann nur
+ *    das englische „AI GENERATED" — ob das „klar und eindeutig" im Sinne von Abs. 5 ist,
+ *    ist eine **begründete Wette**: Operator-Entscheidung vom 25.08.2026, ohne
+ *    Rechtsprechung und ohne Anwaltsvotum. Dafür spricht, dass die Kommission den
+ *    Symbolsatz genau für diesen Zweck bereitstellt. Umkehrbar — es ist eine
+ *    Ausgabeentscheidung, kein Datenmodell.
  * 2. **Ohne JavaScript sichtbar, nicht hinter Hover oder Klick.** Abs. 5 verlangt die
  *    Information „spätestens zum Zeitpunkt der ersten Interaktion oder Aussetzung in
  *    klarer und eindeutiger Weise". Ein Tooltip erfüllt das nicht.
  * 3. **Am Bild, nicht in einer Fußnote.** Die EU-Vorgabe verlangt die Einbettung in den
  *    Inhalt. Die Komponente gehört an die Bildunterschrift, nicht ans Seitenende.
+ * 4. **Auf einem Bild: unten links, immer dieselbe Stelle.** Die Komponente selbst
+ *    positioniert nicht — sie ist ein `inline-flex`-Baustein —, aber die Entscheidung
+ *    gehört dokumentiert, wo man sie sucht.
+ *
+ *    Gemessen über die 35 kennzeichnungspflichtigen Bilder der Flotte (25.08.2026), Feld
+ *    34 % × 22 % je Ecke:
+ *
+ *    | Ecke         | Luminanz ⌀ | Streuung ⌀ | unruhig | belegt                    |
+ *    |--------------|-----------|-----------|---------|---------------------------|
+ *    | oben links   | 0,443     | 0,139     | 10/35   | —                         |
+ *    | oben rechts  | 0,372     | 0,125     |  7/35   | —                         |
+ *    | unten links  | 0,189     | 0,108     |  6/35   | frei                      |
+ *    | unten rechts | 0,204     | 0,112     |  5/35   | StickyContact, Floating-* |
+ *
+ *    Unten rechts ist die ruhigste Ecke — und die einzige, die schon vergeben ist:
+ *    `StickyContact` klebt bei `right:0.75rem; bottom:0.75rem`, die Floating-Buttons bei
+ *    `1.25rem`. Oben ist heller und unruhiger (Himmel mit hartem Horizont).
+ *
+ *    **Fest, nicht je Motiv.** Eine wandernde Kennzeichnung wäre im Einzelfall hübscher,
+ *    aber die Kommission verlangt „deutlich wahrnehmbar und unterscheidbar": wer sie sucht,
+ *    soll sie an derselben Stelle finden. Die Position ist der Anker, die Farbe die
+ *    Anpassung (siehe `utils/labelfarbe.js`).
+ *
+ *    Achtung bei Sites mit `StickyMobileCTA`: die belegt auf Mobil die ganze Unterkante.
  *
  * Zwei Wege, sie zu benutzen — der erste ist der sichere:
  *
@@ -30,10 +64,21 @@
 import { istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
 import type { BildHerkunftErgebnis } from '../../utils/bildherkunft.js';
 
-import aiGeneratedBlack from '../../assets/ai-labels/ai-generated-black-transparent.svg';
-import aiGeneratedWhite from '../../assets/ai-labels/ai-generated-white-transparent.svg';
-import aiModifiedBlack from '../../assets/ai-labels/ai-modified-black-transparent.svg';
-import aiModifiedWhite from '../../assets/ai-labels/ai-modified-white-transparent.svg';
+// Die Kommission liefert jedes Symbol zweifach. Der Unterschied steckt im `fill` der
+// Pillenform: die deckende Fassung bringt ihren eigenen Grund mit, die transparente lässt
+// ihn zu 50 % durchscheinen. Gemessen über die 35 pflichtigen Bilder der Flotte: ein
+// transparentes Badge ohne Untergrund fällt bei 30 unter AA, bei vieren auf 1,00:1 —
+// unsichtbar. Die deckende Fassung liegt bildunabhängig bei 21:1 (schwarz) bzw. 16,88:1
+// (weiß), weil die Pille selbst der Hintergrund der Schrift ist. Deshalb ist sie der
+// Standard; `transparent` ist die bewusste Ausnahme für Fälle mit eigenem Untergrund.
+import aiGeneratedBlack from '../../assets/ai-labels/ai-generated-black.svg';
+import aiGeneratedWhite from '../../assets/ai-labels/ai-generated-white.svg';
+import aiModifiedBlack from '../../assets/ai-labels/ai-modified-black.svg';
+import aiModifiedWhite from '../../assets/ai-labels/ai-modified-white.svg';
+import aiGeneratedBlackT from '../../assets/ai-labels/ai-generated-black-transparent.svg';
+import aiGeneratedWhiteT from '../../assets/ai-labels/ai-generated-white-transparent.svg';
+import aiModifiedBlackT from '../../assets/ai-labels/ai-modified-black-transparent.svg';
+import aiModifiedWhiteT from '../../assets/ai-labels/ai-modified-white-transparent.svg';
 
 interface Props {
   /** Ergebnis aus `resolveBildHerkunft`. Besteht keine Pflicht, rendert die Komponente nichts. */
@@ -42,8 +87,30 @@ interface Props {
   variante?: 'erzeugt' | 'bearbeitet';
   /** Eigener Text. Ersetzt den Standard — muss weiterhin klar sagen, dass KI im Spiel war. */
   text?: string;
-  /** Untergrund. `auto` schaltet per `prefers-color-scheme`, ohne JavaScript. */
+  /**
+   * Farbfassung des Symbols. `hell` liefert die **schwarze** Datei (für helle Umgebung),
+   * `dunkel` die weiße. `auto` schaltet per `prefers-color-scheme`, ohne JavaScript.
+   * Bei `ausfuehrung="deckend"` bestimmt das zugleich die Farbe der Pille.
+   */
   theme?: 'hell' | 'dunkel' | 'auto';
+  /**
+   * `deckend` (Standard) bringt den Kontrast selbst mit und braucht keinen Untergrund.
+   * `transparent` nur wählen, wo die Umgebung nachweislich für Kontrast sorgt.
+   */
+  ausfuehrung?: 'deckend' | 'transparent';
+  /**
+   * Wie die Beschriftung erscheint. Siehe Festlegung 1 im Kopf — sie darf nie ersatzlos
+   * entfallen, weil das Symbol seinen Schriftzug nur als Vektorpfade trägt.
+   *
+   * - `sichtbar` — als Text neben dem Symbol (Standard).
+   * - `nur-vorlesbar` — visuell verborgen, im DOM vorhanden, markierbar und kopierbar.
+   * - `im-alt` — kein eigenes Textelement mehr; die Aussage sitzt als `alt` am Symbol.
+   *   Das ist die Form, die die Kommission für ihren Symbolsatz ausdrücklich vorsieht
+   *   („mit Alt-Text bzw. ARIA-Beschriftung"). Sichtbar bleibt allein das Badge.
+   */
+  beschriftung?: 'sichtbar' | 'nur-vorlesbar' | 'im-alt';
+  /** Höhe des Symbols als CSS-Länge. Standard `1.15em` — bindet es an die Textzeile. */
+  groesse?: string;
   class?: string;
 }
 
@@ -52,6 +119,9 @@ const {
   variante,
   text,
   theme = 'hell',
+  ausfuehrung = 'deckend',
+  beschriftung = 'sichtbar',
+  groesse,
   class: className,
 } = Astro.props;
 
@@ -66,21 +136,41 @@ const art = variante ?? ausErgebnis;
 const zeigen = art !== null && art !== undefined;
 
 const standardText = art === 'bearbeitet' ? 'Mit KI bearbeitet' : 'Mit KI erzeugt';
-const beschriftung = text?.trim() || standardText;
+const labelText = text?.trim() || standardText;
 
-const schwarz = art === 'bearbeitet' ? aiModifiedBlack : aiGeneratedBlack;
-const weiss = art === 'bearbeitet' ? aiModifiedWhite : aiGeneratedWhite;
+const deckend = ausfuehrung === 'deckend';
+const schwarz = art === 'bearbeitet'
+  ? (deckend ? aiModifiedBlack : aiModifiedBlackT)
+  : (deckend ? aiGeneratedBlack : aiGeneratedBlackT);
+const weiss = art === 'bearbeitet'
+  ? (deckend ? aiModifiedWhite : aiModifiedWhiteT)
+  : (deckend ? aiGeneratedWhite : aiGeneratedWhiteT);
+
+const nurVorlesbar = beschriftung === 'nur-vorlesbar';
+const imAlt = beschriftung === 'im-alt';
+
+// Bei `im-alt` trägt das Symbol die Aussage selbst. Es darf dann nicht `aria-hidden` sein —
+// sonst bliebe für Screenreader nichts übrig, und die Kennzeichnung existierte für blinde
+// Nutzer nicht. Werden beide Farbfassungen gerendert (`theme="auto"`), bekommt nur die
+// jeweils sichtbare den Alt-Text; die andere bliebe sonst als Dublette vorgelesen.
+const altText = imAlt ? labelText : '';
+const ariaVerbergen = imAlt ? undefined : 'true';
 ---
 
 {zeigen && (
-  <span class:list={['ai-label', `ai-label--${theme}`, className]}>
+  <span
+    class:list={['ai-label', `ai-label--${theme}`, deckend && 'ai-label--deckend', className]}
+    style={groesse ? `--ai-label-symbolhoehe: ${groesse}` : undefined}
+  >
     {theme !== 'dunkel' && (
-      <img class="ai-label__icon ai-label__icon--hell" src={schwarz.src} alt="" aria-hidden="true" width="48" height="24" loading="lazy" decoding="async" />
+      <img class="ai-label__icon ai-label__icon--hell" src={schwarz.src} alt={altText} aria-hidden={theme === 'auto' && imAlt ? undefined : ariaVerbergen} width="48" height="24" loading="lazy" decoding="async" />
     )}
     {theme !== 'hell' && (
-      <img class="ai-label__icon ai-label__icon--dunkel" src={weiss.src} alt="" aria-hidden="true" width="48" height="24" loading="lazy" decoding="async" />
+      <img class="ai-label__icon ai-label__icon--dunkel" src={weiss.src} alt={theme === 'auto' && imAlt ? '' : altText} aria-hidden={theme === 'auto' && imAlt ? 'true' : ariaVerbergen} width="48" height="24" loading="lazy" decoding="async" />
     )}
-    <span class="ai-label__text">{beschriftung}</span>
+    {!imAlt && (
+      <span class:list={['ai-label__text', nurVorlesbar && 'ai-label__text--sr']}>{labelText}</span>
+    )}
   </span>
 )}
 
@@ -105,10 +195,43 @@ const weiss = art === 'bearbeitet' ? aiModifiedWhite : aiGeneratedWhite;
 
   .ai-label__icon {
     /* Höhe an die Textzeile binden, damit das Symbol bei jeder Schriftgröße mitwächst und
-       die von der EU geforderte „sichtbare Größe" nicht von der Umgebung wegskaliert wird. */
-    height: 1.15em;
+       die von der EU geforderte „sichtbare Größe" nicht von der Umgebung wegskaliert wird.
+       Über `groesse` kann die Seite eine feste Länge setzen — nötig dort, wo das Symbol
+       allein steht und keine Textzeile mehr hat, an der es sich orientieren könnte. */
+    height: var(--ai-label-symbolhoehe, 1.15em);
     width: auto;
     flex: 0 0 auto;
+  }
+
+  /* Steht das Symbol allein, ist der Abstand zum verborgenen Text gegenstandslos —
+     er erzeugte sonst eine unsichtbare Lücke neben der Pille. */
+  .ai-label:has(.ai-label__text--sr) {
+    gap: 0;
+  }
+
+  /* Kein Saum um die Pille — bewusst, nach Ansicht am echten Motiv (25.08.2026).
+     Ein `drop-shadow` in Gegenfarbe war gebaut und wieder entfernt: er wirkt als Rand um
+     ein Element, das keinen haben soll. Die Abgrenzung trägt stattdessen die Farbwahl,
+     und die ist gemessen: gegen den abgedunkelten Hero-Grund liegt die passend gewählte
+     Fassung bei einem Median von 11,9:1, kein Bild der Flotte unter 1,5:1.
+
+     Wer die Farbwahl umgeht und eine feste Fassung setzt, holt sich das Problem zurück —
+     überall Schwarz ergäbe auf denselben Motiven einen Median von 1,79:1. */
+
+  /* Visuell verborgen, für Screenreader vorhanden. Bewusst `clip` statt `display:none`
+     oder `visibility:hidden`: die beiden nähmen den Text auch dem Screenreader und
+     machten die Kennzeichnung für blinde Nutzer wertlos — bei einem Symbol, das seinen
+     Schriftzug nur als Vektorpfade trägt, bliebe dann gar keine Aussage übrig. */
+  .ai-label__text--sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   /* `auto`: beide Symbole liegen im Markup, die Anzeige entscheidet die Systemeinstellung.

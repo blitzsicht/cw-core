@@ -82,4 +82,56 @@ const faelle = [
       </figcaption>
     </figure>
   </div>
+
+  <div class="example-section">
+    <h2>Deckend gegen transparent</h2>
+    <p>
+      Die Kommission liefert jedes Symbol zweifach. <b>Deckend</b> (Standard) bringt den
+      Kontrast selbst mit — die Pille ist der Hintergrund der Schrift, gemessen 21:1 bei
+      Schwarz. <b>Transparent</b> lässt den Untergrund zu 50 % durchscheinen und braucht
+      deshalb eine Umgebung, die den Kontrast nachweislich trägt.
+    </p>
+    <table>
+      <tr><th style="text-align:left">Ausführung</th><th style="text-align:left">auf Weiß</th><th style="text-align:left">auf Foto-Hell</th></tr>
+      <tr>
+        <td>deckend schwarz</td>
+        <td><AiLabel variante="erzeugt" ausfuehrung="deckend" theme="hell" beschriftung="im-alt" groesse="22px" /></td>
+        <td style="background:linear-gradient(90deg,#e8f0fb,#fdfdfd)">
+          <AiLabel variante="erzeugt" ausfuehrung="deckend" theme="hell" beschriftung="im-alt" groesse="22px" /></td>
+      </tr>
+      <tr>
+        <td>transparent schwarz</td>
+        <td><AiLabel variante="erzeugt" ausfuehrung="transparent" theme="hell" beschriftung="im-alt" groesse="22px" /></td>
+        <td style="background:linear-gradient(90deg,#e8f0fb,#fdfdfd)">
+          <AiLabel variante="erzeugt" ausfuehrung="transparent" theme="hell" beschriftung="im-alt" groesse="22px" /></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="example-section">
+    <h2>Beschriftung: sichtbar oder nur vorlesbar</h2>
+    <p>
+      <code>nur-vorlesbar</code> entfernt den Text <b>nicht</b> — er steht weiterhin im DOM
+      und wird von Screenreadern vorgelesen, ist aber visuell verborgen. Markiere die Zeile
+      unten mit der Maus: der Text lässt sich weiterhin auswählen und kopieren.
+    </p>
+    <p>sichtbar: <AiLabel variante="erzeugt" groesse="22px" /></p>
+    <p>nur vorlesbar: <AiLabel variante="erzeugt" beschriftung="nur-vorlesbar" groesse="22px" /></p>
+    <p>im alt-Text: <AiLabel variante="erzeugt" beschriftung="im-alt" groesse="22px" /></p>
+  </div>
+
+  <div class="example-section">
+    <h2>Größe</h2>
+    <p>
+      Ohne <code>groesse</code> hängt das Symbol an der Textzeile (<code>1.15em</code>). Steht
+      es allein, braucht es eine feste Länge — sonst gäbe es keine Zeile, an der es sich
+      orientieren könnte.
+    </p>
+    <p>
+      <AiLabel variante="erzeugt" beschriftung="im-alt" groesse="16px" />
+      <AiLabel variante="erzeugt" beschriftung="im-alt" groesse="22px" style="margin-left:.75rem" />
+      <AiLabel variante="erzeugt" beschriftung="im-alt" groesse="28px" style="margin-left:.75rem" />
+      <AiLabel variante="erzeugt" beschriftung="im-alt" groesse="36px" style="margin-left:.75rem" />
+    </p>
+  </div>
 </ExampleLayout>

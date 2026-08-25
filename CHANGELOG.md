@@ -22,6 +22,52 @@ Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.jso
 
 ---
 
+## v0.130.0 (2026-08-25)
+
+- [kunde:sichtbar] Bilder, die mit KI erzeugt wurden, tragen jetzt das offizielle EU-Kennzeichen — ein kleines Symbol in der unteren linken Ecke des Bildes. Es erscheint nur dort, wo die Kennzeichnung rechtlich verlangt ist, und passt seine Farbe automatisch an das jeweilige Motiv an.
+
+**Feature:** Das KI-Label wird sichtbar — deckende EU-Symbole, Farbe nach Motiv
+
+Kontext: Die Deklaration je Bild stand seit v0.128.0, die Komponente `AiLabel` war gebaut —
+aber flottenweit nirgends verwendet. Art. 50 Abs. 4 UAbs. 1 AI Act verlangt die Offenlegung
+gegenüber dem Menschen; die Metadaten allein erfüllen das nicht (Abs. 2 bindet den Anbieter,
+nicht den Betreiber). Beim ersten Einbau zeigte sich, dass die verwendete Symboldatei die
+falsche war: die Kommission liefert jede Kennzeichnung zweifach, und die transparente Fassung
+lässt den Untergrund zu 50 % durchscheinen.
+
+Neu in `AiLabel.astro`:
+
+- `ausfuehrung` — `deckend` (neuer Standard) nutzt die volldeckende EU-Datei, die ihren
+  Kontrast selbst mitbringt: 21:1 bei Schwarz, 16,88:1 bei Weiß, bildunabhängig.
+  `transparent` bleibt für Umgebungen mit eigenem Untergrund.
+- `beschriftung` — `sichtbar` (Standard), `nur-vorlesbar` (visuell verborgen, im DOM) oder
+  `im-alt` (kein Textelement mehr, die Aussage sitzt als `alt` am Symbol).
+- `groesse` — Symbolhöhe als CSS-Länge statt fest an der Textzeile.
+
+Neu: `utils/labelfarbe.js` mit `labelFarbeFuerBild(pfad, { ueberlagerung })`. Misst zur
+Bauzeit die Helligkeit dort, wo das Badge sitzt, und wählt Schwarz oder Weiß. Gemessen über
+die 35 kennzeichnungspflichtigen Bilder der Flotte gewinnt Weiß bei 25, Schwarz bei 10 — eine
+feste Farbe wäre bei der Mehrheit die schlechtere. `ueberlagerung` rechnet einen dunklen
+Hero-Verlauf ein, der zwischen Bild und Label liegt; ohne ihn würde das nackte Bild gemessen,
+also nicht das, worauf das Badge tatsächlich sitzt. Nicht bestimmbar → Schwarz, ohne Abbruch.
+
+Position: unten links, fest. Unten rechts ist die ruhigste Ecke, aber dort sitzen
+`StickyContact` und die Floating-Buttons. Fest statt je Motiv, weil die Kommission
+„deutlich wahrnehmbar und unterscheidbar" verlangt — eine wandernde Kennzeichnung ist nicht
+auffindbar. Begründung samt Messwerten im Kopfkommentar der Komponente.
+
+Werkzeug: `bildherkunft-übernehmen.mjs` kennt `--nur <slug>` und `--repo <pfad>`, um in einen
+Worktree statt in den Haupt-Checkout zu schreiben — nötig, wenn dort eine andere Sitzung
+arbeitet. `--repo` ohne `--nur` wird abgelehnt, statt still auf alle Sites zu wirken.
+
+**Migrations-Hinweis:** Bestehende `AiLabel`-Aufrufe ohne `ausfuehrung` nutzen jetzt die
+deckende Fassung und sehen dadurch anders aus als vorher. Das ist die kontrastsichere
+Voreinstellung; wer die alte Darstellung braucht, setzt `ausfuehrung="transparent"`.
+`labelFarbeFuerBild` braucht `sharp` im Consumer-Projekt — fehlt es, liefert die Funktion
+Schwarz statt zu werfen.
+
+---
+
 ## v0.129.0 (2026-08-24)
 
 - [kunde] Auch Bilder im modernen AVIF-Format tragen jetzt die maschinenlesbare Herkunftsangabe. Vorher blieben sie als Einzige ohne — auf manchen Seiten war das die Mehrheit der Bilder.

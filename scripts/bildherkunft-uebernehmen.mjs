@@ -61,6 +61,24 @@ const repoPfad = Object.fromEntries(
   JSON.parse(readFileSync(REGISTRY, 'utf8')).customers.map((c) => [c.slug, c.repo_path]),
 );
 
+// Die Registry zeigt auf den Haupt-Checkout. Arbeitet dort gerade eine andere Session,
+// darf dieser Lauf ihn nicht anfassen — dann wird in einen Worktree geschrieben.
+// `--nur <slug>` grenzt auf eine Site ein, `--repo <pfad>` verlegt deren Ziel.
+// Ohne `--nur` ist `--repo` sinnlos und wird abgelehnt, statt still auf alle Sites zu wirken.
+const nurSlug = argWert('--nur');
+const repoOverride = argWert('--repo');
+if (repoOverride && !nurSlug) {
+  console.error('--repo ist nur zusammen mit --nur <slug> zulässig.');
+  process.exit(1);
+}
+if (repoOverride) {
+  if (!existsSync(repoOverride)) {
+    console.error(`--repo: ${repoOverride} existiert nicht.`);
+    process.exit(1);
+  }
+  repoPfad[nurSlug] = repoOverride;
+}
+
 const KOPF = (slug, anzahl, stand) => `// ERZEUGTE DATEI — nicht von Hand bearbeiten.
 // Erzeugt von cw-core/scripts/bildherkunft-übernehmen.mjs aus der Bild-Arbeitsliste.
 // Änderungen gehen beim nächsten Lauf verloren; einordnen in der Arbeitsliste.
@@ -88,6 +106,7 @@ const bericht = [];
 let gesamtPflicht = 0;
 
 for (const [slug, liste] of Object.entries(daten.sites)) {
+  if (nurSlug && slug !== nurSlug) continue;
   if (!liste.length) continue;
   const repo = repoPfad[slug];
   if (!repo || !existsSync(repo)) { bericht.push({ slug, fehler: 'repo_path fehlt' }); continue; }
