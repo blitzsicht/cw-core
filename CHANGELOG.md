@@ -1,7 +1,7 @@
 # Changelog — @cw/core
 
 Alle Versionen von `@cw/core` mit Breaking Changes, neuen Features und Fixes.
-Kunden pinnen via `github:siluri/cw-core#release/cw-core/vX.Y.Z` in `package.json`.
+Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package.json`.
 
 > **SSOT-Hinweis (2026-07-09):** Diese Datei ist der **kanonische** Changelog von cw-core.
 > Bis v0.56.0 lebte der kanonische Changelog cross-repo in

@@ -6,7 +6,7 @@
 ## 1. Repo-Setup
 
 - [ ] Repo unter `siluri/customer-<name>` anlegen, lokales Verzeichnis `customer-<name>` neben `cw-core/`
-- [ ] `package.json` mit cw-core-Pin: `"@cw/core": "github:siluri/cw-core#release/cw-core/vX.Y.Z-alpha"` (aktueller Stable-Tag prüfen)
+- [ ] `package.json` mit cw-core-Pin: `"@cw/core": "github:blitzsicht/cw-core#release/cw-core/vX.Y.Z-alpha"` (aktueller Stable-Tag prüfen)
 - [ ] `pnpm install` läuft sauber
 
 ## 2. Vercel-Konfiguration (kritisch für Audit)
