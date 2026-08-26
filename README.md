@@ -25,7 +25,7 @@ tailwindcss >= 4.0.0
 // package.json
 {
   "dependencies": {
-    "@cw/core": "github:siluri/cw-core#release/cw-core/v0.22.0"
+    "@cw/core": "github:blitzsicht/cw-core#release/cw-core/v0.22.0"
   }
 }
 ```
@@ -418,7 +418,7 @@ git push origin release/cw-core/v0.22.0
 
 Kundensites referenzieren das Paket via GitHub-Tag:
 ```json
-"@cw/core": "github:siluri/cw-core#release/cw-core/v0.22.0"
+"@cw/core": "github:blitzsicht/cw-core#release/cw-core/v0.22.0"
 ```
 
 Release-Workflow läuft über den `cw-release` Skill (`~/.claude-siluri/skills/cw-release/SKILL.md`).

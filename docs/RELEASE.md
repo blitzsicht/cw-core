@@ -8,7 +8,7 @@ Single Source of Truth für das Tag- und Release-Schema von `@cw/core`.
 
 Customer-Repos pinnen via:
 ```json
-"@cw/core": "github:siluri/cw-core#release/cw-core/vX.Y.Z"
+"@cw/core": "github:blitzsicht/cw-core#release/cw-core/vX.Y.Z"
 ```
 
 Beispiele für ältere/aktuelle Tags:
