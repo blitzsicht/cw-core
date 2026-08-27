@@ -8,18 +8,30 @@
 // GRÖSSE: Zielgröße < 300 KB (SISTRIX-Optimierungsgrenze). PNG (palette) als
 // Default; wenn > 300 KB (v. a. Foto-`hero`) automatisch JPG q82.
 import { loadFonts } from './fonts.mjs';
+import { createRequire } from 'node:module';
+
+// createRequire statt `await import()`: wird das OG-Modul aus einem
+// astro:build:done-Hook heraus benutzt, ist Vites Module-Runner bereits
+// geschlossen und JEDER dynamische Import scheitert dort — auch über eine
+// file://-URL. Der alte catch fing das ab und behauptete „'satori' fehlt", obwohl
+// das Paket installiert war; diese falsche Fährte hat am 27.08.2026 die Diagnose
+// mehrfach in die Irre geführt. createRequire läuft an Vite vorbei, und der echte
+// Fehler steht jetzt in der Meldung.
+const laden = createRequire(import.meta.url);
 
 async function deps() {
   let satori, sharp;
   try {
-    satori = (await import('satori')).default;
-  } catch {
-    throw new Error("[cw-core/og] 'satori' fehlt — im Consumer installieren: pnpm add -D satori");
+    const m = laden('satori');
+    satori = m?.default ?? m;
+  } catch (e) {
+    throw new Error(`[cw-core/og] 'satori' nicht ladbar: ${e.message}`);
   }
   try {
-    sharp = (await import('sharp')).default;
-  } catch {
-    throw new Error("[cw-core/og] 'sharp' fehlt — im Consumer installieren: pnpm add -D sharp");
+    const m = laden('sharp');
+    sharp = m?.default ?? m;
+  } catch (e) {
+    throw new Error(`[cw-core/og] 'sharp' nicht ladbar: ${e.message}`);
   }
   return { satori, sharp };
 }
