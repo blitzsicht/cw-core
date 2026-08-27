@@ -87,3 +87,34 @@ test('ein einzelnes ueberlanges Wort wird hart geschnitten', () => {
   assert.equal(k.length, 21);
   assert.ok(k.endsWith('…'));
 });
+
+test('og:url wird gelesen — Basis fuer die absolute Bild-URL', () => {
+  const h = '<meta property="og:url" content="https://blitzsicht.com/forschung/">';
+  assert.equal(leseSeite(h).ogUrl, 'https://blitzsicht.com/forschung/');
+});
+
+test('REGRESSION: die Bild-URL entsteht aus og:url, nicht aus dem alten Bildpfad', () => {
+  // Der erste Anlauf schnitt "/og/…" vom bisherigen og:image ab und haengte den
+  // neuen Pfad an. Das ergab nur bei Kunden mit Bild unter /og/ eine gueltige URL:
+  //   /images/social.png -> https://host/images/social.png/og/seite-x.png (404)
+  // Diese drei Faelle muessen alle dieselbe korrekte URL liefern.
+  const ziel = 'og/seite-forschung.png';
+  const faelle = [
+    'https://blitzsicht.com/og/default.png',
+    'https://blitzsicht.com/images/social.png',
+    '',
+  ];
+  for (const altesBild of faelle) {
+    const ogUrl = 'https://blitzsicht.com/forschung/';
+    const abs = new URL('/' + ziel, ogUrl || altesBild).toString();
+    assert.equal(abs, 'https://blitzsicht.com/og/seite-forschung.png',
+      `falsche URL fuer altes Bild ${JSON.stringify(altesBild)}`);
+  }
+});
+
+test('REGRESSION: Unterseite in einem Unterordner landet trotzdem unter /og/', () => {
+  // new URL('/og/…', base) muss absolut ab Wurzel aufloesen, nicht relativ zum
+  // Seitenpfad — sonst laege das Bild unter /agb/og/… und waere ein 404.
+  const abs = new URL('/og/seite-agb-sla.png', 'https://blitzsicht.com/agb/sla/').toString();
+  assert.equal(abs, 'https://blitzsicht.com/og/seite-agb-sla.png');
+});

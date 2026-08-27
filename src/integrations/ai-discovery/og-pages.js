@@ -62,10 +62,13 @@ export function leseSeite(html) {
   const titel = entities(t).split(/\s+[|–—]\s+/)[0].trim();
   const desc = entities((html.match(/<meta\s+name="description"\s+content="([^"]*)"/) || [])[1] || '').trim();
   const ogImage = (html.match(/<meta\s+property="og:image"\s+content="([^"]*)"/) || [])[1] || '';
+  // og:url ist der Canonical der Seite und die einzige verlässliche Quelle für
+  // die absolute Basis — siehe Begründung an der Stelle, die sie verwendet.
+  const ogUrl = (html.match(/<meta\s+property="og:url"\s+content="([^"]*)"/) || [])[1] || '';
   // Hero-Foto: das Hintergrundbild des page-hero, egal ob mit oder ohne Overlay.
   const heroBlock = (html.match(/class="page-hero"[^>]*style="([^"]*)"/) || [])[1] || '';
   const foto = (entities(heroBlock).match(/url\(['"]?([^'")]+)['"]?\)/) || [])[1] || null;
-  return { titel, desc, ogImage, foto };
+  return { titel, desc, ogImage, ogUrl, foto };
 }
 
 const MIME = { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', avif: 'image/avif' };
@@ -138,10 +141,13 @@ export async function ogProSeite({ dir, logger, logoPfad = '/logo-inverted.svg',
 
   let gerendert = 0, uebersprungen = 0, fehler = 0;
   const geteilt = new Map();
+  /** Fleet-Grenze für dist-Bilder; die Engine schaltet darüber selbst auf JPEG. */
+  const BUDGET = 200 * 1024;
+  const ueberBudget = [];
 
   for (const datei of seiten) {
     const html = await readFile(datei, 'utf8');
-    const { titel, desc, ogImage, foto } = leseSeite(html);
+    const { titel, desc, ogImage, ogUrl, foto } = leseSeite(html);
     const slugRoh = relative(dist, dirname(datei)).replace(/\\/g, '/');
     const slug = slugRoh === '' ? 'home' : slugRoh.replace(/\//g, '-');
 
@@ -167,11 +173,32 @@ export async function ogProSeite({ dir, logger, logoPfad = '/logo-inverted.svg',
       // Fleet lässt keine dist-Bilder über 200 KB zu, und er läuft VOR dieser
       // Stelle — die OG-Bilder wären sonst still an ihm vorbeigelaufen. Über der
       // Grenze schaltet die Engine selbst auf JPEG um.
-      const { buffer, ext } = await og.renderOg(element, { maxBytes: 200 * 1024 });
+      const { buffer, ext } = await og.renderOg(element, { maxBytes: BUDGET });
+      // Der Perf-Budget-Guard der Fleet laeuft VOR dieser Stelle (index.ts ~2815
+      // gegen ~2856) und sieht diese Bilder nie. Ohne eigene Zaehlung waere das
+      // Budget hier eine Absichtserklaerung ohne Nachweis.
+      if (buffer.length > BUDGET) ueberBudget.push(`${slug} ${Math.round(buffer.length / 1024)} KB`);
       const ziel = `og/seite-${slug}.${ext}`;
       await writeFile(join(dist, ziel), buffer);
-      // og:image UND twitter:image auf das neue Bild zeigen lassen.
-      const abs = ogImage.replace(/\/og\/[^"]*$/, '') + '/' + ziel;
+
+      // Absolute URL aus og:url der Seite bauen, NICHT aus dem bisherigen
+      // Bildpfad. Der erste Anlauf schnitt `/og/…` vom alten og:image ab und
+      // hängte den neuen Pfad an — das ergibt nur dann eine gültige URL, wenn das
+      // alte Bild zufällig unter /og/ lag. Gegengerechnet:
+      //   /og/default.png      -> …/og/seite-x.png            richtig
+      //   /images/social.png   -> …/images/social.png/og/…     kaputt
+      //   (kein og:image)      -> /og/seite-x.png              relativ, unbrauchbar
+      // Facebook und LinkedIn verlangen eine absolute URL; ein relativer oder
+      // verschachtelter Pfad wäre ein 404 und damit schlechter als vorher.
+      // og:url steht auf jeder Seite und ist der Canonical — daraus die Herkunft.
+      let abs;
+      try {
+        abs = new URL('/' + ziel, ogUrl || ogImage).toString();
+      } catch {
+        fehler++;
+        logger.warn(`og-pages: ${slug} — keine absolute Basis-URL (og:url fehlt), Bild bleibt unverändert.`);
+        continue;
+      }
       const neu = html
         .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/, `$1${abs}$2`)
         .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/, `$1${abs}$2`);
@@ -191,6 +218,9 @@ export async function ogProSeite({ dir, logger, logoPfad = '/logo-inverted.svg',
     logger.warn(text);
   } else {
     logger.info(`og-pages: ✓ ${gerendert} Seiten mit eigenem Vorschaubild${uebersprungen ? `, ${uebersprungen} ohne Titel übersprungen` : ''}${fehler ? `, ${fehler} Fehler` : ''}.`);
+    if (ueberBudget.length) {
+      logger.warn(`og-pages: ${ueberBudget.length} Bild(er) über ${BUDGET / 1024} KB — ${ueberBudget.slice(0, 5).join(', ')}`);
+    }
     const mehrfach = [...geteilt.entries()].filter(([, n]) => n > 1);
     if (mehrfach.length && gerendert < seiten.length - uebersprungen) {
       logger.warn(`og-pages: ${mehrfach.map(([k, n]) => `${n}× ${k || '(ohne)'}`).join(', ')} — diese Seiten hatten vorher dasselbe Bild.`);
