@@ -25,6 +25,37 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 ## v0.132.0 (2026-08-27)
 
 - [kunde:sichtbar] Jede Seite bekommt beim Teilen in WhatsApp, LinkedIn oder Facebook ein eigenes Vorschaubild statt für die ganze Website dasselbe — mit dem Bild und der Überschrift der jeweiligen Seite.
+- [kunde:sichtbar] Beim Teilen steht jetzt der Firmenname über der Vorschau statt nur die Internetadresse.
+
+Diese Version fasst drei Änderungen zusammen, die am 27.08.2026 nacheinander
+gemergt wurden — #75 (Vorschaubild je Seite), #77 (og:site_name), #76 (FAQ-Symbol).
+
+**Fix:** `og:site_name` fehlte flottenweit — bei jedem Kunden
+
+Der Open-Graph-Debugger meldete auf blitzsicht.com/forschung genau einen roten Punkt in
+einer sonst vollständigen Auszeichnung. Gegenprobe bei `baeckereizink.de`,
+`donau-profi.de` und `platzfrei.club`: überall dasselbe. `siteName` lag in
+`BaseLayout.astro` längst als Prop vor und wird für `titleTemplate` und Schema.org
+genutzt — der og-Tag wurde nur nie ausgegeben. Facebook und LinkedIn zeigen ihn als
+Quelle über der Überschrift; ohne ihn steht dort die nackte Domain. Konditional
+gesetzt, damit Kunden ohne `siteName` keinen leeren Tag bekommen.
+
+**Feature:** `showQuestionIcon` für den FAQ-Block
+
+Setzt links vor jede Frage ein dezentes Fragezeichen. Bewusst EIN gleiches Symbol für
+alle Einträge statt eines Feldes je Frage: ein `icon` pro Item müsste bei jeder neuen
+Frage mitgepflegt werden und wäre beim ersten Vergessen halb leer. Default `false`,
+damit sich bestehende Kundenseiten durch ein Update nicht ungefragt ändern.
+
+**Nachtrag zum Vorschaubild-Feature (Selbstreview vor dem Merge):**
+Der erste Entwurf baute die Bild-URL aus dem bisherigen `og:image`, indem er `/og/…`
+abschnitt und den neuen Pfad anhängte. Das ergibt nur dann eine gültige URL, wenn das
+alte Bild zufällig unter `/og/` lag — bei einem Kunden mit anderem Ablageort wären
+flottenweit 404-Vorschaubilder entstanden, also schlechter als der Ausgangszustand.
+Die Basis kommt jetzt aus `og:url`, dem Canonical der Seite. Drei Regressionstests
+halten das fest. Zweiter Fund derselben Durchsicht: Der Perf-Budget-Guard läuft VOR
+`og-pages` und sieht dessen Bilder nie — `maxBytes` war damit eine Absichtserklärung
+ohne Nachweis; `og-pages` zählt jetzt selbst und meldet Überschreitungen.
 
 **Fix + Feature:** ein eigenes og:image pro Seite — und drei Gründe, warum es vorher keines gab
 
