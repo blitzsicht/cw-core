@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ergaenzeTabellenTabindex } from './table-focusable.js';
+import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 
 test('einfache Tabelle bekommt tabindex', () => {
   const { html, ergaenzt } = ergaenzeTabellenTabindex('<table class="sla-table"><tr><td>x</td></tr></table>');
@@ -67,4 +67,44 @@ test('Attribute und Inhalt bleiben sonst unverändert', () => {
 test('idempotent — zweiter Lauf ergänzt nichts mehr', () => {
   const einmal = ergaenzeTabellenTabindex('<table><tr><td>x</td></tr></table>').html;
   assert.equal(ergaenzeTabellenTabindex(einmal).ergaenzt, 0);
+});
+
+// --- Wrapper, die selbst scrollen ------------------------------------------
+
+test('GEGENPROBE: .tabelle-scroll ohne tabindex ist der Fehler, den das CI meldete', () => {
+  // .tdddg-table-wrap, .preistabelle-wrapper und .upgrade-comparison-wrap trugen
+  // die Klasse, scrollten — und hatten keinen Fokus. axe: scrollable-region-focusable.
+  const roh = '<div class="tdddg-table-wrap tabelle-scroll"><table tabindex="0"><tr><td>x</td></tr></table></div>';
+  const { html, ergaenzt } = ergaenzeWrapperTabindex(roh);
+  assert.equal(ergaenzt, 1);
+  assert.match(html, /<div tabindex="0" class="tdddg-table-wrap tabelle-scroll">/);
+});
+
+test('Wrapper mit vorhandenem tabindex bleibt unangetastet', () => {
+  const roh = '<div class="tabelle-scroll" tabindex="0" role="region"><table></table></div>';
+  assert.equal(ergaenzeWrapperTabindex(roh).ergaenzt, 0);
+});
+
+test('Wrapper ohne die Klasse wird nicht angefasst', () => {
+  const roh = '<div class="legal-content"><table></table></div>';
+  assert.equal(ergaenzeWrapperTabindex(roh).ergaenzt, 0);
+});
+
+test('auch ein <figure> oder <section> als Wrapper', () => {
+  for (const tag of ['figure', 'section', 'div']) {
+    const roh = `<${tag} class="tabelle-scroll"><table></table></${tag}>`;
+    const { html, ergaenzt } = ergaenzeWrapperTabindex(roh);
+    assert.equal(ergaenzt, 1, tag);
+    assert.match(html, new RegExp(`<${tag} tabindex="0" class=`));
+  }
+});
+
+test('Wrapper-Ergänzung ist idempotent', () => {
+  const einmal = ergaenzeWrapperTabindex('<div class="tabelle-scroll"><table></table></div>').html;
+  assert.equal(ergaenzeWrapperTabindex(einmal).ergaenzt, 0);
+});
+
+test('"tabelle-scroll" als Text in JSON-LD wird nicht angefasst', () => {
+  const roh = '<script type="application/ld+json">{"c":"<div class=\\"tabelle-scroll\\">"}</script>';
+  assert.equal(ergaenzeWrapperTabindex(roh).ergaenzt, 0);
 });

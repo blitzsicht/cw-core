@@ -34,7 +34,7 @@ import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-chec
 import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
-import { ergaenzeTabellenTabindex } from './table-focusable.js';
+import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 import {
   checkDeadFontFamilies,
   checkRenderBlockingCss,
@@ -2451,15 +2451,20 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             } catch {
               continue;
             }
-            const { html: neu, ergaenzt } = ergaenzeTabellenTabindex(html);
+            // Erst der Wrapper, dann die Tabelle: eine Tabelle in einem
+            // .tabelle-scroll-Wrapper bleibt display:table und ist selbst gar
+            // nicht scrollbar — dort gehört der Fokus an den Wrapper.
+            const wrapper = ergaenzeWrapperTabindex(html);
+            const tabellen = ergaenzeTabellenTabindex(wrapper.html);
+            const ergaenzt = wrapper.ergaenzt + tabellen.ergaenzt;
             if (ergaenzt === 0) continue;
-            writeFileSync(file, neu, 'utf-8');
+            writeFileSync(file, tabellen.html, 'utf-8');
             ergaenztGesamt += ergaenzt;
             seitenMitTabelle++;
           }
           if (ergaenztGesamt > 0) {
             logger.info(
-              `Tabellen-Fokus: ${ergaenztGesamt} Tabelle(n) auf ${seitenMitTabelle} Seite(n) per Tastatur erreichbar gemacht.`,
+              `Tabellen-Fokus: ${ergaenztGesamt} Scroll-Bereich(e) auf ${seitenMitTabelle} Seite(n) per Tastatur erreichbar gemacht.`,
             );
           }
         }

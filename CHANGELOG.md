@@ -78,7 +78,11 @@ ihn als `scrollable-region-focusable`. Gemessen an sieben Seiten bei 390 px:
 | CSS-Regel + `tabindex` | **0** |
 
 Der Build gibt deshalb jeder Inhaltstabelle `tabindex="0"` (`table-focusable.js`,
-11 Tests). Attribut statt Wrapper: ein zusätzliches `<div>` würde jeden Kundenselektor
+17 Tests) — und ebenso jedem `.tabelle-scroll`-Wrapper, der noch keinen hat. Der zweite
+Teil kam erst durch den CI-Lauf dazu: `.tdddg-table-wrap`, `.preistabelle-wrapper` und
+`.upgrade-comparison-wrap` trugen die Klasse, scrollten und hatten keinen Fokus. Die
+Tabelle darin bleibt bewusst `display: table` und ist selbst nicht scrollbar — ihr
+`tabindex` hätte also nichts genützt, der Fokus gehört an den Wrapper. Attribut statt Wrapper: ein zusätzliches `<div>` würde jeden Kundenselektor
 der Form `.legal-content > table` still brechen. `role` bleibt unangetastet — eine
 Tabelle muss eine Tabelle bleiben, sonst verlieren Screenreader die Zeilen- und
 Spaltenbezüge. Tabellen, die schon in einem Wrapper mit Fokus sitzen, bekommen keinen

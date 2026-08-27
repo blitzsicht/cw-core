@@ -3,3 +3,4 @@ export interface FocusableErgebnis {
   ergaenzt: number;
 }
 export function ergaenzeTabellenTabindex(html: string): FocusableErgebnis;
+export function ergaenzeWrapperTabindex(html: string): FocusableErgebnis;

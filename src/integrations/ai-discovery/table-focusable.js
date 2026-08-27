@@ -56,6 +56,33 @@ function textBereiche(html) {
 }
 
 /**
+ * Ein `.tabelle-scroll`-Wrapper OHNE `tabindex` ist genau der Fehler, den diese
+ * Datei sonst verhindert — nur eine Ebene höher. Gemessen im CI am 27.08.2026:
+ * `.tdddg-table-wrap`, `.preistabelle-wrapper` und `.upgrade-comparison-wrap`
+ * scrollten, hatten die Klasse, aber keinen Fokus; axe meldete alle drei. Die
+ * Tabelle darin bleibt bewusst `display: table` und ist selbst nicht scrollbar —
+ * ihr `tabindex` würde also nichts nützen. Der Fokus gehört an den Wrapper.
+ * @param {string} html
+ * @returns {{ html: string, ergaenzt: number }}
+ */
+export function ergaenzeWrapperTabindex(html) {
+  const gesperrt = textBereiche(html);
+  let ergaenzt = 0;
+  let out = '';
+  let zuletzt = 0;
+  for (const m of html.matchAll(/<([a-z]+)\b([^>]*\bclass\s*=\s*["'][^"']*\btabelle-scroll\b[^"']*["'][^>]*)>/gi)) {
+    const start = m.index ?? 0;
+    if (gesperrt.some((b) => start >= b.start && start < b.ende)) continue;
+    if (/\btabindex\s*=/i.test(m[2])) continue;
+    out += html.slice(zuletzt, start) + `<${m[1]} tabindex="0"${m[2]}>`;
+    zuletzt = start + m[0].length;
+    ergaenzt++;
+  }
+  out += html.slice(zuletzt);
+  return { html: out, ergaenzt };
+}
+
+/**
  * @param {string} html
  * @returns {FocusableErgebnis}
  */
