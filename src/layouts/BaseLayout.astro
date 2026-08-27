@@ -247,6 +247,13 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content={ogType} />
     <meta property="og:locale" content={ogLocale} />
+    {/* og:site_name fehlte flottenweit — bei JEDEM Kunden, gemessen 27.08.2026 an
+        blitzsicht.com, baeckereizink.de, donau-profi.de und platzfrei.club. Der
+        Open-Graph-Debugger meldet es als einzigen roten Punkt einer sonst
+        vollständigen Auszeichnung. siteName lag längst als Prop vor; der Tag
+        wurde nie ausgegeben. Facebook und LinkedIn zeigen ihn als Quelle über
+        der Überschrift — ohne ihn steht dort die nackte Domain. */}
+    {siteName && <meta property="og:site_name" content={siteName} />}
     {ogType === 'profile' && ogProfile && (
       <>
         {ogProfile.firstName && <meta property="profile:first_name" content={ogProfile.firstName} />}
