@@ -9,13 +9,11 @@
 # Default-Branch ab, und fuenf og-Tests waren rot, weil satori nicht mehr
 # installiert wurde. Beides waere hier binnen Minuten aufgefallen.
 #
-# BEWUSST NICHT IM GATE: `pnpm check` (astro check). Der ist auf diesem Stand
-# rot — vier Typfehler, zwei davon aus demselben Commit c71e0645. Sie hier
-# aufzunehmen hiesse, main sofort auf Dauer-Rot zu stellen, und ein dauerhaft
-# roter Check erzieht dazu, Rot zu uebersehen. Die vier sind separat gemeldet;
-# sobald sie weg sind, gehoert `pnpm check` als zweiter Schritt dazu.
-# Ein `continue-on-error` waere hier die falsche Antwort: das ergaebe genau die
-# Fassade, gegen die dieser Workflow gebaut wird.
+# `pnpm check` (astro check) laeuft mit. Beim ersten Anlauf war er rot — vier
+# Typfehler, zwei davon aus demselben Commit c71e0645 — und stand deshalb kurz
+# ausserhalb des Gates. Sie sind im selben Zweig behoben (#84), also ist der
+# Schritt jetzt drin. Ein `continue-on-error` waere die falsche Antwort gewesen:
+# das ergaebe genau die Fassade, gegen die dieser Workflow gebaut wird.
 
 name: Tests
 
@@ -58,5 +56,10 @@ jobs:
 
       # Die Zaehlzeile ("# tests 665") muss im Log stehen. Ein gruener Haken
       # allein sagt nicht, ob ueberhaupt etwas lief.
-      - name: pnpm test (665 Faelle erwartet, Stand 27.08.2026)
+      - name: pnpm test (669 Faelle erwartet, Stand 27.08.2026)
         run: pnpm test
+
+      # Nach den Tests, nicht davor: ein Typfehler ist billiger zu lesen, wenn
+      # man vorher weiss, ob das Verhalten stimmt.
+      - name: pnpm check (astro check — 0 errors erwartet)
+        run: pnpm check

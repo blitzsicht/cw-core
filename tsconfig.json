@@ -7,5 +7,9 @@
     }
   },
   "include": ["src/**/*.ts", "src/**/*.astro", "astro.config.ts"],
-  "exclude": ["node_modules", "dist", ".astro"]
+  // page-config.template.ts importiert "./site-data" — eine Datei, die es erst im
+  // Zielrepo gibt. astro check kann das hier nicht aufloesen; der Fehler war nie zu
+  // beheben. Die Vorlage wird stattdessen von tests/templates-syntax.test.js geparst,
+  // damit ein Tippfehler darin nicht erst beim Kunden auffaellt.
+  "exclude": ["node_modules", "dist", ".astro", "src/templates/page-config.template.ts"]
 }

@@ -2930,7 +2930,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         try {
           await geotagDist(distDir, data, logger);
         } catch (e) {
-          logger.warn(`Geotag: unerwarteter Fehler (${e?.message ?? e}) — übersprungen.`);
+          logger.warn(
+            `Geotag: unerwarteter Fehler (${e instanceof Error ? e.message : String(e)}) — übersprungen.`,
+          );
         }
 
         // -------------------------------------------------------------------
@@ -2952,7 +2954,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             });
           } catch (e) {
             if (options.strictOgPerPage === true) throw e;
-            logger.warn(`og-pages: unerwarteter Fehler (${e?.message ?? e}) — übersprungen.`);
+            logger.warn(
+              `og-pages: unerwarteter Fehler (${e instanceof Error ? e.message : String(e)}) — übersprungen.`,
+            );
           }
         }
       },
