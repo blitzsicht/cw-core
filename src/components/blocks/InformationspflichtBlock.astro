@@ -237,22 +237,24 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
 
   <HeadingTag>3. Zwecke und Rechtsgrundlagen der Verarbeitung</HeadingTag>
   <p>Wir verarbeiten Ihre personenbezogenen Daten zu folgenden Zwecken und auf folgenden Rechtsgrundlagen:</p>
-  <table class="ip-table">
-    <thead>
-      <tr>
-        <th scope="col">Zweck</th>
-        <th scope="col">Rechtsgrundlage</th>
-      </tr>
-    </thead>
-    <tbody>
-      {zwecke.map((z: GeschaeftsZweck) => (
+  <div class="tabelle-scroll" tabindex="0" role="region" aria-label="Zwecke und Rechtsgrundlagen (seitlich scrollbar)">
+    <table class="ip-table">
+      <thead>
         <tr>
-          <td>{z.zweck}</td>
-          <td>{z.rechtsgrundlage}</td>
+          <th scope="col">Zweck</th>
+          <th scope="col">Rechtsgrundlage</th>
         </tr>
-      ))}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {zwecke.map((z: GeschaeftsZweck) => (
+          <tr>
+            <td>{z.zweck}</td>
+            <td>{z.rechtsgrundlage}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 
   <HeadingTag>4. Kategorien personenbezogener Daten</HeadingTag>
   <p>Im Rahmen der Geschäftsbeziehung verarbeiten wir folgende Kategorien:</p>

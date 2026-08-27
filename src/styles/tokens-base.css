@@ -553,3 +553,73 @@ h1, h2, h3, h4, h5, h6 {
     navigation: auto;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Tabellen: seitlich schieben statt die Seite sprengen
+ *
+ * ANLASS (27.08.2026): Sieben Seiten auf blitzsicht.com scrollten auf dem Handy
+ * horizontal. Gemessen bei 360 px Viewport, und in JEDEM der sieben Fälle war
+ * das breiteste Element eine <table>:
+ *   /agb/sla +206 px · /agb/onboarding +155 · /blog/website-kosten-handwerker +154
+ *   /blog/agentic-browsing-ki-agenten +126 · /blog/wordpress-vs-blitzsicht +124
+ *   /datenschutz +54 · /blog/website-in-7-werktagen +43
+ * Handgeschriebene Tabellen in .astro und aus Markdown gerenderte gleichermaßen —
+ * deshalb CSS und kein Rehype-Plugin: das erreicht die Markdown-Seite, aber nicht
+ * die .astro-Seite, und bräuchte einen Eingriff in jede astro.config.
+ *
+ * GEGENPROBE (dieselbe Messung, Regel live injiziert): alle sieben auf Überstand 0.
+ * Bei 1280 px ändert sich KEINE Tabellenbreite (1104 -> 1104 auf jeder Seite) —
+ * der Desktop-Look bleibt unberührt.
+ *
+ * :where() hält die Spezifität auf 0: eine Kundenregel gewinnt jederzeit.
+ * role="presentation" ist ausgenommen — Layout-Tabellen (Mail-Templates) dürfen
+ * niemals zum Scroll-Container werden.
+ * ------------------------------------------------------------------------- */
+:where(table:not([role='presentation'])) {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Wrapper-Utility für Tabellen, die ihren Scroll-Container selbst mitbringen
+   sollen — mit Tastaturfokus und role="region" ist die Tabelle dann auch ohne
+   Maus erreichbar. Vorbild: .vergleich-wrapper in VergleichsTabelle.astro. */
+.tabelle-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Wo ein Scroll-Container schon sitzt, bleibt die Tabelle eine Tabelle —
+   sonst entstünde eine zweite Scroll-Ebene und die Breite fiele auf
+   shrink-to-fit zurück (gemessen: .vergleich-wrapper 451 -> 264 px). */
+.vergleich-wrapper > table,
+.rt-wrap > table,
+.tabelle-scroll > table {
+  display: table;
+}
+
+/* ---------------------------------------------------------------------------
+ * Überschriften: lange Komposita brechen, statt die Seite zu sprengen
+ *
+ * ANLASS (27.08.2026): /software auf blitzsicht.com scrollte bei 360 px um 7 px
+ * horizontal, und KEIN Element ragte heraus — der Überstand steckte im Inhalt
+ * der <h1>: „Softwareentwicklung" ist 19 Zeichen ohne Trennstelle und passt in
+ * die 264 px breite Textbox nicht hinein. Deutsche Komposita treffen jede
+ * Kundenseite gleichermaßen, deshalb steht die Regel hier und nicht im Kunden-CSS.
+ *
+ * Der Wert schwankte zwischen +7 und +27 px, je nachdem ob die Webfont beim
+ * Messen schon geladen war — ein Guard, der so misst, wackelt. Mit dem Umbruch
+ * ist die Ursache weg statt nur der eine Messwert.
+ *
+ * GEGENPROBE: /software 7 -> 0 px. Auf /, /forschung und /pakete bleibt die
+ * H1-Höhe auf die Pixel gleich (166 / 115 / 115) — break-word greift nur, wenn
+ * ein einzelnes Wort seine Zeile sonst überliefe.
+ *
+ * Bewusst NICHT `hyphens: auto`: das trennt auch Wörter, die passen, und würde
+ * flottenweit den Umbruch mehrzeiliger Überschriften verändern.
+ * Fließtext ist nicht mit aufgenommen — dort wurde kein Bruch gemessen.
+ * ------------------------------------------------------------------------- */
+:where(h1, h2, h3, h4, h5, h6) {
+  overflow-wrap: break-word;
+}

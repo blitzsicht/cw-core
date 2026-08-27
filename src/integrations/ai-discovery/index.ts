@@ -33,6 +33,7 @@ import type { AstroIntegration } from 'astro';
 import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-check.js';
 import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
+import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
 import {
   checkDeadFontFamilies,
   checkRenderBlockingCss,
@@ -263,6 +264,11 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * Cluster hatte Cache-Control → alle public/-Assets gingen mit max-age=0
    * zum Browser. Siehe docs/caching-rationale.md.
    */
+  /** Tabellen-Scroll-Guard: meldet Seiten mit Tabelle, aber ohne Scroll-Regel
+   *  im ausgelieferten CSS. Default: true. */
+  checkTableScroll?: boolean;
+  /** Tabellen-Scroll-Guard bricht den Build ab. Default: true. */
+  strictTableScroll?: boolean;
   checkCacheHeaders?: boolean;
   /**
    * Default TRUE seit v0.67.0 (strict-Flip, blitzsicht-ops#538) → Build-Fail
@@ -2419,6 +2425,50 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             throw new Error(
               `[ai-discovery] strictAltQuality=true: Build abgebrochen wegen ${qualityIssues.length} Alt-Qualität-Issues.`,
             );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Tabellen-Scroll-Guard: Tabelle ausgeliefert, Scroll-Regel nicht
+        // -------------------------------------------------------------------
+        // Sieben Seiten auf blitzsicht.com sprengten am 27.08.2026 bei 360 px die
+        // Seitenbreite, jedes Mal wegen einer <table>. Weil dort zugleich
+        // html,body{overflow-x:hidden} steht, war die Tabelle nicht wegschiebbar,
+        // sondern ABGESCHNITTEN — Spalten unerreichbar, monatelang unbemerkt.
+        // Der Guard prüft am ausgelieferten HTML, ob der Schutz überhaupt
+        // mitgeliefert wird; ob eine konkrete Tabelle passt, misst
+        // mobile-audit.spec.ts in cw-visual-tests. Siehe table-scroll-check.js.
+        if (options.checkTableScroll !== false) {
+          const seiten = htmlFiles.map((file) => {
+            const pfad = file.slice(distDir.length).replace(/\/index\.html$/, '/');
+            let html = '';
+            try {
+              html = readFileSync(file, 'utf-8');
+            } catch {
+              /* unlesbare Datei: andere Guards melden das laut genug */
+            }
+            return { page: pfad.startsWith('/') ? pfad : `/${pfad}`, html };
+          });
+          const tableIssues: TableIssue[] = checkTableScroll(seiten);
+          if (tableIssues.length === 0) {
+            logger.info(
+              `Tabellen-Scroll-Guard: ✓ ${htmlFiles.length} Pages — jede Tabelle hat eine Scroll-Regel.`,
+            );
+          } else {
+            logger.warn(
+              `Tabellen-Scroll-Guard: ${tableIssues.length} Seite(n) liefern eine Tabelle ohne Scroll-Regel aus:`,
+            );
+            for (const issue of tableIssues.slice(0, 20)) {
+              logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+            }
+            if (tableIssues.length > 20) {
+              logger.warn(`  … und ${tableIssues.length - 20} weitere.`);
+            }
+            if (options.strictTableScroll !== false) {
+              throw new Error(
+                `[ai-discovery] strictTableScroll=true: Build abgebrochen wegen ${tableIssues.length} Seite(n) mit ungeschützter Tabelle.`,
+              );
+            }
           }
         }
 
