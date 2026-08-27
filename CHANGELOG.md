@@ -22,6 +22,50 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.131.0 (2026-08-27)
+
+- [kunde:sichtbar] Die Menüzeile oben bricht nicht mehr um: lange Menüpunkte bleiben in einer Zeile, der Firmenname überlagert sie nicht mehr, und wenn das Menü für die Bildschirmbreite zu lang wird, klappt es automatisch zum Menü-Symbol zusammen.
+
+**Fix:** Header — Navigation brach um und überlagerte das Logo
+
+Auslöser: Auf blitzsicht.com brachen fünf von neun Navigationspunkten mitten im Wort um
+(„So funktioniert's" → „So" / „funktioniert's"), und der Markenname ragte 17 px in den
+ersten Punkt hinein. Nicht auf schmalen Fenstern — auf **allen** Desktop-Breiten bis
+2400 px.
+
+Ursache: `.container` ist auf `--container-max` (72 rem = 1152 px) gedeckelt. Innerhalb
+davon brauchten Logo und neun Punkte bei 1920 px 1251 px von 1104 px verfügbaren.
+Erschwerend wächst `gap: clamp(0.75rem, 1.5vw, 1.75rem)` mit der Fensterbreite, der
+Container aber nicht — breitere Fenster machten es also schlimmer. Flexbox löst den
+Platzmangel, indem sie jedes Item bis auf sein längstes Wort staucht und die Logo-Box
+unter ihren eigenen Inhalt drückt.
+
+Drei Änderungen in `components/layout/Header.astro`:
+
+- `.logo { flex-shrink: 0 }` — die Marke wird nie mehr mitgestaucht, damit kann ihr
+  Text nicht mehr in die Navigation laufen.
+- `#main-nav a { white-space: nowrap }` — ein Label ist eine Einheit und bricht nicht
+  mehr an einem Leerzeichen um.
+- Fit-Messung statt geratener Pixelgrenze: ein Inline-Skript rechnet vor dem ersten
+  Paint nach, ob Logo plus Navigation samt 2 rem Mindestluft in den Container passen,
+  und setzt sonst `data-nav="compact"` (Hamburger). Läuft erneut bei `resize` und bei
+  `astro:page-load`. Die feste 1099-px-Grenze bleibt als `<noscript>`-Fallback erhalten,
+  das Verhalten ohne JavaScript ist damit unverändert.
+
+Warum gemessen statt konfiguriert: eine feste Grenze weiß nichts über die Länge der
+Navigation eines Kunden. Genau deshalb blieb der Bruch monatelang unbemerkt — die
+Navigation war gewachsen, die Zahl nicht. Eine Prop, die jemand pflegen müsste, wäre
+denselben Weg gegangen.
+
+Regressionsprobe an allen Live-Kunden: kein anderer wechselt in den Kompakt-Modus, der
+knappste (`baeckereizink.de`, 8 Punkte) behält 252 px Reserve.
+
+Fleet-Guard dazu: `customer-websites/scripts/check-header-fit.mjs` misst Umbruch und
+Logo-Überlauf im echten Browser. Gegenprobe belegt — Exit 1 gegen den kaputten Stand,
+Exit 0 gegen den gefixten.
+
+---
+
 ## v0.130.1 (2026-08-25)
 
 **Fix:** `utils/labelfarbe` war ausgeliefert, aber nicht exportiert
