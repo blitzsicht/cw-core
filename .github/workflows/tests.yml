@@ -1,0 +1,62 @@
+# Unit-Tests — bis 27.08.2026 hatte cw-core ueberhaupt keine CI.
+#
+# `.github/` war leer, bei 665 Testfaellen und 22 abhaengigen Kundenrepos, die
+# cw-core als Tarball ziehen. Ein roter Test hat hier nie jemanden aufgehalten.
+#
+# Was das gekostet hat, laesst sich am selben Tag ablesen: der OG-Commit
+# c71e0645 (v0.132.0, 14:37) aenderte package.json, ohne pnpm-lock.yaml
+# mitzuziehen. Danach brach `pnpm install --frozen-lockfile` auf dem
+# Default-Branch ab, und fuenf og-Tests waren rot, weil satori nicht mehr
+# installiert wurde. Beides waere hier binnen Minuten aufgefallen.
+#
+# BEWUSST NICHT IM GATE: `pnpm check` (astro check). Der ist auf diesem Stand
+# rot — vier Typfehler, zwei davon aus demselben Commit c71e0645. Sie hier
+# aufzunehmen hiesse, main sofort auf Dauer-Rot zu stellen, und ein dauerhaft
+# roter Check erzieht dazu, Rot zu uebersehen. Die vier sind separat gemeldet;
+# sobald sie weg sind, gehoert `pnpm check` als zweiter Schritt dazu.
+# Ein `continue-on-error` waere hier die falsche Antwort: das ergaebe genau die
+# Fassade, gegen die dieser Workflow gebaut wird.
+
+name: Tests
+
+on:
+  push:
+    branches: [release/cw-core]
+  pull_request:
+    branches: [release/cw-core]
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: pnpm test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # cw-core hat kein packageManager-Feld, aus dem die Action lesen
+          # koennte. 9 ist die Fassung, mit der pnpm-lock.yaml erzeugt wurde.
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          # Die Version, unter der cw-core in der Produktion laeuft: die
+          # Kunden-Builds (build-check.yml, aus cw-core/templates/) fahren 22.
+          node-version: '22'
+          cache: 'pnpm'
+
+      # --frozen-lockfile ist hier selbst ein Gate: es faellt aus, sobald
+      # package.json und Lockfile auseinanderlaufen. Genau das war am
+      # 27.08.2026 ueber Stunden der Fall, ohne dass es jemandem auffiel.
+      - run: pnpm install --frozen-lockfile
+
+      # Die Zaehlzeile ("# tests 665") muss im Log stehen. Ein gruener Haken
+      # allein sagt nicht, ob ueberhaupt etwas lief.
+      - name: pnpm test (665 Faelle erwartet, Stand 27.08.2026)
+        run: pnpm test
