@@ -24,6 +24,18 @@ export interface FAQItem {
 interface Props {
   /** FAQ entries. Section is omitted entirely if empty. */
   items?: readonly FAQItem[];
+  /**
+   * Setzt links vor jede Frage ein Fragezeichen-Symbol (Default: aus).
+   *
+   * Bewusst EIN gleiches Symbol für alle Einträge statt eines Feldes je Frage:
+   * ein `icon` pro Item müsste bei jeder neuen Frage mitgepflegt werden und wäre
+   * beim ersten Vergessen halb leer. Das Symbol ist ein Anker für das Auge, keine
+   * Aussage über den Inhalt — dafür braucht es keine Auswahl.
+   *
+   * Default `false`, damit sich das Aussehen bestehender Kundenseiten durch ein
+   * cw-core-Update nicht ungefragt ändert.
+   */
+  showQuestionIcon?: boolean;
   /** Optional override for the section heading. */
   heading?: string;
   /** Optional override for the section subheading. */
@@ -34,6 +46,7 @@ const {
   items = [],
   heading = 'Häufige Fragen',
   subheading = 'Alles Wichtige auf einen Blick.',
+  showQuestionIcon = false,
 } = Astro.props;
 
 const faqSchema = items.length > 0
@@ -66,6 +79,13 @@ const faqSchema = items.length > 0
       {items.map((item) => (
         <details class="faq-item" name="faq">
           <summary>
+            {showQuestionIcon && (
+              <svg class="faq-frage-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.4 9.2a2.7 2.7 0 1 1 3.3 2.9c-.5.1-.7.5-.7 1v.6" />
+                <path d="M12 16.9h.01" />
+              </svg>
+            )}
             <span>{item.q}</span>
             <svg class="faq-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
               <polyline points="6 9 12 15 18 9"/>
@@ -123,6 +143,10 @@ const faqSchema = items.length > 0
   summary::-webkit-details-marker { display: none; }
   summary:hover { background: var(--color-surface); }
   summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  /* Das Frage-Symbol links ist ruhiger als der Chevron rechts: es zeigt nichts an,
+     es verankert nur den Zeilenanfang. Deshalb gedämpft und ohne Zustandswechsel. */
+  .faq-frage-icon { flex-shrink: 0; color: var(--color-muted); opacity: 0.75; }
+  .faq-item[open] .faq-frage-icon { color: var(--color-accent); opacity: 1; }
   .faq-icon { flex-shrink: 0; transition: transform 0.2s; color: var(--color-muted); }
   .faq-item[open] .faq-icon { transform: rotate(180deg); color: var(--color-accent); }
   .faq-answer {
