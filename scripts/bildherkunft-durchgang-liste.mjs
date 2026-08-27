@@ -22,9 +22,9 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ordneEin } from './bildherkunft-einordnen.mjs';
+import { registryPfad } from './registry-pfad.mjs';
 
-const REGISTRY =
-  '/Volumes/SiluriWork/NAS-Spiegel/MEDIEN/CODE/CLAUDE/customer-websites/customer-registry.json';
+const REGISTRY = registryPfad();
 
 const argWert = (n, f = null) => {
   const i = process.argv.indexOf(n);

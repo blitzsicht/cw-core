@@ -27,8 +27,9 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { alsLiteral, regelZeile } from './bildherkunft-arbeitsliste.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
+import { registryPfad } from './registry-pfad.mjs';
 
-const REGISTRY = '/Volumes/SiluriWork/NAS-Spiegel/MEDIEN/CODE/CLAUDE/customer-websites/customer-registry.json';
+const REGISTRY = registryPfad();
 
 function argWert(name, fallback = null) {
   const i = process.argv.indexOf(name);

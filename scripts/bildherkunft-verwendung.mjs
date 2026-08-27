@@ -29,9 +29,9 @@
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, extname, basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { registryPfad } from './registry-pfad.mjs';
 
-const REGISTRY =
-  '/Volumes/SiluriWork/NAS-Spiegel/MEDIEN/CODE/CLAUDE/customer-websites/customer-registry.json';
+const REGISTRY = registryPfad();
 
 function argWert(name, fallback = null) {
   const i = process.argv.indexOf(name);
