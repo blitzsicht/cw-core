@@ -22,6 +22,81 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.133.0 (2026-08-27)
+
+- [kunde:sichtbar] Breite Tabellen lassen sich auf dem Handy jetzt seitlich schieben. Vorher wurden die rechten Spalten abgeschnitten und waren gar nicht erreichbar.
+- [kunde:sichtbar] Lange zusammengesetzte Wörter in Überschriften brechen um, statt über den Bildschirmrand hinauszulaufen.
+
+**Fix:** Tabellen sprengten schmale Viewports — und waren dabei nicht einmal scrollbar
+
+Gemessen auf blitzsicht.com bei 360 px, sieben Seiten mit horizontalem Überstand, und in
+JEDEM Fall war das breiteste Element eine `<table>`: `/agb/sla` +206 px,
+`/agb/onboarding` +155, `/blog/website-kosten-handwerker` +154,
+`/blog/agentic-browsing-ki-agenten` +126, `/blog/wordpress-vs-blitzsicht` +124,
+`/datenschutz` +54, `/blog/website-in-7-werktagen` +43. Verschärfend: die Seite setzt
+`html,body{overflow-x:hidden}` — die Tabellen ließen sich also nicht wegschieben,
+sondern waren schlicht **abgeschnitten**, die rechten Spalten unerreichbar.
+
+`tokens-base.css` macht Tabellen jetzt zu ihrem eigenen Scroll-Container. Die Regel
+steht in `:where()` und hat damit Spezifität 0 — eine Kundenregel gewinnt jederzeit.
+`role="presentation"` ist ausgenommen: Layout-Tabellen aus Mail-Templates dürfen
+niemals scrollen. Für Wrapper, die eine Tabelle selbst einfassen, gibt es die Utility
+`.tabelle-scroll`; `InformationspflichtBlock.astro` benutzt sie jetzt, `VergleichsTabelle`
+und `ResponsiveTable` sind über ihre eigenen Wrapper-Klassen ausgenommen.
+
+Gegenprobe über alle 46 Seiten des Builds: vorher 8 Brüche bei 360 px und 7 bei 390 px,
+nachher **0** — zweimal gemessen. Bei 768 px und 1280 px ändert sich keine Tabellenbreite;
+die verbliebenen Abweichungen von 3–8 px sind Messrauschen, nachgewiesen dadurch, dass
+derselbe Build zweimal gemessen dieselben Abweichungen zeigt.
+
+Kein Rehype-Plugin: das erreicht die Markdown-Tabelle, aber nicht die handgeschriebene
+in `.astro`, und bräuchte eine neue Abhängigkeit plus einen Eingriff in jede
+`astro.config.mjs`. Die CSS-Regel erwischt beide Formen ohne Zutun des Kunden.
+
+**Fix:** Lange deutsche Komposita in Überschriften
+
+`/software` scrollte um 7 px, und kein einziges Element ragte heraus — der Überstand
+steckte im Inhalt der `<h1>`: „Softwareentwicklung", 19 Zeichen ohne Trennstelle, passte
+nicht in die 264 px breite Textbox. Der Messwert schwankte zwischen +7 und +27 px, je
+nachdem ob die Webfont beim Messen schon geladen war. `overflow-wrap: break-word` auf
+`h1`–`h6` schließt das: `/software` 7 → 0 px, während die H1-Höhe auf `/`, `/forschung`
+und `/pakete` auf die Pixel gleich bleibt — die Eigenschaft greift nur, wenn ein
+einzelnes Wort seine Zeile sonst überliefe. Bewusst nicht `hyphens: auto`: das trennt
+auch Wörter, die passen, und würde flottenweit den Umbruch mehrzeiliger Überschriften
+verändern.
+
+**Und der Fehler, den der erste Entwurf eingebaut hätte:** Tastaturfalle
+
+Eine Tabelle zum Scroll-Container zu machen, macht sie zu einem scrollbaren Bereich —
+und ein scrollbarer Bereich ohne Tastaturzugang ist selbst ein WCAG-Verstoß. axe meldet
+ihn als `scrollable-region-focusable`. Gemessen an sieben Seiten bei 390 px:
+
+| Stand | Verstöße |
+|---|---:|
+| vorher | 2 |
+| nur die CSS-Regel | 13 |
+| CSS-Regel + `tabindex` | **0** |
+
+Der Build gibt deshalb jeder Inhaltstabelle `tabindex="0"` (`table-focusable.js`,
+17 Tests) — und ebenso jedem `.tabelle-scroll`-Wrapper, der noch keinen hat. Der zweite
+Teil kam erst durch den CI-Lauf dazu: `.tdddg-table-wrap`, `.preistabelle-wrapper` und
+`.upgrade-comparison-wrap` trugen die Klasse, scrollten und hatten keinen Fokus. Die
+Tabelle darin bleibt bewusst `display: table` und ist selbst nicht scrollbar — ihr
+`tabindex` hätte also nichts genützt, der Fokus gehört an den Wrapper. Attribut statt Wrapper: ein zusätzliches `<div>` würde jeden Kundenselektor
+der Form `.legal-content > table` still brechen. `role` bleibt unangetastet — eine
+Tabelle muss eine Tabelle bleiben, sonst verlieren Screenreader die Zeilen- und
+Spaltenbezüge. Tabellen, die schon in einem Wrapper mit Fokus sitzen, bekommen keinen
+zweiten Tab-Halt. Der Ausgangszustand wird damit nicht nur gehalten, sondern verbessert.
+
+**Guard:** Tabellen-Scroll-Guard in ai-discovery
+
+Neu, zero-config, hart per Default (`strictTableScroll`): liefert eine Seite eine
+Tabelle aus, ohne dass im ausgelieferten CSS eine Scroll-Regel steht, bricht der Build.
+Gegen das echte `dist/` des Zustands von vorher meldet er 19 Seiten, gegen den Kandidaten
+0. Er beweist, dass der Schutz **mitgeliefert** wird — ob eine konkrete Tabelle im
+Browser passt, misst `mobile-audit.spec.ts` in cw-visual-tests. 10 Tests, gegen die
+sabotierte Fassung 4 davon rot.
+
 ## v0.132.0 (2026-08-27)
 
 - [kunde:sichtbar] Jede Seite bekommt beim Teilen in WhatsApp, LinkedIn oder Facebook ein eigenes Vorschaubild statt für die ganze Website dasselbe — mit dem Bild und der Überschrift der jeweiligen Seite.
