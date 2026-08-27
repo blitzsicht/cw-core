@@ -24,7 +24,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -124,10 +124,32 @@ test('5. das erzeugte Seiten-Skript ist syntaktisch gültig', () => {
   // Skript IN der erzeugten Seite: es entsteht als String und wird nie von Node geparst.
   // Ein Tippfehler dort erzeugt eine Arbeitsliste, die sich oeffnen laesst, aber auf keinen
   // Klick reagiert — und das faellt erst dem Operator auf, mitten in der Einordnung.
+  // Eigene Registry-Attrappe statt der echten aus dem Nachbarrepo: bis zum
+  // 27.08.2026 trug das Skript den Pfad eines bestimmten Rechners fest
+  // eingebaut. Der Test war deshalb nur dort gruen — in der ersten CI von
+  // cw-core starb er sofort mit ENOENT. Ein Test, der eine Datei ausserhalb
+  // des Repos braucht, prueft die Umgebung mit, nicht nur den Code.
+  const reg = join(tmpdir(), 'bh-syntaxtest-registry.json');
+  const repoAttrappe = mkdtempSync(join(tmpdir(), 'bh-repo-'));
+  writeFileSync(
+    reg,
+    JSON.stringify({
+      customers: [
+        {
+          slug: 'platzfrei',
+          lifecycle: 'live',
+          repo_path: repoAttrappe,
+          production_url: 'https://example.invalid/',
+        },
+      ],
+    }),
+    'utf8',
+  );
+
   const html = execFileSync(
     process.execPath,
     [SKRIPT, '--site', 'platzfrei', '--out', join(tmpdir(), 'bh-syntaxtest.html'), '--no-open'],
-    { encoding: 'utf8' },
+    { encoding: 'utf8', env: { ...process.env, CW_REGISTRY: reg } },
   ) && readFileSync(join(tmpdir(), 'bh-syntaxtest.html'), 'utf8');
 
   const treffer = html.match(/<script>([\s\S]*?)<\/script>/);
@@ -147,6 +169,8 @@ test('5. das erzeugte Seiten-Skript ist syntaktisch gültig', () => {
 
   rmSync(jsDatei, { force: true });
   rmSync(join(tmpdir(), 'bh-syntaxtest.html'), { force: true });
+  rmSync(reg, { force: true });
+  rmSync(repoAttrappe, { recursive: true, force: true });
 });
 
 test('4. der Rundlauf überlebt eine Begründung mit Sonderzeichen', () => {

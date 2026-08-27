@@ -82,10 +82,21 @@ function installFakeFetch({
     const wait =
       telegramDelayMs !== null && String(url).includes('telegram.org') ? telegramDelayMs : delayMs;
     if (wait > 0) {
+      // KEIN unref: der Timer wird hier awaited, ist also der einzige Grund,
+      // warum der Event-Loop noch laufen muss. Mit unref darf Node ihn
+      // abraeumen, bevor die Promise erfuellt ist — der Test-Runner meldet dann
+      // "Promise resolution is still pending but the event loop has already
+      // resolved" und reisst die Folgetests als cancelledByParent mit.
+      //
+      // Unter Node 26 faellt das nicht auf, unter Node 22 reproduzierbar — und
+      // die CI faehrt 22. Isoliert nachgemessen am 27.08.2026: dasselbe
+      // Vier-Zeilen-Muster, node:22 cancelled 1, node:26 pass 1.
+      //
+      // Die urspruengliche Sorge (ein detachter Telegram-Call haelt den Prozess
+      // offen) ist gegenstandslos, seit emitLead awaited wird — genau das
+      // prueft der MAJ-7-Test unten.
       await new Promise((r) => {
-        const timer = setTimeout(r, wait);
-        // Ein noch laufender Telegram-Timer darf den Testprozess nicht offen halten.
-        timer.unref?.();
+        setTimeout(r, wait);
       });
     }
     if (String(url).includes('resend.com')) {

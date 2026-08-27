@@ -14,6 +14,9 @@ importers:
       exiftool-vendored:
         specifier: ^36.0.0
         version: 36.0.0
+      satori:
+        specifier: ^0.12.0
+        version: 0.12.2
     devDependencies:
       '@astrojs/check':
         specifier: ^0.9.0
@@ -33,9 +36,6 @@ importers:
       postcss-html:
         specifier: ^1.8.0
         version: 1.8.1
-      satori:
-        specifier: ^0.12.0
-        version: 0.12.2
       schema-dts:
         specifier: ^2.0.0
         version: 2.0.0(typescript@5.9.3)

@@ -124,7 +124,9 @@ export function kappe(text, max = 96) {
 
 /**
  * @param {object} o
- * @param {URL} o.dir            dist-Verzeichnis (aus astro:build:done)
+ * @param {URL|string} o.dir     dist-Verzeichnis. astro:build:done liefert eine URL,
+ *                              die Integration reicht einen Pfad durch — die Zeile
+ *                              unten kann beides, die Signatur sagte es nur nicht.
  * @param {object} o.logger      Astro-Logger
  * @param {string} [o.logoPfad]  Logo für die Bilder, relativ zu dist. Default '/logo-inverted.svg'
  * @param {string} [o.domain]    Domain für das cta-Template

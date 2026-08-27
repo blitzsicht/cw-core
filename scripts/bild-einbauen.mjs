@@ -35,8 +35,9 @@ import { stdin, stdout } from 'node:process';
 import { regelZeile } from './bildherkunft-arbeitsliste.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
 import { TAG_DENY_RE, DIGITAL_SOURCE_TYPE } from '../src/integrations/ai-discovery/geotag-core.js';
+import { registryPfad } from './registry-pfad.mjs';
 
-const REGISTRY = '/Volumes/SiluriWork/NAS-Spiegel/MEDIEN/CODE/CLAUDE/customer-websites/customer-registry.json';
+const REGISTRY = registryPfad();
 
 // ---------------------------------------------------------------------------
 // Reine Teile — hier liegt das Risiko, deshalb sind sie getrennt und getestet.
