@@ -113,6 +113,11 @@ const {
   .logo {
     display: flex;
     align-items: center;
+    /* NIE schrumpfen. Ohne das staucht Flexbox die Logo-Box unter ihren Inhalt,
+       der Markenname laeuft rechts heraus und landet unter dem ersten Nav-Link.
+       Gemessen 2026-08-27 auf blitzsicht.com: 17px Ueberlappung bei jeder
+       Desktop-Breite, weil .container auf --container-max (72rem) gedeckelt ist. */
+    flex-shrink: 0;
     gap: 0.625rem;
     font-weight: 700;
     font-size: 1.25rem;
@@ -136,6 +141,12 @@ const {
     display: flex;
     align-items: center;
     gap: clamp(0.75rem, 1.5vw, 1.75rem);
+  }
+  #main-nav a {
+    /* Ein Label ist eine Einheit. Ohne nowrap staucht Flexbox jedes Item bis auf
+       sein laengstes Wort — "Pakete & Preise" wird zweizeilig, der Header waechst
+       und die Zeilen ueberlagern das Logo. */
+    white-space: nowrap;
   }
   #main-nav a:not(.btn-accent) {
     color: rgba(255,255,255,0.85);
@@ -177,36 +188,123 @@ const {
     transition: transform 0.2s, opacity 0.2s;
   }
 
-  /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
-  @media (max-width: 1099px) {
-    #nav-toggle { display: flex; }
-    #main-nav {
-      display: none;
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      background: var(--color-header-bg-mobile, var(--color-header-bg, var(--color-primary-light, var(--color-primary, #1D1E3B))));
-      flex-direction: column;
-      align-items: stretch;
-      padding: 1rem 1.5rem 1.5rem;
-      gap: 0;
-      z-index: 49;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    }
-    #main-nav.open { display: flex; }
-    #main-nav a:not(.btn-accent) {
-      padding: 0.75rem 0;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-    #main-nav .btn-accent { margin-top: 1rem; justify-content: center; }
+  /* Kompakt-Darstellung (Hamburger + aufklappendes Menue).
+     Aktiv, sobald `data-nav="compact"` am Header steht. Gesetzt wird das vom
+     Fit-Skript unten: es misst, ob die volle Nav ueberhaupt in den Header passt,
+     statt eine feste Pixelgrenze zu raten. Eine geratene Grenze war die Ursache
+     des Bruchs vom 27.08.2026 — blitzsicht.com hatte 9 Nav-Punkte, die auch bei
+     2400px Fensterbreite nicht passten, weil .container auf 72rem gedeckelt ist. */
+  #site-header[data-nav="compact"] #nav-toggle { display: flex; }
+  #site-header[data-nav="compact"] #main-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--color-header-bg-mobile, var(--color-header-bg, var(--color-primary-light, var(--color-primary, #1D1E3B))));
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1rem 1.5rem 1.5rem;
+    gap: 0;
+    z-index: 49;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   }
+  #site-header[data-nav="compact"] #main-nav.open { display: flex; }
+  #site-header[data-nav="compact"] #main-nav a:not(.btn-accent) {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  #site-header[data-nav="compact"] #main-nav .btn-accent { margin-top: 1rem; justify-content: center; }
 
   /* stylelint-disable-next-line plugin/no-max-width-media -- Brand-Name auf sehr schmalen Viewports verstecken */
   @media (max-width: 720px) {
     .logo span { display: none; }
   }
 </style>
+
+<noscript>
+  <style>
+    /* Ohne JS kann nicht gemessen werden. Dann gilt die alte feste Grenze:
+       unterhalb 1100px Hamburger, darueber volle Nav. Deckungsgleich mit dem
+       Verhalten vor dem 27.08.2026. */
+    /* stylelint-disable-next-line plugin/no-max-width-media -- No-JS-Fallback muss die
+       alte Desktop-First-Grenze exakt nachbilden, sonst aendert sich das Verhalten
+       ohne JavaScript. */
+    @media (max-width: 1099px) {
+      #site-header #nav-toggle { display: flex; }
+      #site-header #main-nav {
+        display: none;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: var(--color-header-bg-mobile, var(--color-header-bg, var(--color-primary-light, var(--color-primary, #1D1E3B))));
+        flex-direction: column;
+        align-items: stretch;
+        padding: 1rem 1.5rem 1.5rem;
+        gap: 0;
+        z-index: 49;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      }
+      #site-header #main-nav a:not(.btn-accent) {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+      }
+      #site-header #main-nav .btn-accent { margin-top: 1rem; justify-content: center; }
+    }
+  </style>
+</noscript>
+
+<script is:inline>
+  /* Header-Fit: entscheidet anhand der tatsaechlichen Breiten, ob die volle Nav
+     angezeigt wird oder der Hamburger. Laeuft synchron direkt nach dem Header —
+     also vor dem ersten Paint, kein Umspringen sichtbar.
+
+     Gemessen wird im Zustand "volle Nav": passt die Summe aus Logo und Nav nicht
+     in den Header-Container, wird auf kompakt geschaltet. */
+  (function () {
+    var header = document.getElementById('site-header');
+    if (!header) return;
+    var nav = document.getElementById('main-nav');
+    var logo = header.querySelector('.logo');
+    var box = header.querySelector('.container');
+    if (!nav || !logo || !box) return;
+
+    function fit() {
+      // Erst voll aufbauen, sonst misst man die Kompakt-Darstellung.
+      header.removeAttribute('data-nav');
+      var style = getComputedStyle(nav);
+      var gap = parseFloat(style.columnGap || style.gap) || 0;
+      // clientWidth enthaelt den Innenabstand des Containers, die Flex-Kinder
+      // haben ihn nicht. Ohne Abzug schaltet der Header 2x1.5rem zu spaet um.
+      var bs = getComputedStyle(box);
+      var avail = box.clientWidth - parseFloat(bs.paddingLeft) - parseFloat(bs.paddingRight);
+      var need = logo.getBoundingClientRect().width;
+      var items = nav.children;
+      for (var i = 0; i < items.length; i++) {
+        need += items[i].getBoundingClientRect().width;
+        if (i) need += gap;
+      }
+      // 2rem Mindestluft zwischen Marke und erstem Nav-Punkt: exakt aufgehende
+      // Rechnung sieht geklebt aus, das war der zweite Teil des Bruchs.
+      if (need + 32 > avail) header.setAttribute('data-nav', 'compact');
+    }
+
+    fit();
+    var t;
+    addEventListener('resize', function () {
+      clearTimeout(t);
+      t = setTimeout(function () {
+        nav.classList.remove('open');
+        var tgl = document.getElementById('nav-toggle');
+        if (tgl) tgl.setAttribute('aria-expanded', 'false');
+        fit();
+      }, 100);
+    });
+    // View Transitions bauen den Header neu auf.
+    document.addEventListener('astro:page-load', fit);
+  })();
+</script>
 
 <script>
   import { track } from '../../utils/analytics/track';

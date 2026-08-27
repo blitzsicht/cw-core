@@ -27,7 +27,8 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, extname, basename } from 'node:path';
+import { join, relative, extname, basename, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const REGISTRY =
   '/Volumes/SiluriWork/NAS-Spiegel/MEDIEN/CODE/CLAUDE/customer-websites/customer-registry.json';
@@ -116,6 +117,47 @@ function kontextAus(fundstellen, wert) {
 }
 
 /**
+ * Landet ein `src/assets`-Bild im Build?
+ *
+ * Für `stem`-Regeln ist das der trennscharfe Nachweis: Astro bündelt aus `src/assets/` nur,
+ * was tatsächlich importiert wird — ein Bild ohne Import erscheint dort nie. Die Textsuche
+ * versagt bei kurzen Stems, weil Wörter wie `hero`, `team` oder `cafe` überall im Code
+ * vorkommen. Gemessen am 25.08.2026: acht Pflicht-Einträge hängen an Stems mit höchstens
+ * sechs Zeichen; bei `customer-donau-profi` galt `hero` deshalb als verwendet, obwohl
+ * `src/assets/images/hero/hero.png` von keiner Seite importiert wird und im Build fehlt.
+ *
+ * Ohne `dist/` lässt sich das nicht entscheiden. Dann wird **nicht geraten**, sondern der
+ * Zustand als solcher gemeldet — `unbekannt` ist ein eigener Wert, kein stilles „verwendet".
+ *
+ * @returns {'ja'|'nein'|'unbekannt'}
+ */
+export function imBuild(repo, stem) {
+  const dist = join(repo, 'dist');
+  if (!existsSync(dist)) return 'unbekannt';
+  const BILD_EXT = new Set(['.webp', '.avif', '.png', '.jpg', '.jpeg', '.svg', '.gif']);
+  let gefunden = false;
+  const gehe = (dir) => {
+    if (gefunden) return;
+    let eintraege;
+    try {
+      eintraege = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of eintraege) {
+      if (gefunden) return;
+      const p = join(dir, e.name);
+      if (e.isDirectory()) gehe(p);
+      // Astro hängt einen Content-Hash an: `hero.Bng-bGX1.webp` → Stem ist der Teil vor dem
+      // ersten Punkt, dieselbe Regel wie in resolveBildHerkunft.
+      else if (e.name.split('.')[0] === stem && BILD_EXT.has(extname(e.name))) gefunden = true;
+    }
+  };
+  gehe(dist);
+  return gefunden ? 'ja' : 'nein';
+}
+
+/**
  * Wird das Bild über eine zusammengebaute Pfadangabe eingebunden?
  *
  * Gemessen am 24.08.2026: `customer-donau-profi` bindet jedes Leistungsbild als
@@ -158,6 +200,13 @@ function dynamischeFundstellen(inhalte, wert) {
 }
 
 // --- Lauf -------------------------------------------------------------------
+// Nur beim direkten Aufruf scannen — damit `imBuild` importiert und geprüft werden kann,
+// ohne die ganze Flotte zu durchsuchen (Muster wie in bildherkunft-arbeitsliste.mjs).
+const direktAufgerufen =
+  process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+if (!direktAufgerufen) {
+  // als Modul geladen: nichts weiter tun
+} else {
 const nurSite = argWert('--site');
 const nurPflicht = hatFlag('--nur-pflicht');
 const ausgabe = argWert('--out');
@@ -213,6 +262,20 @@ for (const k of kunden) {
       }
     }
 
+    // Bei `stem`-Regeln schlägt der Build-Befund die Textsuche: er ist trennscharf, sie
+    // nicht. Ein `hero`, das die Suche findet, aber im Build fehlt, ist nicht eingebunden —
+    // der Treffer stammt dann von einem gleichnamigen Wort anderswo im Code.
+    let gebaut = '—';
+    if (r.key === 'stem') {
+      gebaut = imBuild(repo, stamm);
+      if (gebaut === 'nein') {
+        fundstellen.length = 0;
+        bindung = 'keine';
+      } else if (gebaut === 'ja' && !fundstellen.length) {
+        bindung = 'nur-build';
+      }
+    }
+
     gesamtBilder++;
     if (!fundstellen.length) gesamtOhneFund++;
 
@@ -223,6 +286,7 @@ for (const k of kunden) {
       deepfake_alt: r.deepfake,
       begruendung_alt: r.begruendung,
       bindung,
+      gebaut,
       kontext: kontextAus(fundstellen, r.wert),
       fundstellen: fundstellen.slice(0, 6),
       fundstellen_gesamt: fundstellen.length,
@@ -251,4 +315,5 @@ console.log(`${'GESAMT'.padEnd(24)} ${String(gesamtBilder).padStart(6)} ${String
 if (ausgabe) {
   writeFileSync(ausgabe, JSON.stringify({ stand: new Date().toISOString(), sites: ergebnis }, null, 2), 'utf8');
   console.log(`\nGeschrieben: ${ausgabe}`);
+}
 }
