@@ -49,6 +49,7 @@ import {
 } from './motion-consent-check.js';
 import { lintRenderEntropy } from './render-entropy-check.js';
 import { geotagDist } from './geotag.js';
+import { ogProSeite } from './og-pages.js';
 import { walkImages, BUDGET_EXT } from './geotag-core.js';
 
 // ---------------------------------------------------------------------------
@@ -125,6 +126,23 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * Typically: () => import('./src/data/site-data').then(m => m.siteData)
    */
   siteData: () => Promise<T>;
+
+  /**
+   * Ein eigenes og:image je Seite nach dem Build rendern (Default: an).
+   *
+   * Quelle sind Titel, Beschreibung und Hero-Foto der fertig gebauten Seite:
+   * mit Hero-Foto das `hero`-Template, sonst `cta` mit dem Seitentitel. Auf
+   * `false` setzen, wenn ein Kunde seine Vorschaubilder von Hand pflegt.
+   */
+  ogPerPage?: boolean;
+
+  /**
+   * Wenn `true`, bricht der Build, sobald KEINE einzige Seite gerendert werden
+   * konnte. Default `false` (nur Warnung) — gedacht als Schärfung, sobald die
+   * Flotte durchgängig rendert. Grund für den weichen Default: genau dieser
+   * Totalausfall lief vom 09.07. bis 27.08.2026 unbemerkt, weil er still war.
+   */
+  strictOgPerPage?: boolean;
 
   /**
    * Optional: extract FAQs from siteData (falls back to siteData.faqs).
@@ -2822,6 +2840,29 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           await geotagDist(distDir, data, logger);
         } catch (e) {
           logger.warn(`Geotag: unerwarteter Fehler (${e?.message ?? e}) — übersprungen.`);
+        }
+
+        // -------------------------------------------------------------------
+        // Ein eigenes og:image pro Seite (Post-Build, zero-config)
+        // -------------------------------------------------------------------
+        // Bis 27.08.2026 trugen alle Unterseiten dasselbe Vorschaubild, weil das
+        // Rendern eine optionale peerDependency (satori) brauchte, die kein Kunde
+        // installiert hatte — sieben Wochen lang unbemerkt, weil der Rückfall still
+        // war. satori ist jetzt echte dependency, und diese Stelle rendert je Seite
+        // aus Titel, Beschreibung und Hero-Foto. Non-fatal wie der Geotag-Lauf, aber
+        // mit sichtbarem Report: ein Totalausfall steht künftig im Build-Log.
+        if (options.ogPerPage !== false) {
+          try {
+            await ogProSeite({
+              dir: distDir,
+              logger,
+              domain: new URL(data.url).host,
+              strict: options.strictOgPerPage === true,
+            });
+          } catch (e) {
+            if (options.strictOgPerPage === true) throw e;
+            logger.warn(`og-pages: unerwarteter Fehler (${e?.message ?? e}) — übersprungen.`);
+          }
         }
       },
     },

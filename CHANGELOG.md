@@ -22,6 +22,72 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.132.0 (2026-08-27)
+
+- [kunde:sichtbar] Jede Seite bekommt beim Teilen in WhatsApp, LinkedIn oder Facebook ein eigenes Vorschaubild statt für die ganze Website dasselbe — mit dem Bild und der Überschrift der jeweiligen Seite.
+
+**Fix + Feature:** ein eigenes og:image pro Seite — und drei Gründe, warum es vorher keines gab
+
+Auslöser: Auf blitzsicht.com trugen alle Unterseiten `/og/default.png` — /forschung,
+/software, /referenzen, /pakete, /kontakt, /ueber-uns. Nur die Startseite hatte ein
+eigenes. Flottenweit dasselbe Bild: 12 von 13 Live-Kunden haben genau **ein** OG-Bild
+für ihre gesamte Website.
+
+Bei der Ursachensuche kamen drei Fehler zum Vorschein, von denen jeder für sich das
+System lahmgelegt hätte. Alle drei waren still.
+
+**1. `satori` war eine optionale peerDependency — und kein Kunde hatte sie.**
+`render-og-home.mjs` scheiterte deshalb bei jedem Build, fiel fail-open zurück und
+liess die committete `home.png` stehen: datiert auf den **09.07.2026**, sieben Wochen
+alt. Das OG-System hat flottenweit nie gerendert. Sichtbar war das als eine Warnzeile
+im Build-Log. `satori` ist jetzt eine echte `dependency` von cw-core.
+
+**2. Im `astro:build:done` ist Vites Module-Runner geschlossen.** Jeder dynamische
+Import scheitert dort — auch über eine `file://`-URL. Der `catch` in `engine.mjs` fing
+das ab und meldete `'satori' fehlt`, obwohl das Paket installiert war. Diese falsche
+Fährte hat die Diagnose mehrfach in die Irre geführt. `engine.mjs` lädt satori und
+sharp jetzt über `createRequire` an Vite vorbei, und der echte Fehlertext bleibt
+stehen statt durch eine Vermutung ersetzt zu werden.
+
+**3. satori dekodiert weder WebP noch AVIF.** Ein solches Foto rendert lautlos als
+nichts; man sieht nur den Verlauf des Templates und hält es für ein zu helles Motiv.
+Gemessen mit demselben Bild: als WebP übergeben ergab das OG **8 KB** (leer), nach
+Umwandlung in JPEG **241 KB** (Foto drin). Die Fleet liefert ihre Hero-Bilder
+durchgängig als WebP — ohne diese Umwandlung wäre die ganze Automatik ein
+Verlaufsgenerator gewesen. `og-pages` wandelt WebP/AVIF jetzt vor dem Rendern um.
+
+**Was die Integration tut.** Nach dem Build liest sie aus jeder fertigen Seite Titel,
+Beschreibung und Hero-Foto und rendert daraus ein eigenes Vorschaubild:
+
+| Seite | Vorlage |
+|---|---|
+| mit Hero-Foto | `hero` — genau dieses Foto, Titel, gekappte Beschreibung |
+| ohne | `cta` — Logo, Titel, Domain |
+
+Aus dem gebauten HTML statt über Props: so ist jede Seite erfasst, unabhängig von
+Layout und Blöcken, und die nächste neue Seite wird nicht vergessen.
+
+Abschaltbar über `ogPerPage: false`; `strictOgPerPage: true` lässt den Build scheitern,
+wenn keine einzige Seite gerendert werden konnte.
+
+**Kosten:** 4,3 s bei 49 Seiten (hero mit Foto 853 ms inkl. Fontladen, cta warm 81 ms).
+Die Bilder werden mit `maxBytes: 200 * 1024` gerendert — der Perf-Budget-Guard der
+Fleet läuft VOR dieser Stelle und hätte sie sonst nie geprüft.
+
+**Sichtbarkeit statt stillem Rückfall.** Rendert keine einzige Seite, steht das als
+Warnung im Log statt als Schweigen; teilen sich Seiten vorher dasselbe Bild, wird das
+mit Zahl und Pfad benannt. Genau diese Meldung hätte den Ausfall vom 09.07. am selben
+Tag sichtbar gemacht.
+
+**Nebenbefund:** Der Lauf über blitzsicht meldete `/faq` — die Seite verweist auf
+`/images/hero/faq.webp`, das es nicht gibt (live HTTP 404). Das ist ein Fehler auf der
+Seite, kein Fehler der Integration; sie hat ihn nur sichtbar gemacht.
+
+Der Test-Glob deckt jetzt auch `src/integrations/**/*.test.mjs` ab — die neuen Tests
+wären sonst nie gelaufen (622 → 635).
+
+---
+
 ## v0.131.0 (2026-08-27)
 
 - [kunde:sichtbar] Die Menüzeile oben bricht nicht mehr um: lange Menüpunkte bleiben in einer Zeile, der Firmenname überlagert sie nicht mehr, und wenn das Menü für die Bildschirmbreite zu lang wird, klappt es automatisch zum Menü-Symbol zusammen.
