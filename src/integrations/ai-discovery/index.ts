@@ -34,6 +34,7 @@ import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-chec
 import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
+import { ergaenzeTabellenTabindex } from './table-focusable.js';
 import {
   checkDeadFontFamilies,
   checkRenderBlockingCss,
@@ -264,6 +265,9 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * Cluster hatte Cache-Control → alle public/-Assets gingen mit max-age=0
    * zum Browser. Siehe docs/caching-rationale.md.
    */
+  /** Gibt jeder Inhaltstabelle im Build `tabindex="0"`, damit der Scroll-Container
+   *  per Tastatur erreichbar ist. Default: true. */
+  makeTablesFocusable?: boolean;
   /** Tabellen-Scroll-Guard: meldet Seiten mit Tabelle, aber ohne Scroll-Regel
    *  im ausgelieferten CSS. Default: true. */
   checkTableScroll?: boolean;
@@ -2424,6 +2428,38 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           if (options.strictAltQuality === true) {
             throw new Error(
               `[ai-discovery] strictAltQuality=true: Build abgebrochen wegen ${qualityIssues.length} Alt-Qualität-Issues.`,
+            );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Tabellen per Tastatur erreichbar machen
+        // -------------------------------------------------------------------
+        // tokens-base.css macht Tabellen zu ihrem eigenen Scroll-Container —
+        // sonst schneiden sie auf schmalen Viewports ihre rechten Spalten ab.
+        // Ein scrollbarer Bereich ohne Tastaturzugang ist aber selbst ein
+        // WCAG-Verstoss (axe: scrollable-region-focusable). Gemessen an sieben
+        // Seiten von blitzsicht.com bei 390 px: vorher 2 Verstoesse, mit der
+        // CSS-Regel allein 13, mit diesem tabindex 0. Siehe table-focusable.js.
+        if (options.makeTablesFocusable !== false) {
+          let ergaenztGesamt = 0;
+          let seitenMitTabelle = 0;
+          for (const file of htmlFiles) {
+            let html: string;
+            try {
+              html = readFileSync(file, 'utf-8');
+            } catch {
+              continue;
+            }
+            const { html: neu, ergaenzt } = ergaenzeTabellenTabindex(html);
+            if (ergaenzt === 0) continue;
+            writeFileSync(file, neu, 'utf-8');
+            ergaenztGesamt += ergaenzt;
+            seitenMitTabelle++;
+          }
+          if (ergaenztGesamt > 0) {
+            logger.info(
+              `Tabellen-Fokus: ${ergaenztGesamt} Tabelle(n) auf ${seitenMitTabelle} Seite(n) per Tastatur erreichbar gemacht.`,
             );
           }
         }

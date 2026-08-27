@@ -65,6 +65,25 @@ einzelnes Wort seine Zeile sonst überliefe. Bewusst nicht `hyphens: auto`: das 
 auch Wörter, die passen, und würde flottenweit den Umbruch mehrzeiliger Überschriften
 verändern.
 
+**Und der Fehler, den der erste Entwurf eingebaut hätte:** Tastaturfalle
+
+Eine Tabelle zum Scroll-Container zu machen, macht sie zu einem scrollbaren Bereich —
+und ein scrollbarer Bereich ohne Tastaturzugang ist selbst ein WCAG-Verstoß. axe meldet
+ihn als `scrollable-region-focusable`. Gemessen an sieben Seiten bei 390 px:
+
+| Stand | Verstöße |
+|---|---:|
+| vorher | 2 |
+| nur die CSS-Regel | 13 |
+| CSS-Regel + `tabindex` | **0** |
+
+Der Build gibt deshalb jeder Inhaltstabelle `tabindex="0"` (`table-focusable.js`,
+11 Tests). Attribut statt Wrapper: ein zusätzliches `<div>` würde jeden Kundenselektor
+der Form `.legal-content > table` still brechen. `role` bleibt unangetastet — eine
+Tabelle muss eine Tabelle bleiben, sonst verlieren Screenreader die Zeilen- und
+Spaltenbezüge. Tabellen, die schon in einem Wrapper mit Fokus sitzen, bekommen keinen
+zweiten Tab-Halt. Der Ausgangszustand wird damit nicht nur gehalten, sondern verbessert.
+
 **Guard:** Tabellen-Scroll-Guard in ai-discovery
 
 Neu, zero-config, hart per Default (`strictTableScroll`): liefert eine Seite eine
