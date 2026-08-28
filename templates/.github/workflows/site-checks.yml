@@ -116,7 +116,13 @@ jobs:
           # `grep -c` zaehlt Zeilen und meldete deshalb ausnahmslos 1 — auch bei
           # 46 URLs. Ein Zaehlwert, der nie etwas anderes werden kann, ist keine
           # Messung, und die Null-Warnung darunter waere nie gefeuert.
-          SEITEN=$(grep -o '<loc>' "$ROOT/sitemap-0.xml" 2>/dev/null | wc -l | tr -d ' ')
+          # `|| true` ist noetig, NICHT Zierde: der Schritt laeuft mit
+          # `set -euo pipefail`, und grep endet mit Code 1 (nichts gefunden)
+          # bzw. 2 (Datei fehlt). Ohne den Auffang bricht der Schritt genau
+          # dann ab, wenn die Warnung darunter greifen SOLLTE — gemessen am
+          # 28.08.2026 an customer-herztoene, das keine Sitemap-Integration
+          # hat: Exit 2, Lauf rot, Warnung nie ausgegeben.
+          SEITEN=$( { grep -o '<loc>' "$ROOT/sitemap-0.xml" 2>/dev/null || true; } | wc -l | tr -d ' ')
           SEITEN=${SEITEN:-0}
           echo "Seiten in der Sitemap: $SEITEN"
           if [ "$SEITEN" -eq 0 ]; then

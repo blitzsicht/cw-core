@@ -17,9 +17,55 @@ for (const route of PAGES) {
     });
 
     // 1. Horizontal scroll
-    const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
-    const clientWidth = await page.evaluate(() => document.documentElement.clientWidth);
-    expect(scrollWidth, `${route}: horizontal scroll (scrollWidth=${scrollWidth} > clientWidth=${clientWidth})`).toBeLessThanOrEqual(clientWidth);
+    //
+    // Warum ohne Toleranz: gemessen an einer Testseite mit exakt gesetztem
+    // Ueberstand meldet der Browser ab 0,5 px scrollWidth+1, und dann verschiebt
+    // scrollTo(9999, 0) die Seite tatsaechlich (scrollX = 1). Ein Pixel ist also
+    // echtes seitliches Scrollen, kein Rundungsartefakt — unterhalb von 0,5 px
+    // schlaegt der Guard gar nicht erst an.
+    const { scrollWidth, clientWidth, taeter } = await page.evaluate(() => {
+      const doc = document.documentElement;
+      const cw = doc.clientWidth;
+      // Wer steht ueber? Nur der INNERSTE Uebeltaeter — traegt ein Kind denselben
+      // Ueberstand, ist das Kind gemeint, nicht sein Container.
+      let taeter = '';
+      for (const el of document.querySelectorAll('*')) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0 || r.right <= cw + 0.01) continue;
+        if ([...el.children].some((k) => k.getBoundingClientRect().right >= r.right - 0.01)) continue;
+        const cls = typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+        taeter = `${el.tagName.toLowerCase()}${cls} — rechte Kante ${r.right.toFixed(1)}px, ${(r.right - cw).toFixed(1)}px zu weit`;
+        break;
+      }
+      // Kein Element? Dann steht der Text ueber, nicht seine Box — so lag es bei
+      // steller-sanierungen: 45 Unterstriche in einer Ausfuellzeile, fuer den
+      // Browser EIN Wort. Ohne diesen Zweig bliebe die Meldung leer, und genau
+      // dann braucht sie jemand.
+      if (!taeter) {
+        const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        let n;
+        while ((n = w.nextNode())) {
+          if (!n.nodeValue || !n.nodeValue.trim()) continue;
+          const rg = document.createRange();
+          rg.selectNodeContents(n);
+          for (const r of rg.getClientRects()) {
+            if (r.right > cw + 0.01) {
+              const el = n.parentElement;
+              const cls = el && typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).join('.') : '';
+              taeter = `Text in ${el ? el.tagName.toLowerCase() : '?'}${cls} — rechte Kante ${r.right.toFixed(1)}px, ${(r.right - cw).toFixed(1)}px zu weit: "${n.nodeValue.trim().slice(0, 40)}"`;
+              break;
+            }
+          }
+          if (taeter) break;
+        }
+      }
+      if (!taeter) taeter = '(weder Element noch Text ueber dem Rand — Ueberstand kommt woanders her)';
+      return { scrollWidth: doc.scrollWidth, clientWidth: cw, taeter };
+    });
+    expect(
+      scrollWidth,
+      `${route}: horizontal scroll (scrollWidth=${scrollWidth} > clientWidth=${clientWidth})\n      Ueberstand verursacht von: ${taeter}`,
+    ).toBeLessThanOrEqual(clientWidth);
 
     // 2. Small touch targets
     const smallTargets = await page.evaluate(() => {
