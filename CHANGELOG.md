@@ -22,6 +22,51 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.137.0 (2026-08-28)
+
+- [kunde:sichtbar] Der Hinweis auf KI-erzeugte Bilder passt sich jetzt der Bildgröße an — auf Übersichtskacheln war er zuvor viel zu groß geraten, auf großen Bildern zu klein.
+- [kunde:sichtbar] Der Schnellhilfe-Knopf ist auf allen Unterseiten wieder gut lesbar. Auf einigen stand die Schrift grün auf rotem Grund.
+
+**Fix:** Das KI-Badge ließ sich von seiner Umgebung aufblasen
+
+Kontext: Nach v0.135.0 füllte die Kennzeichnung auf der Startseiten-Kachel von
+elektro-mika.com die ganze Kachel, statt als Badge unten links zu sitzen.
+`.leistung-image :global(img) { width:100%; height:100% }` in `LeistungenSection`
+trifft **jedes** `img` im Container — auch das Badge-SVG. Mit (0,2,1) schlug die Regel
+die einstufige `.ai-label__icon` (0,2,0). Dieselbe Falle steht in `ReferenzenGrid`,
+`CaseStudyBlock` und `DankePage`; sichtbar wurde sie nur dort, wo als Erstes ein Label
+rendert.
+
+Die Icon-Regel ist deshalb doppelt gestaffelt (`.ai-label .ai-label__icon`, mit den
+Scope-Attributen (0,4,0)). Kein `!important` — eine Kundenseite soll bewusst eingreifen
+dürfen.
+
+**Tweak:** Das Badge wächst mit der Bildbreite
+
+`clamp(22px, 4.5cqw, 34px)` statt fester 18–22px. `cqw` und nicht `vw`: `vw` misst das
+Browserfenster, nicht das Bild, und gäbe einer schmalen Kachel dasselbe große Badge wie
+einem Hero. Der Faktor ist an echten Breiten gemessen — Grid-Kachel ~400px
+(Untergrenze), Split-Hero ~600px (27px), seitenbreites Bild ~1200px (Obergrenze).
+
+**Fix:** Schnellhilfe-Knopf war auf ContentPage-Seiten grün auf rot
+
+Die Prosa-Link-Regel dort nimmt Buttons per Namensbestandteil aus („btn", „button");
+`FloatingCallButton` heißt `floating-call` und trug keinen davon. Ergebnis rund 1,5:1 —
+und ausgerechnet die Farbkombination, die eine Rot-Grün-Schwäche zuerst verschluckt.
+`floating` und `sticky` sind jetzt ebenfalls ausgenommen. Derselbe Vorfall wie am
+07.08.2026 bei Zink, nur eine Komponente weiter.
+
+Nachweis: 704 Tests, `astro check` 0 Fehler, stylelint sauber. `examples` 21 von 22
+Seiten strukturell unverändert, kein CSS-Selektor verschwunden. Die Beispielseite
+`ai-label-in-komponenten` deckt jetzt alle neun Komponenten **mit** gesetzter Prop ab —
+genau das fehlte, weshalb der Fehler durchrutschte. Gegenprobe gefahren: mit
+zurückgekürzter Regel reproduziert sie den Live-Fehler.
+
+**Migrations-Hinweis:** Keiner. Wer `groesse` an `AiLabelAmBild` fest setzt, behält
+seinen Wert.
+
+---
+
 ## v0.136.0 (2026-08-28)
 
 - [kunde:sichtbar] Die Schrift auf dem Haupt-Knopf wird nachgerechnet: liegt sie zu blass auf der Markenfarbe, bricht der Build ab, statt einen unlesbaren Knopf auszuliefern.
