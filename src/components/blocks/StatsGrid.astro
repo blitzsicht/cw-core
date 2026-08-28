@@ -47,7 +47,24 @@ const { items = [] } = Astro.props;
   }
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    /* 180px statt 140px, und min(…, 100%) als Schutz auf sehr schmalen
+       Bildschirmen. Damit passen bei 390 px Viewport keine zwei Spalten mehr
+       (2 x 180 + 24 Abstand = 384 > 342 verfuegbar), die Kennzahl bekommt die
+       volle Breite.
+
+       Anlass: mit 140px standen bei 390 px zwei Spalten a ~163 px, und
+       .stat-value hat einen festen Untergrenzwert von 2,5 rem = 40 px. Der
+       weiss nichts von der Spaltenbreite: "9.000+" wurde ~164 px breit und
+       ragte um 1 px hinaus. Gemessen am 28.08.2026 auf dem CI-Runner bei
+       customer-soleno, auf 25 Seiten — ein Pixel genuegt fuer echtes
+       seitliches Scrollen (ab 0,5 px meldet der Browser scrollWidth+1, und
+       scrollTo(9999,0) verschiebt die Seite tatsaechlich).
+
+       Die Schriftgroesse blieb bewusst unangetastet: sie kleiner zu rechnen
+       waere eine Breiten-Wette gewesen, die eine breitere Systemschrift auf
+       einer anderen Plattform erneut verliert. Mehr Platz statt weniger
+       Text. */
+    grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
     gap: 1.5rem;
   }
   .stat-card {

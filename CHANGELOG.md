@@ -22,6 +22,31 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.139.0 (2026-08-28)
+
+- [kunde:sichtbar] Die Kennzahlen-Kacheln stehen auf dem Handy jetzt untereinander statt zu zweit nebeneinander. Die Zahlen bekommen dadurch die volle Breite und werden nicht mehr abgeschnitten.
+
+**Fix:** eine Kennzahl war breiter als ihre Spalte
+
+`.stats-grid` stellte mit `minmax(140px, 1fr)` bei 390 px Viewport zwei Spalten à
+rund 163 px. `.stat-value` hat aber einen festen Untergrenzwert von
+`clamp(2.5rem, …)` = 40 px, und der weiß nichts von der Spaltenbreite: „9.000+"
+wurde etwa 164 px breit und ragte um **1 px** hinaus.
+
+Gemessen am 28.08.2026 auf dem CI-Runner bei customer-soleno, auf 25 Seiten.
+Ein Pixel genügt für echtes seitliches Scrollen — an einer Testseite mit exakt
+gesetztem Überstand nachgemessen: ab 0,5 px meldet der Browser `scrollWidth+1`,
+und `scrollTo(9999, 0)` verschiebt die Seite tatsächlich (`scrollX = 1`).
+
+Jetzt `minmax(min(180px, 100%), 1fr)`: bei 390 px passen keine zwei Spalten mehr
+(2 × 180 + 24 Abstand = 384 > 342 verfügbar), die Kennzahl bekommt die volle
+Breite. Die engste Luft steigt damit von 20 px auf 203 px — struktureller
+Abstand statt knappem Vermeiden.
+
+Die Schriftgröße blieb bewusst unangetastet. Sie kleiner zu rechnen wäre eine
+Breiten-Wette gewesen, die eine breitere Systemschrift auf einer anderen
+Plattform erneut verliert.
+
 ## v0.138.0 (2026-08-28)
 
 - [kunde:sichtbar] Auf schmalen Bildschirmen liess sich manche Seite seitlich verschieben, weil einzelne Bausteine breiter wurden als das Fenster. Das ist behoben; die Seite endet jetzt dort, wo der Bildschirm endet.
