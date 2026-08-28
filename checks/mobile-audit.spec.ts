@@ -13,7 +13,25 @@ for (const route of PAGES) {
 
     // Disable animations
     await page.addStyleTag({
-      content: `*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }`,
+      // Einblendungen in ihren ENDZUSTAND zwingen, nicht nur beschleunigen.
+      //
+      // `transition-duration: 0s` nimmt der Einblendung das Tempo, aber nicht den
+      // Startzustand: cw-core-Seiten verstecken [data-reveal] per
+      // `opacity: 0; transform: translateY(30px) skewX(-2deg)`, bis ein
+      // IntersectionObserver `.is-visible` setzt. Ein skewX verbreitert die
+      // Bounding-Box um rund `Hoehe x tan(2deg)` — bei einer 200 px hohen Kachel
+      // etwa 7 px. Ob der Observer beim Messen schon gefeuert hat, ist ein Rennen,
+      // und der Guard urteilte deshalb bei gleichem Eingang unterschiedlich:
+      // customer-gympanzen, derselbe Commit, drei Laeufe — gruen, gruen, rot
+      // (/club/, 7,3 px), nach der Umstellung auf `load` + fonts.ready dann
+      // rot, gruen, gruen.
+      //
+      // Gemessen wird der Zustand, den ein Besucher sieht, wenn die Seite steht —
+      // und dann sind die Einblendungen durch.
+      content: `
+        *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }
+        [data-reveal] { opacity: 1 !important; transform: none !important; }
+      `,
     });
 
     // Auf den fertigen Zustand warten — sonst flackert der Guard.
@@ -51,7 +69,11 @@ for (const route of PAGES) {
         if (r.width === 0 || r.height === 0 || r.right <= cw + 0.01) continue;
         if ([...el.children].some((k) => k.getBoundingClientRect().right >= r.right - 0.01)) continue;
         const cls = typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).join('.') : '';
-        taeter = `${el.tagName.toLowerCase()}${cls} — rechte Kante ${r.right.toFixed(1)}px, ${(r.right - cw).toFixed(1)}px zu weit`;
+        // transform mit ausgeben: ein skew oder translate erklaert einen
+        // Ueberstand, den die reine Breite nicht hergibt.
+        const cs = getComputedStyle(el);
+        const tf = cs.transform && cs.transform !== 'none' ? ` · transform ${cs.transform}` : '';
+        taeter = `${el.tagName.toLowerCase()}${cls} — rechte Kante ${r.right.toFixed(1)}px, ${(r.right - cw).toFixed(1)}px zu weit${tf}`;
         break;
       }
       // Kein Element? Dann steht der Text ueber, nicht seine Box — so lag es bei
