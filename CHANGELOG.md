@@ -22,6 +22,37 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.136.0 (2026-08-28)
+
+- [kunde:sichtbar] Die Schrift auf dem Haupt-Knopf wird nachgerechnet: liegt sie zu blass auf der Markenfarbe, bricht der Build ab, statt einen unlesbaren Knopf auszuliefern.
+
+**Fix:** eine falsche Zusicherung im Kern
+
+Über dem `text-shadow` von `.btn-accent` stand seit Langem:
+
+> `/* Subtle shadow ensures WCAG AA contrast even on lighter accent backgrounds */`
+
+Das ist ein Irrtum. Ein Schatten geht in kein Kontrastverhältnis ein — weder bei axe noch
+nach WCAG 2.x. Die Zeile hat eine Prüfung vorgetäuscht, die nie stattfand, und darunter
+setzte `.btn-accent` `color: var(--color-accent-btn-text, white)`: wer den Token nicht
+definiert, bekommt weiße Schrift auf seiner Markenfarbe.
+
+Gemessen am 28.08.2026 gegen die echten `tokens.css` der Live-Flotte fiel der Haupt-CTA
+bei **drei von zwölf** Kunden durch — soleno 1,65:1, digital-direkt 3,57:1,
+hausammincio 4,12:1.
+
+**Guard:** `button-contrast-check`
+
+Rechnet beim Build den Kontrast der Knopfschrift gegen `--color-accent` und bricht ab,
+wenn er unter 4,5:1 liegt — mit dem gemessenen Wert und dem Hinweis, dass die Markenfarbe
+dafür nicht weichen muss. Der Kern kann die Farbe nicht wählen; welche Schrift auf eine
+Marke passt, entscheidet der Kunde. Er kann sich aber weigern, einen unlesbaren Knopf
+auszuliefern.
+
+Ist ein Wert nicht rechenbar (`color-mix`, `rgb()`, ein exotischer Farbname), schweigt der
+Guard, statt eine Zahl zu erfinden. 12 Tests, alle mit echten Kundenfarben; drei Sabotagen
+machen 2, 4 bzw. 1 davon rot.
+
 ## v0.135.0 (2026-08-28)
 
 - [kunde:sichtbar] Bilder, die mit KI erzeugt wurden, tragen den gesetzlich vorgeschriebenen Hinweis jetzt auch auf der Startseite — bisher erschien er nur auf einzelnen Unterseiten.

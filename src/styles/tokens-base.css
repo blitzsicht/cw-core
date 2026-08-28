@@ -74,8 +74,15 @@ h1, h2, h3, h4, h5, h6 {
   transition: background 0.2s,
               transform var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1)),
               filter var(--motion-press-out, 200ms) var(--motion-ease-press, cubic-bezier(0.16, 1, 0.3, 1));
-  /* Subtle shadow ensures WCAG AA contrast even on lighter accent backgrounds */
-  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  /* Der Schatten ist Optik, KEIN Kontrast-Nachweis. Hier stand bis zum
+     28.08.2026 "Subtle shadow ensures WCAG AA contrast even on lighter accent
+     backgrounds" — das ist falsch: ein text-shadow geht in kein
+     Kontrastverhaeltnis ein, weder bei axe noch nach WCAG 2.x. Die Zeile hat
+     jahrelang eine Pruefung vorgetaeuscht, die nie stattfand. Gemessen am
+     28.08.2026 fiel der Haupt-CTA bei vier von zwoelf Live-Kunden durch
+     (soleno 1,65:1, mika 3,65, digital-direkt 3,57, hausamlago 4,28).
+     Den echten Nachweis fuehrt jetzt button-contrast-check.js beim Build. */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 .btn-accent:hover {
   background: var(--color-accent-hover);
