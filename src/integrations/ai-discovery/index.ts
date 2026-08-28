@@ -34,6 +34,7 @@ import { checkCspCompleteness, extractCspValuesFromVercelJson } from './csp-chec
 import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
+import { checkAnchorIntegrity, type AnchorIssue } from './anchor-integrity-check.js';
 import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 import {
   checkDeadFontFamilies,
@@ -268,6 +269,11 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   /** Gibt jeder Inhaltstabelle im Build `tabindex="0"`, damit der Scroll-Container
    *  per Tastatur erreichbar ist. Default: true. */
   makeTablesFocusable?: boolean;
+  /** Anker-Integritäts-Guard: meldet Links, die der Compiler hinter einer Tabelle
+   *  wieder aufgemacht hat, und Links ohne erkennbaren Namen. Default: true. */
+  checkAnchorIntegrity?: boolean;
+  /** Anker-Integritäts-Guard bricht den Build ab. Default: true. */
+  strictAnchorIntegrity?: boolean;
   /** Tabellen-Scroll-Guard: meldet Seiten mit Tabelle, aber ohne Scroll-Regel
    *  im ausgelieferten CSS. Default: true. */
   checkTableScroll?: boolean;
@@ -2466,6 +2472,45 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             logger.info(
               `Tabellen-Fokus: ${ergaenztGesamt} Scroll-Bereich(e) auf ${seitenMitTabelle} Seite(n) per Tastatur erreichbar gemacht.`,
             );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Anker-Integrität: kaputte Links im ausgelieferten HTML
+        // -------------------------------------------------------------------
+        // Auf blitzsicht.com/agb/sla stand der Schluss-Absatz der Seite INNERHALB
+        // eines Telefon-Links, dazu zwei leere Anker — im Quelltext war nichts
+        // davon zu sehen. Ursache: steht ein <a> als letzter Knoten der letzten
+        // Tabellenzelle, macht der Compiler ihn nach </table> wieder auf.
+        // Gefunden hat es axe (link-name), nicht der Blick in die Datei. Ein
+        // Guard am ausgelieferten HTML meldet es beim naechsten Mal sofort.
+        if (options.checkAnchorIntegrity !== false) {
+          const seiten = htmlFiles.map((file) => {
+            const pfad = file.slice(distDir.length).replace(/\/index\.html$/, '/');
+            let html = '';
+            try {
+              html = readFileSync(file, 'utf-8');
+            } catch {
+              /* unlesbare Datei: andere Guards melden das laut genug */
+            }
+            return { page: pfad.startsWith('/') ? pfad : `/${pfad}`, html };
+          });
+          const anchorIssues: AnchorIssue[] = checkAnchorIntegrity(seiten);
+          if (anchorIssues.length === 0) {
+            logger.info(`Anker-Guard: ✓ ${htmlFiles.length} Pages — keine kaputten Links.`);
+          } else {
+            logger.warn(`Anker-Guard: ${anchorIssues.length} Befund(e):`);
+            for (const issue of anchorIssues.slice(0, 20)) {
+              logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+            }
+            if (anchorIssues.length > 20) {
+              logger.warn(`  … und ${anchorIssues.length - 20} weitere.`);
+            }
+            if (options.strictAnchorIntegrity !== false) {
+              throw new Error(
+                `[ai-discovery] strictAnchorIntegrity=true: Build abgebrochen wegen ${anchorIssues.length} kaputten Link(s).`,
+              );
+            }
           }
         }
 
