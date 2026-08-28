@@ -172,7 +172,16 @@ const kartenLabel = await Promise.all(
 
   .leistungen-grid {
     display: grid;
-    grid-template-columns: repeat(var(--cols, 2), 1fr);
+    /* minmax(0, 1fr), nicht 1fr: `1fr` ist `minmax(auto, 1fr)`, und `auto`
+       heisst hier min-content. Ein langes Wort in einer Kachel zieht die
+       Spur damit ueber ihren Anteil hinaus, und das Raster sprengt seinen
+       eigenen Container — dieselbe Falle wie beim Tabellenbruch in v0.133.0.
+
+       Gemessen am 28.08.2026 an gottl-richter-gomeier bei 768 px:
+       Spuren 225,9 + 216,3 + 260,5 px plus 48 px Abstand = 750,7 px in
+       einem 720 px breiten Raster. Ursache war das Wort
+       "Betriebskostenabrechnungen" in der dritten Kachel. */
+    grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
     gap: 1.5rem;
     margin-top: 3rem;
   }
@@ -182,6 +191,11 @@ const kartenLabel = await Promise.all(
   }
 
   .leistung-card {
+    /* Damit minmax(0, 1fr) oben nicht nur den Ueberstand verschiebt: kann
+       die Spur jetzt schmaler werden als das laengste Wort, muss das Wort
+       brechen duerfen — sonst ragt es aus der Kachel statt aus dem Raster.
+       tokens-base.css setzt overflow-wrap nur auf Ueberschriften. */
+    overflow-wrap: break-word;
     background: var(--color-surface);
     border-radius: 0.75rem;
     padding: 2rem;

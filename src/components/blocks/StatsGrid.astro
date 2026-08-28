@@ -66,5 +66,12 @@ const { items = [] } = Astro.props;
     font-size: 0.9375rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+    /* Ein einzelnes langes Wort passt in eine 140-px-Spur nicht, und in
+       Grossbuchstaben mit Sperrung erst recht nicht: gemessen am 28.08.2026
+       an soleno war "Leistungsbereiche" 162 px breit und schob die Seite auf
+       393 px bei 390 px Viewport. hyphens trennt sauber, wo die Sprache
+       bekannt ist; overflow-wrap faengt den Rest, wo sie es nicht ist. */
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
 </style>

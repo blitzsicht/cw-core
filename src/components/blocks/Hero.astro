@@ -435,7 +435,10 @@ const collagenLabel = hasImages
   /* Split-Layout (mit Bild) */
   .hero--split .container {
     display: grid;
-    grid-template-columns: 55fr 45fr;
+    /* minmax(0, …) statt blossem fr: `55fr` ist `minmax(auto, 55fr)`, und
+       `auto` heisst min-content. Ein langes Wort im Hero zieht die Spalte
+       damit ueber ihren Anteil hinaus und sprengt den Container. */
+    grid-template-columns: minmax(0, 55fr) minmax(0, 45fr);
     gap: 3rem;
     align-items: center;
   }
@@ -662,7 +665,11 @@ const collagenLabel = hasImages
   /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
   @media (max-width: 900px) {
     .hero--split .container {
-      grid-template-columns: 1fr;
+      /* Auch einspaltig minmax(0, …): gemessen am 28.08.2026 an
+         digital-direkt bei 390 px war die einzige Spur 373 px breit statt
+         der verfuegbaren 342 — min-content der Hero-Stichpunkte
+         ("Herstellerunabhaengig") hatte sie aufgeblaeht, scrollWidth 397. */
+      grid-template-columns: minmax(0, 1fr);
     }
     /* Kein order:-1 mehr: Mobile-Fold-Regel (Blueprint docs/landingpage-blueprint.md)
        verlangt H1 + Trust-Zeile + CTA vor dem Bild im ersten Viewport. Natürliche

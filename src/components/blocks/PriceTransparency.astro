@@ -149,6 +149,10 @@ const schema = {
   }
   .pt-service-header {
     display: flex;
+    /* Umbrechen duerfen: Name und Preis stehen nebeneinander, solange beide
+       passen — sonst rutscht der Preis auf eine eigene Zeile, statt die
+       Karte aufzuschieben. */
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: baseline;
     gap: 1rem;
@@ -164,7 +168,18 @@ const schema = {
     font-size: 1.125rem;
     font-weight: 700;
     color: var(--color-primary, #1D1E3B);
-    white-space: nowrap;
+    /* KEIN white-space: nowrap. Gedacht war es fuer kurze Angaben wie
+       "800 EUR", die nicht mitten im Betrag brechen sollen. priceRange ist
+       aber ein freies Feld: bei steller-sanierungen steht dort
+       "800 EUR - 2.500 EUR pro m2 Wohnflaeche" — mit nowrap 305 px breit,
+       gemessen am 28.08.2026 auf 12 Ortsseiten bei 390 px Viewport
+       (scrollWidth 513). Der Text ragte aus der Karte und schob die ganze
+       Seite seitlich auf.
+
+       Zusammenhalten laesst sich ein Betrag im Inhalt (schmales geschuetztes
+       Leerzeichen), erzwingen laesst er sich hier nicht — der Kern kennt den
+       Text nicht, den ein Kunde eintraegt. */
+    overflow-wrap: break-word;
     font-feature-settings: "tnum";
   }
   .pt-service-desc {
