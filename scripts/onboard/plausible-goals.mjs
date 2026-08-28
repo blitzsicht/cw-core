@@ -127,6 +127,7 @@ export const SITE_GOALS = {
     { type: 'event', value: 'anleitung_fertig',     note: 'Anleitung durchlaufen, weiter zu /briefe' },
     { type: 'event', value: 'vorlage_kopiert',      note: 'Prompt in die Zwischenablage kopiert (Prop `slug`)' },
     { type: 'event', value: 'browserweg_interesse', note: 'Fake-Door — Entscheidungsgrundlage für Phase 5' },
+    { type: 'event', value: 'fehler_gemeldet',     note: 'Melde-Block im Fuß der Anleitungen und Anlass-Seiten (Prop `weg`: whatsapp | mail | github)' },
   ],
 };
 
