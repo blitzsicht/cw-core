@@ -52,7 +52,7 @@ const fotoLabel = photo ? await bildLabel({ bildHerkunft }, photo) : null;
     {photo ? (
       <div class="danke-photo">
         <Image src={photo} alt={photoAlt} width={96} height={96} widths={[96, 192, 288]} sizes="96px" />
-        {fotoLabel && <AiLabelAmBild ergebnis={fotoLabel.ergebnis} theme="hell" platzierung="unter-bild" groesse="18px" />}
+        {fotoLabel && <AiLabelAmBild ergebnis={fotoLabel.ergebnis} theme="hell" platzierung="unter-bild" />}
       </div>
     ) : (
       <div class="danke-icon">

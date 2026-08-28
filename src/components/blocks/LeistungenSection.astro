@@ -115,7 +115,7 @@ const kartenLabel = await Promise.all(
         {items.map((item, idx) => item.ctaPhone ? (
           <div class="leistung-card leistung-card-cta">
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} groesse="18px" />}</div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -133,7 +133,7 @@ const kartenLabel = await Promise.all(
         ) : item.href ? (
           <a href={item.href} class="leistung-card leistung-card-link" data-cta={`leistung-card:${item.title}`}>
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} groesse="18px" />}</div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -150,7 +150,7 @@ const kartenLabel = await Promise.all(
         ) : (
           <div class="leistung-card">
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} groesse="18px" />}</div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -250,6 +250,9 @@ const kartenLabel = await Promise.all(
   .leistung-image {
     /* Anker fuer die KI-Kennzeichnung, die unten links im Kartenbild sitzt. */
     position: relative;
+    /* Bezugsbreite fuer die Badge-Groesse (clamp(..., 2.4cqw, ...) in AiLabelAmBild).
+       Ohne diesen Container misst cqw das Browserfenster statt des Bildes. */
+    container-type: inline-size;
     margin: -2rem -2rem 1rem;
     border-radius: 0.75rem 0.75rem 0 0;
     overflow: hidden;

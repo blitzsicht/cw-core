@@ -193,14 +193,26 @@ const ariaVerbergen = imAlt ? undefined : 'true';
     color: #f5f6f7;
   }
 
-  .ai-label__icon {
+  /* Doppelt gestaffelter Selektor — bitte nicht auf `.ai-label__icon` zurückkürzen.
+     Das Badge steht in fremden Containern, und die haben eigene Bildregeln:
+     `.leistung-image :global(img) { width:100%; height:100% }` in LeistungenSection,
+     dasselbe in ReferenzenGrid, CaseStudyBlock und DankePage. Deren Spezifität ist
+     (0,2,1) und schlug die einfache Klassenregel (0,2,0) — am 28.08.2026 live zu sehen:
+     auf der Startseiten-Kachel von elektro-mika.com füllte das Badge die ganze Kachel.
+     Gestaffelt sind es (0,4,0), und die Umgebung kann das Symbol nicht mehr aufblasen.
+     Bewusst kein `!important`: eine Kundenseite soll bewusst eingreifen dürfen. */
+  .ai-label .ai-label__icon {
     /* Höhe an die Textzeile binden, damit das Symbol bei jeder Schriftgröße mitwächst und
        die von der EU geforderte „sichtbare Größe" nicht von der Umgebung wegskaliert wird.
        Über `groesse` kann die Seite eine feste Länge setzen — nötig dort, wo das Symbol
        allein steht und keine Textzeile mehr hat, an der es sich orientieren könnte. */
     height: var(--ai-label-symbolhoehe, 1.15em);
     width: auto;
+    max-width: none;
     flex: 0 0 auto;
+    /* Bildregeln der Umgebung setzen gern `object-fit: cover` — auf einer Pille mit
+       Schriftzug schneidet das den Text ab. */
+    object-fit: fill;
   }
 
   /* Steht das Symbol allein, ist der Abstand zum verborgenen Text gegenstandslos —

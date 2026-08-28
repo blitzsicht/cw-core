@@ -37,11 +37,33 @@ interface Props {
    * ("am Bild, nicht in einer Fussnote") genauso erfuellt.
    */
   platzierung?: 'auf-bild' | 'unter-bild';
-  /** Hoehe des Symbols. Standard 22px — gemessen an den Live-Seiten von soleno. */
+  /**
+   * Hoehe des Symbols. Ohne Angabe waechst es bei `auf-bild` mit der Breite des
+   * Bildes: `clamp(22px, 4.5cqw, 34px)`.
+   *
+   * `cqw` und nicht `vw`: `vw` misst das Browserfenster, nicht das Bild — eine
+   * 400-px-Kachel bekaeme auf einem breiten Bildschirm dasselbe grosse Badge wie ein
+   * 1400-px-Hero. Die Bild-Wrapper der rendernden Komponenten tragen dafuer
+   * `container-type: inline-size`.
+   *
+   * Untergrenze 22px, weil die EU eine "deutlich wahrnehmbare" Kennzeichnung verlangt;
+   * Obergrenze 34px, damit das Badge auf einem grossen Hero nicht zum Bildelement wird.
+   *
+   * Der Faktor 4.5 ist an den echten Breiten gemessen, nicht geschaetzt: eine
+   * Leistungs-Grid-Kachel ist rund 400px breit (-> Untergrenze greift), ein Split-Hero
+   * rund 600px (-> 27px), ein seitenbreites Leistungsbild rund 1200px (-> Obergrenze).
+   * Mit dem urspruenglich angesetzten 2.4 haette KEINE dieser Breiten die Untergrenze
+   * verlassen — das Badge waere ueberall gleich klein geblieben.
+   *
+   * Bei `unter-bild` steht es auf dem Seitengrund statt im Bild — dort gibt es keine
+   * sinnvolle Bezugsbreite, also feste 22px.
+   */
   groesse?: string;
 }
 
-const { ergebnis = null, theme = 'hell', platzierung = 'auf-bild', groesse = '22px' } = Astro.props;
+const { ergebnis = null, theme = 'hell', platzierung = 'auf-bild', groesse } = Astro.props;
+
+const symbolhoehe = groesse ?? (platzierung === 'auf-bild' ? 'clamp(22px, 4.5cqw, 34px)' : '22px');
 
 // Die Pflichtpruefung steht hier und nicht nur in AiLabel: der aeussere Wrapper darf ohne
 // Pflicht gar nicht erst entstehen. Ein leeres <span> auf jeder Bildflaeche der Flotte
@@ -56,6 +78,6 @@ const positionierung =
 
 {zeigen && (
   <span class="ai-label-am-bild" style={positionierung}>
-    <AiLabel ergebnis={ergebnis} theme={theme} beschriftung="im-alt" groesse={groesse} />
+    <AiLabel ergebnis={ergebnis} theme={theme} beschriftung="im-alt" groesse={symbolhoehe} />
   </span>
 )}

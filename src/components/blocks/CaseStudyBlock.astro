@@ -132,13 +132,13 @@ const schema = caseStudySchema(schemaInput);
             jeder bestehenden Fallstudie fuer nichts. Die Positionierung steht inline,
             damit kein Stylesheet auf Seiten ohne Label waechst. */}
         {images.slice(0, 3).map((src, i) => galerieLabel[i] ? (
-          <span style="position:relative;display:block">
+          <span style="position:relative;display:block;container-type:inline-size">
             <img
               src={src}
               alt={`${provider.name} — Referenzprojekt für ${customer}${location ? ` in ${location}` : ''}${images.length > 1 ? ` (${i + 1})` : ''}`}
               loading="lazy"
             />
-            <AiLabelAmBild ergebnis={galerieLabel[i]!.ergebnis} theme={galerieLabel[i]!.theme} groesse="18px" />
+            <AiLabelAmBild ergebnis={galerieLabel[i]!.ergebnis} theme={galerieLabel[i]!.theme} />
           </span>
         ) : (
           <img

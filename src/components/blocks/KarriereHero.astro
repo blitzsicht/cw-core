@@ -155,6 +155,9 @@ const teamLabel = hasImage ? await bildLabel({ bildHerkunft }, teamImage) : null
   .hero-image-wrap {
     /* Anker fuer die KI-Kennzeichnung, die unten links im Bild sitzt. */
     position: relative;
+    /* Bezugsbreite fuer die Badge-Groesse (clamp(..., 2.4cqw, ...) in AiLabelAmBild).
+       Ohne diesen Container misst cqw das Browserfenster statt des Bildes. */
+    container-type: inline-size;
     border-radius: 1rem;
     overflow: hidden;
     box-shadow: 0 24px 64px rgba(0,0,0,0.35);
