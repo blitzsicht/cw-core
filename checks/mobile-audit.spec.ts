@@ -61,21 +61,64 @@ for (const route of PAGES) {
     const { scrollWidth, clientWidth, taeter } = await page.evaluate(() => {
       const doc = document.documentElement;
       const cw = doc.clientWidth;
-      // Wer steht ueber? Nur der INNERSTE Uebeltaeter — traegt ein Kind denselben
-      // Ueberstand, ist das Kind gemeint, nicht sein Container.
-      let taeter = '';
+      // Wer steht ueber? NICHT einfach die aeusserste Box nehmen — die luegt,
+      // sobald ein Vorfahr clippt. Belegt am 28.08.2026 an customer-herztoene:
+      // gemeldet war `div.hero-blob` mit 76,8 px, der echte Ueberstand betrug
+      // 23 px (scrollWidth 791 gegen clientWidth 768). Der Blob sitzt in
+      // `.hero { overflow: hidden }` und scrollt gar nicht — er ragt nur
+      // geometrisch hinaus. Eine Diagnose, die aufs falsche Element zeigt, ist
+      // teurer als keine: sie schickt die Suche in die falsche Datei.
+      //
+      // Deshalb gemessen statt geschlossen: Kandidat ausblenden, scrollWidth
+      // neu lesen. Was den Scroll verursacht, verkuerzt ihn beim Verschwinden.
+      // Das deckt Clipping durch jeden Vorfahren ab, ohne die Regeln fuer
+      // Containing Blocks nachbauen zu muessen (position, transform, filter,
+      // contain — dort liegen die Sonderfaelle, die eine Heuristik verliert).
+      const soll = doc.scrollWidth;
+      const KAPPE = 50;
+      const kandidaten = [];
       for (const el of document.querySelectorAll('*')) {
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.height === 0 || r.right <= cw + 0.01) continue;
         if ([...el.children].some((k) => k.getBoundingClientRect().right >= r.right - 0.01)) continue;
+        kandidaten.push({ el, r });
+      }
+      // Jeder Kandidat kostet einen Reflow. Gekappt wird sichtbar, nie still —
+      // eine unerwaehnte Obergrenze liest sich wie „alles geprueft".
+      const gekappt = kandidaten.length > KAPPE;
+      let bester = null;
+      for (const k of kandidaten.slice(0, KAPPE)) {
+        const vorher = k.el.style.getPropertyValue('display');
+        const wichtig = k.el.style.getPropertyPriority('display');
+        k.el.style.setProperty('display', 'none', 'important');
+        const ohne = doc.scrollWidth;
+        if (vorher) k.el.style.setProperty('display', vorher, wichtig);
+        else k.el.style.removeProperty('display');
+        const wirkung = soll - ohne;
+        if (wirkung > 0 && (!bester || wirkung > bester.wirkung)) bester = { ...k, wirkung, ohne };
+      }
+      let taeter = '';
+      if (bester) {
+        const el = bester.el;
+        const r = bester.r;
         const cls = typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\s+/).join('.') : '';
         // transform mit ausgeben: ein skew oder translate erklaert einen
         // Ueberstand, den die reine Breite nicht hergibt.
         const cs = getComputedStyle(el);
         const tf = cs.transform && cs.transform !== 'none' ? ` · transform ${cs.transform}` : '';
-        taeter = `${el.tagName.toLowerCase()}${cls} — rechte Kante ${r.right.toFixed(1)}px, ${(r.right - cw).toFixed(1)}px zu weit${tf}`;
-        break;
+        // Bleibt nach dem Ausblenden Scroll uebrig, sind mehrere Ursachen im
+        // Spiel. Ohne diesen Zusatz wird nach dem ersten Fix Vollzug gemeldet
+        // und der Rest faellt beim naechsten Lauf erneut auf.
+        const rest = bester.ohne > cw + 0.01
+          ? ` — danach bleiben ${(bester.ohne - cw).toFixed(1)}px von anderer Stelle`
+          : '';
+        taeter = `${el.tagName.toLowerCase()}${cls} — rechte Kante ${r.right.toFixed(1)}px, verursacht ${bester.wirkung.toFixed(1)}px Scroll${tf}${rest}`;
+      } else if (kandidaten.length) {
+        // Elemente ragen hinaus, aber keines verursacht Scroll: alle geclippt.
+        // Genau der herztoene-Fall — frueher wurde hier das erste gemeldet.
+        taeter = `${kandidaten.length} Element(e) ragen hinaus, keines verursacht Scroll (alle geclippt) — Ursache liegt woanders`;
       }
+      if (gekappt && taeter) taeter += ` [nur die ersten ${KAPPE} von ${kandidaten.length} Kandidaten geprueft]`;
       // Kein Element? Dann steht der Text ueber, nicht seine Box — so lag es bei
       // steller-sanierungen: 45 Unterstriche in einer Ausfuellzeile, fuer den
       // Browser EIN Wort. Ohne diesen Zweig bliebe die Meldung leer, und genau
@@ -98,7 +141,7 @@ for (const route of PAGES) {
           if (taeter) break;
         }
       }
-      if (!taeter) taeter = '(weder Element noch Text ueber dem Rand — Ueberstand kommt woanders her)';
+      if (!taeter) taeter = '(kein Element und kein Text verursacht den Scroll — Ursache woanders, etwa eine Breitenangabe am Body)';
       return { scrollWidth: doc.scrollWidth, clientWidth: cw, taeter };
     });
     expect(

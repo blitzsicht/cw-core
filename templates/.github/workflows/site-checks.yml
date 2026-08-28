@@ -86,7 +86,7 @@ jobs:
           # einen Deprecation-Guard. Der Tag liegt deshalb unter demselben
           # Präfix — refs/tags/release/cw-core/vX.Y.Z, nicht refs/heads.
           # Gehoben wird dieser Pin vom cw-release-Skill, nicht von Hand.
-          ref: release/cw-core/v0.140.0
+          ref: release/cw-core/v0.141.0
           path: cw-core
 
       - name: Guard-Stand protokollieren
@@ -94,7 +94,7 @@ jobs:
         # Spec-Fassung ein Lauf geurteilt hat. Die Diagnose vom 28.08.2026 war
         # nur über den Vergleich von Zeilennummern in Fehlertexten möglich.
         run: |
-          echo "Guard-Specs: release/cw-core/v0.140.0 = $(git -C cw-core rev-parse --short HEAD)"
+          echo "Guard-Specs: release/cw-core/v0.141.0 = $(git -C cw-core rev-parse --short HEAD)"
 
       - name: pnpm einrichten
         uses: pnpm/action-setup@v4

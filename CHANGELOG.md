@@ -22,6 +22,59 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.141.0 (2026-08-28)
+
+**Der Guard zeigte auf das falsche Element.**
+
+Die Täter-Diagnose der Mobil-Prüfung nahm das erste Element in DOM-Reihenfolge,
+dessen rechte Kante über den Viewport ragt. Ob dieses Element den Scroll
+überhaupt verursacht, prüfte sie nicht — und ein Element unter einem Vorfahren
+mit `overflow: hidden` verursacht ihn nie: es ragt nur geometrisch hinaus,
+gezeichnet und gescrollt wird es nicht.
+
+Belegt an `customer-herztoene`, Lauf 33164034921 vom 28.08.2026:
+
+```
+Error: /: horizontal scroll (scrollWidth=791 > clientWidth=768)
+       Ueberstand verursacht von: div.hero-blob — rechte Kante 844.8px, 76.8px zu weit
+```
+
+**23 px echter Überstand, 76,8 px gemeldeter Täter.** Die Zahlen passen nicht
+zusammen — wäre der Blob die Ursache, stünde `scrollWidth` bei 845. Er sitzt in
+`.hero { overflow: hidden }` und scrollt gar nicht. Die eigentlichen 23 px kamen
+von woanders, und die Meldung schickte die Suche in die falsche Datei. Eine
+Diagnose, die aufs falsche Element zeigt, ist teurer als keine.
+
+**Jetzt gemessen statt geschlossen:** jeder Kandidat wird kurz auf
+`display: none` gesetzt und `scrollWidth` neu gelesen. Was den Scroll
+verursacht, verkürzt ihn beim Verschwinden. Gemeldet wird das Element mit der
+größten Wirkung, zusammen mit den Pixeln, die es tatsächlich verursacht.
+
+Der Umweg über die Kausalmessung ist Absicht: Clipping-Regeln nachzubauen hieße,
+Containing Blocks korrekt zu behandeln — `position`, `transform`, `filter`,
+`contain` —, und genau dort verliert eine Heuristik die Sonderfälle. Das
+Ausblenden deckt alle ab, ohne eine einzige davon zu kennen.
+
+Zwei Zusätze, die stille Fehlschlüsse verhindern:
+
+- Bleibt nach dem Ausblenden Scroll übrig, steht das in der Meldung
+  (`— danach bleiben Npx von anderer Stelle`). Sonst wird nach dem ersten Fix
+  Vollzug gemeldet und der Rest fällt beim nächsten Lauf erneut auf.
+- Ragen Elemente hinaus, verursacht aber keines Scroll, sagt die Meldung genau
+  das — statt eines davon zu beschuldigen. Das ist der herztoene-Fall.
+- Geprüft werden höchstens 50 Kandidaten (jeder kostet einen Reflow). Wird
+  gekappt, steht die Zahl in der Meldung — eine unerwähnte Obergrenze liest sich
+  wie „alles geprüft".
+
+**Gegenprobe** an einer nachgestellten Seite mit exakt den Zahlen des echten
+Laufs (`scrollWidth=791`, `clientWidth=768`): die alte Fassung meldet
+`div.hero-blob — 76,8px zu weit`, die neue `div.taeter — verursacht 23.0px
+Scroll`. Im Fall ohne echten Verursacher meldet die alte weiterhin den Blob, die
+neue „keines verursacht Scroll".
+
+Der Guard-Pin in `templates/.github/workflows/site-checks.yml` steht auf
+`release/cw-core/v0.141.0`.
+
 ## v0.140.0 (2026-08-28)
 
 **Der Guard steht jetzt so fest wie das, was er prüft.**
