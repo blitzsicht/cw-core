@@ -1,0 +1,90 @@
+---
+/**
+ * Gegenprobe zur Verdrahtung der KI-Kennzeichnung in den cw-core-Komponenten.
+ *
+ * Die Zusicherung der Aenderung lautet: ohne `bildHerkunft` aendert sich am gerenderten
+ * Ausgang nichts. Ein solcher Nachweis ist wertlos, solange nicht gezeigt ist, dass der
+ * Vergleich ueberhaupt anschlagen KANN. Diese Seite ist die Gegenrichtung — hier ist die
+ * Prop gesetzt, und hier muessen Label erscheinen.
+ *
+ * Die Bilddateien existieren bewusst nicht: `publicFsPath` findet dann nichts, die
+ * Farbmessung faellt auf die kontrastsichere schwarze Fassung zurueck, und das Label
+ * erscheint trotzdem. Genau dieser Rueckfall ist der haeufigste Fall im Bestand.
+ */
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import Hero from '@cw/core/components/blocks/Hero.astro';
+import TeamGrid from '@cw/core/components/blocks/TeamGrid.astro';
+import ReferenzenGrid from '@cw/core/components/blocks/ReferenzenGrid.astro';
+
+const bildHerkunft = [
+  { pathPrefix: 'images/', herkunft: 'mensch' },
+  {
+    pathPrefix: 'images/team/',
+    herkunft: 'ki-erzeugt',
+    deepfake: 'ja',
+    begruendung: 'Fotorealistisches Team, das so nie existiert hat',
+  },
+  {
+    pathPrefix: 'images/render/',
+    herkunft: 'ki-erzeugt',
+    deepfake: 'nein',
+    begruendung: 'Erkennbar illustratives Rendering, wirkt nicht als Aufnahme',
+  },
+];
+---
+<ExampleLayout
+  title="KI-Kennzeichnung in den Komponenten"
+  description="Dieselbe Deklaration wie auf /ai-label, aber die Komponenten loesen sie selbst auf. Erwartet: Label am Hero-Bild und an einem der beiden Teamfotos, keines an der Referenz."
+>
+  <div class="example-section">
+    <h2>Hero — pflichtiges Bild</h2>
+    <Hero
+      headline="Hero mit KI-Bild"
+      subtext="Das Bild liegt unter images/team/ und ist als Deepfake eingeordnet."
+      imageSrc="/images/team/gruppe.webp"
+      imageAlt="Team"
+      imageWidth={1024}
+      imageHeight={664}
+      bildHerkunft={bildHerkunft}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Hero — dasselbe Markup ohne Deklaration</h2>
+    <Hero
+      headline="Hero ohne bildHerkunft"
+      subtext="Kein Label, kein zusaetzliches Element."
+      imageSrc="/images/team/gruppe.webp"
+      imageAlt="Team"
+      imageWidth={1024}
+      imageHeight={664}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>TeamGrid — ein pflichtiges, ein menschliches Foto</h2>
+    <TeamGrid
+      heading="Team"
+      members={[
+        { name: 'Anna Beispiel', role: 'Technik', image: '/images/team/anna.webp' },
+        { name: 'Bert Beispiel', role: 'Vertrieb', image: '/images/halle/bert.webp' },
+      ]}
+      bildHerkunft={bildHerkunft}
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>ReferenzenGrid — Rendering ohne Pflicht</h2>
+    <ReferenzenGrid
+      items={[
+        {
+          title: 'Produktrendering',
+          description: 'KI-erzeugt, aber erkennbar illustrativ — keine Pflicht.',
+          imageSrc: '/images/render/produkt.webp',
+          imageAlt: 'Rendering',
+        },
+      ]}
+      bildHerkunft={bildHerkunft}
+    />
+  </div>
+</ExampleLayout>

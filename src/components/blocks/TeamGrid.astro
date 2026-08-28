@@ -37,6 +37,9 @@ export interface TeamMember {
   phone?: string;
 }
 
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
+
 interface Props {
   /** Section heading. */
   heading?: string;
@@ -51,6 +54,15 @@ interface Props {
   ctaHref?: string;
   /** Background variant. Default 'default'. */
   background?: 'surface' | 'default';
+  /**
+   * `siteData.bildHerkunft`. Teamfotos sind der haeufigste Fall einer Pflicht nach
+   * Art. 50 Abs. 4 UAbs. 1 AI Act: ein fotorealistischer Mensch, den es nicht gibt, ist ein
+   * Deepfake im Sinne von Art. 3 Nr. 60. Das Badge steht unter dem Bild — auf einem 96-px-
+   * Avatar verdeckte es sonst das Gesicht.
+   *
+   * Ohne diese Prop aendert sich am gerenderten Ausgang nichts.
+   */
+  bildHerkunft?: unknown[];
 }
 
 const {
@@ -61,7 +73,12 @@ const {
   ctaLabel,
   ctaHref,
   background = 'default',
+  bildHerkunft,
 } = Astro.props;
+
+const mitgliedLabel = await Promise.all(
+  members.map((m) => (m.image ? bildLabel({ bildHerkunft }, m.image) : null)),
+);
 
 const initials = (name: string): string =>
   name
@@ -78,10 +95,13 @@ const initials = (name: string): string =>
     {subheading && <p class="team-grid-intro">{subheading}</p>}
 
     <div class="team-grid">
-      {members.map((m) => (
+      {members.map((m, idx) => (
         <div class="team-card">
           {m.image ? (
-            <img class="team-avatar team-avatar-photo" src={m.image} alt={m.name} loading="lazy" width="96" height="96" />
+            <Fragment>
+              <img class="team-avatar team-avatar-photo" src={m.image} alt={m.name} loading="lazy" width="96" height="96" />
+              {mitgliedLabel[idx] && <AiLabelAmBild ergebnis={mitgliedLabel[idx]!.ergebnis} theme="hell" platzierung="unter-bild" groesse="18px" />}
+            </Fragment>
           ) : (
             <div class="team-avatar" aria-hidden="true">{initials(m.name)}</div>
           )}

@@ -1,0 +1,61 @@
+---
+/**
+ * AiLabelAmBild — die eine Stelle, an der die Kennzeichnung ihren Platz bekommt.
+ *
+ * `AiLabel` positioniert bewusst nicht: es ist ein `inline-flex`-Baustein und weiss
+ * nichts darueber, worin es steht. Die Position ist aber keine Geschmacksfrage, sondern
+ * ueber die Flotte gemessen (siehe Kopf von AiLabel.astro, Festlegung 4): unten links,
+ * immer dieselbe Stelle, weil unten rechts von StickyContact und den Floating-Buttons
+ * belegt ist und oben heller und unruhiger.
+ *
+ * Neun cw-core-Komponenten rendern Kundenbilder. Ohne diesen Baustein entstuende die
+ * Positionierung neunmal einzeln und driftete auseinander.
+ *
+ * ## Warum die Position inline steht und nicht in einem `<style>`-Block
+ *
+ * Astro buendelt das CSS einer importierten Komponente in die Seite, **auch wenn sie
+ * dort nie rendert**. Ein `<style>`-Block hier landete also auf jeder Seite jedes
+ * Kunden, der einen Hero benutzt — auch auf den ueber 200 Fundstellen ohne jede
+ * Kennzeichnungspflicht. Fuenf statische Deklarationen ohne Media-Query-Bedarf sind das
+ * nicht wert. Die Werte stehen trotzdem nur hier.
+ */
+import AiLabel from './AiLabel.astro';
+import { istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
+import type { BildHerkunftErgebnis } from '../../utils/bildherkunft.js';
+
+interface Props {
+  /** Ergebnis aus `bildLabel`/`resolveBildHerkunft`. Ohne Pflicht rendert AiLabel nichts. */
+  ergebnis?: Pick<BildHerkunftErgebnis, 'herkunft' | 'deepfake'> | null;
+  /** Farbfassung, ueblicherweise aus `bildLabel().theme`. */
+  theme?: 'hell' | 'dunkel' | 'auto';
+  /**
+   * `auf-bild` (Standard) legt das Badge unten links **ueber** das Motiv. Der umgebende
+   * Bild-Wrapper muss dafuer `position: relative` tragen.
+   *
+   * `unter-bild` fuer kleine Motive — ein 48x24-Badge verdeckt einen 96-px-Avatar fast
+   * zur Haelfte. Dort steht es als Bildunterschrift darunter, was Art. 50 Abs. 5
+   * ("am Bild, nicht in einer Fussnote") genauso erfuellt.
+   */
+  platzierung?: 'auf-bild' | 'unter-bild';
+  /** Hoehe des Symbols. Standard 22px — gemessen an den Live-Seiten von soleno. */
+  groesse?: string;
+}
+
+const { ergebnis = null, theme = 'hell', platzierung = 'auf-bild', groesse = '22px' } = Astro.props;
+
+// Die Pflichtpruefung steht hier und nicht nur in AiLabel: der aeussere Wrapper darf ohne
+// Pflicht gar nicht erst entstehen. Ein leeres <span> auf jeder Bildflaeche der Flotte
+// waere eine Aenderung am Markup von ueber 200 Fundstellen fuer nichts.
+const zeigen = !!ergebnis && istKennzeichnungspflichtig(ergebnis);
+
+const positionierung =
+  platzierung === 'auf-bild'
+    ? 'position:absolute;left:1rem;bottom:0.9rem;z-index:2;max-width:calc(100% - 2rem)'
+    : 'display:block;margin-top:0.5rem';
+---
+
+{zeigen && (
+  <span class="ai-label-am-bild" style={positionierung}>
+    <AiLabel ergebnis={ergebnis} theme={theme} beschriftung="im-alt" groesse={groesse} />
+  </span>
+)}

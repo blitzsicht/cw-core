@@ -31,6 +31,10 @@
       "default": "./src/utils/bildherkunft.js"
     },
     "./utils/image-format": "./src/utils/image-format.js",
+    "./utils/bildlabel": {
+      "types": "./src/utils/bildlabel.d.ts",
+      "default": "./src/utils/bildlabel.js"
+    },
     "./utils/labelfarbe": {
       "types": "./src/utils/labelfarbe.d.ts",
       "default": "./src/utils/labelfarbe.js"

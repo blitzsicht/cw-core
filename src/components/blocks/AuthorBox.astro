@@ -24,6 +24,9 @@
  *     bio="7 Jahre Banking-Software-Frontend bei knowis AG. Mitglied der Mensa in Deutschland e.V."
  *   />
  */
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
+
 export interface Props {
   /** Vollständiger Name. */
   name: string;
@@ -39,6 +42,13 @@ export interface Props {
   eyebrow?: string;
   /** Label des CTA-Links. Defaults to "Vollständiges Profil". */
   ctaLabel?: string;
+  /**
+   * `siteData.bildHerkunft`. Das Portrait ist 120x150 px — zu klein fuer ein
+   * Badge darauf. Die Kennzeichnung steht darunter.
+   *
+   * Ohne diese Prop aendert sich am gerenderten Ausgang nichts.
+   */
+  bildHerkunft?: unknown[];
 }
 
 const {
@@ -49,7 +59,10 @@ const {
   bio,
   eyebrow = 'Über den Autor',
   ctaLabel = 'Vollständiges Profil',
+  bildHerkunft,
 } = Astro.props;
+
+const portraitLabel = await bildLabel({ bildHerkunft }, image);
 ---
 <aside class="author-box" aria-labelledby="author-box-name">
   <a class="author-box-photo-wrap" href={profileUrl} aria-label={`Profil von ${name}`}>
@@ -62,6 +75,7 @@ const {
       class="author-box-photo"
     />
   </a>
+  {portraitLabel && <AiLabelAmBild ergebnis={portraitLabel.ergebnis} theme="hell" platzierung="unter-bild" groesse="18px" />}
   <div class="author-box-meta">
     <p class="author-box-eyebrow">{eyebrow}</p>
     <h3 id="author-box-name" class="author-box-name">

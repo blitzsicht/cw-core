@@ -29,6 +29,8 @@ import StaggerGroup from '../motion/StaggerGroup.astro';
 import ParallaxImage from '../motion/ParallaxImage.astro';
 import MagneticButton from '../motion/MagneticButton.astro';
 import TiltCard from '../motion/TiltCard.astro';
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
 
 export interface HeroCollageImage {
   src: ImageMetadata;
@@ -156,6 +158,21 @@ interface Props {
   usps?: readonly HeroUSP[];
   /** Opt-in motion effects. Any omitted flags default to off (static hero). */
   motion?: HeroMotionConfig | boolean;
+  /**
+   * `siteData.bildHerkunft` — die Bild-Deklaration des Kunden. Ist sie gesetzt und weist
+   * das Hero-Bild als Deepfake im Sinne von Art. 3 Nr. 60 aus, setzt der Hero die
+   * Kennzeichnung nach Art. 50 Abs. 4 UAbs. 1 AI Act selbst.
+   *
+   * Warum hier und nicht in der Seite: der Hero rendert sein `<Image>` im eigenen Markup,
+   * von aussen ist darin nichts zu platzieren. Bei mika-elektrotechnik war dasselbe
+   * KI-Bild deshalb auf der Leistungsseite gekennzeichnet und als Startseiten-Kachel nicht.
+   *
+   * Ohne diese Prop aendert sich am gerenderten Hero nichts.
+   *
+   * @example
+   *   <Hero image={heroImage} bildHerkunft={siteData.bildHerkunft} ... />
+   */
+  bildHerkunft?: unknown[];
 }
 
 const {
@@ -177,6 +194,7 @@ const {
   ctaSecondary,
   usps = [],
   motion,
+  bildHerkunft,
 } = Astro.props;
 
 const hasImages = Array.isArray(images) && images.length >= 2;
@@ -191,6 +209,15 @@ const motionCfg: HeroMotionConfig =
   motion === true
     ? { blob: true, textReveal: true, stagger: true, parallax: true, magnetic: true }
     : (motion || {});
+
+/* Die Kennzeichnung wird im Frontmatter aufgeloest, nicht im Markup: `bildLabel` ist
+   asynchron (es misst bei Pflicht die Helligkeit der Badge-Ecke), und in einem `.map()`
+   im Template gibt es kein `await`. */
+const bildDaten = { bildHerkunft };
+const heroLabel = hasImage ? await bildLabel(bildDaten, image ?? imageSrc) : null;
+const collagenLabel = hasImages
+  ? await Promise.all(images!.slice(0, 3).map((img) => bildLabel(bildDaten, img.src)))
+  : [];
 ---
 <section class:list={['hero', (hasMedia || hatVisual) && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image', tauscheVisual && 'hero--visual-swap']}>
   {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}
@@ -303,7 +330,7 @@ const motionCfg: HeroMotionConfig =
               decoding="async"
               class="hero-img"
             />
-          )}
+          )}{heroLabel && <AiLabelAmBild ergebnis={heroLabel.ergebnis} theme={heroLabel.theme} />}
         </ParallaxImage>
       ) : (
         <div class="hero-image-wrap">
@@ -332,7 +359,7 @@ const motionCfg: HeroMotionConfig =
               decoding="async"
               class="hero-img"
             />
-          )}
+          )}{heroLabel && <AiLabelAmBild ergebnis={heroLabel.ergebnis} theme={heroLabel.theme} />}
         </div>
       )
     )}
@@ -369,6 +396,9 @@ const motionCfg: HeroMotionConfig =
                 format="webp"
                 class="hero-collage-img"
               />
+              {collagenLabel[idx] && (
+                <AiLabelAmBild ergebnis={collagenLabel[idx]!.ergebnis} theme={collagenLabel[idx]!.theme} groesse="18px" />
+              )}
             </div>
           </TiltCard>
         ))}
@@ -413,6 +443,14 @@ const motionCfg: HeroMotionConfig =
     border-radius: 1rem;
     overflow: hidden;
     box-shadow: 0 24px 64px rgba(0,0,0,0.35);
+  }
+  /* Anker fuer die KI-Kennzeichnung, die unten links im Bild sitzt.
+     `:global` ist hier Pflicht, nicht Stil: mit `motion.parallax` rendert ParallaxImage
+     diesen Wrapper, und er traegt dann DESSEN Scope-Kennung statt der von Hero — eine
+     gescopte Regel greift an ihm nicht, und das Badge fiele aus dem Bild heraus an den
+     Seitenrand. Dieselbe Ursache wie bei `.hero--visual-swap` und `.hero--collage`. */
+  .hero :global(.hero-image-wrap) {
+    position: relative;
   }
 
   /* --- visual-Slot ------------------------------------------------------
@@ -523,6 +561,8 @@ const motionCfg: HeroMotionConfig =
     z-index: 2;
   }
   .hero-collage :global(.hero-collage-frame) {
+    /* Anker fuer die KI-Kennzeichnung — siehe `.hero :global(.hero-image-wrap)`. */
+    position: relative;
     border-radius: 1rem;
     overflow: hidden;
     background: white;
