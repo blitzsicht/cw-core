@@ -75,11 +75,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: blitzsicht/cw-core
+          # Fester Tag, kein Branch-Kopf. Das Kundenrepo pinnt cw-core als
+          # Bibliothek exakt (@cw/core in package.json) — also muss der Prüfer
+          # genauso fest stehen, sonst ist kein Lauf mit einem anderen
+          # vergleichbar. Belegt am 28.08.2026: auf customer-gympanzen@43ec4d4
+          # standen 7 grüne gegen 3 rote Läufe bei gleichem Kunden-Commit, weil
+          # drei cw-core-Commits (#94, #95, #96) ins Messfenster fielen und
+          # `release/cw-core` mitwanderte.
           # Der Default-Branch von cw-core IST release/cw-core; main trägt nur
-          # einen Deprecation-Guard. Explizit, damit ein späterer Wechsel des
-          # Default-Branches diesen Guard nicht still auf toten Code zeigen lässt.
-          ref: release/cw-core
+          # einen Deprecation-Guard. Der Tag liegt deshalb unter demselben
+          # Präfix — refs/tags/release/cw-core/vX.Y.Z, nicht refs/heads.
+          # Gehoben wird dieser Pin vom cw-release-Skill, nicht von Hand.
+          ref: release/cw-core/v0.140.0
           path: cw-core
+
+      - name: Guard-Stand protokollieren
+        # Ohne diese Zeile ist im Nachhinein nicht feststellbar, gegen welche
+        # Spec-Fassung ein Lauf geurteilt hat. Die Diagnose vom 28.08.2026 war
+        # nur über den Vergleich von Zeilennummern in Fehlertexten möglich.
+        run: |
+          echo "Guard-Specs: release/cw-core/v0.140.0 = $(git -C cw-core rev-parse --short HEAD)"
 
       - name: pnpm einrichten
         uses: pnpm/action-setup@v4

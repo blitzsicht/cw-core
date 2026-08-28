@@ -22,6 +22,60 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.140.0 (2026-08-28)
+
+**Der Guard steht jetzt so fest wie das, was er prüft.**
+
+Der Flotten-Guard checkte seine eigenen Specs mit `ref: release/cw-core` aus —
+einem beweglichen Branch-Kopf. Das Kundenrepo pinnt cw-core als Bibliothek
+dagegen exakt. Der Prüfling stand fest, der Prüfer nicht.
+
+Am 28.08.2026 fielen drei cw-core-Commits mitten in ein Messfenster: auf
+`customer-gympanzen@43ec4d4` standen 7 grüne gegen 3 rote Läufe bei **gleichem
+Kunden-Commit**. Sichtbar wurde es an den Zeilennummern im Fehlertext — derselbe
+Fehler zeigte einmal `83|84`, einmal `66|67`, weil sich das Spec zwischen den
+Läufen geändert hatte.
+
+`templates/.github/workflows/site-checks.yml` pinnt deshalb auf
+`release/cw-core/v0.140.0` statt auf den Branch. Ein neuer Schritt
+protokolliert den aufgelösten Guard-SHA — ohne ihn war im Nachhinein nicht
+feststellbar, gegen welche Fassung ein Lauf geurteilt hat.
+
+Der Pin wird künftig vom `cw-release`-Skill gehoben und über
+`customer-websites/scripts/rollout-site-checks.sh` verteilt. Er von Hand zu
+pflegen hieße, ihn stillschweigend veralten zu lassen.
+
+**Nicht an den Bibliotheks-Pin gekoppelt** — geprüft und verworfen: `checks/`
+existiert erst ab v0.138.0. Bei v0.114.0, v0.110.0 und v0.39.0 antwortet die
+API mit 404, fünf Repos hätten also gar keinen Guard-Code.
+
+### Enthält außerdem die bis dahin ungetaggten Guard-Fixes
+
+**#95 — der Guard urteilte bei gleichem Eingang unterschiedlich**
+
+Gemessen wurde bei `domcontentloaded`, während Schriften und Bilder noch liefen.
+Ob das Layout beim Messen stand, war ein Rennen. Jetzt `load` + `fonts.ready`:
+gemessen wird der Zustand, den ein Besucher sieht, wenn die Seite fertig ist.
+Dauerhafte Überstände fängt das unverändert — an `gottl-richter-gomeier`
+nachgemessen, wo der Befund bestehen blieb (797 px), weil er nicht vom Laden abhing.
+
+**#96 — der Guard maß Kacheln, die noch gar nicht eingeblendet waren**
+
+`transition-duration: 0s` nahm der Einblendung das Tempo, nicht den Startzustand:
+`[data-reveal]` steht auf `opacity: 0; transform: translateY(30px) skewX(-2deg)`,
+bis der IntersectionObserver `.is-visible` setzt. Ein `skewX(-2deg)` verbreitert
+die Bounding-Box um rund `Höhe × tan(2°)` — bei einer 200 px hohen Kachel etwa
+7 px. Genau das war der 7,3-px-Befund an `/club/`: **ein Messartefakt des Guards,
+kein Defekt der Kundenseite.** Einblendungen werden jetzt in ihren Endzustand
+gezwungen, und die Täter-Meldung gibt `transform` mit aus — ein Skew erklärt
+einen Überstand, den die reine Breite nicht hergibt.
+
+**#97 — der Guard läuft nur noch vor dem Merge**
+
+`pull_request` + `workflow_dispatch` statt zusätzlich bei jedem Push. Das
+Actions-Kontingent gibt mehr nicht her (August 2026: 5.915 gewichtete von 2.000
+Freiminuten).
+
 ## v0.139.0 (2026-08-28)
 
 - [kunde:sichtbar] Die Kennzahlen-Kacheln stehen auf dem Handy jetzt untereinander statt zu zweit nebeneinander. Die Zahlen bekommen dadurch die volle Breite und werden nicht mehr abgeschnitten.
