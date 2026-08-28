@@ -52,7 +52,7 @@ const referenzLabel = await Promise.all(items.map((r) => bildLabel({ bildHerkunf
           <div class="referenz-image-wrap">
             <img src={r.imageSrc} alt={r.imageAlt} loading="lazy" width="800" height="540" />
             {r.badge && <span class="referenz-badge">{r.badge}</span>}
-            {referenzLabel[idx] && <AiLabelAmBild ergebnis={referenzLabel[idx]!.ergebnis} theme={referenzLabel[idx]!.theme} groesse="18px" />}
+            {referenzLabel[idx] && <AiLabelAmBild ergebnis={referenzLabel[idx]!.ergebnis} theme={referenzLabel[idx]!.theme} />}
           </div>
           <div class="referenz-body">
             <h2>{r.title}</h2>
@@ -95,6 +95,9 @@ const referenzLabel = await Promise.all(items.map((r) => bildLabel({ bildHerkunf
   }
   .referenz-image-wrap {
     position: relative;
+    /* Bezugsbreite fuer die Badge-Groesse (clamp(..., 2.4cqw, ...) in AiLabelAmBild).
+       Ohne diesen Container misst cqw das Browserfenster statt des Bildes. */
+    container-type: inline-size;
     aspect-ratio: 4 / 3;
     overflow: hidden;
     background: #f3f4f6;

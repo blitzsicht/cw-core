@@ -397,7 +397,7 @@ const collagenLabel = hasImages
                 class="hero-collage-img"
               />
               {collagenLabel[idx] && (
-                <AiLabelAmBild ergebnis={collagenLabel[idx]!.ergebnis} theme={collagenLabel[idx]!.theme} groesse="18px" />
+                <AiLabelAmBild ergebnis={collagenLabel[idx]!.ergebnis} theme={collagenLabel[idx]!.theme} />
               )}
             </div>
           </TiltCard>
@@ -451,6 +451,9 @@ const collagenLabel = hasImages
      Seitenrand. Dieselbe Ursache wie bei `.hero--visual-swap` und `.hero--collage`. */
   .hero :global(.hero-image-wrap) {
     position: relative;
+    /* Bezugsbreite fuer die Badge-Groesse (clamp(..., 2.4cqw, ...) in AiLabelAmBild).
+       Ohne diesen Container misst cqw das Browserfenster statt des Bildes. */
+    container-type: inline-size;
   }
 
   /* --- visual-Slot ------------------------------------------------------
@@ -563,6 +566,9 @@ const collagenLabel = hasImages
   .hero-collage :global(.hero-collage-frame) {
     /* Anker fuer die KI-Kennzeichnung — siehe `.hero :global(.hero-image-wrap)`. */
     position: relative;
+    /* Bezugsbreite fuer die Badge-Groesse (clamp(..., 2.4cqw, ...) in AiLabelAmBild).
+       Ohne diesen Container misst cqw das Browserfenster statt des Bildes. */
+    container-type: inline-size;
     border-radius: 1rem;
     overflow: hidden;
     background: white;

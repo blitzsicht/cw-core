@@ -100,7 +100,7 @@ const initials = (name: string): string =>
           {m.image ? (
             <Fragment>
               <img class="team-avatar team-avatar-photo" src={m.image} alt={m.name} loading="lazy" width="96" height="96" />
-              {mitgliedLabel[idx] && <AiLabelAmBild ergebnis={mitgliedLabel[idx]!.ergebnis} theme="hell" platzierung="unter-bild" groesse="18px" />}
+              {mitgliedLabel[idx] && <AiLabelAmBild ergebnis={mitgliedLabel[idx]!.ergebnis} theme="hell" platzierung="unter-bild" />}
             </Fragment>
           ) : (
             <div class="team-avatar" aria-hidden="true">{initials(m.name)}</div>
