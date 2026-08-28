@@ -63,3 +63,55 @@ jobs:
       # man vorher weiss, ob das Verhalten stimmt.
       - name: pnpm check (astro check — 0 errors erwartet)
         run: pnpm check
+
+  # ── Guard fuer die Guards ───────────────────────────────────────────────────
+  # checks/ wird von templates/.github/workflows/site-checks.yml in JEDEM
+  # Kundenrepo ausgecheckt und gefahren. Ein Tippfehler oder ein kaputter Import
+  # dort bricht damit nicht ein Repo, sondern alle 23 gleichzeitig — und zwar
+  # erst dann, wenn dort das naechste Mal jemand pusht.
+  #
+  # Dieser Job faengt das hier: er installiert checks/ und laesst Playwright die
+  # Tests AUFZAEHLEN. Das laedt playwright.config.ts, beide Specs und seiten.ts,
+  # ohne einen Browser zu starten (~20 s).
+  #
+  # Ohne DIST_DIR findet seiten.ts keine sitemap-0.xml und faellt bewusst auf den
+  # Kern zurueck: 2 Specs x 2 Routen x 2 Projekte = 8 Tests. Die Zahl wird
+  # geprueft, nicht
+  # nur der Exit-Code — genau hier lag die teuerste Falle: unter Node 26 lieferte
+  # @playwright/test 1.52.0 Exit 0 und NULL Tests, ohne eine Zeile Ausgabe. Ein
+  # Lauf, der nichts geprueft hat, sieht sonst aus wie ein bestandener.
+  guards:
+    name: checks/ laedt und zaehlt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # checks/ hat ein eigenes packageManager-Feld (pnpm@10.0.0) — dasselbe,
+          # das die Kundenrepos pinnen. Die Wurzel von cw-core steht auf 9; die
+          # beiden Jobs teilen sich deshalb bewusst keine pnpm-Fassung.
+          package_json_file: checks/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: checks/pnpm-lock.yaml
+
+      - run: pnpm install --frozen-lockfile
+        working-directory: checks
+
+      - name: Specs aufzaehlen (8 Tests erwartet — Kern-Rueckfall ohne DIST_DIR)
+        working-directory: checks
+        run: |
+          set -euo pipefail
+          AUSGABE=$(pnpm exec playwright test --project=mobile --project=tablet --list)
+          echo "$AUSGABE"
+          ANZAHL=$(echo "$AUSGABE" | grep -oE 'Total: [0-9]+ test' | grep -oE '[0-9]+' || echo 0)
+          echo "gezaehlt: $ANZAHL"
+          if [ "${ANZAHL:-0}" -ne 8 ]; then
+            echo "::error::Erwartet waren 8 Tests (2 Specs x 2 Kern-Routen x 2 Viewports), gezaehlt: $ANZAHL"
+            exit 1
+          fi

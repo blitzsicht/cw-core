@@ -1,0 +1,21 @@
+{
+  "name": "@cw/core-checks",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.0.0",
+  "description": "Flotten-Guards (a11y + mobil) für Customer-Websites — laufen in jedem customer-* Repo über templates/.github/workflows/site-checks.yml",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "playwright test --project=mobile --project=tablet",
+    "test:mobil": "playwright test mobile-audit.spec.ts --project=mobile --project=tablet",
+    "test:a11y": "playwright test a11y-audit.spec.ts --project=mobile --project=tablet"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.2",
+    "@playwright/test": "1.62.1",
+    "serve": "14.2.4"
+  }
+}

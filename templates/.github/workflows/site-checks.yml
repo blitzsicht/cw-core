@@ -1,0 +1,187 @@
+# Site Checks — Customer-Website-Guards
+#
+# Prüft den FRISCH GEBAUTEN Build auf mobile Tauglichkeit (kein horizontaler
+# Überstand, keine Bilder breiter als der Viewport) und auf Barrierefreiheit
+# (axe-core, WCAG 2.x AA).
+#
+# Vorlage: cw-core/templates/.github/workflows/site-checks.yml
+# Ausgerollt über: customer-websites/scripts/rollout-site-checks.sh
+# NICHT hier im Kundenrepo bearbeiten — Änderungen gehen an der Vorlage
+# verloren, sobald das Rollout-Skript erneut läuft.
+#
+# ── Warum hier kein Screenshot-Vergleich läuft (Stand 07.08.2026) ────────────
+# Bis dahin lief zusätzlich ein Pixelvergleich gegen gespeicherte Baselines. Er
+# war in 330 Läufen seit dem 26.04.2026 KEIN EINZIGES MAL grün (255 failure,
+# 75 cancelled, 0 success). Ursache war nicht ein Bug, sondern die Konstruktion:
+# er feuerte bei Kunden-Commits, während Baselines nur über einen
+# cw-core-gebundenen Workflow erneuert werden konnten — und der lag seit dem
+# 18.04.2026 still. Jeder neue Blogartikel machte ihn dauerhaft rot.
+# Der Schutz, um den es dabei ging ("bricht etwas, WEIL wir im Core was
+# ändern"), lebt in cw-visual-tests als A/B-Gate: dieselbe Kundenseite zweimal
+# bauen, alter Core gegen Kandidat, diffen. Keine Baselines, nichts das
+# veraltet.
+#
+# ── Warum die Specs aus cw-core kommen ───────────────────────────────────────
+# cw-core ist PUBLIC — actions/checkout holt es ohne Schlüssel. Die Specs lagen
+# vorher in cw-visual-tests (privat) und brauchten einen Deploy-Key als
+# Repo-Secret. Bei 23 Repos wären das 23 Geheimnis-Stellen und 23
+# Ausfallmöglichkeiten; zwei solche Ausfälle sind belegt (abgelaufenes PAT,
+# 03.–07.08.2026; Deploy-Key-Autorisierung nach dem Org-Umzug ab 25.08.2026 —
+# der GitHub-Redirect trägt git und die REST-API, aber nicht SSH). Org-Secrets
+# wären die Alternative: die Organisation liegt auf dem Free-Plan, der kennt
+# keine Org-Secrets für private Repos.
+
+name: Site Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: site-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Kundenrepo auschecken
+        uses: actions/checkout@v4
+        with:
+          path: site
+
+      - name: cw-core auschecken (public — kein Schlüssel nötig)
+        uses: actions/checkout@v4
+        with:
+          repository: blitzsicht/cw-core
+          # Der Default-Branch von cw-core IST release/cw-core; main trägt nur
+          # einen Deprecation-Guard. Explizit, damit ein späterer Wechsel des
+          # Default-Branches diesen Guard nicht still auf toten Code zeigen lässt.
+          ref: release/cw-core
+          path: cw-core
+
+      - name: pnpm einrichten
+        uses: pnpm/action-setup@v4
+        with:
+          # Version kommt aus dem `packageManager`-Feld des Kundenrepos. Kein
+          # zusätzliches `version:` — eine doppelte Definition löst seit
+          # action-setup@v4 ERR_PNPM_BAD_PM_VERSION aus.
+          package_json_file: site/package.json
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: |
+            site/pnpm-lock.yaml
+            cw-core/checks/pnpm-lock.yaml
+
+      - name: Abhängigkeiten der Kundenseite installieren
+        run: pnpm install --frozen-lockfile
+        working-directory: site
+
+      - name: Kundenseite bauen
+        run: pnpm build
+        working-directory: site
+
+      - name: Web-Root des Builds bestimmen
+        id: webroot
+        # Repos mit Vercel-Adapter (output: 'static', adapter: vercel()) legen
+        # die Site-Root unter dist/client ab; dist/ enthält daneben die
+        # Function-Bundles und ist KEIN gültiger Web-Root — absolute Asset-Pfade
+        # wie /logo.svg 404en dort. Stand 28.08.2026 betrifft das genau ein Repo
+        # von 23, deshalb wird das ermittelt statt gesetzt.
+        run: |
+          set -euo pipefail
+          if [ -d "$GITHUB_WORKSPACE/site/dist/client" ]; then
+            ROOT="$GITHUB_WORKSPACE/site/dist/client"
+          else
+            ROOT="$GITHUB_WORKSPACE/site/dist"
+          fi
+          echo "Web-Root: $ROOT"
+          # Ohne diese Prüfung liefe Playwright grün gegen ein leeres
+          # Verzeichnis — ein Lauf, der nichts geprüft hat, sähe aus wie ein
+          # bestandener. Lieber laut abbrechen als still nichts tun.
+          if [ ! -f "$ROOT/index.html" ]; then
+            echo "::error::Kein index.html in $ROOT — der Build hat nichts ausgeliefert."
+            ls -la "$ROOT" || true
+            exit 1
+          fi
+          # grep -o, NICHT grep -c: Astro schreibt die Sitemap auf EINE Zeile.
+          # `grep -c` zaehlt Zeilen und meldete deshalb ausnahmslos 1 — auch bei
+          # 46 URLs. Ein Zaehlwert, der nie etwas anderes werden kann, ist keine
+          # Messung, und die Null-Warnung darunter waere nie gefeuert.
+          SEITEN=$(grep -o '<loc>' "$ROOT/sitemap-0.xml" 2>/dev/null | wc -l | tr -d ' ')
+          SEITEN=${SEITEN:-0}
+          echo "Seiten in der Sitemap: $SEITEN"
+          if [ "$SEITEN" -eq 0 ]; then
+            echo "::warning::sitemap-0.xml fehlt oder ist leer — die Guards prüfen dann nur / und /kontakt/."
+          fi
+          # Haertegrad der a11y-Pruefung. Default ist meldend; ein Repo, das
+          # seinen Rueckstand abgearbeitet HAT, stellt sie hart, indem es die
+          # Datei .github/a11y-blocking anlegt. Der Schalter liegt damit im
+          # Kundenrepo — versioniert und begruendbar — statt als Sonderfassung
+          # der Vorlage, die der naechste Rollout ueberschreiben wuerde.
+          if [ -f "$GITHUB_WORKSPACE/site/.github/a11y-blocking" ]; then
+            A11Y=hart
+          else
+            A11Y=meldend
+          fi
+          echo "a11y-Modus: $A11Y"
+          echo "dir=$ROOT"      >> "$GITHUB_OUTPUT"
+          echo "seiten=$SEITEN" >> "$GITHUB_OUTPUT"
+          echo "a11y=$A11Y"     >> "$GITHUB_OUTPUT"
+
+      - name: Guard-Abhängigkeiten installieren
+        run: pnpm install --frozen-lockfile
+        working-directory: cw-core/checks
+
+      - name: Chromium installieren
+        run: pnpm exec playwright install chromium --with-deps
+        working-directory: cw-core/checks
+
+      # Harter Gate. Horizontaler Überstand und Bilder breiter als der Viewport
+      # sind sichtbare Defekte auf dem Gerät, mit dem die meisten Besucher
+      # kommen — kein Stilfehler.
+      - name: Mobil-Prüfung (blockierend)
+        run: |
+          DIST_DIR='${{ steps.webroot.outputs.dir }}' \
+          pnpm exec playwright test mobile-audit.spec.ts \
+            --project=mobile --project=tablet
+        working-directory: cw-core/checks
+
+      # Per Default meldend, nicht blockierend. Grundlage ist eine Messung, keine
+      # Vermutung: am 28.08.2026 wurden alle 23 Kundenrepos gebaut und geprueft —
+      # a11y war in 19 von 22 rot, mit color-contrast als dominierender Ursache
+      # (bei digital-direkt 150 von 158 Befunden). Ein Check, der am Rollout-Tag
+      # flaechig rot steht, wird weggeklickt; genau so ist der Vorgaenger-Guard
+      # hier gestorben (330 Laeufe seit dem 26.04.2026, kein einziger gruen).
+      #
+      # Drei Repos waren schon gruen (donau-profi, pferdesport-silberhorn,
+      # weinkontor-sinzing) — die Pruefung unterscheidet also, sie ist nicht
+      # einfach ueberall rot.
+      #
+      # Wer seinen Rueckstand abgearbeitet hat, stellt sie hart: Datei
+      # .github/a11y-blocking im Kundenrepo anlegen. Pro Repo, mit eigenem
+      # Belegstand — nicht pauschal fuer die Flotte.
+      - name: Barrierefreiheit
+        continue-on-error: ${{ steps.webroot.outputs.a11y != 'hart' }}
+        run: |
+          DIST_DIR='${{ steps.webroot.outputs.dir }}' \
+          pnpm exec playwright test a11y-audit.spec.ts \
+            --project=mobile --project=tablet
+        working-directory: cw-core/checks
+
+      - name: Befunde als Artefakt sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-checks-${{ github.run_number }}
+          path: cw-core/checks/test-results/
+          if-no-files-found: ignore
+          retention-days: 7

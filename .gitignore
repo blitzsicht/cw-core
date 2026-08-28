@@ -10,3 +10,5 @@ dist/
 STATE.md
 STATE.md
 STATE.md
+test-results/
+playwright-report/
