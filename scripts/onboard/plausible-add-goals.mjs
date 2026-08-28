@@ -27,7 +27,7 @@
  * Aufruf ohne --remove angelegt hätte — nicht mehr.
  */
 import { fileURLToPath } from 'node:url';
-import { CORE_GOALS, OPTIONAL_GOALS } from './plausible-goals.mjs';
+import { CORE_GOALS, OPTIONAL_GOALS, QUALITY_GOALS, FUNNEL_GOALS, SITE_GOALS } from './plausible-goals.mjs';
 import {
   DEFAULT_HOST, DEFAULT_KEY, PG_CONTAINER, sqlEscape, remoteQuery, remoteWrite,
 } from './plausible-box.mjs';
@@ -37,7 +37,7 @@ import {
 export { sqlEscape };
 
 export function parseArgs(argv) {
-  const args = { apply: false, optional: false, remove: false };
+  const args = { apply: false, optional: false, remove: false, noForm: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--apply') args.apply = true;
@@ -45,6 +45,8 @@ export function parseArgs(argv) {
     else if (a === '--remove') args.remove = true;
     else if (a === '--domain') args.domain = argv[++i];
     else if (a === '--goals') args.goals = argv[++i];
+    else if (a === '--slug') args.slug = argv[++i];
+    else if (a === '--no-form') args.noForm = true;
     else if (a === '--host') args.host = argv[++i];
     else if (a === '--key') args.key = argv[++i];
     else if (a === '--help' || a === '-h') args.help = true;
@@ -122,7 +124,7 @@ export function buildRemoveSql(domain, goals) {
 function main() {
   const args = parseArgs(process.argv.slice(2));
   if (args.help) {
-    console.log('Usage: plausible-add-goals.mjs --domain <domain> [--apply] [--remove] [--optional] [--goals "a,b,/pfad"] [--host user@ip] [--key ~/.ssh/key]');
+    console.log('Usage: plausible-add-goals.mjs --domain <domain> [--apply] [--remove] [--optional] [--goals "a,b,/pfad"] [--slug <slug>] [--no-form] [--host user@ip] [--key ~/.ssh/key]');
     process.exit(0);
   }
   const domain = (args.domain || '').trim().toLowerCase();
@@ -133,9 +135,28 @@ function main() {
   const host = args.host || DEFAULT_HOST;
   const key = args.key || DEFAULT_KEY;
 
+  // Default-Set = CORE + QUALITY + FUNNEL. QUALITY/FUNNEL kamen am 28.08.2026 dazu:
+  // vorher legte ein Onboarding-Aufruf nur die 6 CORE_GOALS an, und Form Start,
+  // Form Abandoned, 404 Error, Outbound Click und File Download blieben bei JEDER
+  // neuen Site erneut ungemessen — dieselbe Lücke, nur einen Schritt später.
+  // SITE_GOALS sind produktspezifisch und kommen nur über --slug dazu.
+  const siteGoals = args.slug ? (SITE_GOALS[args.slug] ?? []) : [];
+  if (args.slug && !SITE_GOALS[args.slug]) {
+    console.log(`ℹ️  Kein SITE_GOALS-Eintrag für Slug "${args.slug}" — nur das Standard-Set.`);
+  }
   const goals = args.goals
     ? parseGoalList(args.goals)
-    : (args.optional ? [...CORE_GOALS, ...OPTIONAL_GOALS] : CORE_GOALS);
+    : [
+      // Ohne Formular können auch die beiden formularabhängigen CORE-Goals nie
+      // feuern: `Form Submit` und die Danke-Seite, auf die ein Absenden führt.
+      ...(args.noForm ? CORE_GOALS.filter((g) => g.value !== 'Form Submit' && g.value !== '/danke') : CORE_GOALS),
+      ...QUALITY_GOALS,
+      // FUNNEL nur bei Sites MIT Formular — sonst garantiert tote Zeilen.
+      // (falzmarke hat bewusst keins: kein Turnstile, kein Resend, kein api/.)
+      ...(args.noForm ? [] : FUNNEL_GOALS),
+      ...(args.optional ? OPTIONAL_GOALS : []),
+      ...siteGoals,
+    ];
   if (!goals.length) die(`Keine Goals zu ${args.remove ? 'entfernen' : 'provisionieren'}.`);
 
   console.log(`ℹ️  Plausible-Goals ${args.remove ? 'ENTFERNEN aus' : 'für'} ${domain}  (Box ${host}, Container ${PG_CONTAINER})`);

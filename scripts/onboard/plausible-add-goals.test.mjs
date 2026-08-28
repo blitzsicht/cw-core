@@ -111,3 +111,44 @@ test('parseArgs: --remove + --apply werden erkannt, Defaults sind false', () => 
   assert.equal(b.apply, false);
   assert.equal(b.optional, false);
 });
+
+// ─── Default-Set nach der Erweiterung vom 28.08.2026 ────────────────────────
+
+test('Default-Set enthält CORE + QUALITY + FUNNEL', async () => {
+  const { CORE_GOALS, QUALITY_GOALS, FUNNEL_GOALS } = await import('./plausible-goals.mjs');
+  const namen = [...CORE_GOALS, ...QUALITY_GOALS, ...FUNNEL_GOALS].map((g) => g.value);
+  assert.ok(namen.includes('404 Error'), 'QUALITY gehört ins Default-Set');
+  assert.ok(namen.includes('Form Start'), 'FUNNEL gehört ins Default-Set');
+  assert.ok(namen.includes('Form Submit'), 'CORE bleibt drin');
+});
+
+test('SITE_GOALS: falzmarke führt github_klick, obwohl es noch nicht feuerte', async () => {
+  const { SITE_GOALS } = await import('./plausible-goals.mjs');
+  const namen = SITE_GOALS.falzmarke.map((g) => g.value);
+  assert.ok(namen.includes('github_klick'),
+    'sonst entstünde beim Deploy ein Event ohne Goal — genau die Lücke, die hier geschlossen wird');
+  assert.ok(namen.includes('skill_download'));
+});
+
+test('SITE_GOALS: Slugs ohne eigene Events haben KEINEN leeren Eintrag', async () => {
+  const { SITE_GOALS } = await import('./plausible-goals.mjs');
+  assert.equal(SITE_GOALS.gympanzen, undefined, 'ein leerer Eintrag wäre irreführend');
+  assert.equal(SITE_GOALS.preshot, undefined);
+});
+
+test('ENGAGEMENT_IGNORE und Goal-Gruppen überschneiden sich nicht', async () => {
+  const m = await import('./plausible-goals.mjs');
+  const alle = [...m.CORE_GOALS, ...m.QUALITY_GOALS, ...m.FUNNEL_GOALS, ...m.OPTIONAL_GOALS, ...m.PAID_GOALS]
+    .map((g) => g.value);
+  for (const e of m.ENGAGEMENT_IGNORE) {
+    assert.ok(!alle.includes(e), `${e} darf nicht gleichzeitig Goal und ignoriert sein`);
+  }
+});
+
+test('LEGACY_ALIASES zeigen auf Namen, die es wirklich gibt', async () => {
+  const m = await import('./plausible-goals.mjs');
+  const alle = [...m.CORE_GOALS, ...m.QUALITY_GOALS, ...m.FUNNEL_GOALS].map((g) => g.value);
+  for (const [alt, gueltig] of Object.entries(m.LEGACY_ALIASES)) {
+    assert.ok(alle.includes(gueltig), `Alias ${alt} zeigt auf ${gueltig}, das in keiner Gruppe steht`);
+  }
+});
