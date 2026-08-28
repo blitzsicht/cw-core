@@ -22,6 +22,53 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.135.0 (2026-08-28)
+
+- [kunde:sichtbar] Bilder, die mit KI erzeugt wurden, tragen den gesetzlich vorgeschriebenen Hinweis jetzt auch auf der Startseite — bisher erschien er nur auf einzelnen Unterseiten.
+
+**Feature:** Neun Komponenten setzen die KI-Kennzeichnung selbst
+
+Kontext: Die Einheit der Pflicht aus Art. 50 Abs. 4 UAbs. 1 AI Act ist die
+**Fundstelle**, nicht das Bild. Bei mika-elektrotechnik stand `installation.webp` auf
+der Leistungsseite (dort gekennzeichnet) und als Kachel auf der Startseite (dort
+nicht) — dasselbe KI-Bild einmal offengelegt und einmal nicht. Von außen war das nicht
+zu beheben: die Komponenten rendern ihr `<Image>` im eigenen Markup, dort ist nichts zu
+platzieren.
+
+Alle neun bildrendernden Komponenten bekommen eine optionale `bildHerkunft`-Prop:
+`Hero`, `LeistungenSection`, `KarriereHero`, `DankePage` (über `astro:assets`) sowie
+`TeamGrid`, `ReferenzenGrid`, `CaseStudyBlock`, `AuthorBox`, `VideoEmbed` (public-URL-
+Strings).
+
+```astro
+<Hero image={heroImage} bildHerkunft={siteData.bildHerkunft} ... />
+```
+
+Neu:
+
+- `utils/bildlabel.js` — löst Deklaration und Badge-Farbe an einer Stelle auf.
+  `publicFsPath` findet auch Bilder aus `public/`, die kein `fsPath` tragen; ohne diesen
+  Weg fiele die Farbmessung bei fünf der neun Komponenten still auf Schwarz zurück.
+- `blocks/AiLabelAmBild.astro` — hält die über die Flotte gemessene Position (unten
+  links) an einer Stelle statt neunmal. Die Positionierung steht inline, nicht in einem
+  `<style>`-Block: Astro bündelt das CSS einer importierten Komponente auch auf Seiten,
+  wo sie nie rendert.
+- `tests/utils/bildlabel.test.js` — 7 Tests; der Modul hatte vorher keinen einzigen.
+
+Nachweis: `examples/`, 21 Seiten, gleiche Basis — **0 strukturelle Abweichungen** ohne
+gesetzte Prop, kein Element und kein Leerzeichen. Gegenprobe gegen einen Baum mit einem
+eingefügten `<span>`: erkannt. An einem echten Kundenrepo 1 → 3 Fundstellen, und zwar
+genau die beiden Bilder mit `deepfake: 'ja'`.
+
+Kosten, beziffert: das `AiLabel`-Stylesheet (~1,28 KB inline) liegt auf jeder Seite, die
+eine der neun Komponenten nutzt — auch ohne Kennzeichnung.
+
+**Migrations-Hinweis:** Keiner. Ohne `bildHerkunft`-Prop ist der gerenderte Ausgang
+unverändert. Wer die Kennzeichnung will, reicht `siteData.bildHerkunft` an die
+Komponente durch, die das Bild rendert.
+
+---
+
 ## v0.134.0 (2026-08-27)
 
 - [kunde:sichtbar] Gedämpfte Textfarben und die Kopfzeile der Vergleichstabelle sind jetzt auch für Menschen mit schwacher Sehkraft lesbar — sie erfüllen den Kontrast-Mindestwert der Barrierefreiheits-Norm.
