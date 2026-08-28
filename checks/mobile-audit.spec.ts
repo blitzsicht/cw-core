@@ -16,6 +16,23 @@ for (const route of PAGES) {
       content: `*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }`,
     });
 
+    // Auf den fertigen Zustand warten — sonst flackert der Guard.
+    //
+    // Bei `domcontentloaded` laufen Schriften und Bilder noch. Ob das Layout beim
+    // Messen schon steht, ist damit ein Rennen, und der Guard entscheidet mal so,
+    // mal so. Belegt am 28.08.2026 an customer-gympanzen: DERSELBE Commit, drei
+    // Laeufe hintereinander — gruen, gruen, rot (/club/, 7,3 px ueber). Ein
+    // blockierender Gate, der bei gleichem Eingang unterschiedlich urteilt, wird
+    // weggeklickt; genau so ist der Vorgaenger-Guard hier gestorben (330 Laeufe
+    // seit dem 26.04.2026, kein einziger gruen).
+    //
+    // Gemessen wird deshalb der gesetzte Zustand: das, was ein Besucher sieht,
+    // wenn die Seite fertig ist. Dauerhafte Ueberstaende faengt das unveraendert
+    // — nachgemessen an gottl-richter-gomeier, wo der Befund mit fonts.ready
+    // bestehen blieb (797 px), weil er eben nicht vom Laden abhing.
+    await page.waitForLoadState('load');
+    await page.evaluate(() => document.fonts.ready);
+
     // 1. Horizontal scroll
     //
     // Warum ohne Toleranz: gemessen an einer Testseite mit exakt gesetztem
