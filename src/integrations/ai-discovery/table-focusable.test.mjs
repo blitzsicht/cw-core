@@ -108,3 +108,22 @@ test('"tabelle-scroll" als Text in JSON-LD wird nicht angefasst', () => {
   const roh = '<script type="application/ld+json">{"c":"<div class=\\"tabelle-scroll\\">"}</script>';
   assert.equal(ergaenzeWrapperTabindex(roh).ergaenzt, 0);
 });
+
+// --- .scroll-region: dieselbe Barriere, nur ohne Tabelle -------------------
+
+test('GEGENPROBE: .scroll-region ohne tabindex ist der Diagramm-Fall von /forschung', () => {
+  const roh = '<figure><div class="diagram-scroll scroll-region"><svg></svg></div></figure>';
+  const { html, ergaenzt } = ergaenzeWrapperTabindex(roh);
+  assert.equal(ergaenzt, 1);
+  assert.match(html, /<div tabindex="0" class="diagram-scroll scroll-region">/);
+});
+
+test('.scroll-region schuetzt eine Tabelle darin vor dem zweiten Tab-Halt', () => {
+  const roh = '<div class="scroll-region" tabindex="0"><table><tr><td>x</td></tr></table></div>';
+  assert.equal(ergaenzeTabellenTabindex(roh).ergaenzt, 0);
+});
+
+test('.tabelle-scroll bleibt gueltig — der Sonderfall verschwindet nicht', () => {
+  const roh = '<div class="tabelle-scroll"><table></table></div>';
+  assert.equal(ergaenzeWrapperTabindex(roh).ergaenzt, 1);
+});

@@ -26,7 +26,10 @@
  */
 
 /** Wrapper, die den Scroll (und den Tastaturfokus) schon selbst tragen. */
-const WRAPPER_MIT_FOKUS = ['tabelle-scroll', 'vergleich-wrapper', 'rt-wrap'];
+const WRAPPER_MIT_FOKUS = ['tabelle-scroll', 'scroll-region', 'vergleich-wrapper', 'rt-wrap'];
+
+/** Wrapper, die den Fokus selbst brauchen — sie scrollen, tragen ihn aber nicht von Haus aus. */
+const WRAPPER_BRAUCHT_FOKUS = ['tabelle-scroll', 'scroll-region'];
 
 /**
  * Sitzt die Tabelle direkt in einem Wrapper, der den Fokus schon hat? Dann
@@ -70,7 +73,9 @@ export function ergaenzeWrapperTabindex(html) {
   let ergaenzt = 0;
   let out = '';
   let zuletzt = 0;
-  for (const m of html.matchAll(/<([a-z]+)\b([^>]*\bclass\s*=\s*["'][^"']*\btabelle-scroll\b[^"']*["'][^>]*)>/gi)) {
+  const klassen = WRAPPER_BRAUCHT_FOKUS.join('|');
+  const muster = new RegExp(`<([a-z]+)\\b([^>]*\\bclass\\s*=\\s*["'][^"']*\\b(?:${klassen})\\b[^"']*["'][^>]*)>`, 'gi');
+  for (const m of html.matchAll(muster)) {
     const start = m.index ?? 0;
     if (gesperrt.some((b) => start >= b.start && start < b.ende)) continue;
     if (/\btabindex\s*=/i.test(m[2])) continue;

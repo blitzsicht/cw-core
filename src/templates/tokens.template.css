@@ -54,7 +54,11 @@
   --color-surface: #f8f9fa;
 
   /* Gedämpfte Textfarbe (für Untertexte, Labels) */
-  --color-muted: #6b7280;
+  /* gray-600, nicht gray-500 (#6b7280): der hellere Ton besteht nur auf reinem
+     Weiss (4,83:1) und faellt auf JEDEM getoenten Grund durch — gemessen am
+     27.08.2026 zwischen 4,06 und 4,49:1 auf acht verschiedenen Flaechen.
+     #4B5563 haelt auch dort 6,36:1. */
+  --color-muted: #4B5563;
 
   /* System-UI Font Stack – KEINE Google Fonts (DSGVO) */
   --font-sans: system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;

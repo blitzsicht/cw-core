@@ -140,15 +140,36 @@ const schemaItemList = {
     font-weight: 600;
     white-space: nowrap;
   }
+  /* Weisse Schrift (aus `thead th`) auf der Markenfarbe erreichte 2,89:1 — AA
+     verlangt 4,5:1. Gemessen am 27.08.2026 auf blitzsicht.com, axe meldete den
+     Kopf der Markenspalte.
+
+     Die Markenfarbe selbst bleibt: sie kommt aus dem Logo. Geaendert wird die
+     Schrift darauf, ueber den Token, den es dafuer schon gibt. Gerechnet fuer
+     alle vier Repos, die diese Komponente benutzen:
+       blitzsicht      #EF7612  weiss 2,89 ✗ → #1D1E3B 5,59 ✓ (eigener Token)
+       digital-direkt  #4d9918  weiss 3,57 ✗ → #1D1E3B 4,52 ✓ (Fallback)
+       falzmarke       #3EB057  weiss 2,78 ✗ → #121E2F 6,03 ✓ (eigener Token)
+       mazterplan      #EA580C  weiss 3,56 ✗ → 3,56 ✗ — setzt den Token selbst
+                                auf #FFFFFF; die eigene Wahl wird respektiert,
+                                das Repo ist nicht live.
+
+     Ein pauschales Abdunkeln der Flaeche (color-mix) waere der naheliegende
+     Griff und ist verworfen: bei platzfreis Neon-Cyan #04FFF7 reicht selbst
+     -35 % nicht (3,01) und zerstoert die Marke. */
   .col-brand-header {
     background: var(--color-accent, #ef7612) !important;
+    color: var(--color-accent-btn-text, #1d1e3b) !important;
   }
   .col-brand {
     font-weight: 600;
     color: var(--color-primary, #1d1e3b);
   }
+  /* Dieselbe Ursache eine Zeile tiefer: die Markenfarbe als Textfarbe auf
+     hellem Grund ergibt 2,89:1. `--color-accent-text` ist der Token, den alle
+     Live-Kunden ausser gympanzen dafuer bereits setzen. */
   .cell-win {
-    color: var(--color-accent, #ef7612);
+    color: var(--color-accent-text, #92400e);
   }
   .win-icon {
     margin-right: 0.375rem;

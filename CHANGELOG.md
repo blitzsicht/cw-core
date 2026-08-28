@@ -22,6 +22,62 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.134.0 (2026-08-27)
+
+- [kunde:sichtbar] Gedämpfte Textfarben und die Kopfzeile der Vergleichstabelle sind jetzt auch für Menschen mit schwacher Sehkraft lesbar — sie erfüllen den Kontrast-Mindestwert der Barrierefreiheits-Norm.
+- [kunde:sichtbar] Seitlich scrollbare Kästen — nicht nur Tabellen, auch Diagramme — lassen sich mit der Tastatur bedienen.
+
+**Anlass.** Der geschärfte Mobil-Guard zog am 27.08.2026 `a11y-audit` mit über alle
+46 Seiten statt über sieben. Ergebnis: 45 vorbestehende Verstöße auf Seiten, die die
+alte Liste nie ansah. Keine Regression — sie lagen nur hinter dem blinden Fleck. Die
+Kontrast-Befunde hatten drei Ursachen, nicht 25.
+
+**Fix:** die Markenfarbe als Schrift und unter Schrift
+
+Weiße Schrift auf der Markenfarbe erreichte im Kopf der Markenspalte **2,89:1**, AA
+verlangt 4,5:1. Dieselbe Farbe als Textfarbe (`.cell-win`) ebenso. Die Markenfarbe
+selbst bleibt — sie kommt aus dem Logo. Geändert wird, was darauf und was daraus
+geschrieben wird, über die Tokens, die es dafür schon gibt:
+`--color-accent-btn-text` für Schrift **auf** der Fläche, `--color-accent-text` für
+Schrift **in** der Farbe. Gerechnet für alle vier Repos, die `VergleichsTabelle`
+benutzen: blitzsicht 2,89 → 5,59 · digital-direkt 3,57 → 4,52 · falzmarke 2,78 → 6,03.
+`mazterplan` setzt `--color-accent-btn-text` selbst auf Weiß und bleibt damit bei 3,56 —
+die eigene Wahl wird respektiert, das Repo ist nicht live.
+
+Ein pauschales Abdunkeln der Fläche per `color-mix` war der naheliegende Griff und ist
+verworfen: bei platzfreis Neon-Cyan `#04FFF7` reicht selbst −35 % nicht (3,01) und
+zerstört die Marke.
+
+**Feature:** `.scroll-region` — `.tabelle-scroll` für alles, was nicht Tabelle ist
+
+axe meldete zwei Diagramm-Kästen auf `/forschung` als `scrollable-region-focusable`:
+dieselbe Barriere wie bei Tabellen, nur ohne Tabelle darin. `.scroll-region` ist die
+allgemeine Fassung derselben Utility, und `ergaenzeWrapperTabindex` erkennt sie beim
+Build genauso. `.tabelle-scroll` bleibt gültig — es ist der Sonderfall mit sprechendem
+Namen. 20 Tests; nimmt man `scroll-region` aus der Liste, wird einer davon rot.
+
+**Guard:** Anker-Integrität — kaputte Links im ausgelieferten HTML
+
+Auf `/agb/sla` stand der Schluss-Absatz der Seite **innerhalb** eines Telefon-Links,
+dazu zwei leere Anker. Im Quelltext war nichts davon zu sehen; die Anker-Bilanz der
+Datei war ausgeglichen. Minimal reproduziert: steht ein `<a>` als letzter Knoten der
+letzten Tabellenzelle, macht der Astro-Compiler ihn nach `</table>` wieder auf und
+schluckt alles Folgende. Vier Umgehungen sind sauber — Text dahinter, eine
+`<span>`-Hülle, ein Punkt, oder der Link in einer anderen Zelle. Es hängt an der
+Position, nicht am Inhalt.
+
+Gefunden hat es axe (`link-name`), nicht der Blick in die Datei. `anchor-integrity-check`
+meldet beides beim Build: Anker direkt hinter `</table>`, und Anker ohne Text, Bild oder
+`aria-label`. Hart per Default. 8 Tests; drei Sabotagen machen 3, 2 bzw. 1 davon rot.
+
+**Fix:** `--color-muted` in der Kunden-Vorlage
+
+`#6b7280` (gray-500) besteht nur auf reinem Weiß (4,83:1) und fällt auf **jedem**
+getönten Grund durch — gemessen zwischen 4,06 und 4,49:1 auf acht verschiedenen
+Flächen. `tokens.template.css` seedet jetzt `#4B5563` (gray-600, 6,36:1 im
+schlechtesten Fall), damit der nächste Neukunde nicht mit demselben Fehler startet.
+Bestehende Kunden bringt das nicht mit — die definieren den Token selbst.
+
 ## v0.133.0 (2026-08-27)
 
 - [kunde:sichtbar] Breite Tabellen lassen sich auf dem Handy jetzt seitlich schieben. Vorher wurden die rechten Spalten abgeschnitten und waren gar nicht erreichbar.

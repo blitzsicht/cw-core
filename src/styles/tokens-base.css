@@ -582,10 +582,17 @@ h1, h2, h3, h4, h5, h6 {
   max-width: 100%;
 }
 
-/* Wrapper-Utility für Tabellen, die ihren Scroll-Container selbst mitbringen
-   sollen — mit Tastaturfokus und role="region" ist die Tabelle dann auch ohne
-   Maus erreichbar. Vorbild: .vergleich-wrapper in VergleichsTabelle.astro. */
-.tabelle-scroll {
+/* Wrapper-Utility für Inhalte, die ihren Scroll-Container selbst mitbringen
+   sollen — mit Tastaturfokus ist der Kasten dann auch ohne Maus erreichbar.
+   Vorbild: .vergleich-wrapper in VergleichsTabelle.astro.
+
+   .scroll-region ist die allgemeine Fassung: nicht nur Tabellen scrollen
+   seitlich. Auf blitzsicht.com meldete axe am 27.08.2026 zwei Diagramm-Kästen
+   (.diagram-scroll auf /forschung) als scrollable-region-focusable — dieselbe
+   Barriere, nur ohne Tabelle darin. .tabelle-scroll bleibt gültig und ist
+   nichts anderes als der Sonderfall mit sprechendem Namen. */
+.tabelle-scroll,
+.scroll-region {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -595,7 +602,8 @@ h1, h2, h3, h4, h5, h6 {
    shrink-to-fit zurück (gemessen: .vergleich-wrapper 451 -> 264 px). */
 .vergleich-wrapper > table,
 .rt-wrap > table,
-.tabelle-scroll > table {
+.tabelle-scroll > table,
+.scroll-region > table {
   display: table;
 }
 
