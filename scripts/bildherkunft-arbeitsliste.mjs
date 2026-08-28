@@ -127,19 +127,77 @@ function sammleBilder(wurzel, unterordner) {
   return treffer;
 }
 
+/**
+ * Die Sites, deren Bildbestand erhoben werden soll.
+ *
+ * ## Warum hier gefiltert wird, und wonach
+ *
+ * Ein Bild in einem Repo ist keine Fundstelle. Die Pflicht aus Art. 50 Abs. 4 trifft den,
+ * der den Inhalt **ausliefert** — liegt das Bild in einem Repo, das nirgends deployt ist,
+ * entsteht sie nicht. Ohne diese Unterscheidung meldet das Werkzeug Arbeit, die es nicht
+ * gibt, und die Zahl wandert von Bericht zu Bericht weiter.
+ *
+ * Gemessen am 28.08.2026: `--lifecycle archived` meldete **44 Bilder auf 7 Sites** —
+ * keine einzige davon lief auf unserem Stack. `weinkontor-sinzing.de` liefert Magento,
+ * `itk-regensburg.de` den One.com-Editor, `herztoene-ev.de` Joomla, `braustall.de`
+ * scheitert am Zertifikat, `allstargirls.de` antwortet 503. Die Vercel-Projekte aller
+ * sieben wurden am 13./14.08.2026 geloescht; die Repos sind Archive.
+ *
+ * Zwei Filter, bewusst unterschiedlich scharf:
+ *
+ * 1. **`active === false` uebergeht die Site.** Das ist eine Entscheidung, die in der
+ *    Registry schon getroffen wurde — sie hier zu ignorieren hiesse, sie zu unterlaufen.
+ * 2. **`lifecycle: 'archived'` warnt nur.** Wer sie ausdruecklich anfordert, soll sie
+ *    bekommen; nicht jede archivierte Site ist fremdbetrieben, und ein stilles
+ *    Ueberspringen waere derselbe Fehler mit umgekehrtem Vorzeichen.
+ *
+ * Die Stack-Pruefung selbst steht absichtlich **nicht** hier drin: sie braucht je Site
+ * einen Netzabruf und macht ein Erhebungswerkzeug langsam und flaky. Die Warnung nennt
+ * stattdessen den Einzeiler, der sie beantwortet.
+ */
 function ladeSites() {
   const reg = JSON.parse(readFileSync(REGISTRY, 'utf8'));
   const lifecycle = argWert('--lifecycle', 'live');
   const nurSite = argWert('--site');
-  return reg.customers
+  const gewaehlt = reg.customers
     .filter((c) => c.lifecycle === lifecycle)
-    .filter((c) => !nurSite || c.slug === nurSite)
+    .filter((c) => !nurSite || c.slug === nurSite);
+
+  const sites = gewaehlt
+    .filter((c) => {
+      if (c.active !== false) return true;
+      const grund = ersterSatz(c.lifecycle_note) || 'in der Registry auf active: false gesetzt';
+      console.warn(`  ! ${c.slug}: nicht aktiv — übersprungen (${grund})`);
+      return false;
+    })
     .map((c) => ({ slug: c.slug, pfad: c.repo_path, url: c.production_url }))
     .filter((c) => {
       if (c.pfad && existsSync(c.pfad)) return true;
       console.warn(`  ! ${c.slug}: repo_path fehlt oder existiert nicht — übersprungen`);
       return false;
     });
+
+  if (lifecycle === 'archived' && sites.length) {
+    console.warn(
+      `\n  ACHTUNG: ${sites.length} archivierte Site(s). Archiviert heisst nicht ausgeliefert —\n` +
+        '  am 28.08.2026 lief keine der archivierten Sites auf unserem Stack. Ohne Auslieferung\n' +
+        '  entsteht keine Pflicht aus Art. 50 Abs. 4. Vor dem Einordnen je Site pruefen:\n' +
+        '    curl -sL <production_url> | grep -c "_astro/"   # 0 = nicht unser Build\n',
+    );
+  }
+  return sites;
+}
+
+/**
+ * Der erste Satz einer Registry-Notiz — als Grund fuer eine Uebersprungen-Meldung.
+ * Die Notizen sind mehrere Zeilen lang; ungekuerzt waere die Meldung unlesbar.
+ * @param {unknown} text
+ * @returns {string}
+ */
+function ersterSatz(text) {
+  if (typeof text !== 'string') return '';
+  const satz = text.replace(/\s+/g, ' ').trim().split(/(?<=\.)\s/)[0] ?? '';
+  return satz.length > 120 ? satz.slice(0, 117) + '…' : satz;
 }
 
 /**

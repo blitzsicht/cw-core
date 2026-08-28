@@ -19,11 +19,13 @@
  *   2. regelZeile für public/ (pathPrefix) und src/ (stem)
  *   3. Rundlauf: erzeugter Text parst und loest wieder auf, was eingeordnet wurde
  *   4. Der Rundlauf überlebt eine Begruendung mit Sonderzeichen
+ *   6. `active: false` uebergeht die Site — mit Grund in der Meldung
+ *   7. `lifecycle: archived` warnt, uebergeht aber nicht
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
@@ -182,4 +184,80 @@ test('4. der Rundlauf überlebt eine Begründung mit Sonderzeichen', () => {
   const r = resolveBildHerkunft(data, 'images/x.webp');
   assert.equal(istKennzeichnungspflichtig(r), true);
   assert.equal(r.begruendung, b);
+});
+
+/**
+ * Ein Lauf des Skripts gegen eine Attrappen-Registry.
+ *
+ * Faengt stderr auf: die Uebersprungen-Meldungen und die Archiv-Warnung gehen ueber
+ * `console.warn`. Ein Test, der nur stdout prueft, saehe von beidem nichts — und genau
+ * das war der Fehler, den diese Filter verhindern sollen: eine Meldung, die niemand liest.
+ *
+ * @param {Array<object>} customers  Registry-Eintraege
+ * @param {string[]} args            zusaetzliche Argumente
+ * @returns {{stdout: string, stderr: string, status: number}}
+ */
+function lauf(customers, args) {
+  const reg = join(tmpdir(), `bh-filter-registry-${process.pid}-${args.join('_')}.json`);
+  writeFileSync(reg, JSON.stringify({ customers }), 'utf8');
+  const out = join(tmpdir(), `bh-filter-${process.pid}.html`);
+  const r = spawnSync(process.execPath, [SKRIPT, ...args, '--out', out, '--no-open'], {
+    encoding: 'utf8',
+    env: { ...process.env, CW_REGISTRY: reg },
+  });
+  rmSync(reg, { force: true });
+  rmSync(out, { force: true });
+  return { stdout: r.stdout ?? '', stderr: r.stderr ?? '', status: r.status ?? -1 };
+}
+
+test('6. active: false übergeht die Site — mit Grund in der Meldung', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'bh-inaktiv-'));
+  const repoAktiv = mkdtempSync(join(tmpdir(), 'bh-aktiv-'));
+  const eintrag = (slug, aktiv, pfad) => ({
+    slug,
+    lifecycle: 'live',
+    active: aktiv,
+    repo_path: pfad,
+    production_url: 'https://example.invalid/',
+    lifecycle_note: 'Ruhend gestellt. Zweiter Satz, der nicht in die Meldung gehört.',
+  });
+
+  const r = lauf([eintrag('ruhend', false, repo), eintrag('wach', true, repoAktiv)], ['--lifecycle', 'live']);
+
+  assert.match(r.stderr, /! ruhend: nicht aktiv — übersprungen/);
+  // Der Grund kommt aus der Registry-Notiz und ist auf den ersten Satz gekuerzt:
+  // ungekuerzt sind diese Notizen mehrere Zeilen lang.
+  assert.match(r.stderr, /Ruhend gestellt\./);
+  assert.doesNotMatch(r.stderr, /Zweiter Satz/);
+  // Die aktive Site bleibt — sonst waere nicht der Filter schaerfer, sondern das Werkzeug kaputt.
+  assert.match(r.stdout, /wach/);
+  assert.doesNotMatch(r.stdout, /^ {2}ruhend/m);
+
+  rmSync(repo, { recursive: true, force: true });
+  rmSync(repoAktiv, { recursive: true, force: true });
+});
+
+test('7. lifecycle archived warnt, übergeht aber nicht', () => {
+  const repo = mkdtempSync(join(tmpdir(), 'bh-archiv-'));
+  const r = lauf(
+    [
+      {
+        slug: 'altbestand',
+        lifecycle: 'archived',
+        active: true,
+        repo_path: repo,
+        production_url: 'https://example.invalid/',
+      },
+    ],
+    ['--lifecycle', 'archived'],
+  );
+
+  // Warnen ja — aber die Site bleibt in der Liste. Wer sie ausdruecklich anfordert,
+  // soll sie bekommen; ein stilles Ueberspringen waere derselbe Fehler mit umgekehrtem
+  // Vorzeichen.
+  assert.match(r.stderr, /ACHTUNG: 1 archivierte Site/);
+  assert.match(r.stderr, /_astro\//, 'die Warnung muss den Pruefbefehl nennen');
+  assert.match(r.stdout, /altbestand/);
+
+  rmSync(repo, { recursive: true, force: true });
 });
