@@ -11,6 +11,8 @@
  */
 import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
 
 interface Props {
   heading?: string;
@@ -19,6 +21,14 @@ interface Props {
   ctaHref?: string;
   /** Optional founder/team photo. Replaces the checkmark icon when set. */
   photo?: ImageMetadata;
+  /**
+   * `siteData.bildHerkunft`. Das Portrait ist hier nur 96 px gross — ein 48x24-Badge
+   * darauf verdeckte das Motiv fast zur Haelfte. Die Kennzeichnung steht deshalb
+   * darunter; Art. 50 Abs. 5 verlangt sie am Bild, nicht an einer bestimmten Ecke.
+   *
+   * Ohne diese Prop aendert sich an der gerenderten Seite nichts.
+   */
+  bildHerkunft?: unknown[];
   /** Alt text for `photo`. Required if `photo` is set. */
   photoAlt?: string;
 }
@@ -30,13 +40,19 @@ const {
   ctaHref = '/',
   photo,
   photoAlt = heading,
+  bildHerkunft,
 } = Astro.props;
+
+/* Kein Farbabgleich: das Badge sitzt unter dem Bild auf hellem Seitengrund, nicht auf
+   dem Motiv. Die Messung waere hier ohne Bezugspunkt. */
+const fotoLabel = photo ? await bildLabel({ bildHerkunft }, photo) : null;
 ---
 <main class="danke-page">
   <div class="danke-content">
     {photo ? (
       <div class="danke-photo">
         <Image src={photo} alt={photoAlt} width={96} height={96} widths={[96, 192, 288]} sizes="96px" />
+        {fotoLabel && <AiLabelAmBild ergebnis={fotoLabel.ergebnis} theme="hell" platzierung="unter-bild" groesse="18px" />}
       </div>
     ) : (
       <div class="danke-icon">

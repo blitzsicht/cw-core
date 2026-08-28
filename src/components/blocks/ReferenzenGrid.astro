@@ -23,23 +23,36 @@ export interface ReferenzItem {
   badge?: string;
 }
 
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
+
 interface Props {
   items?: readonly ReferenzItem[];
   /** Optional disclaimer shown below the grid. */
   disclaimer?: string;
+  /**
+   * `siteData.bildHerkunft`. Die Referenzbilder zeigen benannte Projekte an
+   * benannten Orten und werden als echte Aufnahme gelesen.
+   *
+   * Ohne diese Prop aendert sich am gerenderten Ausgang nichts.
+   */
+  bildHerkunft?: unknown[];
 }
 
-const { items = [], disclaimer } = Astro.props;
+const { items = [], disclaimer, bildHerkunft } = Astro.props;
+
+const referenzLabel = await Promise.all(items.map((r) => bildLabel({ bildHerkunft }, r.imageSrc)));
 ---
 {items.length > 0 && (
 <section class="referenzen-section">
   <div class="container">
     <div class="referenzen-grid">
-      {items.map((r) => (
+      {items.map((r, idx) => (
         <article class="referenz-card">
           <div class="referenz-image-wrap">
             <img src={r.imageSrc} alt={r.imageAlt} loading="lazy" width="800" height="540" />
             {r.badge && <span class="referenz-badge">{r.badge}</span>}
+            {referenzLabel[idx] && <AiLabelAmBild ergebnis={referenzLabel[idx]!.ergebnis} theme={referenzLabel[idx]!.theme} groesse="18px" />}
           </div>
           <div class="referenz-body">
             <h2>{r.title}</h2>

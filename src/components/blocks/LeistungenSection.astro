@@ -18,6 +18,8 @@ import { linkifyPhones } from '../../utils/text/linkify-phones';
 import { phoneToTelHref } from '../../utils/text/tel-href';
 import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
 
 export interface LeistungItem {
   /** Emoji or short string used as a decorative icon. */
@@ -67,6 +69,14 @@ interface Props {
    * oben, wenn `item.imageSrc` gesetzt; sonst Fallback aufs Icon pro Item).
    */
   cardStyle?: 'icon' | 'image';
+  /**
+   * `siteData.bildHerkunft`. Bei `cardStyle='image'` rendert die Karte das Bild selbst —
+   * eine Kennzeichnung nach Art. 50 Abs. 4 UAbs. 1 AI Act ist von aussen nicht
+   * platzierbar. Mit dieser Prop setzt die Karte sie selbst.
+   *
+   * Ohne diese Prop aendert sich am gerenderten Grid nichts.
+   */
+  bildHerkunft?: unknown[];
   /** Label des Anruf-Buttons bei Items mit `ctaPhone`. Default "Anrufen". */
   ctaCallLabel?: string;
 }
@@ -81,9 +91,19 @@ const {
   iconContainerColor,
   cardStyle = 'icon',
   ctaCallLabel = 'Anrufen',
+  bildHerkunft,
 } = Astro.props;
 
 const containerStyle = iconContainerColor ? `--icon-container-color:${iconContainerColor}` : undefined;
+
+/* Je Karte einmal aufgeloest, im Frontmatter: `bildLabel` ist asynchron, und im `.map()`
+   des Templates gibt es kein `await`. Der Index traegt das Ergebnis ins Markup. */
+const bildDaten = { bildHerkunft };
+const kartenLabel = await Promise.all(
+  items.map((item) =>
+    cardStyle === 'image' && item.imageSrc ? bildLabel(bildDaten, item.imageSrc) : null,
+  ),
+);
 ---
 
 {items.length > 0 && (
@@ -92,10 +112,10 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
       <h2 class="section-heading">{heading}</h2>
       {subheading && <p class="section-subheading">{subheading}</p>}
       <div class="leistungen-grid" style={`--cols:${columns}`}>
-        {items.map((item) => item.ctaPhone ? (
+        {items.map((item, idx) => item.ctaPhone ? (
           <div class="leistung-card leistung-card-cta">
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" /></div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} groesse="18px" />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -113,7 +133,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
         ) : item.href ? (
           <a href={item.href} class="leistung-card leistung-card-link" data-cta={`leistung-card:${item.title}`}>
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" /></div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} groesse="18px" />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -130,7 +150,7 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
         ) : (
           <div class="leistung-card">
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" /></div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} groesse="18px" />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -228,6 +248,8 @@ const containerStyle = iconContainerColor ? `--icon-container-color:${iconContai
 
   /* Karten-Bild (cardStyle='image'): randlos oben, 16:9, obere Ecken rund. */
   .leistung-image {
+    /* Anker fuer die KI-Kennzeichnung, die unten links im Kartenbild sitzt. */
+    position: relative;
     margin: -2rem -2rem 1rem;
     border-radius: 0.75rem 0.75rem 0 0;
     overflow: hidden;

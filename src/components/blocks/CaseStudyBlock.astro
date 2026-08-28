@@ -25,6 +25,9 @@
  */
 import { caseStudySchema, type CaseStudyInput } from '@cw/core/schema/creative-work';
 
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
+
 interface Props {
   customer: string;
   location?: string;
@@ -45,6 +48,13 @@ interface Props {
   pageUrl: string;
   /** Optional: Compact-Mode (kein H2-Heading, kleinere Padding). */
   compact?: boolean;
+  /**
+   * `siteData.bildHerkunft`. Die Galeriebilder zeigen ein benanntes Projekt bei einem
+   * benannten Kunden — sie werden als Beleg gelesen, also als echte Aufnahme.
+   *
+   * Ohne diese Prop aendert sich am gerenderten Ausgang nichts.
+   */
+  bildHerkunft?: unknown[];
 }
 
 const {
@@ -59,7 +69,12 @@ const {
   provider,
   pageUrl,
   compact = false,
+  bildHerkunft,
 } = Astro.props;
+
+const galerieLabel = await Promise.all(
+  images.slice(0, 3).map((src) => bildLabel({ bildHerkunft }, src)),
+);
 
 const schemaInput: CaseStudyInput = {
   customer,
@@ -111,7 +126,21 @@ const schema = caseStudySchema(schemaInput);
 
     {images.length > 0 && (
       <div class="case-study-gallery">
-        {images.slice(0, 3).map((src, i) => (
+        {/* Zwei Zweige mit demselben <img>: der Galerie-Grid hat die Bilder als direkte
+            Kinder, ein Wrapper waere ein neues Grid-Item. Er entsteht deshalb nur dort,
+            wo tatsaechlich eine Kennzeichnung sitzt — sonst aendert sich das Markup auf
+            jeder bestehenden Fallstudie fuer nichts. Die Positionierung steht inline,
+            damit kein Stylesheet auf Seiten ohne Label waechst. */}
+        {images.slice(0, 3).map((src, i) => galerieLabel[i] ? (
+          <span style="position:relative;display:block">
+            <img
+              src={src}
+              alt={`${provider.name} — Referenzprojekt für ${customer}${location ? ` in ${location}` : ''}${images.length > 1 ? ` (${i + 1})` : ''}`}
+              loading="lazy"
+            />
+            <AiLabelAmBild ergebnis={galerieLabel[i]!.ergebnis} theme={galerieLabel[i]!.theme} groesse="18px" />
+          </span>
+        ) : (
           <img
             src={src}
             alt={`${provider.name} — Referenzprojekt für ${customer}${location ? ` in ${location}` : ''}${images.length > 1 ? ` (${i + 1})` : ''}`}
