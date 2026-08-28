@@ -33,9 +33,26 @@
 
 name: Site Checks
 
+# Kein `push`-Ausloeser — und das ist eine Kostenentscheidung, keine Nachlaessigkeit.
+#
+# Die Organisation liegt auf dem Free-Plan: 2.000 Actions-Minuten im Monat fuer
+# private Repos, Ausgabenlimit 0. Am 28.08.2026 war der August bei rund 5.860
+# Minuten-Aequivalenten (3.153 Linux, 325 Windows x2, 206 macOS x10), und ab da
+# starteten Jobs gar nicht mehr: Ergebnis "failure", null ausgefuehrte Schritte,
+# GitHub selbst stoerungsfrei.
+#
+# Ein Lauf dieses Workflows dauert drei bis fuenf Minuten. Bei 22 Repos und
+# jedem Push waere er dauerhaft teurer, als der Plan hergibt.
+#
+# Geprueft wird deshalb dort, wo eine rote Meldung noch etwas aendert: VOR dem
+# Merge. Dieselbe Seite nach dem Merge ein zweites Mal zu messen bringt keinen
+# neuen Befund.
+#
+# Preis dieser Wahl: wer direkt auf main pusht, wird nicht geprueft. Das betrifft
+# vor allem scripts/rollout-site-checks.sh selbst — eine Aenderung an dieser
+# Vorlage laeuft danach erst beim naechsten PR eines Kunden. Wer sie sofort
+# pruefen will, nimmt workflow_dispatch.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
