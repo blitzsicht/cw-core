@@ -18,7 +18,25 @@ for (const route of PAGES) {
     await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 15_000 });
 
     await page.addStyleTag({
-      content: `*, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }`,
+      // Einblendungen in ihren ENDZUSTAND zwingen, nicht nur beschleunigen.
+      //
+      // `transition-duration: 0s` nimmt der Einblendung das Tempo, aber nicht den
+      // Startzustand: cw-core-Seiten verstecken [data-reveal] per
+      // `opacity: 0; transform: translateY(30px) skewX(-2deg)`, bis ein
+      // IntersectionObserver `.is-visible` setzt. Ein skewX verbreitert die
+      // Bounding-Box um rund `Hoehe x tan(2deg)` — bei einer 200 px hohen Kachel
+      // etwa 7 px. Ob der Observer beim Messen schon gefeuert hat, ist ein Rennen,
+      // und der Guard urteilte deshalb bei gleichem Eingang unterschiedlich:
+      // customer-gympanzen, derselbe Commit, drei Laeufe — gruen, gruen, rot
+      // (/club/, 7,3 px), nach der Umstellung auf `load` + fonts.ready dann
+      // rot, gruen, gruen.
+      //
+      // Gemessen wird der Zustand, den ein Besucher sieht, wenn die Seite steht —
+      // und dann sind die Einblendungen durch.
+      content: `
+        *, *::before, *::after { animation-duration: 0s !important; transition-duration: 0s !important; }
+        [data-reveal] { opacity: 1 !important; transform: none !important; }
+      `,
     });
 
     // Auf den fertigen Zustand warten — sonst flackert der Guard.
