@@ -106,6 +106,24 @@ const {
   }
   header .container {
     display: flex;
+    /* Umbrechen duerfen — das ist die Absicherung, nicht die Regel.
+
+       Ob die volle Nav passt, entscheidet weiter unten ein Skript anhand
+       gemessener Breiten. Das laeuft aber zwangslaeufig VOR dem
+       Schriftwechsel: es misst die Ersatzschrift, und wenn die echte
+       Schrift breiter ist, waechst die Nav danach. Jeder Nachlauf-Hook
+       (fonts.ready, loadingdone, resize) feuert erst NACH dem ersten
+       Paint — der Ueberstand ist dann bereits sichtbar gewesen.
+
+       Gemessen am 28.08.2026 an gottl-richter-gomeier bei 768 px: der
+       Kontakt-Knopf ragte bis 797 px, auf allen 22 Seiten. Mit
+       fonts.ready-Hook allein blieb der Wert 797 — der Hook kam schlicht
+       zu spaet.
+
+       Mit flex-wrap rutscht die Nav in diesem Moment in eine zweite
+       Zeile, statt die Seite seitlich aufzuschieben. Passt sie ohnehin,
+       aendert die Regel nichts. */
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     padding-block: 1rem;
@@ -291,6 +309,37 @@ const {
     }
 
     fit();
+
+    /* Und noch einmal, wenn die Schrift fertig geladen ist.
+
+       fit() laeuft synchron vor dem ersten Paint — es misst also die
+       ERSATZSCHRIFT. Ist die echte Schrift breiter, waechst die Nav danach, und
+       bis hierher hat niemand mehr nachgerechnet: der Header blieb auf voller
+       Nav stehen und schob die Seite seitlich auf.
+
+       Gemessen am 28.08.2026 an gottl-richter-gomeier bei 768 px: nach dem
+       Schriftwechsel ergibt die Rechnung 805 > 720, die Kompaktschaltung
+       MUESSTE greifen — data-nav war trotzdem nie gesetzt, auf allen 22 Seiten,
+       dauerhaft. Ein erneuter Aufruf drueckt scrollWidth dort von 797 auf 768.
+
+       'loadingdone' und NICHT nur fonts.ready: an dieser Stelle im Dokument ist
+       noch kein Font-Ladevorgang offen, ready ist also bereits erfuellt und
+       .then() feuert sofort — wieder mit der Ersatzschrift. Nachgemessen: mit
+       ausschliesslich ready.then blieb data-nav ungesetzt, obwohl die Rechnung
+       zu diesem Zeitpunkt laengst 'schaltet' sagte.
+
+       resize allein fing es auch nicht: ohne Groessenaenderung feuert es nie. */
+    if (document.fonts) {
+      if (document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingdone', fit);
+      }
+      /* Deckt den Fall ab, dass die Schrift aus dem Cache kommt und gar kein
+         'loadingdone' mehr folgt. */
+      if (document.fonts.ready && document.fonts.ready.then) {
+        document.fonts.ready.then(fit);
+      }
+    }
+
     var t;
     addEventListener('resize', function () {
       clearTimeout(t);

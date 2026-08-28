@@ -22,6 +22,55 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.138.0 (2026-08-28)
+
+- [kunde:sichtbar] Auf schmalen Bildschirmen liess sich manche Seite seitlich verschieben, weil einzelne Bausteine breiter wurden als das Fenster. Das ist behoben; die Seite endet jetzt dort, wo der Bildschirm endet.
+
+**Fix:** vier Bausteine sprengten den Viewport
+
+Anlass war eine Messung ueber alle 23 Kundenrepos am 28.08.2026: 7 von 22 hatten
+horizontalen Ueberstand. Die Befunde fuehrten auf vier Stellen im Kern.
+
+**1. `1fr` ist `minmax(auto, 1fr)`** — und `auto` heisst min-content. Ein langes Wort
+zieht die Spur damit ueber ihren Anteil hinaus, und das Raster sprengt seinen eigenen
+Container. Dieselbe Falle wie beim Tabellenbruch in v0.133.0, an drei weiteren Stellen:
+
+| Stelle | gemessen |
+|---|---|
+| `LeistungenSection` | gottl-richter-gomeier @768: Spuren 225,9 + 216,3 + 260,5 px + 48 px Abstand = 750,7 px in einem 720 px breiten Raster. Ursache: „Betriebskostenabrechnungen" |
+| `Hero` (zweispaltig und einspaltig) | digital-direkt @390: einzige Spur 373 px statt der verfuegbaren 342 px, scrollWidth 397 |
+| `StatsGrid` | soleno @390: „Leistungsbereiche" in Grossbuchstaben mit Sperrung 162 px breit, scrollWidth 393 |
+
+Alle drei bekommen `minmax(0, …)`; wo eine Spur dadurch schmaler werden kann als das
+laengste Wort, bricht das Wort jetzt (`overflow-wrap`, bei `StatsGrid` zusaetzlich
+`hyphens`).
+
+**2. `PriceTransparency`: `white-space: nowrap` auf einem freien Textfeld.** Gedacht war
+es fuer kurze Angaben wie „800 EUR". Bei steller-sanierungen steht dort „800 EUR -
+2.500 EUR pro m2 Wohnflaeche" — 305 px breit, auf 12 Ortsseiten, scrollWidth 513 bei
+390 px Viewport. Der Kern kennt den Text nicht, den ein Kunde eintraegt, und darf ihn
+deshalb nicht am Umbrechen hindern.
+
+**3. Der Header mass die falsche Schrift.** `fit()` entscheidet anhand gemessener
+Breiten, ob die volle Navigation passt — laeuft aber synchron vor dem ersten Paint und
+misst damit die Ersatzschrift. Ist die echte Schrift breiter, waechst die Navigation
+danach, und niemand rechnet nach.
+
+Gemessen an gottl-richter-gomeier @768: nach dem Schriftwechsel ergibt die Rechnung
+805 > 720, die Kompaktschaltung MUESSTE greifen — `data-nav` war trotzdem nie gesetzt,
+auf allen 22 Seiten, dauerhaft.
+
+Nachgemessen wurde auch, was NICHT reicht: weder `fonts.ready.then(fit)` noch
+`loadingdone` bringen den Wert unter 797, denn beide feuern erst nach dem ersten Paint.
+Deshalb zusaetzlich `flex-wrap: wrap` auf dem Header-Container: passt die Navigation
+nicht, rutscht sie in eine zweite Zeile, statt die Seite aufzuschieben. Passt sie,
+aendert die Regel nichts. Die Nachmessung per `loadingdone` bleibt trotzdem drin — sie
+schaltet zeitnah auf den Hamburger.
+
+**Nachweis:** gottl-richter-gomeier 22 rote Tests → 44/44 gruen, steller-sanierungen
+13 → 134/134, digital-direkt 1 → 78/78, soleno 1 → 146/146. Jeweils gemessen mit
+`checks/mobile-audit.spec.ts` ueber die vollstaendige Sitemap, beide Viewports.
+
 ## v0.137.0 (2026-08-28)
 
 - [kunde:sichtbar] Der Hinweis auf KI-erzeugte Bilder passt sich jetzt der Bildgröße an — auf Übersichtskacheln war er zuvor viel zu groß geraten, auf großen Bildern zu klein.
