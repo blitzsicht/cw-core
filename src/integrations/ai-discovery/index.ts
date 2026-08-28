@@ -35,6 +35,7 @@ import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
 import { checkAnchorIntegrity, type AnchorIssue } from './anchor-integrity-check.js';
+import { checkButtonContrast, type ButtonIssue } from './button-contrast-check.js';
 import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 import {
   checkDeadFontFamilies,
@@ -269,6 +270,11 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   /** Gibt jeder Inhaltstabelle im Build `tabindex="0"`, damit der Scroll-Container
    *  per Tastatur erreichbar ist. Default: true. */
   makeTablesFocusable?: boolean;
+  /** Knopf-Kontrast-Guard: prüft --color-accent-btn-text gegen --color-accent.
+   *  Default: true. */
+  checkButtonContrast?: boolean;
+  /** Knopf-Kontrast-Guard bricht den Build ab. Default: true. */
+  strictButtonContrast?: boolean;
   /** Anker-Integritäts-Guard: meldet Links, die der Compiler hinter einer Tabelle
    *  wieder aufgemacht hat, und Links ohne erkennbaren Namen. Default: true. */
   checkAnchorIntegrity?: boolean;
@@ -2472,6 +2478,51 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             logger.info(
               `Tabellen-Fokus: ${ergaenztGesamt} Scroll-Bereich(e) auf ${seitenMitTabelle} Seite(n) per Tastatur erreichbar gemacht.`,
             );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Kontrast der Schrift auf dem Akzent-Knopf
+        // -------------------------------------------------------------------
+        // .btn-accent faellt ohne --color-accent-btn-text auf weisse Schrift
+        // zurueck. Bei hellen Markenfarben ist das unlesbar: am 28.08.2026 fiel
+        // der Haupt-CTA bei vier von zwoelf Live-Kunden durch, soleno mit
+        // 1,65:1. Der Kern kann die Farbe nicht waehlen — welche Schrift auf
+        // eine Marke passt, entscheidet der Kunde. Er kann sich aber weigern,
+        // einen unlesbaren Knopf auszuliefern. Siehe button-contrast-check.js.
+        if (options.checkButtonContrast !== false) {
+          const cssDateien: string[] = [];
+          const suche = (dir: string) => {
+            let eintraege;
+            try {
+              eintraege = readdirSync(dir, { withFileTypes: true });
+            } catch {
+              return;
+            }
+            for (const e of eintraege) {
+              const voll = `${dir}/${e.name}`;
+              if (e.isDirectory() && e.name !== 'node_modules') suche(voll);
+              else if (e.name.endsWith('.css')) cssDateien.push(voll);
+            }
+          };
+          suche('src/styles');
+          const btnIssues: ButtonIssue[] = [];
+          for (const datei of cssDateien) {
+            try {
+              btnIssues.push(...checkButtonContrast(readFileSync(datei, 'utf-8')));
+            } catch {
+              /* unlesbar: nicht raten */
+            }
+          }
+          if (btnIssues.length === 0) {
+            logger.info('Knopf-Kontrast: ✓ Schrift auf .btn-accent erfüllt AA (oder ist nicht berechenbar).');
+          } else {
+            for (const issue of btnIssues) logger.warn(`Knopf-Kontrast: ${issue.detail}`);
+            if (options.strictButtonContrast !== false) {
+              throw new Error(
+                `[ai-discovery] strictButtonContrast=true: Build abgebrochen — Schrift auf .btn-accent erreicht nur ${btnIssues[0].ratio}:1.`,
+              );
+            }
           }
         }
 
