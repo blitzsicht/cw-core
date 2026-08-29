@@ -65,6 +65,17 @@ jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+
+    # ── Die einzige Stelle, an der der cw-core-Pin steht ─────────────────────
+    # Vorher stand der Tag zweimal in dieser Datei (am checkout-Step und in der
+    # Log-Zeile) und musste von cw-release Schritt 6b zweimal gehoben werden.
+    # Zwei Fundstellen für dieselbe Tatsache heißt: eine davon veraltet
+    # irgendwann still, und dann meldet das Protokoll einen Tag, gegen den gar
+    # nicht geprüft wurde — ein Beleg, der schlechter ist als keiner.
+    # Gehoben wird das hier von cw-release Schritt 6b, nicht von Hand.
+    env:
+      CW_CORE_PIN: release/cw-core/v0.142.0
+
     steps:
       - name: Kundenrepo auschecken
         uses: actions/checkout@v4
@@ -86,15 +97,82 @@ jobs:
           # einen Deprecation-Guard. Der Tag liegt deshalb unter demselben
           # Präfix — refs/tags/release/cw-core/vX.Y.Z, nicht refs/heads.
           # Gehoben wird dieser Pin vom cw-release-Skill, nicht von Hand.
-          ref: release/cw-core/v0.141.0
+          # Der Wert steht im env-Block oben — hier steht bewusst kein Literal.
+          ref: ${{ env.CW_CORE_PIN }}
           path: cw-core
 
-      - name: Guard-Stand protokollieren
-        # Ohne diese Zeile ist im Nachhinein nicht feststellbar, gegen welche
-        # Spec-Fassung ein Lauf geurteilt hat. Die Diagnose vom 28.08.2026 war
-        # nur über den Vergleich von Zeilennummern in Fehlertexten möglich.
+      - name: Guard-Stand protokollieren und prüfen
+        # Drei Dinge in einem Schritt, alle drei aus einem Vorfall heraus:
+        #
+        # 1. PROTOKOLL. Ohne diese Zeile ist im Nachhinein nicht feststellbar,
+        #    gegen welche Spec-Fassung ein Lauf geurteilt hat. Die Diagnose vom
+        #    28.08.2026 war nur über den Vergleich von Zeilennummern in
+        #    Fehlertexten möglich — Stunden statt Sekunden.
+        #
+        # 2. HARTE PRÜFUNG: ist der ausgecheckte Commit wirklich der, den der
+        #    Pin meint? Löst ${{ env.CW_CORE_PIN }} oben aus irgendeinem Grund
+        #    nicht auf, nimmt actions/checkout STILL den Default-Branch — und
+        #    der ist release/cw-core, also exakt der bewegliche Branch-Kopf, an
+        #    dem der Guard vorher krankte. Ein solcher Rückfall sähe in der
+        #    Oberfläche aus wie ein normaler grüner Lauf. Deshalb Abbruch.
+        #
+        # 3. WEICHE PRÜFUNG: ist der Pin noch der neueste Tag? Wird cw-release
+        #    Schritt 6b übersprungen, prüft die ganze Flotte weiter mit dem Spec
+        #    der Vorversion — und niemand sieht es, weil Vorlage und Kundenrepos
+        #    dann einvernehmlich veraltet sind. Nur eine Warnung: zwischen
+        #    Tag-Push und Rollout liegen ein paar Minuten, und in dieser Zeit
+        #    darf kein Kunden-PR rot werden. Die harte Variante dieser Prüfung
+        #    läuft in customer-websites (rollout-site-checks.sh --check).
         run: |
-          echo "Guard-Specs: release/cw-core/v0.141.0 = $(git -C cw-core rev-parse --short HEAD)"
+          set -uo pipefail
+          IST=$(git -C cw-core rev-parse HEAD)
+          echo "Guard-Specs: ${CW_CORE_PIN} = $(git -C cw-core rev-parse --short HEAD)"
+
+          # Auflösung des Pins auf einen Commit. actions/checkout holt per Default
+          # nur einen Commit; ob der Tag lokal ueberhaupt vorliegt, ist damit
+          # nicht gesichert. Deshalb erst lokal, dann remote.
+          SOLL=$(git -C cw-core rev-list -n 1 "refs/tags/${CW_CORE_PIN}" 2>/dev/null || true)
+          if [ -z "$SOLL" ]; then
+            # ^{} liefert bei einem annotated tag den Commit statt des Tag-Objekts.
+            # sort -k2 stellt die ^{}-Zeile ans Ende, tail nimmt sie; bei einem
+            # lightweight tag gibt es nur eine Zeile und dieselbe Logik greift.
+            # `|| true` ist noetig, NICHT Zierde: GitHub startet diesen Schritt als
+            # `bash -e` (im Log-Kopf nachlesbar), und `set -uo pipefail` hebt das -e
+            # nicht auf. Findet die Pipeline nichts, ist der Exit-Status der
+            # ZUWEISUNG 1 und der Schritt bricht ab — ausgerechnet dann, wenn der
+            # dritte Zustand darunter greifen soll. Gleiche Falle wie beim
+            # Sitemap-Zaehler weiter unten, dort schon einmal teuer bezahlt.
+            SOLL=$( { git ls-remote https://github.com/blitzsicht/cw-core \
+                        "refs/tags/${CW_CORE_PIN}" "refs/tags/${CW_CORE_PIN}^{}" 2>/dev/null \
+                      | sort -k2 | tail -1 | cut -f1; } || true)
+          fi
+          if [ -z "$SOLL" ]; then
+            # Werkzeugversagen ist weder gruen noch rot. Ein nicht aufloesbarer
+            # Pin darf keinen Kunden-PR blockieren, aber auch nicht so aussehen,
+            # als waere geprueft worden.
+            echo "::warning::Pin ${CW_CORE_PIN} war weder lokal noch remote aufloesbar — der Checkout wurde NICHT gegen den Pin geprueft."
+          elif [ "$IST" != "$SOLL" ]; then
+            echo "::error::cw-core steht auf $IST, der Pin ${CW_CORE_PIN} meint $SOLL. Der Checkout ist NICHT auf dem gepinnten Tag — vermutlich ist die Auflösung auf den Default-Branch zurückgefallen. Kein Urteil aus diesem Lauf ist mit einem anderen vergleichbar."
+            exit 1
+          else
+            echo "Pin bestätigt: ausgecheckter Commit == Tag ${CW_CORE_PIN}"
+          fi
+
+          # Aktualität. Fehlschlag hier ist kein Fehler, aber auch kein Schweigen:
+          # eine nicht ermittelbare Referenz wird benannt statt als "aktuell" gewertet.
+          # Auch hier `|| true` — siehe oben. Ohne den Auffang waere der Warn-Zweig
+          # darunter unerreichbar, und ein Netzfehler faerbte jeden Kunden-PR rot.
+          NEUESTER=$( { git ls-remote --tags https://github.com/blitzsicht/cw-core 'refs/tags/release/cw-core/v*' 2>/dev/null \
+              | sed 's#.*refs/tags/##' \
+              | grep -E '^release/cw-core/v[0-9]+\.[0-9]+\.[0-9]+$' \
+              | sort -V | tail -1; } || true)
+          if [ -z "$NEUESTER" ]; then
+            echo "::warning::Neuester cw-core-Tag nicht ermittelbar — die Aktualität des Pins wurde NICHT geprüft."
+          elif [ "$NEUESTER" != "${CW_CORE_PIN}" ]; then
+            echo "::warning::Der Guard prüft mit ${CW_CORE_PIN}, neuester Tag ist ${NEUESTER}. In customer-websites: ./scripts/rollout-site-checks.sh --check"
+          else
+            echo "Pin ist der neueste Tag."
+          fi
 
       - name: pnpm einrichten
         uses: pnpm/action-setup@v4
