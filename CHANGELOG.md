@@ -22,6 +22,50 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.142.0 (2026-08-29)
+
+**Workflow:** Der Sicht-Guard prüft im Lauf nach, ob er wirklich gegen den gepinnten
+cw-core-Stand geurteilt hat.
+
+Kontext: Seit v0.141.0 checkt `templates/.github/workflows/site-checks.yml` seine Specs
+mit einem festen Tag aus statt mit dem Branch-Kopf. Gehoben wurde dieser Pin bisher
+allein von einer Regel im cw-release-Skill (Schritt 6b). Wird sie übersprungen, prüft
+die gesamte Flotte still mit dem Spec der Vorversion — Vorlage und Kundenrepos sind
+dann einvernehmlich veraltet, und niemand sieht es.
+
+Der Tag stand außerdem zweimal in der Datei (am checkout-Step und in der Log-Zeile).
+Zwei Fundstellen für dieselbe Tatsache heißt: eine veraltet irgendwann still, und dann
+meldet das Protokoll einen Tag, gegen den gar nicht geprüft wurde — ein Beleg, der
+schlechter ist als keiner.
+
+Neu in der Vorlage:
+
+- `env: CW_CORE_PIN` als **einzige** Fundstelle des Pins; `ref:` und Log-Zeile ziehen
+  ihn von dort. cw-release Schritt 6b hebt damit eine Stelle statt zweier.
+- **Harte Prüfung:** ist der ausgecheckte cw-core-Commit der, den der Pin meint?
+  Sonst `::error::` und Abbruch. Löst die env-Variable nicht auf, nähme
+  `actions/checkout` still den Default-Branch `release/cw-core` — genau der bewegliche
+  Branch-Kopf, an dem der Guard vorher krankte, und in der Oberfläche nicht von einem
+  normalen grünen Lauf zu unterscheiden.
+- **Weiche Prüfung:** ist der Pin noch der neueste Tag? Nur `::warning::` — zwischen
+  Tag-Push und Rollout liegen Minuten, in denen kein Kunden-PR rot werden darf.
+- Ist der Pin weder lokal noch remote auflösbar, wird das als dritter Zustand benannt
+  statt als Erfolg gewertet.
+
+Belegt in echtem CI (customer-falzmarke): mit Pin `v0.140.0` wurde `a2a6742`
+ausgecheckt, nicht der Branch-Kopf `a99fc8a` — die env-Auflösung im `ref:` trägt. Der
+erste Lauf mit `v0.141.0` konnte das nicht zeigen, weil Tag und Branch-Kopf derselbe
+Commit sind.
+
+Die flottenweite, harte Fassung derselben Frage steht in customer-websites:
+`./scripts/rollout-site-checks.sh --check` (Exit 1 bei Drift, Exit 2 wenn nicht
+vollständig geprüft).
+
+**Migrations-Hinweis:** Keiner. Kundenrepos bekommen die Datei über
+`rollout-site-checks.sh`, nicht über den `@cw/core`-Import.
+
+---
+
 ## v0.141.0 (2026-08-28)
 
 **Der Guard zeigte auf das falsche Element.**
