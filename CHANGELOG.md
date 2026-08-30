@@ -22,6 +22,34 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.144.0 (2026-08-30)
+
+Der Knopf-Kontrast-Guard unterscheidet jetzt drei Zustände statt zwei. Bis v0.143.0
+lief alles, was kein Befund war, in EINE Zeile: `✓ Schrift auf .btn-accent erfüllt AA
+(oder ist nicht berechenbar)`. Weil das eine `info`-Zeile war und `build-warnings.mjs`
+nur `WARN`/`ERROR` zählt, buchte der Flotten-Scan „geprüft und bestanden", wo in
+Wahrheit „konnte nicht prüfen" stand. Vier Wege führten dorthin: keine CSS-Datei
+gefunden, CSS unlesbar, `--color-accent` nicht als Hex rechenbar (`color-mix()`,
+`oklch()`, `var()`), Schriftfarbe nicht rechenbar.
+
+Gemessen am 30.08.2026 an der Flotte: gympanzen lag in genau dieser Lücke — eigene
+Palette, kein `--color-accent`, seit Wochen ein grünes ✓ ohne eine einzige Rechnung.
+
+- `pruefeButtonKontrast(css, schwelle)` gibt `{status: 'ok'|'befund'|'nicht-rechenbar',
+  grund, issues}` zurück. `checkButtonContrast` bleibt als Wrapper erhalten — die
+  bestehenden 12 Tests laufen unverändert darüber.
+- „Nicht rechenbar" **warnt** (und wird damit vom Flotten-Scan gezählt), bricht den
+  Build aber NICHT ab: eine erfundene Zahl wäre schlimmer als keine, ein Abbruch auf
+  Verdacht auch.
+- Gewarnt wird nur, wenn `.btn-accent` im **ausgelieferten HTML** tatsächlich vorkommt.
+  Ein Kunde mit eigener Palette, der die Klasse nicht nutzt, bekommt „übersprungen"
+  statt eines Fehlalarms — an gympanzen real gegengeprüft.
+- Die ✓-Zeile nennt jetzt die Grundgesamtheit (`N CSS-Datei(en) gerechnet`) statt eines
+  Häkchens über ungeprüftem Gebiet.
+
+Kein `[kunde]`-Marker: reine Guard-Diagnostik, am Erscheinungsbild der Kundenseiten
+ändert sich nichts.
+
 ## v0.143.0 (2026-08-30)
 
 - [kunde] Die beiden Dateien, aus denen ChatGPT, Claude und Perplexity eine Website lesen, tragen jetzt die echten Seitentitel und den vollständigen Text aller Seiten. Vorher stand dort nur eine Kurzbeschreibung der Firma — ein Assistent, der nach einem Seiteninhalt gefragt wurde, fand ihn nicht.

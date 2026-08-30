@@ -35,7 +35,7 @@ import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
 import { checkAnchorIntegrity, type AnchorIssue } from './anchor-integrity-check.js';
-import { checkButtonContrast, type ButtonIssue } from './button-contrast-check.js';
+import { pruefeButtonKontrast, type ButtonIssue } from './button-contrast-check.js';
 import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 import {
   checkDeadFontFamilies,
@@ -2743,21 +2743,76 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             }
           };
           suche('src/styles');
+
+          // Drei Zustaende, nicht zwei. Bis v0.143.0 lief hier alles, was kein
+          // Befund war, in EINE info-Zeile: "✓ … (oder ist nicht berechenbar)".
+          // Weil build-warnings.mjs nur WARN/ERROR zaehlt, buchte der
+          // Flotten-Scan "geprueft und bestanden", wo "konnte nicht pruefen"
+          // stand. Vier Wege fuehrten dorthin: keine CSS gefunden, CSS
+          // unlesbar, --color-accent nicht rechenbar, Schriftfarbe nicht
+          // rechenbar. gympanzen lag am 30.08.2026 in genau dieser Luecke.
           const btnIssues: ButtonIssue[] = [];
+          const nichtRechenbar: string[] = [];
+          let gerechnet = 0;
+          let unlesbar = 0;
           for (const datei of cssDateien) {
+            let ergebnis;
             try {
-              btnIssues.push(...checkButtonContrast(readFileSync(datei, 'utf-8')));
+              ergebnis = pruefeButtonKontrast(readFileSync(datei, 'utf-8'));
             } catch {
-              /* unlesbar: nicht raten */
+              unlesbar++;
+              continue;
+            }
+            if (ergebnis.status === 'nicht-rechenbar') {
+              if (ergebnis.grund) nichtRechenbar.push(`${datei}: ${ergebnis.grund}`);
+            } else {
+              gerechnet++;
+              btnIssues.push(...ergebnis.issues);
             }
           }
-          if (btnIssues.length === 0) {
-            logger.info('Knopf-Kontrast: ✓ Schrift auf .btn-accent erfüllt AA (oder ist nicht berechenbar).');
-          } else {
+
+          if (btnIssues.length > 0) {
             for (const issue of btnIssues) logger.warn(`Knopf-Kontrast: ${issue.detail}`);
             if (options.strictButtonContrast !== false) {
               throw new Error(
                 `[ai-discovery] strictButtonContrast=true: Build abgebrochen — Schrift auf .btn-accent erreicht nur ${btnIssues[0].ratio}:1.`,
+              );
+            }
+          } else if (gerechnet > 0) {
+            // Zaehlwert statt blossem Haeckchen: "✓" ohne Grundgesamtheit ist
+            // ein Haeckchen ueber ungeprueftem Gebiet.
+            logger.info(
+              `Knopf-Kontrast: ✓ Schrift auf .btn-accent erfüllt AA (${gerechnet} CSS-Datei(en) gerechnet).`,
+            );
+          } else {
+            // Nichts gerechnet. Ob das ein Problem ist, entscheidet das
+            // AUSGELIEFERTE Markup — nicht die Konfiguration: ein Kunde mit
+            // eigener Palette, der .btn-accent gar nicht nutzt, darf hier
+            // keinen Fehlalarm bekommen (gympanzen importiert von cw-core nur
+            // utils/bildherkunft und rendert die Klasse nirgends).
+            let genutzt = false;
+            for (const datei of htmlFiles) {
+              try {
+                if (readFileSync(datei, 'utf-8').includes('btn-accent')) {
+                  genutzt = true;
+                  break;
+                }
+              } catch {
+                /* eine unlesbare HTML-Datei aendert das Urteil nicht */
+              }
+            }
+            if (genutzt) {
+              logger.warn(
+                'Knopf-Kontrast: NICHT GEPRÜFT — .btn-accent steht im ausgelieferten HTML, aber ' +
+                  `der Kontrast war aus keiner CSS-Datei rechenbar. ${
+                    nichtRechenbar.length > 0
+                      ? nichtRechenbar.join(' · ')
+                      : `keine CSS-Datei unter src/styles gefunden${unlesbar > 0 ? `, ${unlesbar} unlesbar` : ''}`
+                  }. Solange das so bleibt, sagt der grüne Build über diesen Knopf nichts aus.`,
+              );
+            } else {
+              logger.info(
+                'Knopf-Kontrast: übersprungen — .btn-accent kommt im ausgelieferten HTML nicht vor.',
               );
             }
           }
