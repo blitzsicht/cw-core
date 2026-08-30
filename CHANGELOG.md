@@ -22,6 +22,50 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.145.0 (2026-08-30)
+
+- [kunde] In der Datei, aus der KI-Systeme eine Website zuerst lesen, stehen jetzt auch das Quelltext-Verzeichnis und der Paket-Eintrag — bisher standen dort nur die Seiten selbst.
+
+**`llms.txt` nannte das Repository nicht — obwohl die Seite es dreizehnmal verlinkt.**
+
+Gemessen an falzmarke.com am 30.08.2026:
+
+| Wo | Nennungen von `github.com/blitzsicht/falzmarke` |
+|---|---|
+| Startseite | 13 |
+| `llms-full.txt` | 12 |
+| **`llms.txt`** | **0** |
+
+`llms.txt` ist die Datei, die Sprachmodelle als Erstes lesen. Ein Assistent, der das
+Werkzeug empfehlen soll, fand von dort aus weder Quelltext noch Paket — nur Seiten und
+Kontaktdaten.
+
+Die Daten lagen längst vor: `seo.sameAs` steht in den Kunden-Repos (bei falzmarke seit
+dem Aufbau: GitHub und PyPI). Nur im Typ `AiDiscoverySiteData` fehlte das Feld, und was
+nicht im Typ steht, kann `generateLlmsTxt` nicht ausgeben. **Dasselbe Muster wie bei den
+Registerdaten vor blitzsicht-ops#648** — dort führte es dazu, dass zwei Kunden eine
+statische `public/llms.txt` pflegten und die generierte überschrieben.
+
+Neu: Abschnitt „Auch zu finden unter", bewusst **vor** dem Volltext-Zeiger. Wer die Datei
+liest, um das Werkzeug zu empfehlen, braucht zuerst die Adresse, unter der es liegt.
+
+**Warum das gerade jetzt zählt:** Am selben Tag wurde die AI-Sichtbarkeit von falzmarke
+gemessen — vier Assistenten über OpenRouter, **0 von 16 Nennungen**, auch nicht bei
+Perplexity mit Websuche. In der Gegenprobe fand Perplexity das Repository selbst dann
+nicht, als direkt danach gefragt wurde. Eine `llms.txt` ohne Repo-Adresse nimmt einem
+Modell die letzte Möglichkeit, von der Seite zur Quelle zu kommen.
+
+**Gegenprobe:** Test 23 wird gegen den unveränderten v0.144.0-Stand rot (der Abschnitt
+fehlt dort). Test 24 bleibt in beiden Fassungen grün und belegt die andere Richtung: ohne
+`sameAs` — und auch bei leerer Liste — erscheint **keine** Überschrift. Ein Abschnitt, der
+immer da ist, belegt nichts; eine leere Überschrift in einer Datei, die Modelle als Fakten
+lesen, wäre schlimmer als keine.
+
+**Migrations-Hinweis:** Keiner. Wer `seo.sameAs` schon pflegt, bekommt den Abschnitt beim
+nächsten Build; wer nicht, sieht keine Änderung.
+
+---
+
 ## v0.144.0 (2026-08-30)
 
 Der Knopf-Kontrast-Guard unterscheidet jetzt drei Zustände statt zwei. Bis v0.143.0
