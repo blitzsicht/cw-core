@@ -22,6 +22,73 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.143.0 (2026-08-30)
+
+- [kunde] Die beiden Dateien, aus denen ChatGPT, Claude und Perplexity eine Website lesen, tragen jetzt die echten Seitentitel und den vollständigen Text aller Seiten. Vorher stand dort nur eine Kurzbeschreibung der Firma — ein Assistent, der nach einem Seiteninhalt gefragt wurde, fand ihn nicht.
+
+**Die Datei, die Sprachmodelle als Erstes lesen, schrieb eine Norm falsch.**
+
+Gemessen an falzmarke.com am 30.08.2026:
+
+| in `llms.txt` | tatsächlicher `<title>` |
+|---|---|
+| **Din 5008** | DIN 5008: alle Regeln mit Quellenangabe |
+| **Brief Mit Ki** | Briefe mit KI, ohne dass man es merkt |
+| Falzmarken | Falzmarken bei 105 und 210 mm — warum dort |
+| Briefe | Briefvorlagen |
+| Datenschutz | Datenschutzerklärung |
+
+Seiten der **Tiefe 1** bekamen den titelisierten Slug als Label, Seiten ab Tiefe 2 den
+echten `<title>`. Die Begründung dafür stand im Code — „ab Tiefe 2 ist der erste Slug
+nicht mehr aussagekräftig" — und sie trägt; sie gilt für Tiefe 1 nur genauso. `/din-5008`
+ist eine gute URL, gerade weil sie kurz ist. Der Titel trägt die Aussage, der Slug trägt
+sie nicht, und die Titelisierung schreibt Eigennamen zusätzlich falsch: eine Norm und
+eine Abkürzung, beide daneben, in genau der Datei, die Modelle zuerst lesen.
+
+Jetzt gilt eine Regel für alle Tiefen: `<title>` ohne Marken-Suffix, Rückfall auf die
+kuratierte Slug-Map, zuletzt Title-Case. Der Slug ist damit das, was er sein sollte —
+eine Notlösung, keine Voreinstellung. Als Nebenwirkung wirken auch die beiden schon
+vorhandenen Verfeinerungen (HTML-Entitäten dekodieren, nur `|` und `·` trennen die Marke
+ab) endlich auf der ersten Ebene.
+
+**`llms-full.txt` beschrieb die Firma, nicht die Seiten.**
+
+Die Datei trug Unternehmensdaten und FAQ, aber keinen Seiteninhalt: bei falzmarke
+2828 Bytes für zwanzig Seiten, von denen einzelne über 1400 Wörter haben. Wer wissen
+wollte, was auf `/din-5008` steht, erfuhr es dort nicht — obwohl genau das der Zweck der
+Datei ist (llmstxt.org).
+
+Neu: ein Abschnitt „Seiten im Volltext" aus den REAL gebauten `dist/`-Routen. Quelle ist
+`<main>`, damit Navigation und Fußzeile draußen bleiben; sonst stünde bei zwanzig Seiten
+zwanzigmal dasselbe Menü in der Datei und verdrängte den Inhalt. Überschriften, Listen
+und Tabellenzeilen bleiben erhalten — genau die Gliederung lässt einen Assistenten einen
+Antwortblock am Stück übernehmen. `noindex`-Seiten und `/404` bleiben draußen.
+
+Zwei Dinge, die beim ersten echten Lauf an falzmarke auffielen und mit Test belegt sind:
+HTML-Kommentare gehören entfernt (auf der Startseite stand eine interne Notiz über ein
+totes Tracking-Event samt Test-Pfad im Markup), und eine Überschrift mit `<br>` darf
+nicht über zwei Zeilen reißen — die zweite wäre sonst keine Überschrift mehr.
+
+**Neue Option `llmsFullMaxBytes`** (Default 524288 = 512 KB, `0` schaltet ab). Bei
+falzmarke sind es rund 85 KB für neunzehn Seiten; bei einer Standort- oder
+Katalog-Struktur wächst dieselbe Regel unbegrenzt. Greift das Budget, werden die
+ausgelassenen URLs **namentlich** genannt — im Build-Log *und* in der Datei selbst. Eine
+stille Kappung liest sich wie „alles enthalten" und wäre schlechter als gar kein
+Volltext.
+
+**Gegenprobe** — beide Hälften gegen den unveränderten v0.142.0-Stand gefahren:
+`resolveImportantPages` liefert dort wörtlich `'Din 5008'` statt
+`'DIN 5008: alle Regeln mit Quellenangabe'` und `'Kurse'` statt `"Kurse & Kursplan '26"`;
+`extractPageText`, `collectPageTexts` und `generateLlmsFullTxt` sind dort `undefined`.
+Der Rückfall-Test bleibt in beiden Fassungen grün und belegt damit, dass der Zweig
+erreicht wird. Am echten Build von customer-falzmarke: `llms-full.txt` 2828 → 84.662
+Bytes, 19 Seiten, kein Restmarkup, keine rohe Entität, kein Skript-Rest.
+
+**Migrations-Hinweis:** Keiner. `llms-full.txt` wächst beim nächsten Build jeder Site;
+wer das nicht will, setzt `llmsFullMaxBytes: 0`.
+
+---
+
 ## v0.142.0 (2026-08-29)
 
 **Workflow:** Der Sicht-Guard prüft im Lauf nach, ob er wirklich gegen den gepinnten
