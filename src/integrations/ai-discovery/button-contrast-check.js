@@ -76,19 +76,62 @@ export function leseToken(css, name) {
  * @returns {ButtonIssue[]}
  */
 export function checkButtonContrast(css, schwelle = 4.5) {
-  const akzent = alsHex(leseToken(css, 'color-accent'));
-  if (!akzent) return [];
+  return pruefeButtonKontrast(css, schwelle).issues;
+}
+
+/**
+ * Wie checkButtonContrast, aber mit dem dritten Zustand.
+ *
+ * `checkButtonContrast` gab in DREI verschiedenen Lagen ein leeres Array zurueck:
+ * bestanden, `--color-accent` nicht rechenbar, Schriftfarbe nicht rechenbar. Der
+ * Aufrufer machte daraus eine einzige Zeile — "✓ … (oder ist nicht berechenbar)" —
+ * und weil die als `info` lief und nicht als `warn`, zaehlte build-warnings.mjs sie
+ * als sauber. Der Flotten-Scan buchte "geprueft und bestanden", wo "konnte nicht
+ * pruefen" stand.
+ *
+ * Gemessen am 30.08.2026: gympanzen faellt in genau diese Luecke (eigene Palette,
+ * kein `--color-accent`) und meldete ✓, ohne dass je etwas gerechnet wurde.
+ *
+ * Dasselbe Prinzip steht schon in build-warnings-report.mjs im
+ * customer-websites-Repo: "guardFindings ist -1, wenn nicht geprueft — 0 waere
+ * eine Luege." Diese Funktion zieht nach.
+ *
+ * @param {string} css
+ * @param {number} [schwelle]
+ * @returns {{status: 'ok'|'befund'|'nicht-rechenbar', grund: string|null, issues: ButtonIssue[]}}
+ */
+export function pruefeButtonKontrast(css, schwelle = 4.5) {
+  const akzentRoh = leseToken(css, 'color-accent');
+  const akzent = alsHex(akzentRoh);
+  if (!akzent) {
+    return {
+      status: 'nicht-rechenbar',
+      grund: akzentRoh
+        ? `--color-accent ist "${akzentRoh}" — kein rechenbarer Hexwert (color-mix(), oklch(), var() o. ae.)`
+        : '--color-accent ist in dieser Datei nicht gesetzt',
+      issues: [],
+    };
+  }
   // Ohne eigenen Token faellt .btn-accent auf weiss zurueck — genau der Fall,
   // der die vier Kunden erwischt hat.
   const schriftRoh = leseToken(css, 'color-accent-btn-text') ?? 'white';
   const schrift = alsHex(schriftRoh);
-  if (!schrift) return [];
+  if (!schrift) {
+    return {
+      status: 'nicht-rechenbar',
+      grund: `--color-accent-btn-text ist "${schriftRoh}" — kein rechenbarer Hexwert`,
+      issues: [],
+    };
+  }
   const r = kontrast(schrift, akzent);
-  if (r >= schwelle) return [];
+  if (r >= schwelle) return { status: 'ok', grund: null, issues: [] };
   const woher = leseToken(css, 'color-accent-btn-text')
     ? `--color-accent-btn-text (${schrift})`
     : `der Fallback weiss (--color-accent-btn-text ist nicht gesetzt)`;
-  return [
+  return {
+    status: 'befund',
+    grund: null,
+    issues: [
     {
       type: 'accent_button_contrast',
       ratio: Math.round(r * 100) / 100,
@@ -98,5 +141,6 @@ export function checkButtonContrast(css, schwelle = 4.5) {
         'Die Markenfarbe muss dafuer nicht weichen: setze --color-accent-btn-text auf einen ' +
         'Ton, der auf ihr besteht (haeufig #000000 oder ein sehr dunkles Blau).',
     },
-  ];
+    ],
+  };
 }
