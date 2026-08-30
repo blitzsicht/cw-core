@@ -207,6 +207,22 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   importantPageDepth?: number;
 
   /**
+   * Byte-Budget für den Abschnitt „Seiten im Volltext" in `llms-full.txt`.
+   * Default 524288 (512 KB). `0` schaltet den Abschnitt ab.
+   *
+   * Warum es das Budget überhaupt gibt: llms-full.txt trägt seit cw-core#105 den
+   * Volltext aller gebauten Seiten — bei falzmarke sind das rund 100 KB für zwanzig
+   * Seiten, unauffällig. Bei einer Katalog- oder Standort-Struktur (platzfrei.club)
+   * wächst dieselbe Regel unbegrenzt, und eine Textdatei im Megabereich liest kein
+   * Assistent mehr zu Ende.
+   *
+   * Greift das Budget, werden die ausgelassenen URLs **namentlich** genannt — im
+   * Build-Log und in der Datei selbst. Eine stille Kappung liest sich wie
+   * „alles enthalten" und wäre der schlechtere Zustand als gar kein Volltext.
+   */
+  llmsFullMaxBytes?: number;
+
+  /**
    * Default false. Bei true → Build-Fail wenn der Brand-Name-Linter hartkodierte
    * Marken-Literale in siteData-Prosa-Feldern (description, tagline, FAQs,
    * Leistungen) oder in statischen Assets (robots.txt) findet.
@@ -524,10 +540,26 @@ const IMPORTANT_PAGE_LABELS: Record<string, string> = {
 };
 
 /**
+ * Slug → Title-Case, letzte Rückfallstufe für ein Seiten-Label.
+ *
+ * Bewusst dumm: `din-5008` wird zu „Din 5008" und das ist falsch geschrieben. Genau
+ * deshalb ist das die dritte Stufe und nicht die erste — greift sie, hat die Seite
+ * weder einen `<title>` noch einen Eintrag in IMPORTANT_PAGE_LABELS, und dann ist ein
+ * lesbarer Slug immer noch besser als eine leere Zeile (cw-core#105).
+ */
+function titleCaseSlug(slug: string): string {
+  return slug
+    .split('-')
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
+/**
  * Leitet die "Wichtige Seiten"-Liste für llms.txt aus den REAL gebauten
  * dist/-Routen ab (statt hardcodeter Pfade, die bei Single-Page-/Produkt-Sites
  * tote Links erzeugten). Regeln: nur Top-Level-Routen (Tiefe 1), ohne Homepage,
- * ohne noindex-Seiten. Label via Slug-Map mit Title-Case-Fallback. Alphabetisch
+ * ohne noindex-Seiten. Label aus dem `<title>` ohne Marken-Suffix, Rückfall auf die
+ * Slug-Map und zuletzt Title-Case (cw-core#105). Alphabetisch
  * sortiert (deterministisch). Exportiert für Unit-Tests.
  */
 /**
@@ -580,33 +612,187 @@ export function resolveImportantPages(
     if (/<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(content)) {
       continue; // noindex-Seiten (z.B. /review) nicht bewerben
     }
-    // Ab Tiefe 2 ist der erste Slug nicht mehr aussagekräftig — /studios/x und
-    // /studios/x/kurse/y hießen beide „Studios". Der <title> trägt die
-    // Unterscheidung ohnehin schon, also wird er genommen; das Marken-Suffix
-    // („… | Marke") fällt weg, weil es in llms.txt schon in der H1 steht.
-    let label: string;
-    if (segments.length === 1) {
-      label =
-        IMPORTANT_PAGE_LABELS[slug] ??
-        slug
-          .split('-')
-          .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
-          .join(' ');
-    } else {
-      const titleMatch = content.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-      const rawTitle = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
-      // NUR `|` und `·` trennen den Markennamen ab. Gedankenstriche gehören zum
-      // Titel selbst — „Kurse & Kursplan – Victory Gym" waere sonst nach dem
-      // ersten Strich abgeschnitten. Entfernt wird das LETZTE Trenner-Segment,
-      // nicht alles ab dem ersten.
-      const stripped = decodeEntities(rawTitle.replace(/\s*[|·]\s*[^|·]*$/, '')).trim();
-      // Ohne Titel lieber den Pfad zeigen als eine leere Zeile.
-      label = stripped || segments[segments.length - 1];
-    }
+    // Der <title> trägt die Aussage, der Slug trägt sie nicht — auf JEDER Tiefe.
+    // Ab Tiefe 2 war das schon immer so (/studios/x und /studios/x/kurse/y hießen
+    // beide „Studios"). Auf Tiefe 1 galt bis cw-core#105 der titelisierte Slug, und
+    // der schreibt Eigennamen falsch: aus `din-5008` wurde „Din 5008", aus
+    // `brief-mit-ki` „Brief Mit Ki" — eine Norm und eine Abkürzung, beide falsch, in
+    // genau der Datei, die Sprachmodelle als Erstes lesen. Die alte Annahme „flach =
+    // selbsterklärend" trägt für /impressum, aber nicht für Inhaltsseiten:
+    // Top-Level-URLs sind kurz, weil sie kurz sein sollen.
+    //
+    // Das Marken-Suffix („… | Marke") fällt weg, weil es in llms.txt schon in der H1
+    // steht. NUR `|` und `·` trennen es ab. Gedankenstriche gehören zum Titel selbst —
+    // „Kurse & Kursplan – Victory Gym" wäre sonst nach dem ersten Strich
+    // abgeschnitten. Entfernt wird das LETZTE Trenner-Segment, nicht alles ab dem ersten.
+    const titleMatch = content.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    const rawTitle = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+    const stripped = decodeEntities(rawTitle.replace(/\s*[|·]\s*[^|·]*$/, '')).trim();
+    // Ohne Titel: die kuratierte Map, sonst der Slug in Title-Case. Beides ist der
+    // Rückfall — der Slug war nie als Voreinstellung gemeint.
+    const label =
+      stripped || IMPORTANT_PAGE_LABELS[slug] || titleCaseSlug(segments[segments.length - 1]);
     pages.push({ label, href: `${baseUrl}/${segments.join('/')}/` });
   }
   pages.sort((a, b) => a.href.localeCompare(b.href));
   return pages;
+}
+
+export interface PageText {
+  /** Seitentitel ohne Marken-Suffix — dieselbe Regel wie in der llms.txt-Liste. */
+  title: string;
+  /** Fließtext der Seite als Markdown-naher Klartext. */
+  text: string;
+}
+
+/**
+ * Holt den lesbaren Text einer gebauten Seite für llms-full.txt (cw-core#105).
+ *
+ * Quelle ist `<main>`, Rückfall `<body>`. Beide cw-core-Layouts setzen `<main>`
+ * (LandingPage.astro, ContentPage.astro) — damit bleiben Navigation und Fußzeile
+ * draußen. Ohne diese Eingrenzung stünde bei zwanzig Seiten zwanzigmal dasselbe
+ * Menü in der Datei und verdrängte den Inhalt, für den sie gebaut ist.
+ *
+ * Regex statt Parser, wie im Rest dieser Datei: cw-core hat keinen HTML-Parser als
+ * Abhängigkeit (nur exiftool-vendored und satori), und einen dafür einzuziehen stünde
+ * in keinem Verhältnis. Die Eingabe ist kein fremdes HTML, sondern das eigene dist/.
+ *
+ * Die Gliederung bleibt erhalten (Überschriften, Listen), weil genau sie einen
+ * Assistenten den Antwortblock am Stück übernehmen lässt. Als Textbrei wäre er nicht
+ * auffindbar.
+ *
+ * @param minChars Unterhalb dieser Länge gilt die Seite als leer und liefert `null`.
+ *   Eine leere Seite als leerer Abschnitt wäre in einer Datei, die Modelle als Fakten
+ *   lesen, die teuerste Fehlerart.
+ */
+export function extractPageText(html: string, minChars = 80): PageText | null {
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const rawTitle = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+  const title = decodeEntities(rawTitle.replace(/\s*[|·]\s*[^|·]*$/, '')).trim();
+
+  const mainMatch = html.match(/<main[^>]*>([\s\S]*?)<\/main>/i);
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  let text = mainMatch ? mainMatch[1] : bodyMatch ? bodyMatch[1] : '';
+  if (!text) return null;
+
+  text = text
+    // Nicht-Text raus, samt Inhalt. `svg` trägt <title>-Elemente, die sonst als
+    // Fließtext auftauchten; `template` ist per Definition nicht gerendert.
+    .replace(/<(script|style|noscript|svg|template)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    // Landmarken, die auch innerhalb von <main> vorkommen können (Brotkrumen,
+    // Seiten-Fuß) — und alles, was der <body>-Rückfall sonst mitschleppte.
+    .replace(/<(nav|header|footer|aside)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+    // HTML-Kommentare raus, samt Inhalt. Gemessen an falzmarkes Startseite: dort
+    // steht eine interne Notiz über ein totes Tracking-Event samt Test-Pfad im
+    // Markup. Ohne diese Zeile stünde die Entwickler-Notiz im Volltext, den ein
+    // Assistent als Aussage der Seite liest.
+    .replace(/<!--[\s\S]*?-->/g, '')
+    // Überschriften: die Seite sitzt in llms-full.txt schon unter einer "###",
+    // ihre eigene Gliederung beginnt deshalb eine Ebene darunter. Das Element wird
+    // als Ganzes genommen und sein Innenleben flachgezogen — ein <br> oder <span>
+    // in der Überschrift darf sie nicht über zwei Zeilen reissen, sonst ist die
+    // zweite Zeile keine Überschrift mehr und die Gliederung stimmt nicht.
+    .replace(/<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi, (_m, lvl: string, inner: string) => {
+      const level = Number(lvl) <= 2 ? 4 : Number(lvl) === 3 ? 5 : 6;
+      const flat = inner.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      return flat ? `\n\n${'#'.repeat(level)} ${flat}\n\n` : '\n\n';
+    })
+    .replace(/<li\b[^>]*>/gi, '\n- ')
+    .replace(/<br\s*\/?>/gi, '\n')
+    // Tabellenzellen bleiben in einer Zeile, getrennt wie in Markdown. Eine echte
+    // Markdown-Tabelle wäre ohne Kopf-Trennzeile ohnehin keine.
+    .replace(/<\/(td|th)>/gi, ' | ')
+    .replace(/<\/(p|div|section|article|tr|ul|ol|dl|dd|dt|blockquote|figcaption)>/gi, '\n')
+    // Der Rest fällt ersatzlos weg. NICHT durch ein Leerzeichen ersetzen: <strong>
+    // und Konsorten stehen mitten im Wort, und die Blockenden oben haben ihre
+    // Umbrüche bereits gesetzt.
+    .replace(/<[^>]+>/g, '');
+
+  text = decodeEntities(text)
+    .split('\n')
+    .map((line) => line.replace(/[ \t ]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  if (text.length < minChars) return null;
+  return { title: title || '', text };
+}
+
+export interface CollectedPages {
+  pages: Array<{ url: string; title: string; text: string }>;
+  /** URLs, die das Byte-Budget nicht mehr aufgenommen hat — namentlich, nie still. */
+  dropped: string[];
+}
+
+/**
+ * Sammelt den Volltext aller gebauten Seiten für llms-full.txt (cw-core#105).
+ *
+ * Reihenfolge: Startseite, dann Tiefe 1, dann Tiefe 2 — innerhalb einer Ebene
+ * alphabetisch. Deterministisch, und wenn das Budget greift, überlebt der wertvolle
+ * Teil statt dem, was zufällig mit „a" beginnt.
+ *
+ * `maxBytes <= 0` schaltet den Volltext ab; das ist zugleich der Opt-out und braucht
+ * damit keinen zweiten Schalter.
+ */
+export function collectPageTexts(
+  htmlFiles: readonly string[],
+  distDir: string,
+  baseUrl: string,
+  maxBytes: number,
+): CollectedPages {
+  if (!(maxBytes > 0)) return { pages: [], dropped: [] };
+  const base = distDir.replace(/\\/g, '/').replace(/\/$/, '');
+  const candidates: Array<{ depth: number; url: string; title: string; text: string }> = [];
+
+  for (const file of htmlFiles) {
+    const rel = file.replace(/\\/g, '/').slice(base.length);
+    const route = rel.replace(/index\.html$/, '').replace(/\/+$/, '');
+    const segments = route.replace(/^\//, '').split('/').filter(Boolean);
+    // walkHtml sammelt nur index.html, dist/404.html ist also ohnehin draußen —
+    // eine /404/-Route wäre es nicht, deshalb hier trotzdem geprüft.
+    if (segments.includes('404')) continue;
+    let content = '';
+    try {
+      content = readFileSync(file, 'utf-8');
+    } catch {
+      continue; // unlesbar → überspringen
+    }
+    if (/<meta[^>]+name=["']robots["'][^>]+content=["'][^"']*noindex/i.test(content)) {
+      continue; // noindex-Seiten gehören auch nicht in den Volltext
+    }
+    const extracted = extractPageText(content);
+    if (!extracted) continue;
+    const url = segments.length === 0 ? `${baseUrl}/` : `${baseUrl}/${segments.join('/')}/`;
+    candidates.push({
+      depth: segments.length,
+      url,
+      title:
+        extracted.title ||
+        (segments.length === 0 ? 'Startseite' : titleCaseSlug(segments[segments.length - 1])),
+      text: extracted.text,
+    });
+  }
+
+  candidates.sort((a, b) => a.depth - b.depth || a.url.localeCompare(b.url));
+
+  const pages: CollectedPages['pages'] = [];
+  const dropped: string[] = [];
+  let used = 0;
+  for (let i = 0; i < candidates.length; i++) {
+    const c = candidates[i];
+    const cost = Buffer.byteLength(`### ${c.title}\nURL: ${c.url}\n\n${c.text}\n\n`, 'utf-8');
+    if (used + cost > maxBytes) {
+      // Ab hier wird nichts mehr aufgenommen — nicht „die nächste kleine passt noch".
+      // Sonst hinge die Auswahl an der Reihenfolge der Dateigrößen, und niemand könnte
+      // erklären, warum eine Seite fehlt und eine spätere drinsteht.
+      for (let j = i; j < candidates.length; j++) dropped.push(candidates[j].url);
+      break;
+    }
+    used += cost;
+    pages.push({ url: c.url, title: c.title, text: c.text });
+  }
+  return { pages, dropped };
 }
 
 /** Extrahiert alle JSON-LD-Block-Inhalte aus einem HTML-String. */
@@ -1492,7 +1678,7 @@ export function generateLlmsTxt(
   lines.push('## Maschinenlesbarer Volltext');
   lines.push('');
   lines.push(
-    `- [llms-full.txt](${data.url}/llms-full.txt) — Vollständige Service-, FAQ- und Unternehmensinformationen für KI-Agenten`,
+    `- [llms-full.txt](${data.url}/llms-full.txt) — Alle Seiten im Volltext, dazu Service-, FAQ- und Unternehmensinformationen für KI-Agenten`,
   );
   lines.push('');
 
@@ -1517,10 +1703,11 @@ export function generateLlmsTxt(
   return lines.join('\n');
 }
 
-function generateLlmsFullTxt(
+export function generateLlmsFullTxt(
   data: AiDiscoverySiteData,
   services: ReadonlyArray<ServiceItem> | undefined,
   faqs: ReadonlyArray<FAQItem> | undefined,
+  collected: CollectedPages = { pages: [], dropped: [] },
 ): string {
   const today = new Date().toISOString().slice(0, 10);
   const lines: string[] = [];
@@ -1588,6 +1775,38 @@ function generateLlmsFullTxt(
       lines.push(faq.a);
       lines.push('');
     }
+  }
+
+  // Seiten im Volltext (cw-core#105)
+  //
+  // Bis v0.142.0 trug llms-full.txt Unternehmensdaten und FAQ, aber keinen
+  // Seiteninhalt — bei falzmarke 2828 Bytes für zwanzig Seiten, von denen einzelne
+  // über 1400 Wörter haben. Wer wissen wollte, was auf /din-5008 steht, erfuhr es
+  // dort nicht. Genau das ist aber der Zweck der Datei (llmstxt.org).
+  if (collected.pages.length > 0) {
+    lines.push('---');
+    lines.push('');
+    lines.push('## Seiten im Volltext');
+    lines.push('');
+    for (const page of collected.pages) {
+      lines.push(`### ${page.title}`);
+      lines.push('');
+      lines.push(`URL: ${page.url}`);
+      lines.push('');
+      lines.push(page.text);
+      lines.push('');
+    }
+  }
+
+  // Eine unerwähnte Obergrenze liest sich wie „alles enthalten". Wurde gekappt,
+  // steht das IN der Datei und nicht nur im Build-Log — die Datei ist das, was ein
+  // Assistent zu sehen bekommt, das Log sieht er nie.
+  if (collected.dropped.length > 0) {
+    lines.push(
+      `> Nicht enthalten, weil das Byte-Budget dieser Datei erschöpft war: ` +
+        `${collected.dropped.join(', ')}`,
+    );
+    lines.push('');
   }
 
   // Data usage notice
@@ -2292,9 +2511,27 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         writeFileSync(join(outDir, 'llms.txt'), llmsTxt, 'utf-8');
         logger.info(`  → ${join(outDir, 'llms.txt')}`);
 
-        const llmsFullTxt = generateLlmsFullTxt(data, services, faqs);
+        // htmlFiles ist oben bereits gescannt (llms.txt + Schema-Linter) und wird
+        // hier ein drittes Mal genutzt — kein zusätzlicher Durchlauf über dist/.
+        const collectedPages = collectPageTexts(
+          htmlFiles,
+          distDir,
+          data.url,
+          options.llmsFullMaxBytes ?? 524288,
+        );
+        if (collectedPages.dropped.length > 0) {
+          logger.warn(
+            `llms-full.txt: Byte-Budget erschöpft — ${collectedPages.dropped.length} Seite(n) ` +
+              `nicht im Volltext enthalten: ${collectedPages.dropped.join(', ')}. ` +
+              'Budget über llmsFullMaxBytes anheben oder die Auslassung bewusst hinnehmen.',
+          );
+        }
+
+        const llmsFullTxt = generateLlmsFullTxt(data, services, faqs, collectedPages);
         writeFileSync(join(outDir, 'llms-full.txt'), llmsFullTxt, 'utf-8');
-        logger.info(`  → ${join(outDir, 'llms-full.txt')}`);
+        logger.info(
+          `  → ${join(outDir, 'llms-full.txt')} (${collectedPages.pages.length} Seiten im Volltext)`,
+        );
 
         // -------------------------------------------------------------------
         // Schema-Linter: doppelte JSON-LD @id pro Page erkennen
