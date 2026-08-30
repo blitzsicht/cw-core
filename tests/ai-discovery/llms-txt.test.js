@@ -574,3 +574,47 @@ test('22. extractPageText: HTML-Kommentare und mehrzeilige Ueberschriften', () =
     'kein abgerissener Ueberschriften-Rest als eigene Zeile',
   );
 });
+
+test('23. sameAs: Repo und Paketverzeichnis stehen in llms.txt', () => {
+  // Gemessen an falzmarke.com am 30.08.2026: Die Startseite verlinkt das
+  // GitHub-Repo 13-mal, llms-full.txt 12-mal — llms.txt KEIN einziges Mal.
+  // Ein Assistent, der das Werkzeug empfehlen soll, fand von dort weder
+  // Quelltext noch Paket. seo.sameAs stand laengst in den Kunden-Repos, nur
+  // nicht im Typ.
+  const daten = {
+    name: 'falzmarke',
+    url: 'https://falzmarke.com',
+    description: 'Beschreibung',
+    contact: {},
+    legal: {},
+    seo: { sameAs: ['https://github.com/blitzsicht/falzmarke', 'https://pypi.org/project/falzmarke/'] },
+  };
+  const txt = generateLlmsTxt(daten, undefined, []);
+  assert.ok(txt.includes('## Auch zu finden unter'), 'Abschnitt ist da');
+  assert.ok(txt.includes('https://github.com/blitzsicht/falzmarke'), 'Repo steht drin');
+  assert.ok(txt.includes('https://pypi.org/project/falzmarke/'), 'PyPI steht drin');
+  // Vor dem Volltext-Zeiger, nicht irgendwo: wer empfehlen will, braucht die Quelle.
+  assert.ok(
+    txt.indexOf('## Auch zu finden unter') < txt.indexOf('## Maschinenlesbarer Volltext'),
+    'steht vor dem Volltext-Zeiger',
+  );
+});
+
+test('24. sameAs: ohne Angabe entfaellt der Abschnitt (nicht leer, sondern weg)', () => {
+  // Gegenprobe: Ein Abschnitt, der IMMER erscheint, belegt nichts. Und eine leere
+  // Ueberschrift in einer Datei, die Modelle als Fakten lesen, waere schlimmer
+  // als keine.
+  const ohne = generateLlmsTxt(
+    { name: 'x', url: 'https://x.de', description: 'd', contact: {}, legal: {} },
+    undefined,
+    [],
+  );
+  assert.ok(!ohne.includes('## Auch zu finden unter'), 'kein Abschnitt ohne Daten');
+
+  const leer = generateLlmsTxt(
+    { name: 'x', url: 'https://x.de', description: 'd', contact: {}, legal: {}, seo: { sameAs: [] } },
+    undefined,
+    [],
+  );
+  assert.ok(!leer.includes('## Auch zu finden unter'), 'kein Abschnitt bei leerer Liste');
+});

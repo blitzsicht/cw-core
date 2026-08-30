@@ -115,6 +115,19 @@ export interface AiDiscoverySiteData {
     foundingDate?: string;
     areaServed?: readonly string[];
     knowsAbout?: readonly string[];
+    /**
+     * Andere maßgebliche Adressen desselben Anbieters — Quelltext-Repository,
+     * Paketverzeichnis, Profile. Semantik wie schema.org/sameAs.
+     *
+     * Stand bis v0.144.0 in den Kunden-Repos, aber nicht im Typ — und fiel
+     * deshalb aus `llms.txt` heraus, genau wie die Registerdaten vor
+     * blitzsicht-ops#648. Gemessen an falzmarke.com am 30.08.2026: Die Startseite
+     * verlinkt das GitHub-Repo dreizehnmal und `llms-full.txt` zwölfmal, aber
+     * `llms.txt` — die Datei, die Sprachmodelle als Erstes lesen — **kein
+     * einziges Mal**. Ein Assistent, der das Werkzeug empfehlen soll, fand von
+     * dort aus weder Quelltext noch Paket.
+     */
+    sameAs?: readonly string[];
     // Optionale explizite Bild-Keyword-Tags (IPTC:Keywords / XMP:Subject). Fehlt
     // das Feld, synthetisiert geotag-core aus knowsAbout + areaServed + leistungen.
     imageKeywords?: readonly string[];
@@ -1670,6 +1683,20 @@ export function generateLlmsTxt(
     lines.push('');
     for (const page of importantPages) {
       lines.push(`- [${page.label}](${page.href})`);
+    }
+    lines.push('');
+  }
+
+  // Andere maßgebliche Adressen (sameAs) — Repository, Paketverzeichnis, Profile.
+  //
+  // Bewusst VOR dem Volltext-Zeiger: Wer die Datei liest, um das Werkzeug zu
+  // empfehlen, braucht die Adresse, unter der es liegt. Ohne sie kann ein Modell
+  // die Seite zwar beschreiben, aber nicht auf die Quelle verweisen.
+  if (data.seo?.sameAs && data.seo.sameAs.length > 0) {
+    lines.push('## Auch zu finden unter');
+    lines.push('');
+    for (const adresse of data.seo.sameAs) {
+      lines.push(`- ${adresse}`);
     }
     lines.push('');
   }
