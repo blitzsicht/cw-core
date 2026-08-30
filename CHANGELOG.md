@@ -22,6 +22,42 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.146.0 (2026-08-30)
+
+- [kunde] Wer auf einer Website benachrichtigt werden will, sobald es eine neue Version gibt, muss dafür nur noch seine E-Mail-Adresse angeben — nicht mehr Name und Firma dazu.
+
+**`ContactForm` bekommt einen fünften Typ: `updates` — ein Feld, nicht vier.**
+
+Für falzmarke.com war eine Update-Liste zu bauen (blitzsicht-ops#747). Der nächstliegende
+vorhandene Typ war `waitlist`, und der hätte nicht gepasst:
+
+| `formType` | Felder |
+|---|---|
+| `waitlist` | Name (Pflicht), **Studio (Pflicht)**, E-Mail (Pflicht), Nachricht |
+| **`updates`** (neu) | **E-Mail (Pflicht)** |
+
+Das Pflichtfeld „Dein Studio" stammt aus platzfrei und wäre auf einer Werkzeug-Website
+sinnlos gewesen. Wichtiger als die Passgenauigkeit ist aber der zweite Punkt: Für einen
+Release-Versand reicht die Adresse. **Was nicht erhoben wird, muss nicht verwahrt, nicht
+geschützt und nicht gelöscht werden** — jedes zusätzliche Pflichtfeld hätte einen Grund
+gebraucht, und es gab keinen.
+
+Die Texte laufen per Du wie bei `waitlist` (Produkt-Tonalität), Erfolgsmeldung
+„Eingetragen." statt „Vielen Dank!". Der Fehlertext duzt jetzt ebenfalls — vorher wäre
+`updates` in den Sie-Zweig gefallen und hätte mitten im Formular die Ansprache gewechselt.
+
+**Nicht geändert:** `contact-handler.js`. Dessen `kind` bleibt bei
+`'contact-form' | 'waitlist'`. Der Handler verlangt ohnehin nur `email` (Zeile 319 ff.),
+alle übrigen Felder sind optional, und die Betreffzeile setzt die Site über die
+Handler-Option `subject`. Eine zweite Union zu erweitern, ohne dass jemand den
+Unterschied sähe, wäre Ballast gewesen.
+
+**Bestehende Sites sind unberührt.** `updates` ist ein zusätzlicher Zweig; wer ihn nicht
+setzt, bekommt exakt das bisherige Verhalten. `astro check`: 0 Fehler. Testsuite: 724
+grün, 1 übersprungen, 0 rot — unverändert gegenüber v0.145.0.
+
+---
+
 ## v0.145.0 (2026-08-30)
 
 - [kunde] In der Datei, aus der KI-Systeme eine Website zuerst lesen, stehen jetzt auch das Quelltext-Verzeichnis und der Paket-Eintrag — bisher standen dort nur die Seiten selbst.

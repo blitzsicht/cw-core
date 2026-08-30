@@ -38,8 +38,12 @@ interface Props {
    * Form variant — determines which fields are rendered.
    * `waitlist`: Warteliste für Produkt-Sites (Felder: name, studio, email,
    * message optional) — Texte bewusst per Du (Produkt-Tonalität, z. B. platzfrei).
+   * `updates`: Benachrichtigung bei neuen Versionen (EIN Feld: email). Bewusst
+   * ohne Name, Firma und Nachricht — was nicht erhoben wird, muss nicht verwahrt
+   * werden, und für einen Release-Versand reicht die Adresse. Texte per Du wie
+   * bei `waitlist` (Produkt-Tonalität, z. B. falzmarke).
    */
-  formType?: 'contact' | 'audit' | 'bewerbung' | 'waitlist';
+  formType?: 'contact' | 'audit' | 'bewerbung' | 'waitlist' | 'updates';
   /** Email address shown in the no-JS / error fallback. */
   fallbackEmail?: string;
   /** Custom submit endpoint. When set, Web3Forms is bypassed. */
@@ -222,6 +226,13 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         </>
       )}
 
+      {formType === 'updates' && (
+        <div class="form-row">
+          <label for="cf-email">Deine E-Mail <span aria-hidden="true">*</span></label>
+          <input type="email" id="cf-email" name="email" required autocomplete="email" />
+        </div>
+      )}
+
       {adsConsent && (
         <div class:list={['form-consent', adsConsentDetails && 'has-details']}>
           <input type="checkbox" id="cf-ads-consent" name="marketing_consent" value="true" />
@@ -259,17 +270,18 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
          dringend, dass er laufende Ausgabe unterbrechen müsste. -->
     <div class="form-success" hidden role="status" aria-live="polite">
       <div class="success-icon" aria-hidden="true">✓</div>
-      <h3>{formType === 'waitlist' ? 'Du stehst auf der Liste!' : 'Vielen Dank!'}</h3>
+      <h3>{formType === 'waitlist' || formType === 'updates' ? 'Eingetragen.' : 'Vielen Dank!'}</h3>
       {formType === 'audit' && <p>Wir analysieren Ihre Website und melden uns innerhalb von 48 Stunden.</p>}
       {formType === 'bewerbung' && <p>Wir haben Ihre Bewerbung erhalten und melden uns innerhalb von 48 Stunden.</p>}
       {formType === 'contact' && <p>Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>}
       {formType === 'waitlist' && <p>Wir melden uns, sobald es für dein Studio losgehen kann.</p>}
+      {formType === 'updates' && <p>Du bekommst eine Nachricht, wenn eine neue Version erscheint. Sonst nichts.</p>}
     </div>
 
     <div class="form-error" hidden>
       <p>
         Etwas ist schiefgelaufen.{fallbackEmail && (
-          formType === 'waitlist'
+          formType === 'waitlist' || formType === 'updates'
             ? <> Bitte schreib uns direkt an <a href={`mailto:${fallbackEmail}`}>{fallbackEmail}</a>.</>
             : <> Bitte schreiben Sie uns direkt an <a href={`mailto:${fallbackEmail}`}>{fallbackEmail}</a>.</>
         )}
