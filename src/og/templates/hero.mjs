@@ -6,6 +6,7 @@
 // zugeschnitten); objectFit:cover fängt Abweichungen ab.
 import { h } from '../h.mjs';
 import { BRAND, dataUri, logoImg, trustBadge } from '../brand.mjs';
+import { aiLabelElement } from '../ai-label.mjs';
 
 /**
  * @param {object} o
@@ -19,6 +20,16 @@ import { BRAND, dataUri, logoImg, trustBadge } from '../brand.mjs';
  * @param {Buffer} [o.logo]      Logo (weiße Variante)
  * @param {string} [o.logoMime="image/svg+xml"]
  * @param {object} [o.brand=BRAND]
+ * @param {'ki-erzeugt'|'ki-veraendert'} [o.aiHerkunft]
+ *   Trägt das Foto die Offenlegung nach Art. 50 Abs. 4 AI Act? Ohne Wert (Standard) wird
+ *   nichts gerendert — der Aufrufer muss die Deklaration explizit auflösen (z. B. über
+ *   `resolveBildHerkunft`/`istKennzeichnungspflichtig`), damit kein Foto durch das bloße
+ *   Vorhandensein dieser Prop fälschlich als KI-Inhalt markiert wird.
+ * @param {'schwarz'|'weiss'} [o.aiFarbe="schwarz"]
+ *   Aus `labelFarbeFuerBild(o.photo, { ueberlagerung: 0.85 })` — muss der Aufrufer VOR dem
+ *   Aufruf messen (async), `hero()` selbst rendert synchron wie alle Satori-Templates.
+ *   0,85 ist der Näherungswert für den Gradient an der Stelle „unten links", wo das Label
+ *   sitzt (Verlauf reicht dort von 0,55 auf 0,92 Deckkraft).
  * @returns {object} Satori-Element
  */
 export function hero(o = {}) {
@@ -40,6 +51,8 @@ export function hero(o = {}) {
         backgroundImage: `linear-gradient(180deg, rgba(29,30,59,0.15) 0%, rgba(29,30,59,0.55) 55%, rgba(29,30,59,0.92) 100%)`,
       },
     }),
+    // KI-Offenlegung — vor dem Inhalt, damit der Claim-Text nötigenfalls darüber liegt
+    aiLabelElement({ herkunft: o.aiHerkunft, farbe: o.aiFarbe }),
     // Inhalt
     h('div', {
       style: { position: 'relative', width: '100%', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '60px 68px' },

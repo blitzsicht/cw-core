@@ -22,6 +22,66 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.147.0 (2026-08-31)
+
+- [kunde:sichtbar] Automatisch erzeugte Vorschaubilder (beim Teilen eines Links auf Facebook,
+  LinkedIn & Co.) tragen jetzt die eigene Markenfarbe statt der Blitzsicht-Hausfarben.
+- [kunde] Vorschaubilder können jetzt die gesetzlich vorgeschriebene KI-Kennzeichnung tragen,
+  wenn ein Foto darauf mit KI erzeugt oder bearbeitet wurde — Website-Betreiber müssen das
+  weiterhin selbst erklären, es passiert nicht automatisch.
+
+**Fix: die automatische Pro-Seite-OG-Pipeline (`og-pages.js`, seit v0.132.0 Default an) reichte
+keine Markenfarbe durch — cw-core#100.**
+
+`og.hero()`/`og.cta()` fielen dadurch auf die Blitzsicht-Hausfarben (`#1D1E3B`/`#EF7612`)
+zurück. Live zu sehen bei Falzmarke (28.08.2026, LinkedIn): ein blau-oranges statt ein
+eigenes Vorschaubild. Betroffen alle Seiten, die die Autopipeline ohne eigenes OG-Skript
+nutzen — mindestens fünf Kundenseiten in der Flotte.
+
+`markenfarbenLesen()` (`og-pages.js`) liest `--color-primary`/`--color-accent` aus
+`src/styles/*.css` — dieselben Tokens, dieselbe Lesefunktion (`leseToken`/`alsHex` aus
+`button-contrast-check.js`), die schon der Knopf-Kontrast-Guard nutzt. Kein Token
+rechenbar (fehlendes CSS, `color-mix()`/`oklch()`/`var()`): sichtbar geloggte Warnung,
+Rückfall auf die bisherigen Hausfarben — nicht stillschweigend, nicht abgebrochen.
+
+**Feature: `og/ai-label.mjs` — die KI-Offenlegung für Satori-gerenderte OG-Bilder.**
+
+Die vier Satori-Templates (`cta`, `offer`, `hero`, `proof`) hatten keine Label-Logik;
+`AiLabel.astro` (v0.135.0, DOM-Komponenten) lässt sich nicht direkt einhängen — Satori
+kennt keine Astro-Komponenten, kein `<style>`, keine Media-Queries. Wiederverwendet: die
+SVG-Rohdateien aus `assets/ai-labels/` und `logoImg()` aus `brand.mjs` (Seitenverhältnis
+aus der viewBox).
+
+Neue optionale Props `aiHerkunft`/`aiFarbe` an `hero()` und `offer()` (den beiden mit
+Foto-Compositing — `cta()`/`proof()` haben kein externes Foto). Ohne `aiHerkunft`
+ändert sich am gerenderten Bild nichts — derselbe Opt-in wie bei der `bildHerkunft`-Prop
+der neun DOM-Komponenten (v0.135.0). `og-pages.js` bekommt dafür einen neuen optionalen
+Callback-Parameter `fotoHerkunft(distRelativerPfad)`; ohne Callback unverändertes
+Verhalten.
+
+Nur die deckende Badge-Fassung (eigener Pillenhintergrund, kontrastsicher unabhängig vom
+Foto) — keine transparente Variante, die auf einem Satori-Rendering nicht nachträglich
+geprüft werden könnte. Kein eigenes Textelement (analog `beschriftung="im-alt"`); die
+textliche/barrierefreie Fassung gehört an `og:image:alt` (HTML), nicht in die Pixel des
+OG-Bilds — dieselbe Aufteilung wie bei der statischen OG-Kennzeichnung von siluri.de.
+`og:image:alt` selbst ist NICHT Teil dieses Release.
+
+Geprüft: manuelles Rendering von `hero()`/`offer()` mit und ohne `aiHerkunft` — Label
+erscheint ausschließlich mit gesetztem Wert, an der Fotoposition, nicht über dem
+Fließtext. `offer()`s Foto sitzt rechts im Split-Layout; das Label positioniert sich
+relativ zur Fotobreite, nicht zur ganzen Leinwand.
+
+**Nicht Teil dieses Release:** welche Kundenseite tatsächlich `fotoHerkunft` setzt — das
+braucht eine Content-Prüfung je Seite (welche Hero-Fotos sind wirklich KI-generiert?) und
+ist eine eigene Folge-Runde, ebenso Pin-Bumps in den Kundenrepos. Der Brand-Fix wirkt
+dagegen sofort für jede Seite, die den neuen Pin zieht, ohne weitere Content-Prüfung.
+
+`astro check`: 0 Fehler. Stylelint: sauber. Testsuite: 737 (12 neu — `ai-label.test.mjs`
+und `markenfarbenLesen`-Fälle in `og-pages.test.mjs`), 736 grün, 1 übersprungen wie zuvor,
+0 rot.
+
+---
+
 ## v0.146.0 (2026-08-30)
 
 - [kunde] Wer auf einer Website benachrichtigt werden will, sobald es eine neue Version gibt, muss dafür nur noch seine E-Mail-Adresse angeben — nicht mehr Name und Firma dazu.

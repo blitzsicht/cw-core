@@ -29,6 +29,7 @@
  */
 
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 import { createRequire } from 'node:module';
 // Statisch, nicht dynamisch: im astro:build:done ist Vites Module-Runner bereits
@@ -37,6 +38,9 @@ import { createRequire } from 'node:module';
 // Gefahrlos, weil engine.mjs satori seinerseits erst beim Rendern nachlädt: das
 // blosse Importieren dieser API kostet nichts und kann nicht fehlschlagen.
 import * as og from '../../og/index.mjs';
+import { BRAND } from '../../og/brand.mjs';
+import { leseToken, alsHex } from './button-contrast-check.js';
+import { labelFarbeFuerBild } from '../../utils/labelfarbe.js';
 
 /** Alle index.html unterhalb von `dir`. */
 async function seitenDateien(dir, out = []) {
@@ -123,6 +127,67 @@ export function kappe(text, max = 96) {
 }
 
 /**
+ * Markenfarben aus `src/styles/*.css` der Kundenseite lesen — dieselben Tokens
+ * (`--color-primary`, `--color-accent`), die die Flotte laut Konvention überall
+ * setzt und die `pruefeButtonKontrast` schon für den Knopf-Kontrast-Guard liest.
+ *
+ * ANLASS (cw-core#100, 28.08.2026): `og.hero()`/`og.cta()` fielen hier ohne
+ * `brand`-Parameter auf die Blitzsicht-Hausfarben zurück — Falzmarke bekam dadurch
+ * ein blau-oranges statt sein eigenes Vorschaubild, sichtbar auf LinkedIn.
+ *
+ * Bewusst ein EIGENER, kleiner Scan statt den `cssDateien`-Lauf des
+ * Knopf-Kontrast-Guards (index.ts) mitzubenutzen: der Guard hat eine eigene,
+ * bereits mehrfach nachgebesserte Drei-Zustände-Logik (siehe dessen Kopf), und
+ * diese Funktion soll sie nicht mit anfassen müssen. Kosten: ein paar KB CSS
+ * zusätzlich gelesen — auf der Zeitachse eines Satori-Renders nicht messbar.
+ *
+ * @param {string} projektWurzel  i. d. R. `process.cwd()`
+ * @returns {{primary?: string, accent?: string}|null}
+ *   `null`, wenn keiner der beiden Tokens rechenbar war — dann bleibt der
+ *   Aufrufer beim Default-`BRAND` der Templates.
+ */
+export function markenfarbenLesen(projektWurzel) {
+  const stilOrdner = join(projektWurzel, 'src', 'styles');
+  if (!existsSync(stilOrdner)) return null;
+
+  const cssDateien = [];
+  const suche = (dir) => {
+    let eintraege;
+    try { eintraege = readdirSync(dir); } catch { return; }
+    for (const name of eintraege) {
+      const p = join(dir, name);
+      let info;
+      try { info = statSync(p); } catch { continue; }
+      if (info.isDirectory()) suche(p);
+      else if (name.endsWith('.css')) cssDateien.push(p);
+    }
+  };
+  suche(stilOrdner);
+  // `readdirSync` sortiert nicht garantiert (dateisystemabhängig) — sortiert, damit
+  // „die letzte Definition gewinnt" reproduzierbar dieselbe Datei meint, nicht je
+  // nach Betriebssystem eine andere.
+  cssDateien.sort();
+
+  // Alle Dateien zu einem Text zusammenfügen: `leseToken` nimmt ohnehin die
+  // LETZTE Definition — in (jetzt sortierter) Lesereihenfolge verkettet entspricht
+  // das näherungsweise der CSS-Kaskade, ohne eine eigene Lade-Reihenfolge
+  // nachbauen zu müssen.
+  let css = '';
+  for (const datei of cssDateien) {
+    try { css += '\n' + readFileSync(datei, 'utf-8'); } catch { /* eine unlesbare Datei aendert den Rest nicht */ }
+  }
+  if (!css) return null;
+
+  const primary = alsHex(leseToken(css, 'color-primary'));
+  const accent = alsHex(leseToken(css, 'color-accent'));
+  if (!primary && !accent) return null;
+  const brand = {};
+  if (primary) brand.primary = primary;
+  if (accent) brand.accent = accent;
+  return brand;
+}
+
+/**
  * @param {object} o
  * @param {URL|string} o.dir     dist-Verzeichnis. astro:build:done liefert eine URL,
  *                              die Integration reicht einen Pfad durch — die Zeile
@@ -131,13 +196,39 @@ export function kappe(text, max = 96) {
  * @param {string} [o.logoPfad]  Logo für die Bilder, relativ zu dist. Default '/logo-inverted.svg'
  * @param {string} [o.domain]    Domain für das cta-Template
  * @param {boolean} [o.strict]   true = Befunde brechen den Build. Default false (Warnung)
+ * @param {string} [o.projektWurzel=process.cwd()]  für `markenfarbenLesen()`
+ * @param {(distRelativerPfad: string) => ('ki-erzeugt'|'ki-veraendert'|null|undefined)} [o.fotoHerkunft]
+ *   Optionaler Callback: liefert die Deklaration für das Hero-Foto einer Seite
+ *   (dist-relativer Pfad ohne führenden Slash, z. B. `images/team/gruppe.webp`).
+ *   Ohne Callback ändert sich am gerenderten Bild nichts — dieselbe Opt-in-Logik
+ *   wie bei der `bildHerkunft`-Prop der neun DOM-Komponenten (v0.135.0).
  */
-export async function ogProSeite({ dir, logger, logoPfad = '/logo-inverted.svg', domain, strict = false }) {
+export async function ogProSeite({
+  dir, logger, logoPfad = '/logo-inverted.svg', domain, strict = false,
+  projektWurzel = process.cwd(), fotoHerkunft,
+}) {
   const dist = dir.pathname ? decodeURIComponent(dir.pathname) : String(dir);
   const seiten = await seitenDateien(dist);
 
   let logo = null;
   try { logo = await readFile(join(dist, logoPfad.replace(/^\//, ''))); } catch { /* Logo optional */ }
+
+  const gelesen = markenfarbenLesen(projektWurzel);
+  // Immer ein VOLLSTÄNDIGES Objekt an die Templates reichen — `markenfarbenLesen`
+  // liefert bei nur einem rechenbaren Token ein partielles Ergebnis, und
+  // `o.brand ?? BRAND` in den Templates ersetzt bei gesetztem `brand` NICHT die
+  // fehlenden Felder (kein Merge). Ein `brand.accent === undefined` wäre in
+  // Satori eine ungültige Farbe, kein sichtbarer Rückfall.
+  const brand = gelesen ? { ...BRAND, ...gelesen } : null;
+  if (gelesen) {
+    logger.info(`og-pages: Markenfarben aus src/styles/*.css übernommen (${Object.keys(gelesen).join(', ')}).`);
+  } else {
+    logger.warn(
+      'og-pages: --color-primary/--color-accent nicht rechenbar (kein CSS unter src/styles, oder ' +
+        'Werte in color-mix()/oklch()/var() o. ä.) — Vorschaubilder fallen auf die Blitzsicht-' +
+        'Hausfarben zurück. Nicht stillschweigend: siehe cw-core#100.',
+    );
+  }
 
   await mkdir(join(dist, 'og'), { recursive: true });
 
@@ -161,15 +252,28 @@ export async function ogProSeite({ dir, logger, logoPfad = '/logo-inverted.svg',
     try {
       let element;
       if (foto && !/^https?:/i.test(foto)) {
-        const p = join(dist, foto.replace(/^\//, ''));
+        const fotoPfadDist = foto.replace(/^\//, '');
+        const p = join(dist, fotoPfadDist);
         const roh = await readFile(p);
         const ext = (p.split('.').pop() || '').toLowerCase();
         const umwandeln = BRAUCHT_UMWANDLUNG.has(ext);
         const photo = umwandeln ? await alsJpeg(roh) : roh;
         const photoMime = umwandeln ? 'image/jpeg' : (MIME[ext] ?? 'image/jpeg');
-        element = og.hero({ photo, photoMime, claim: titel, subline: kappe(desc, 96), logo });
+
+        // KI-Offenlegung: nur wenn die Seite es über den Callback erklärt. Ohne
+        // Callback bleibt das Bild wie bisher — kein Kunde bekommt durch das
+        // blosse cw-core-Update eine unbelegte Behauptung auf sein OG-Bild.
+        const aiHerkunft = fotoHerkunft ? fotoHerkunft(fotoPfadDist) : null;
+        // Der Hero-Gradient reicht am unteren Rand (wo das Label sitzt) bis 0,92
+        // Deckkraft — labelFarbeFuerBild() mit `ueberlagerung` gibt an, wie stark
+        // der dunkle Verlauf dort schon vorwegnimmt (siehe hero.mjs-Kommentar).
+        const aiFarbe = aiHerkunft
+          ? (await labelFarbeFuerBild(photo, { ueberlagerung: 0.85 })) === 'weiss' ? 'weiss' : 'schwarz'
+          : undefined;
+
+        element = og.hero({ photo, photoMime, claim: titel, subline: kappe(desc, 96), logo, brand, aiHerkunft, aiFarbe });
       } else {
-        element = og.cta({ claim: titel, domain, logo });
+        element = og.cta({ claim: titel, domain, logo, brand });
       }
       // 200 KB statt der 300-KB-Vorgabe der Engine: der Perf-Budget-Guard der
       // Fleet lässt keine dist-Bilder über 200 KB zu, und er läuft VOR dieser

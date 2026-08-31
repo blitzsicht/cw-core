@@ -8,6 +8,7 @@
 // auf ~480×630 (cover) zugeschnitten.
 import { h } from '../h.mjs';
 import { BRAND, dataUri, logoImg, logoImgFit } from '../brand.mjs';
+import { aiLabelElement } from '../ai-label.mjs';
 
 /**
  * @param {object} o
@@ -23,6 +24,10 @@ import { BRAND, dataUri, logoImg, logoImgFit } from '../brand.mjs';
  * @param {Buffer} [o.logo]
  * @param {string} [o.logoMime="image/svg+xml"]
  * @param {object} [o.brand=BRAND]
+ * @param {'ki-erzeugt'|'ki-veraendert'} [o.aiHerkunft]
+ *   Wie bei `hero()` — nur wirksam, wenn `o.photo` gesetzt ist (Logo-Panel und
+ *   Text-only-Fallback zeigen kein Foto und brauchen keine Offenlegung).
+ * @param {'schwarz'|'weiss'} [o.aiFarbe="schwarz"]  aus `labelFarbeFuerBild(o.photo)`.
  * @returns {object} Satori-Element
  */
 export function offer(o = {}) {
@@ -104,6 +109,9 @@ export function offer(o = {}) {
       src: dataUri(o.photo, o.photoMime ?? 'image/png'), width: photoW, height: 630,
       style: { position: 'absolute', top: 0, right: 0, width: photoW, height: 630 },
     }),
+    // KI-Offenlegung am Foto, nicht an der Leinwand — sonst läge sie über dem Fließtext
+    // links statt am Bild, das sie kennzeichnet (Art. 50 Abs. 5: „am Bild").
+    aiLabelElement({ herkunft: o.aiHerkunft, farbe: o.aiFarbe, hoehe: 52, links: 1200 - photoW + 24, unten: 24 }),
     content,
   );
 }

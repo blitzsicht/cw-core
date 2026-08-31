@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { leseSeite, kappe } from './og-pages.js';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { leseSeite, kappe, markenfarbenLesen } from './og-pages.js';
 
 // Die Extraktion ist der Teil, an dem die Automatik still scheitern kann: findet sie
 // Titel oder Foto nicht, rendert sie das Falsche, ohne dass jemand etwas merkt.
@@ -117,4 +120,74 @@ test('REGRESSION: Unterseite in einem Unterordner landet trotzdem unter /og/', (
   // Seitenpfad — sonst laege das Bild unter /agb/og/… und waere ein 404.
   const abs = new URL('/og/seite-agb-sla.png', 'https://blitzsicht.com/agb/sla/').toString();
   assert.equal(abs, 'https://blitzsicht.com/og/seite-agb-sla.png');
+});
+
+// ── markenfarbenLesen (cw-core#100) ─────────────────────────────────────────────
+//
+// ANLASS: og.hero()/og.cta() fielen ohne diese Funktion auf die Blitzsicht-
+// Hausfarben zurueck — Falzmarke bekam dadurch ein blau-oranges statt sein
+// eigenes Vorschaubild (28.08.2026, sichtbar auf LinkedIn).
+
+/** Projektwurzel mit `src/styles/<name>` = `inhalt`, für die Dauer des Tests. */
+function projektMitCss(dateien) {
+  const wurzel = mkdtempSync(join(tmpdir(), 'og-brand-test-'));
+  const stile = join(wurzel, 'src', 'styles');
+  mkdirSync(stile, { recursive: true });
+  for (const [name, inhalt] of Object.entries(dateien)) {
+    writeFileSync(join(stile, name), inhalt, 'utf-8');
+  }
+  return wurzel;
+}
+
+test('beide Tokens gesetzt → beide werden übernommen', () => {
+  const wurzel = projektMitCss({
+    'tokens.css': ':root { --color-primary: #d90570; --color-accent: #0057ff; }',
+  });
+  try {
+    assert.deepEqual(markenfarbenLesen(wurzel), { primary: '#d90570', accent: '#0057ff' });
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
+  }
+});
+
+test('nur ein Token gesetzt → nur dieser landet im Ergebnis (kein erfundener zweiter Wert)', () => {
+  const wurzel = projektMitCss({ 'tokens.css': ':root { --color-primary: #d90570; }' });
+  try {
+    assert.deepEqual(markenfarbenLesen(wurzel), { primary: '#d90570' });
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
+  }
+});
+
+test('GEGENPROBE: kein Token rechenbar (color-mix) → null, nicht geraten', () => {
+  const wurzel = projektMitCss({
+    'tokens.css': ':root { --color-primary: color-mix(in oklab, blue, red); }',
+  });
+  try {
+    assert.equal(markenfarbenLesen(wurzel), null);
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
+  }
+});
+
+test('GEGENPROBE: kein src/styles vorhanden → null, kein Absturz', () => {
+  const wurzel = mkdtempSync(join(tmpdir(), 'og-brand-test-leer-'));
+  try {
+    assert.equal(markenfarbenLesen(wurzel), null);
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
+  }
+});
+
+test('mehrere CSS-Dateien: die letzte gelesene Definition gewinnt (Kaskaden-Näherung)', () => {
+  const wurzel = projektMitCss({
+    'a-tokens.css': ':root { --color-primary: #111111; }',
+    'b-override.css': ':root { --color-primary: #222222; }',
+  });
+  try {
+    // readdirSync liefert alphabetisch — b-override.css nach a-tokens.css, gewinnt.
+    assert.equal(markenfarbenLesen(wurzel).primary, '#222222');
+  } finally {
+    rmSync(wurzel, { recursive: true, force: true });
+  }
 });
