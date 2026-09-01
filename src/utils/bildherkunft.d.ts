@@ -63,6 +63,12 @@ export const HERKUNFT_WERTE: readonly Herkunft[];
 export const DEEPFAKE_WERTE: readonly DeepfakeEinordnung[];
 
 /**
+ * Der Wortlaut der Offenlegung, je Herkunft — die einzige Fassung im Repo.
+ * Verwender: `AiLabel.astro` (Badge im DOM) und `og-alt.js` (`og:image:alt`).
+ */
+export const OFFENLEGUNG_TEXT: Record<'ki-erzeugt' | 'ki-veraendert', string>;
+
+/**
  * Alle Regeln eines site-data prüfen, unabhängig davon, ob ein Bild sie trifft.
  * Befundform wie `ImpressumIssue` (`ai-discovery/index.ts`).
  */

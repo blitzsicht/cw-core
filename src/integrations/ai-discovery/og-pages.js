@@ -41,6 +41,7 @@ import * as og from '../../og/index.mjs';
 import { BRAND } from '../../og/brand.mjs';
 import { leseToken, alsHex } from './button-contrast-check.js';
 import { labelFarbeFuerBild } from '../../utils/labelfarbe.js';
+import { altMitOffenlegung, ohneOffenlegung } from '../../utils/og-alt.js';
 
 /** Alle index.html unterhalb von `dir`. */
 async function seitenDateien(dir, out = []) {
@@ -57,6 +58,132 @@ const entities = (s) =>
    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ');
 
 /**
+ * Attributwert wieder HTML-sicher machen.
+ *
+ * `leseSeite` dekodiert die Entities, damit mit Klartext gerechnet werden kann. Was
+ * zurück ins Dokument geht, muss neu kodiert werden — eine Beschreibung mit `&` oder
+ * einem Anführungszeichen zerlegte sonst das Attribut, und der Fehler fiele erst am
+ * kaputten Vorschaubild eines Crawlers auf.
+ */
+const escapeAttr = (s) =>
+  String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * `og:image:alt` und `twitter:image:alt` auf `alt` setzen.
+ *
+ * Ersetzen, wo der Tag steht; sonst hinter dem zugehörigen Bild-Tag einfügen. Das
+ * Einfügen ist kein Sonderfall für alte Bestände: Kunden mit eigenem Layout (statt
+ * `@cw/core/layouts/BaseLayout.astro`) bringen die Zeile nicht mit, und ohne sie hätte
+ * das neu gerenderte Bild keine textliche Entsprechung.
+ *
+ * Ersetzt wird über eine **Funktion**, nicht über `$1…$2`: Ein `$&` oder `$'` im
+ * Alt-Text würde in einem String-Ersatz als Rückverweis gelesen und den Text
+ * verstümmeln — bei Beschreibungen mit Preisangaben keine graue Theorie.
+ */
+export function setzeAltTags(html, alt) {
+  const wert = escapeAttr(alt);
+  const paare = [
+    {
+      vorhanden: /(<meta\s+property="og:image:alt"\s+content=")[^"]*(")/,
+      anker: /(<meta\s+property="og:image"\s+content="[^"]*"\s*\/?>)/,
+      neu: `<meta property="og:image:alt" content="${wert}">`,
+    },
+    {
+      vorhanden: /(<meta\s+name="twitter:image:alt"\s+content=")[^"]*(")/,
+      anker: /(<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>)/,
+      neu: `<meta name="twitter:image:alt" content="${wert}">`,
+    },
+  ];
+
+  let out = html;
+  for (const p of paare) {
+    if (p.vorhanden.test(out)) {
+      out = out.replace(p.vorhanden, (_m, vor, nach) => vor + wert + nach);
+    } else if (p.anker.test(out)) {
+      // Kein twitter:image im Dokument → auch kein twitter:image:alt. Ein Alt-Tag ohne
+      // sein Bild ist keine Ergänzung, sondern eine Angabe über nichts.
+      out = out.replace(p.anker, (_m, tag) => tag + p.neu);
+    }
+  }
+  return out;
+}
+
+/**
+ * Öffnendes Tag eines Hero-Bereichs — `class="hero…"` oder `class="page-hero…"`.
+ *
+ * Die Wortgrenze ist der Kern: `class="hero-content"` und `class="hero-badge"` liegen
+ * INNERHALB des Heros und dürfen nicht als dessen Anfang gelten. Deshalb muss nach
+ * `hero` das Attribut enden oder ein Leerzeichen folgen — `hero-` scheidet damit aus.
+ */
+const HERO_TAG = /<[a-z]+[^>]*\bclass="(?:page-)?hero(?:\s[^"]*)?"[^>]*>/i;
+
+/** Bilder, die im Hero stehen, aber nicht sein Motiv sind. */
+const KEIN_MOTIV = /\bclass="[^"]*\b(?:ai-label|logo|icon)\b/i;
+
+/**
+ * Das Hero-Foto einer gebauten Seite finden.
+ *
+ * ANLASS (01.09.2026): Bis v0.147.0 suchte diese Stelle ausschliesslich nach
+ * `class="page-hero"` mit einem INLINE-`style`, der ein `url()` enthält. Gemessen über
+ * die Flotte fand sie damit **27 Hero-Fotos, von denen kein einziges
+ * kennzeichnungspflichtig war** — und auf zwei frisch gebauten Kundenseiten (zink,
+ * steller, zusammen 98 Seiten) fand sie **gar keines**. Jede Seite bekam deshalb das
+ * `cta`-Template mit blosser Typografie, und die KI-Kennzeichnung aus v0.147.0 hatte
+ * flottenweit keine Fundstelle. Sie war gebaut, aber unerreichbar.
+ *
+ * Drei Bauformen kamen nicht an:
+ *   1. `class="page-hero "` / `class="page-hero has-image"` — Astro hängt beim Rendern
+ *      ein Leerzeichen an, Kunden setzen Zusatzklassen. Das exakte `"page-hero"` traf
+ *      keine davon.
+ *   2. Das Motiv als `<img>` statt als Hintergrund (Kunden-Markup, z. B. steller
+ *      `leistungen/[slug].astro` mit `<div class="hero-bg"><img class="hero-bg-img">`).
+ *   3. `Hero.astro` — die **Startseite** jeder Site. Sie rendert `class="hero"`, nie
+ *      `page-hero`. Ausgerechnet das prominenteste und am weitesten weitergereichte
+ *      Bild der Site war damit strukturell ausgeschlossen; zugleich ist `stem: 'hero'`
+ *      bei mehreren Kunden ausdrücklich als kennzeichnungspflichtig deklariert.
+ *
+ * Reihenfolge: erst der Hintergrund am Container (dort steht das Motiv, wenn es eins
+ * gibt), sonst das erste echte `<img>` im Block. „Echt" heisst: kein SVG (Logos,
+ * Piktogramme — und satori rendert sie im Foto-Slot ohnehin nicht sinnvoll), kein
+ * `data:`-URI, und nicht das AiLabel-Symbol selbst. Letzteres steht bei gekennzeichneten
+ * Bildern unmittelbar neben dem Motiv; ohne diesen Ausschluss würde das Badge als Foto
+ * gelesen und das OG-Bild zeigte ein formatfüllendes EU-Symbol.
+ *
+ * @param {string} html
+ * @returns {string|null} Bildpfad wie im Dokument, oder null
+ */
+export function heroFoto(html) {
+  const treffer = html.match(HERO_TAG);
+  if (!treffer) return null;
+
+  // Hintergrund am Container selbst.
+  const style = (treffer[0].match(/\bstyle="([^"]*)"/) || [])[1];
+  if (style) {
+    const url = (entities(style).match(/url\(['"]?([^'")]+)['"]?\)/) || [])[1];
+    if (url) return url;
+  }
+
+  // Sonst das erste echte <img> im Block. Der Block endet am nächsten </section>;
+  // fehlt es, wird abgeschnitten statt den Rest des Dokuments mitzulesen — sonst
+  // fände die Suche irgendein Bild weiter unten auf der Seite und gäbe es als
+  // Hero-Motiv aus.
+  const ab = html.slice(treffer.index ?? 0);
+  const ende = ab.indexOf('</section>');
+  const block = ende === -1 ? ab.slice(0, 20000) : ab.slice(0, ende);
+
+  for (const m of block.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = m[0];
+    if (KEIN_MOTIV.test(tag)) continue;
+    const src = (tag.match(/\bsrc="([^"]*)"/) || [])[1];
+    if (!src) continue;
+    const rein = entities(src);
+    if (rein.startsWith('data:') || /\.svg(\?|#|$)/i.test(rein)) continue;
+    return rein;
+  }
+  return null;
+}
+
+/**
  * Titel, Beschreibung, bisheriges og:image und Hero-Foto einer gebauten Seite.
  * Der Titel wird am ersten „|" oder „–" gekappt: der Site-Name dahinter steht im
  * OG-Bild ohnehin als Logo und würde den Claim nur verkürzen.
@@ -69,10 +196,13 @@ export function leseSeite(html) {
   // og:url ist der Canonical der Seite und die einzige verlässliche Quelle für
   // die absolute Basis — siehe Begründung an der Stelle, die sie verwendet.
   const ogUrl = (html.match(/<meta\s+property="og:url"\s+content="([^"]*)"/) || [])[1] || '';
-  // Hero-Foto: das Hintergrundbild des page-hero, egal ob mit oder ohne Overlay.
-  const heroBlock = (html.match(/class="page-hero"[^>]*style="([^"]*)"/) || [])[1] || '';
-  const foto = (entities(heroBlock).match(/url\(['"]?([^'")]+)['"]?\)/) || [])[1] || null;
-  return { titel, desc, ogImage, ogUrl, foto };
+  // Hero-Foto: Hintergrund oder <img> des Hero-Bereichs — siehe heroFoto().
+  const foto = heroFoto(html);
+  // Bisheriger Alt-Text. Er beschreibt noch das Bild VOR diesem Lauf und wird deshalb nur
+  // als Basis weiterverwendet — die Offenlegung darin gehört zum alten Bild und wird
+  // abgestreift, bevor die des neuen drankommt.
+  const ogAlt = entities((html.match(/<meta\s+property="og:image:alt"\s+content="([^"]*)"/) || [])[1] || '').trim();
+  return { titel, desc, ogImage, ogUrl, foto, ogAlt };
 }
 
 const MIME = { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', avif: 'image/avif' };
@@ -240,7 +370,7 @@ export async function ogProSeite({
 
   for (const datei of seiten) {
     const html = await readFile(datei, 'utf8');
-    const { titel, desc, ogImage, ogUrl, foto } = leseSeite(html);
+    const { titel, desc, ogImage, ogUrl, foto, ogAlt } = leseSeite(html);
     const slugRoh = relative(dist, dirname(datei)).replace(/\\/g, '/');
     const slug = slugRoh === '' ? 'home' : slugRoh.replace(/\//g, '-');
 
@@ -251,6 +381,10 @@ export async function ogProSeite({
 
     try {
       let element;
+      // Ausserhalb des Zweigs deklariert, weil der Alt-Text unten dieselbe Groesse
+      // braucht: Pixel-Badge und textliche Offenlegung muessen zwangslaeufig dasselbe
+      // sagen. Zwei getrennte Aufloesungen derselben Rechtsfrage wuerden driften.
+      let aiHerkunft = null;
       if (foto && !/^https?:/i.test(foto)) {
         const fotoPfadDist = foto.replace(/^\//, '');
         const p = join(dist, fotoPfadDist);
@@ -263,7 +397,7 @@ export async function ogProSeite({
         // KI-Offenlegung: nur wenn die Seite es über den Callback erklärt. Ohne
         // Callback bleibt das Bild wie bisher — kein Kunde bekommt durch das
         // blosse cw-core-Update eine unbelegte Behauptung auf sein OG-Bild.
-        const aiHerkunft = fotoHerkunft ? fotoHerkunft(fotoPfadDist) : null;
+        aiHerkunft = (fotoHerkunft ? fotoHerkunft(fotoPfadDist) : null) ?? null;
         // Der Hero-Gradient reicht am unteren Rand (wo das Label sitzt) bis 0,92
         // Deckkraft — labelFarbeFuerBild() mit `ueberlagerung` gibt an, wie stark
         // der dunkle Verlauf dort schon vorwegnimmt (siehe hero.mjs-Kommentar).
@@ -305,9 +439,31 @@ export async function ogProSeite({
         logger.warn(`og-pages: ${slug} — keine absolute Basis-URL (og:url fehlt), Bild bleibt unverändert.`);
         continue;
       }
-      const neu = html
-        .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/, `$1${abs}$2`)
-        .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/, `$1${abs}$2`);
+      // Der Alt-Text gehört zum Bild und muss mit ihm wechseln. Bliebe er stehen,
+      // beschriebe er ein Bild, das unter dieser URL nicht mehr liegt.
+      //
+      // Basis in dieser Reihenfolge: der bisherige Alt-Text (um die Offenlegung des
+      // ALTEN Bildes bereinigt, damit ein von Hand gepflegter Text erhalten bleibt und
+      // ein zweiter Lauf nicht doppelt stempelt), sonst die Beschreibung, sonst der
+      // Titel. Alle drei beschreiben, was das neue Bild zeigt: `og.hero()`/`og.cta()`
+      // setzen genau Titel und gekappte Beschreibung ins Motiv.
+      //
+      // Die Offenlegung kommt aus `aiHerkunft` — derselben Größe, die über das Badge in
+      // den Pixeln entscheidet. Beim `cta`-Template ist sie null: dort steckt kein Foto
+      // im Bild, sondern Typografie, und es gibt nichts offenzulegen.
+      const altBasis = ohneOffenlegung(ogAlt) || desc || titel;
+      const altNeu = altMitOffenlegung(
+        altBasis,
+        aiHerkunft ? { herkunft: aiHerkunft } : null,
+        !!aiHerkunft,
+      );
+
+      const neu = setzeAltTags(
+        html
+          .replace(/(<meta\s+property="og:image"\s+content=")[^"]*(")/, (_m, vor, nach) => vor + abs + nach)
+          .replace(/(<meta\s+name="twitter:image"\s+content=")[^"]*(")/, (_m, vor, nach) => vor + abs + nach),
+        altNeu,
+      );
       await writeFile(datei, neu, 'utf8');
       gerendert++;
     } catch (e) {

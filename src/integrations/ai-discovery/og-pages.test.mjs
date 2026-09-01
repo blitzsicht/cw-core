@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { leseSeite, kappe, markenfarbenLesen } from './og-pages.js';
+import { leseSeite, kappe, markenfarbenLesen, setzeAltTags, heroFoto } from './og-pages.js';
 
 // Die Extraktion ist der Teil, an dem die Automatik still scheitern kann: findet sie
 // Titel oder Foto nicht, rendert sie das Falsche, ohne dass jemand etwas merkt.
@@ -190,4 +190,177 @@ test('mehrere CSS-Dateien: die letzte gelesene Definition gewinnt (Kaskaden-Näh
   } finally {
     rmSync(wurzel, { recursive: true, force: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// og:image:alt — die textliche Fassung des Vorschaubilds (v0.148.0)
+// ---------------------------------------------------------------------------
+// Das Bild wird nach dem Build ausgetauscht; sein Alt-Text muss mitwechseln, sonst
+// beschreibt er ein Bild, das unter dieser URL nicht mehr liegt. Trägt es die
+// KI-Kennzeichnung, steckt die als Vektorpfad in den Pixeln und ist nicht vorlesbar —
+// Art. 50 Abs. 5 AI Act verlangt aber eine barrierefreie Fassung.
+
+const MIT_ALT =
+  '<meta property="og:image" content="https://x.de/og/a.png">' +
+  '<meta property="og:image:alt" content="Altes Motiv">' +
+  '<meta name="twitter:image" content="https://x.de/og/a.png">' +
+  '<meta name="twitter:image:alt" content="Altes Motiv">';
+
+const OHNE_ALT =
+  '<meta property="og:image" content="https://x.de/og/a.png">' +
+  '<meta property="og:image:width" content="1200">' +
+  '<meta name="twitter:image" content="https://x.de/og/a.png">';
+
+test('bisheriger og:image:alt wird gelesen (Basis fuer den neuen Text)', () => {
+  assert.equal(leseSeite(MIT_ALT).ogAlt, 'Altes Motiv');
+});
+
+test('fehlender og:image:alt liefert leer statt undefined', () => {
+  assert.equal(leseSeite(OHNE_ALT).ogAlt, '');
+});
+
+test('vorhandene Alt-Tags werden ersetzt, nicht verdoppelt', () => {
+  const out = setzeAltTags(MIT_ALT, 'Neues Motiv — Mit KI erzeugt');
+  assert.equal((out.match(/property="og:image:alt"/g) || []).length, 1);
+  assert.ok(out.includes('<meta property="og:image:alt" content="Neues Motiv — Mit KI erzeugt">'));
+  assert.ok(out.includes('<meta name="twitter:image:alt" content="Neues Motiv — Mit KI erzeugt">'));
+  assert.ok(!out.includes('Altes Motiv'), 'der alte Text steht noch da');
+});
+
+test('fehlende Alt-Tags werden hinter ihrem Bild eingefuegt', () => {
+  // Kunden mit eigenem Layout bringen die Zeile nicht mit; ohne Einfuegen haette das
+  // neu gerenderte Bild dort gar keine textliche Entsprechung.
+  const out = setzeAltTags(OHNE_ALT, 'Beschreibung');
+  assert.ok(out.includes('<meta property="og:image:alt" content="Beschreibung">'));
+  assert.ok(out.includes('<meta name="twitter:image:alt" content="Beschreibung">'));
+});
+
+test('eingefuegt wird hinter og:image, nicht hinter og:image:width', () => {
+  // Der Anker darf nicht auf die verwandten og:image:*-Tags danebengreifen.
+  const out = setzeAltTags(OHNE_ALT, 'Beschreibung');
+  const nachBild = out.indexOf('og:image:alt');
+  const nachBreite = out.indexOf('og:image:width');
+  assert.ok(nachBild < nachBreite, 'die Alt-Zeile steht nicht direkt hinter og:image');
+});
+
+test('GEGENPROBE: ohne twitter:image kommt auch kein twitter:image:alt dazu', () => {
+  // Ein Alt-Tag ohne sein Bild ist keine Ergaenzung, sondern eine Angabe ueber nichts.
+  const nurOg = '<meta property="og:image" content="https://x.de/og/a.png">';
+  const out = setzeAltTags(nurOg, 'Beschreibung');
+  assert.ok(out.includes('og:image:alt'));
+  assert.ok(!out.includes('twitter:image:alt'));
+});
+
+test('GEGENPROBE: HTML ohne jedes Bild-Tag bleibt unveraendert', () => {
+  const leer = '<html><head><title>x</title></head></html>';
+  assert.equal(setzeAltTags(leer, 'Beschreibung'), leer);
+});
+
+test('Sonderzeichen werden als Entities geschrieben, nicht roh', () => {
+  // Ein rohes " beendet das Attribut, ein rohes & macht die Seite ungueltig — und
+  // auffallen wuerde es erst am kaputten Vorschaubild eines fremden Crawlers.
+  const out = setzeAltTags(MIT_ALT, 'Bäcker "Zink" & Söhne');
+  assert.ok(out.includes('content="Bäcker &quot;Zink&quot; &amp; Söhne">'));
+  assert.ok(!out.includes('content="Bäcker "Zink"'), 'das Attribut ist aufgebrochen');
+});
+
+test('REGRESSION: ein $-Muster im Alt-Text wird nicht als Rueckverweis gelesen', () => {
+  // String-Ersatz in .replace() liest $&, $1, $` als Rueckverweise. Bei Preisangaben
+  // ("ab $99", "$&-Aktion") verstuemmelte das den Text lautlos.
+  const out = setzeAltTags(MIT_ALT, 'Angebot $& ab $1');
+  assert.ok(out.includes('content="Angebot $&amp; ab $1">'), out.slice(0, 200));
+});
+
+// ---------------------------------------------------------------------------
+// Hero-Foto finden — die Bauformen aus echtem Build-HTML (v0.148.0)
+// ---------------------------------------------------------------------------
+// Alle Schnipsel unten sind WORTWOERTLICH aus gebauten Kundenseiten kopiert
+// (zink-baeckerei, steller-sanierungen, 01.09.2026), nicht von Hand nachgebaut.
+// Genau daran ist die alte Fassung gescheitert: sie wurde gegen handgeschriebenes
+// HTML geprueft, das die Astro-Eigenheiten nicht hatte — und fand deshalb auf 98
+// echten Seiten kein einziges Foto.
+
+test('cw-cores PageHero: Hintergrund im Inline-Style', () => {
+  const h = `<section class="page-hero" style="background: linear-gradient(rgba(29,30,59,0.7), rgba(29,30,59,0.7)), url('/images/hero/wertermittlung.webp') center/cover no-repeat;">`;
+  assert.equal(heroFoto(h), '/images/hero/wertermittlung.webp');
+});
+
+test('REGRESSION: Astro haengt ein Leerzeichen an die Klasse an', () => {
+  // `class="page-hero "` — echter Output, data-astro-cid dahinter. Das exakte
+  // class="page-hero" der alten Fassung traf das nie.
+  const h = '<section class="page-hero " data-astro-cid-iuttuhgu> <div class="hero-bg" aria-hidden="true">' +
+    '<img src="/_astro/fassadensanierung.BAPAEQK__T85n5.webp" alt class="hero-bg-img"></div></section>';
+  assert.equal(heroFoto(h), '/_astro/fassadensanierung.BAPAEQK__T85n5.webp');
+});
+
+test('REGRESSION: Zusatzklasse has-image schliesst den Hero nicht aus', () => {
+  const h = '<section class="page-hero has-image" data-astro-cid-iuttuhgu> <div class="hero-bg">' +
+    '<img src="/_astro/komplettsanierung.X1_Y2.webp" class="hero-bg-img"></div></section>';
+  assert.equal(heroFoto(h), '/_astro/komplettsanierung.X1_Y2.webp');
+});
+
+test('REGRESSION: die Startseite rendert class="hero", nicht page-hero', () => {
+  // Der wichtigste Fall: das meistgeteilte Bild jeder Site. Bis v0.147.0 nie erfasst.
+  const h = '<section class="hero hero--split" data-astro-cid-o4hs6m3o> <div class="container">' +
+    '<div class="hero-content"><h1 class="hero-title">Brot, das nach Heimat schmeckt.</h1></div>' +
+    '<img src="/_astro/hero.BSRunHkm_13ta4C.webp" srcset="/_astro/hero.BSRunHkm_63OiM.webp 400w" ' +
+    'alt="Frisch gebackenes Bauernbrot"></section>';
+  assert.equal(heroFoto(h), '/_astro/hero.BSRunHkm_13ta4C.webp');
+});
+
+test('GEGENPROBE: hero-content und hero-badge gelten nicht als Hero-Anfang', () => {
+  // Ohne Wortgrenze im Muster wuerde class="hero-content" den Block eroeffnen und
+  // die Suche begaenne mitten im Hero — oder auf einer Seite ganz ohne Hero.
+  const h = '<div class="hero-content"><img src="/bild.webp"></div>';
+  assert.equal(heroFoto(h), null);
+});
+
+test('GEGENPROBE: das AiLabel-Symbol wird nicht als Motiv gelesen', () => {
+  // Es steht bei gekennzeichneten Bildern direkt neben dem Foto (echter zink-Output).
+  // Hier greifen ZWEI Schutzmechanismen — der Klassen-Ausschluss und der SVG-Filter.
+  // Welcher davon traegt, prueft der naechste Test.
+  const h = '<section class="hero"><img class="ai-label__icon ai-label__icon--dunkel" ' +
+    'src="/_astro/ai-generated-white.BcUl2kKx.svg" alt="Mit KI erzeugt">' +
+    '<img src="/_astro/hero.ABC.webp" alt="Motiv"></section>';
+  assert.equal(heroFoto(h), '/_astro/hero.ABC.webp');
+});
+
+test('GEGENPROBE: ein Logo als Rasterbild wird nicht als Motiv gelesen', () => {
+  // Der Test darueber allein prueft den Klassen-Ausschluss NICHT: das AiLabel-Symbol
+  // ist ein SVG und faellt schon durch den Formatfilter. Aufgefallen ist das, weil der
+  // Klassen-Ausschluss testweise entfernt wurde und trotzdem alles gruen blieb.
+  // Ein Logo dagegen ist oft PNG oder WebP — dort traegt nur die Klasse.
+  const h = '<section class="hero"><img class="site-logo" src="/logo.webp" alt="Logo">' +
+    '<img src="/_astro/hero.ABC.webp" alt="Motiv"></section>';
+  assert.equal(heroFoto(h), '/_astro/hero.ABC.webp');
+});
+
+test('GEGENPROBE: SVG und data-URI sind keine Hero-Fotos', () => {
+  const h = '<section class="hero"><img src="/logo.svg"><img src="data:image/gif;base64,R0lGOD">' +
+    '<img src="/echt.webp"></section>';
+  assert.equal(heroFoto(h), '/echt.webp');
+});
+
+test('GEGENPROBE: Hero ohne jedes Bild liefert null — dann greift cta', () => {
+  const h = '<section class="hero hero--split"><div class="container"><h1>Nur Text</h1></div></section>';
+  assert.equal(heroFoto(h), null);
+});
+
+test('GEGENPROBE: ein Bild NACH dem Hero wird nicht eingesammelt', () => {
+  // Der Block endet am </section>. Sonst wuerde irgendein Bild weiter unten auf der
+  // Seite als Hero-Motiv ausgegeben — falsch, und niemand saehe warum.
+  const h = '<section class="hero"><h1>Text</h1></section><section class="leistungen">' +
+    '<img src="/spaeter.webp"></section>';
+  assert.equal(heroFoto(h), null);
+});
+
+test('Hintergrund am Container schlaegt ein <img> im Block', () => {
+  const h = `<section class="page-hero has-image" style="background: url('/hintergrund.webp') center/cover;">` +
+    '<img src="/inhalt.webp"></section>';
+  assert.equal(heroFoto(h), '/hintergrund.webp');
+});
+
+test('leseSeite reicht das gefundene Foto durch', () => {
+  const h = '<title>Start</title><section class="hero"><img src="/_astro/hero.ABC.webp"></section>';
+  assert.equal(leseSeite(h).foto, '/_astro/hero.ABC.webp');
 });

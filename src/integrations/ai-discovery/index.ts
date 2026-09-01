@@ -54,6 +54,7 @@ import {
 import { lintRenderEntropy } from './render-entropy-check.js';
 import { geotagDist } from './geotag.js';
 import { ogProSeite } from './og-pages.js';
+import { resolveBildHerkunft, istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
 import { walkImages, BUDGET_EXT } from './geotag-core.js';
 
 // ---------------------------------------------------------------------------
@@ -133,6 +134,21 @@ export interface AiDiscoverySiteData {
     imageKeywords?: readonly string[];
     geo?: { latitude: number; longitude: number };
   };
+  /**
+   * Bild-Deklaration nach Art. 50 Abs. 4 UAbs. 1 AI Act — die Regeln aus
+   * `src/data/bild-herkunft.ts`, wie `siteData.bildHerkunft` sie führt.
+   *
+   * Stand in den Kunden-Repos längst, fehlte aber im Typ — dieselbe Nachtragslage wie
+   * bei `sameAs` und den Registerdaten. `geotagDist` griff bisher als einziger darauf
+   * zu und kam als reines `.js` ohne Deklaration aus; seit v0.148.0 liest auch der
+   * `og-pages`-Aufruf sie und braucht sie deshalb im Typ.
+   *
+   * Bewusst `readonly unknown[]` statt `BildHerkunftRegel[]`: Die Prüfung der Regeln
+   * gehört in `pruefeBildHerkunftRegeln()`, das den Klartext-Befund liefert. Ein enger
+   * Typ hier würde eine kaputte Regel als Compile-Fehler melden — an einer Stelle, die
+   * mit dem Rechtsproblem nichts zu tun hat.
+   */
+  bildHerkunft?: readonly unknown[];
   faqs?: ReadonlyArray<FAQItem>;
   leistungen?: ReadonlyArray<ServiceItem>;
 }
@@ -3366,6 +3382,25 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               logger,
               domain: new URL(data.url).host,
               strict: options.strictOgPerPage === true,
+              // KI-Offenlegung auf dem Vorschaubild — Badge in den Pixeln und Wortlaut
+              // im `og:image:alt`, beides aus derselben Auflösung.
+              //
+              // Zero-config und nicht opt-in (v0.147.0 hatte den Callback noch offen
+              // gelassen): Die erzeugte `src/data/bild-herkunft.ts` IST die freigegebene
+              // Entscheidung — je Bild mit Begründung, aus einer abgezeichneten
+              // Arbeitsliste erzeugt. Ein zweites Opt-in wäre die Freigabe der Freigabe,
+              // und eine Pflicht, die man erst anschalten muss, ist genau die Lücke, die
+              // hier geschlossen werden soll.
+              //
+              // Ohne Deklaration passiert weiterhin nichts: `resolveBildHerkunft` liefert
+              // dann `ungeklaert`, und `istKennzeichnungspflichtig` ist dort `false`. Es
+              // wird also nichts behauptet, was niemand erklärt hat.
+              fotoHerkunft: (distRelativerPfad) => {
+                const ergebnis = resolveBildHerkunft(data, distRelativerPfad);
+                return istKennzeichnungspflichtig(ergebnis)
+                  ? (ergebnis.herkunft as 'ki-erzeugt' | 'ki-veraendert')
+                  : null;
+              },
             });
           } catch (e) {
             if (options.strictOgPerPage === true) throw e;

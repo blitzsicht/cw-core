@@ -22,6 +22,91 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.148.0 (2026-09-01)
+
+- [kunde:sichtbar] Beim Teilen eines Links zeigt das Vorschaubild jetzt das Titelbild der
+  Seite, statt nur Schrift auf farbigem Grund. Bisher fand die Automatik dieses Bild bei
+  keiner einzigen Seite der Flotte.
+- [kunde:sichtbar] Wo ein solches Titelbild mit KI erzeugt oder bearbeitet wurde und das
+  erklärt ist, trägt das Vorschaubild jetzt auch die gesetzlich vorgeschriebene
+  Kennzeichnung — als Symbol im Bild und als Text daneben, den Screenreader vorlesen.
+- [kunde] Jedes Vorschaubild hat jetzt eine Bildbeschreibung. Sie fehlte bisher auf jeder
+  Seite jeder Kundenwebsite.
+
+**Fix: die Vorschaubild-Automatik fand flottenweit kein einziges Hero-Foto.**
+
+`leseSeite()` (`og-pages.js`) suchte ausschließlich nach `class="page-hero"` — exakt, ohne
+Zusatzklassen — mit einem **Inline-`style`**, der ein `url()` enthält. Gemessen am
+01.09.2026: über alle Kundenrepos hinweg fand das **27 Hero-Fotos, von denen kein einziges
+kennzeichnungspflichtig war**; auf zwei frisch gebauten Kundenseiten (zink-baeckerei,
+steller-sanierungen, zusammen 98 Seiten) fand es **gar keines**. Jede Seite bekam deshalb
+das `cta`-Template mit bloßer Typografie — und die KI-Kennzeichnung aus v0.147.0 hatte
+damit flottenweit keine einzige Fundstelle. Sie war gebaut, aber unerreichbar.
+
+Drei Bauformen kamen nicht an:
+
+1. `class="page-hero "` und `class="page-hero has-image"` — Astro hängt beim Rendern ein
+   Leerzeichen an, Kunden setzen Zusatzklassen. Das exakte `"page-hero"` traf keine davon.
+2. Das Motiv als `<img>` statt als Hintergrund (Kunden-Markup, z. B. steller
+   `leistungen/[slug].astro` mit `<div class="hero-bg"><img class="hero-bg-img">`).
+3. `Hero.astro` — die **Startseite** jeder Site. Sie rendert `class="hero"`, nie
+   `page-hero`. Ausgerechnet das prominenteste und am weitesten weitergereichte Bild war
+   strukturell ausgeschlossen, während `stem: 'hero'` bei mehreren Kunden ausdrücklich als
+   kennzeichnungspflichtig deklariert ist.
+
+Neu `heroFoto()`: erst der Hintergrund am Container, sonst das erste echte `<img>` im
+Hero-Block. Ausgeschlossen sind SVGs, `data:`-URIs und Bilder mit `ai-label`/`logo`/`icon`
+in der Klasse — das AiLabel-Symbol steht bei gekennzeichneten Bildern unmittelbar neben dem
+Motiv und wäre sonst selbst als Foto gerendert worden. Der Block endet am nächsten
+`</section>`, damit kein Bild weiter unten auf der Seite als Hero-Motiv durchgeht.
+
+**Nach der Reparatur, gemessen an denselben Seiten:** zink-baeckerei 14 von 30 Seiten mit
+Kennzeichnung (16 ohne), steller-sanierungen 3 von 68. Vorher jeweils 0.
+
+**Feature: `og:image:alt` — die textliche Fassung der Kennzeichnung.**
+
+`og:image:alt` existierte in cw-core nicht. Ein OG-Bild wird nie als `<img>` gerendert;
+ohne diesen Tag hat es für Screenreader und Vorschau-Clients keinerlei textliche
+Entsprechung. Trägt es die KI-Kennzeichnung, steckt die zudem als Vektorpfad in den Pixeln
+— das EU-Symbol enthält null `<text>`-Elemente, und Art. 50 Abs. 5 AI Act verlangt, dass
+die Information den Barrierefreiheitsanforderungen entspricht.
+
+- `BaseLayout.astro` setzt `og:image:alt`/`twitter:image:alt` auf `ogImageAlt ?? description`
+  (neue optionale Prop `ogImageAlt`). Grundausstattung, ohne KI-Aussage.
+- `og-pages.js` schreibt beide Tags beim Bildtausch mit um und ergänzt die Offenlegung,
+  wenn das eingebettete Foto pflichtig ist — aus derselben Auflösung, die über das
+  Pixel-Badge entscheidet. Bild und Text sagen damit zwangsläufig dasselbe. Fehlt der Tag
+  (Kunden mit eigenem Layout), wird er hinter dem Bild-Tag eingefügt.
+- Neu `utils/og-alt.js` (portiert aus `siluri.de/src/lib/og-alt.ts`): `altMitOffenlegung()`
+  kappt bei Überlänge die Beschreibung, nie die Offenlegung; `ohneOffenlegung()` streift
+  sie wieder ab und macht das Umschreiben idempotent — belegt durch einen zweiten Lauf über
+  dasselbe `dist/`, der byte-identische Alt-Texte liefert.
+
+> **Dieser Kanal erfüllt die Pflicht nicht — er ergänzt sie.** Facebook, WhatsApp und Signal
+> zeigen `og:image:alt` in der Regel gar nicht an. Die Pflicht erfüllen die eingebrannten
+> Pixel; dieser Text bedient den Barrierefreiheits-Teil. Wer den Kanal später ausbaut, darf
+> daraus nicht schließen, das Einbrennen sei entbehrlich geworden.
+
+**Die KI-Offenlegung ist jetzt zero-config statt opt-in.** `index.ts` füllt den
+`fotoHerkunft`-Callback aus `siteData.bildHerkunft` — die erzeugte `bild-herkunft.ts` ist die
+freigegebene Entscheidung, je Bild mit Begründung. Ohne Deklaration passiert weiterhin
+nichts: `resolveBildHerkunft` liefert dann `ungeklaert`, und `istKennzeichnungspflichtig` ist
+`false`. Gegengeprüft an zink-baeckerei mit geleerter Deklaration: dasselbe Bild ohne Badge,
+derselbe Alt-Text ohne Offenlegung.
+
+**Wortlaut jetzt an einer Stelle.** `OFFENLEGUNG_TEXT` in `utils/bildherkunft.js` ist die
+einzige Fassung; `AiLabel.astro` und `og-alt.js` importieren sie. siluri.de führt denselben
+Text an drei Stellen und hält sie per Drift-Test gegeneinander — eine geteilte Konstante ist
+billiger.
+
+Nebenbei behoben: die Ersetzung der OG-Tags lief über `$1…$2`, wodurch ein `$&` oder `$1`
+im eingesetzten Text als Rückverweis gelesen worden wäre. Jetzt Funktions-Ersatz, und
+Attributwerte werden wieder als Entities kodiert.
+
+37 neue Tests (774 gesamt, 773 grün, 1 übersprungen wie zuvor), `astro check` 0 Fehler.
+Die Tests der Hero-Erkennung verwenden wortwörtlich kopiertes Build-HTML — an
+handgeschriebenem HTML war die alte Fassung vorbeigelaufen.
+
 ## v0.147.0 (2026-08-31)
 
 - [kunde:sichtbar] Automatisch erzeugte Vorschaubilder (beim Teilen eines Links auf Facebook,

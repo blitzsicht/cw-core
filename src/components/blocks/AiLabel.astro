@@ -61,7 +61,7 @@
  *   // explizit, wenn die Einordnung anderswo herkommt
  *   <AiLabel variante="erzeugt" />
  */
-import { istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
+import { istKennzeichnungspflichtig, OFFENLEGUNG_TEXT } from '../../utils/bildherkunft.js';
 import type { BildHerkunftErgebnis } from '../../utils/bildherkunft.js';
 
 // Die Kommission liefert jedes Symbol zweifach. Der Unterschied steckt im `fill` der
@@ -135,7 +135,9 @@ const ausErgebnis = ergebnis && istKennzeichnungspflichtig(ergebnis)
 const art = variante ?? ausErgebnis;
 const zeigen = art !== null && art !== undefined;
 
-const standardText = art === 'bearbeitet' ? 'Mit KI bearbeitet' : 'Mit KI erzeugt';
+// Wortlaut aus bildherkunft.js, nicht hier hingeschrieben: `og-alt.js` gibt dieselbe
+// Aussage als `og:image:alt` aus, und zwei Fassungen desselben Satzes driften.
+const standardText = OFFENLEGUNG_TEXT[art === 'bearbeitet' ? 'ki-veraendert' : 'ki-erzeugt'];
 const labelText = text?.trim() || standardText;
 
 const deckend = ausfuehrung === 'deckend';

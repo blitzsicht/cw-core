@@ -49,6 +49,23 @@ export const HERKUNFT_WERTE = ['mensch', 'ki-erzeugt', 'ki-veraendert', 'ungekla
 /** Zulässige Deepfake-Einordnungen nach Art. 3 Nr. 60. */
 export const DEEPFAKE_WERTE = ['ja', 'nein', 'ungeklaert'];
 
+/**
+ * Der Wortlaut der Offenlegung, je Herkunft — die **einzige** Fassung im Repo.
+ *
+ * Er steht hier und nicht bei einem der Verwender, weil es zwei sind: `AiLabel.astro`
+ * (sichtbares Badge im DOM) und `og-alt.js` (`og:image:alt` der Vorschaubilder). Die
+ * Schwesterfassung auf siluri.de führt denselben Text an drei Stellen und hält sie per
+ * Test gegeneinander — dort ausdrücklich als offene Rechnung vermerkt. Eine geteilte
+ * Konstante ist billiger als ein Drift-Wächter.
+ *
+ * Die Form ist rechtlich nicht vorgeschrieben (Art. 50 Abs. 4 UAbs. 1 lässt sie offen);
+ * verlangt ist eine deutlich wahrnehmbare Offenlegung.
+ */
+export const OFFENLEGUNG_TEXT = {
+  'ki-erzeugt': 'Mit KI erzeugt',
+  'ki-veraendert': 'Mit KI bearbeitet',
+};
+
 /** Herkunftswerte, bei denen überhaupt eine Deepfake-Frage entstehen kann. */
 const KI_HERKUNFT = ['ki-erzeugt', 'ki-veraendert'];
 

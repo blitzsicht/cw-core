@@ -109,6 +109,20 @@ interface Props {
    * Set to null to skip level 4 and fall through to defaultOgImage.
    */
   generatedOgImage?: string | null | undefined;
+  /**
+   * Alt-Text des Vorschaubilds (`og:image:alt` / `twitter:image:alt`).
+   *
+   * Ohne Wert wird die Seitenbeschreibung genommen — das Vorschaubild trägt in aller
+   * Regel Titel und Beschreibung der Seite. Eine Alt-Zeile gehört auf jede Seite: das
+   * Bild wird nie als `<img>` gerendert, und ohne sie hat es für Screenreader und
+   * Vorschau-Clients keinerlei textliche Entsprechung.
+   *
+   * **Ohne KI-Offenlegung.** Die setzt `og-pages.js` nach dem Build, weil nur dort die
+   * Bild-Deklaration (`siteData.bildHerkunft`) erreichbar ist — hierher käme sie nur
+   * über eine Prop-Kette durch alle Layouts und jede Seite jedes Kundenrepos. Siehe
+   * `utils/og-alt.js`.
+   */
+  ogImageAlt?: string;
   /** Optional canonical URL override. Defaults to `${siteUrl}${pathname}`. */
   canonicalUrl?: string;
   /** Optional robots meta value. */
@@ -171,6 +185,7 @@ const {
   title,
   description,
   ogImage,
+  ogImageAlt,
   headerImage,
   contentImage,
   generatedOgImage,
@@ -244,6 +259,12 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
     <meta property="og:image" content={ogImageUrl} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    {/* og:image:alt fehlte flottenweit — das Vorschaubild hatte fuer Screenreader und
+        Vorschau-Clients keine textliche Entsprechung. Traegt das Bild eine KI-Kennzeichnung,
+        steckt die zudem als Vektorpfad in den Pixeln und ist dort nicht vorlesbar (Art. 50
+        Abs. 5 AI Act). Die Offenlegung ergaenzt `og-pages.js` nach dem Build — siehe
+        `utils/og-alt.js`; hier steht nur die Grundzeile. */}
+    <meta property="og:image:alt" content={ogImageAlt ?? resolvedDescription} />
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content={ogType} />
     <meta property="og:locale" content={ogLocale} />
@@ -268,6 +289,7 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
     <meta name="twitter:title" content={pageTitle} />
     <meta name="twitter:description" content={resolvedDescription} />
     <meta name="twitter:image" content={ogImageUrl} />
+    <meta name="twitter:image:alt" content={ogImageAlt ?? resolvedDescription} />
 
     {/* Plausible Analytics (cookie-frei, DSGVO-konform).
         Interne Doku (wird NICHT ins HTML ausgeliefert — JS-Kommentar):

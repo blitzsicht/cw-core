@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.147.0",
+  "version": "0.148.0",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -38,6 +38,10 @@
     "./utils/labelfarbe": {
       "types": "./src/utils/labelfarbe.d.ts",
       "default": "./src/utils/labelfarbe.js"
+    },
+    "./utils/og-alt": {
+      "types": "./src/utils/og-alt.d.ts",
+      "default": "./src/utils/og-alt.js"
     },
     "./utils/*": "./src/utils/*.ts",
     "./types/*": "./src/types/*",

@@ -74,7 +74,7 @@ jobs:
     # nicht geprüft wurde — ein Beleg, der schlechter ist als keiner.
     # Gehoben wird das hier von cw-release Schritt 6b, nicht von Hand.
     env:
-      CW_CORE_PIN: release/cw-core/v0.147.0
+      CW_CORE_PIN: release/cw-core/v0.148.0
 
     steps:
       - name: Kundenrepo auschecken
