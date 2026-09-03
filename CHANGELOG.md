@@ -22,6 +22,49 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.149.0 (2026-09-03)
+
+- [kunde] Wo ein Bild auf Ihrer Website mit KI erzeugt wurde und das erklärt ist, prüft
+  der Bauvorgang jetzt bei jeder einzelnen Seite, ob die gesetzlich vorgeschriebene
+  Kennzeichnung dort auch wirklich steht. Fehlt sie, wird die Website nicht
+  veröffentlicht. Bisher konnte eine Seite ohne Kennzeichnung online gehen, ohne dass es
+  jemandem auffiel.
+
+**Neu: Wächter für die KI-Kennzeichnung am ausgelieferten HTML.**
+
+Bis heute galt als Nachweis, dass ein Repo `AiLabel` irgendwo importiert. Das ist keiner:
+die Pflicht aus Art. 50 Abs. 4 UAbs. 1 AI Act gilt **je Fundstelle**. Zwei Belege vom
+selben Tag — `customer-donau-profi` lieferte sechs als `deepfake: 'ja'` deklarierte
+Städtebilder neun Tage lang ohne jedes Label aus, während im lokalen Klon eine fertige,
+nie gepushte Reparatur lag; `customer-soleno` zeigte dieselben Stadtbilder auf einer
+zweiten Vorlage, 50 Fundstellen, ebenfalls ohne Label. Kein Build hat je etwas gemeldet,
+weil es nichts gab, was hätte melden können.
+
+- **Neu `src/integrations/ai-discovery/ai-label-check.js`** — eine Prüflogik, zwei
+  Aufrufer: der Build-Guard und `scripts/kennzeichnung-live.mjs`. Getrennt geschrieben
+  würden sie driften, und dann belegte die Messung etwas anderes als der Wächter prüft.
+- **Neu `scripts/kennzeichnung-live.mjs`** — misst die Flotte an den **ausgelieferten**
+  Seiten, mit Positivkontrolle je Seite (eine Checkpoint-Seite hat weder Bilder noch
+  Labels und sähe sonst perfekt aus) und mit den Regeln aus `origin`, nie aus dem lokalen
+  Klon.
+- **`strictAiLabel` ist Default `true`** — sofort strict statt Soft-Warn, weil ein
+  `logger.warn` den strict-warnings-Gate des Release-Trains blockiert, ohne den Build
+  abzubrechen. Gedeckt durch die Messung vom 03.09.2026 über 469 ausgelieferte Seiten
+  aller Sites der Registry: jeder Kunde 0 fehlende Kennzeichnungen, mit einer benannten
+  Ausnahme (`customer-soleno`, dekoratives Kartenbild in einem `aria-hidden`-Link).
+
+Vier Fehler beim Bauen, alle nur durch echte Daten gefunden und als Test festgeschrieben:
+`grep -c 'ai-label'` zählt den gebündelten CSS-Block mit; ein Regelparser ohne
+`begruendung` macht aus jeder pflichtigen Fundstelle eine ungeklärte, weil
+`resolveBildHerkunft` eine Deepfake-Einordnung ohne Begründung für ungültig erklärt;
+`srcset`-Varianten desselben Motivs sind eine Bildfläche, nicht sechs; und ein
+Suchbegriff ohne `const` trifft die Erwähnung des Namens im Kopfkommentar statt der
+Deklaration.
+
+Die Meldung nennt im grünen Fall die Zahl der geprüften pflichtigen Fundstellen. Ohne
+sie wäre nicht unterscheidbar, ob alles gekennzeichnet ist oder ob der Guard nichts
+gefunden hat.
+
 ## v0.148.0 (2026-09-01)
 
 - [kunde:sichtbar] Beim Teilen eines Links zeigt das Vorschaubild jetzt das Titelbild der

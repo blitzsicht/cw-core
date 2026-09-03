@@ -35,6 +35,7 @@ import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
 import { checkAnchorIntegrity, type AnchorIssue } from './anchor-integrity-check.js';
+import { checkAiLabels, pruefeSeiteAufKennzeichnung, type Fundstelle as AiLabelFundstelle } from './ai-label-check.js';
 import { pruefeButtonKontrast, type ButtonIssue } from './button-contrast-check.js';
 import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 import {
@@ -325,6 +326,39 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   checkAnchorIntegrity?: boolean;
   /** Anker-Integritäts-Guard bricht den Build ab. Default: true. */
   strictAnchorIntegrity?: boolean;
+  /**
+   * KI-Kennzeichnungs-Guard: trägt jede ausgelieferte Seite ein Label für die
+   * kennzeichnungspflichtigen Bilder, die auf ihr stehen? Default TRUE.
+   *
+   * 🔴 Anlass (03.09.2026): `customer-donau-profi` lieferte sechs als `deepfake: 'ja'`
+   * deklarierte Städtebilder ohne jedes Label aus — neun Tage lang, während im lokalen
+   * Klon eine fertige, nie gepushte Reparatur lag. Kein Build hat etwas gemeldet, weil
+   * es nichts gab, was hätte melden können. Bei `customer-soleno` fanden sich am selben
+   * Tag 50 weitere Fundstellen: dieselben Stadtbilder auf einer zweiten Vorlage.
+   *
+   * Bis dahin galt „Repo importiert AiLabel" als Nachweis. Das ist keiner — die Pflicht
+   * aus Art. 50 Abs. 4 UAbs. 1 AI Act gilt je Fundstelle.
+   */
+  checkAiLabel?: boolean;
+  /**
+   * Default TRUE — **sofort strict, nicht Soft-Warn**, und das ist eine bewusste
+   * Abweichung vom üblichen Soft-Warn-Start.
+   *
+   * Grund: Ein Soft-Warn müsste per `logger.warn` melden, und der strict-warnings-Gate
+   * des Release-Trains zählt jede WARN-Zeile mit `@cw/core`-Label als Befund
+   * (`customer-websites/scripts/lib/build-warnings.mjs`). Ein Hinweis, der nichts
+   * bricht, verweigerte damit den PR — genau so hingen `allstargirls-regensburg` und
+   * `itk-regensburg` allein wegen Info-Hinweisen auf v0.110.0 fest. Ein Guard, der die
+   * Flotte blockiert, ohne den Build abzubrechen, ist die schlechteste beider Welten.
+   *
+   * Gedeckt durch eine Messung über die **ausgelieferten** Seiten aller Sites der
+   * Registry (`scripts/kennzeichnung-live.mjs`, 03.09.2026, 469 Seiten): jeder Kunde
+   * 0 fehlende Kennzeichnungen — mit einer benannten Ausnahme, `customer-soleno`, wo
+   * `images/hero/hero-poster.webp` als dekoratives Kartenbild in einem
+   * `aria-hidden`-Link steht (13 Fundstellen). Dort steht `strictAiLabel: false` mit
+   * Begründung, bis die Einordnung dieser Verwendung entschieden ist.
+   */
+  strictAiLabel?: boolean;
   /** Tabellen-Scroll-Guard: meldet Seiten mit Tabelle, aber ohne Scroll-Regel
    *  im ausgelieferten CSS. Default: true. */
   checkTableScroll?: boolean;
@@ -2895,6 +2929,67 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             if (options.strictAnchorIntegrity !== false) {
               throw new Error(
                 `[ai-discovery] strictAnchorIntegrity=true: Build abgebrochen wegen ${anchorIssues.length} kaputten Link(s).`,
+              );
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // KI-Kennzeichnung: pflichtiges Bild ausgeliefert, Label nicht
+        // -------------------------------------------------------------------
+        // donau-profi lieferte sechs als deepfake:'ja' deklarierte Stadtbilder ohne
+        // jedes Label aus, soleno 50 weitere auf einer zweiten Vorlage. Beides fiel
+        // erst durch eine Handmessung auf, weil „Repo importiert AiLabel" als Nachweis
+        // galt — die Pflicht gilt aber je Fundstelle. Gemessen wird am AUSGELIEFERTEN
+        // HTML, weil nur dort steht, was der Betrachter sieht.
+        if (options.checkAiLabel !== false && Array.isArray(data?.bildHerkunft)) {
+          const seiten = htmlFiles.map((file) => {
+            const pfad = file.slice(distDir.length).replace(/\/index\.html$/, '/');
+            let html = '';
+            try {
+              html = readFileSync(file, 'utf-8');
+            } catch {
+              /* unlesbare Datei: andere Guards melden das laut genug */
+            }
+            return { seite: pfad.startsWith('/') ? pfad : `/${pfad}`, html };
+          });
+          const eigenerHost = (() => {
+            try {
+              return new URL(String(data?.url ?? '')).host;
+            } catch {
+              return undefined;
+            }
+          })();
+          const fehlende: AiLabelFundstelle[] = checkAiLabels(
+            seiten,
+            data.bildHerkunft as Parameters<typeof checkAiLabels>[1],
+            { eigenerHost },
+          );
+          if (fehlende.length === 0) {
+            // Die Zahl der geprüften pflichtigen Fundstellen gehört in die Zeile: „keine
+            // Lücke" bei null gefundenen Fundstellen ist kein Ergebnis, sondern ein
+            // stummer Check. Wer die Vorbedingung nicht sieht, kann grün nicht deuten.
+            const pflichtige = seiten.reduce(
+              (n, x) => n + pruefeSeiteAufKennzeichnung(x.html, data.bildHerkunft as never, { eigenerHost }).pflichtig.length,
+              0,
+            );
+            logger.info(
+              `KI-Kennzeichnung: ✓ ${htmlFiles.length} Pages, ${pflichtige} kennzeichnungspflichtige Fundstelle(n) — alle mit Label.`,
+            );
+          } else {
+            logger.warn(`KI-Kennzeichnung: ${fehlende.length} Fundstelle(n) ohne Label (Art. 50 Abs. 4 AI Act):`);
+            for (const f of fehlende.slice(0, 20)) {
+              logger.warn(`  ${f.seite} — ${f.bild}`);
+            }
+            if (fehlende.length > 20) {
+              logger.warn(`  … und ${fehlende.length - 20} weitere.`);
+            }
+            if (options.strictAiLabel !== false) {
+              throw new Error(
+                `[ai-discovery] strictAiLabel=true: Build abgebrochen wegen ${fehlende.length} ungekennzeichneter ` +
+                  `Fundstelle(n). Entweder <AiLabelAmBild ergebnis={resolveBildHerkunft(siteData, pfad)} /> an der ` +
+                  `rendernden Stelle ergänzen, oder die Einordnung in src/data/bild-herkunft.ts korrigieren. ` +
+                  `Opt-out mit Begründung: strictAiLabel:false.`,
               );
             }
           }
