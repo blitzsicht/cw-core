@@ -41,6 +41,7 @@ import { registryPfad } from './registry-pfad.mjs';
 import {
   pruefeSeiteAufKennzeichnung,
   leseHerkunftRegeln,
+  unbekannteLabelFormen,
 } from '../src/integrations/ai-discovery/ai-label-check.js';
 
 const argWert = (/** @type {string} */ n, /** @type {string|null} */ f = null) => {
@@ -148,6 +149,8 @@ for (const k of kunden) {
   const seiten = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).slice(0, MAX_SEITEN);
 
   const zahl = { seiten: seiten.length, geprueft: 0, nichtGeprueft: 0, pflichtig: 0, fehlend: 0, ungeklaert: 0 };
+  /** @type {Set<string>} */
+  const unbekannteFormen = new Set();
   /** @type {{ seite: string, bild: string }[]} */
   const luecken = [];
   /** @type {{ seite: string, bilder: string[] }[]} */
@@ -160,6 +163,7 @@ for (const k of kunden) {
       return;
     }
     zahl.geprueft++;
+    for (const f of unbekannteLabelFormen(html)) unbekannteFormen.add(f);
     const b = pruefeSeiteAufKennzeichnung(html, regeln, { eigenerHost: host });
     zahl.pflichtig += b.pflichtig.length;
     zahl.fehlend += b.fehlend;
@@ -169,12 +173,15 @@ for (const k of kunden) {
     if (b.ungeklaert.length) unklar.push({ seite: pfad, bilder: b.ungeklaert });
   });
 
-  ergebnis.push({ slug: k.slug, lifecycle: k.lifecycle, url: k.production_url, pflichtRegeln, ...zahl, luecken, unklar });
+  ergebnis.push({ slug: k.slug, lifecycle: k.lifecycle, url: k.production_url, pflichtRegeln, ...zahl, luecken, unklar, unbekannteFormen: [...unbekannteFormen].sort() });
   console.log(
     `${k.slug.padEnd(24)} Seiten ${String(zahl.geprueft).padStart(3)}/${String(zahl.seiten).padEnd(3)}` +
       `  pflichtig ${String(zahl.pflichtig).padStart(3)}  FEHLEND ${String(zahl.fehlend).padStart(3)}` +
       `  ungeklärt ${String(zahl.ungeklaert).padStart(4)}` +
-      (zahl.nichtGeprueft ? `  nicht geprüft ${zahl.nichtGeprueft}` : ''),
+      (zahl.nichtGeprueft ? `  nicht geprüft ${zahl.nichtGeprueft}` : '') +
+      // Eine unbekannte Form macht die Zahlen der Zeile fragwürdig — sie gehört daneben,
+      // nicht in eine Fußnote.
+      (unbekannteFormen.size ? `  UNBEKANNTE FORM: ${[...unbekannteFormen].join(', ')}` : ''),
   );
 }
 

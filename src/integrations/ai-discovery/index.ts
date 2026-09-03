@@ -35,7 +35,12 @@ import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
 import { checkAnchorIntegrity, type AnchorIssue } from './anchor-integrity-check.js';
-import { checkAiLabels, pruefeSeiteAufKennzeichnung, type Fundstelle as AiLabelFundstelle } from './ai-label-check.js';
+import {
+  checkAiLabels,
+  pruefeSeiteAufKennzeichnung,
+  unbekannteLabelFormen,
+  type Fundstelle as AiLabelFundstelle,
+} from './ai-label-check.js';
 import { pruefeButtonKontrast, type ButtonIssue } from './button-contrast-check.js';
 import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 import {
@@ -2965,6 +2970,19 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             data.bildHerkunft as Parameters<typeof checkAiLabels>[1],
             { eigenerHost },
           );
+
+          // Eine `ai-label-*`-Klasse, die der Zähler nicht kennt, macht jede Zahl unten
+          // fragwürdig — sie kann eine Kennzeichnung sein, die als fehlend gemeldet wird.
+          // Genau so kam siluri.de am 03.09.2026 zu sieben Lücken, die es nicht gab
+          // (`ai-label-md` aus dem Markdown-Plugin). Deshalb wird sie genannt, bevor die
+          // Zahl kommt, statt still in sie einzugehen.
+          const unbekannt = [...new Set(seiten.flatMap((x) => unbekannteLabelFormen(x.html)))].sort();
+          if (unbekannt.length > 0) {
+            logger.info(
+              `KI-Kennzeichnung: ✓ unbekannte Label-Form(en) im HTML: ${unbekannt.join(', ')} — ` +
+                `in ai-label-check.js eintragen, sonst zählt der Guard sie nicht als Kennzeichnung.`,
+            );
+          }
           if (fehlende.length === 0) {
             // Die Zahl der geprüften pflichtigen Fundstellen gehört in die Zeile: „keine
             // Lücke" bei null gefundenen Fundstellen ist kein Ergebnis, sondern ein

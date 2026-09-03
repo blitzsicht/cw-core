@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   bilderAusHtml,
   zaehleLabels,
+  unbekannteLabelFormen,
   pruefeSeiteAufKennzeichnung,
   leseHerkunftRegeln,
   checkAiLabels,
@@ -73,6 +74,42 @@ test('gemischte Bauformen werden vollständig gezählt', () => {
 <span class="ai-label ai-label--dunkel"><img alt="Mit KI erzeugt"></span>
 <span class="ai-label ai-label--dunkel"><img alt="Mit KI erzeugt"></span>`;
   assert.equal(zaehleLabels(gemischt), 3, 'eine Hülle plus zwei direkte = drei Kennzeichnungen');
+});
+
+// Zweiter Messfehler vom 03.09.2026, nach dem CSS-Block: das Markdown-Plugin von
+// siluri.de setzt `class="ai-label-md"`, und das Merkmal `class="ai-label[\s"]` fiel
+// daran vorbei. Ergebnis: sieben gemeldete Lücken auf einer vollständig gekennzeichneten
+// Site — und im Guard wäre daraus ein falscher Build-Abbruch geworden.
+test('die Markdown-Form zählt als Kennzeichnung', () => {
+  // Wortwörtlich aus dem Markup von siluri.de/ratgeber/ki-prompt-patches-mockup.
+  const html = `<figure>
+  <img src="/images/blog/patch-mockup-gestickt.webp" alt="Gestickter Patch" loading="lazy" width="900" height="900">
+  <figcaption><span class="ai-label-md">Mit KI erzeugt</span></figcaption>
+</figure>`;
+  assert.equal(zaehleLabels(html), 1);
+});
+
+test('Hülle und BEM-Kinder zählen nicht als eigene Kennzeichnung', () => {
+  assert.equal(zaehleLabels('<span class="ai-label-am-bild"></span>'), 0, 'Positionierungshülle');
+  assert.equal(zaehleLabels('<img class="ai-label__icon ai-label__icon--hell">'), 0, 'BEM-Kind');
+  assert.equal(
+    zaehleLabels('<span class="ai-label-am-bild"><span class="ai-label ai-label--hell ai-label--deckend"></span></span>'),
+    1,
+    'Hülle plus Baustein ist EINE Kennzeichnung',
+  );
+});
+
+// Der eigentliche Schutz: eine dritte Form soll auffallen, nicht als fehlende
+// Kennzeichnung erscheinen. Zweimal war das Merkmal zu eng — beim dritten Mal gibt es
+// eine Meldung statt eines Falschbefunds.
+test('unbekannte ai-label-Formen werden gemeldet', () => {
+  assert.deepEqual(unbekannteLabelFormen('<span class="ai-label-video">Mit KI erzeugt</span>'), ['ai-label-video']);
+  assert.deepEqual(
+    unbekannteLabelFormen('<span class="ai-label-am-bild"><span class="ai-label ai-label--hell"><img class="ai-label__icon"></span></span>'),
+    [],
+    'die bekannten Formen sind keine Meldung wert',
+  );
+  assert.deepEqual(unbekannteLabelFormen('<span class="ai-label-md">Mit KI erzeugt</span>'), []);
 });
 
 test('pflichtiges Bild mit Label ist erfüllt', () => {

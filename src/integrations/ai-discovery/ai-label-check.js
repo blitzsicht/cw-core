@@ -86,27 +86,61 @@ export function bilderAusHtml(html) {
 /**
  * Wie viele Kennzeichnungen stehen im **Markup** dieser Seite?
  *
- * Das Merkmal ist `class="ai-label…"` — ein `class`-Attribut gibt es nur im Markup. Der
- * Selektor `.ai-label` im gebündelten CSS trifft damit nicht, und genau daran ist die
- * Handmessung vom 03.09.2026 gescheitert.
+ * Gemessen wird am `class`-Attribut — das gibt es nur im Markup. Der Selektor
+ * `.ai-label` im gebündelten CSS trifft damit nicht, und genau daran ist die erste
+ * Handmessung vom 03.09.2026 gescheitert (die Startseite meldete ein Label, wo keines
+ * steht).
  *
- * Gezählt wird **immer der innere Baustein** (`class="ai-label …"`). Er ist die
- * Zähleinheit: `AiLabel` rendert ihn allein, `AiLabelAmBild` rendert ihn in einer
- * Positionierungshülle (`ai-label-am-bild`). Einmal je Kennzeichnung, in beiden Fällen.
+ * ## Die Zähleinheiten — erhoben, nicht abgeleitet
  *
- * Die erste Fassung zählte die Hülle und fiel nur ersatzweise auf den inneren Baustein
- * zurück. Auf einer Seite, die beide Bauformen mischt, sah sie damit nur die Hüllen —
- * und meldete Lücken, die es nicht gibt. Die meisten Kunden benutzen `AiLabel` direkt;
- * nur donau-profi den neueren Baustein. Der Fehler wäre also fast überall aufgetreten.
+ * Das Merkmal ging zweimal daneben, beide Male, weil es aus einem Beispiel abgeleitet
+ * war statt aus einer Erhebung: erst traf es zu viel (den CSS-Block), dann zu wenig
+ * (`ai-label-md` fiel durch, siluri.de meldete 7 Lücken, die es nicht gab). Deshalb hier
+ * die vollständige Liste, erhoben über sieben Live-Seiten und beide Repos:
  *
- * Der Selektor `.ai-label` im gebündelten CSS trifft nicht: ein `class`-Attribut gibt es
- * nur im Markup. Genau daran ist die Handmessung vom 03.09.2026 gescheitert.
+ * | Klasse | Rolle | zählt |
+ * |---|---|---|
+ * | `ai-label` | Komponente `AiLabel.astro` | **ja** |
+ * | `ai-label-md` | Markdown-Plugin (`rehype-ki-kennzeichnung`, heute nur siluri.de) | **ja** |
+ * | `ai-label-am-bild` | Positionierungshülle, umschließt `ai-label` | nein |
+ * | `ai-label__icon`, `ai-label--hell/dunkel/deckend` | BEM-Kinder und Modifier | nein |
+ *
+ * Die Markdown-Form setzt nur Text, kein EU-Symbol — das ist kein Kompromiss an der
+ * Norm: die EU-SVG enthält null `<text>`-Elemente und ist deshalb `aria-hidden`, der
+ * Text trägt die Aussage. Abs. 5 ist damit erfüllt (siehe Kopf von `AiLabel.astro`).
+ *
+ * **Wer eine dritte Form baut, trägt sie hier ein.** Bis dahin meldet
+ * `unbekannteLabelFormen()` sie, statt sie stillschweigend zu übergehen — ein neues
+ * Format soll auffallen und nicht als Falschbefund erscheinen.
  *
  * @param {string} html
  * @returns {number}
  */
 export function zaehleLabels(html) {
-  return (html.match(/class="ai-label[\s"]/g) || []).length;
+  return (html.match(/class="(?:[^"]*\s)?ai-label(?:-md)?(?:\s[^"]*)?"/g) || []).length;
+}
+
+/**
+ * `ai-label-*`-Klassen im HTML, die weder Zähleinheit noch bekannte Hülle oder
+ * BEM-Kind sind.
+ *
+ * Das ist der Schutz gegen den nächsten Fall der Sorte, die diese Datei zweimal
+ * getroffen hat: eine neue Kennzeichnungsform, die niemand hier einträgt, würde
+ * andernfalls als fehlende Kennzeichnung gemeldet — und der Guard bräche einen Build ab,
+ * auf dessen Seiten die Kennzeichnung sehr wohl steht.
+ *
+ * @param {string} html
+ * @returns {string[]} Klassennamen, alphabetisch, ohne Dubletten
+ */
+export function unbekannteLabelFormen(html) {
+  const bekannt = /^ai-label(?:-md|-am-bild|__[a-z-]+|--[a-z-]+)?$/;
+  const gefunden = new Set();
+  for (const m of html.matchAll(/class="([^"]*\bai-label[^"]*)"/g)) {
+    for (const klasse of m[1].split(/\s+/)) {
+      if (klasse.startsWith('ai-label') && !bekannt.test(klasse)) gefunden.add(klasse);
+    }
+  }
+  return [...gefunden].sort();
 }
 
 /**
