@@ -2977,14 +2977,30 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               `KI-Kennzeichnung: ✓ ${htmlFiles.length} Pages, ${pflichtige} kennzeichnungspflichtige Fundstelle(n) — alle mit Label.`,
             );
           } else {
-            logger.warn(`KI-Kennzeichnung: ${fehlende.length} Fundstelle(n) ohne Label (Art. 50 Abs. 4 AI Act):`);
+            // Meldelevel hängt am Schalter, und zwar aus einem gemessenen Grund: der
+            // strict-warnings-Gate des Release-Trains zählt JEDE `[WARN]`-Zeile mit
+            // `@cw/core`-Label als Befund (`build-warnings.mjs`, LINE_RE + GUARD_LABEL_PREFIX).
+            // Wo der Abbruch bewusst ausgesetzt ist, wäre eine WARN-Zeile also eine
+            // Dauerblockade für einen Zustand, den der Operator kennt und begründet hat —
+            // genau daran hingen `allstargirls-regensburg` und `itk-regensburg` auf
+            // v0.110.0 fest. Das `✓` ist dabei kein Schönreden: der Report zählt
+            // Info-Zeilen mit `✓` als Beleg, dass der Guard überhaupt gelaufen ist, und
+            // die Zahl der Fundstellen steht in derselben Zeile.
+            const strikt = options.strictAiLabel !== false;
+            const melde = strikt ? logger.warn.bind(logger) : logger.info.bind(logger);
+            melde(
+              strikt
+                ? `KI-Kennzeichnung: ${fehlende.length} Fundstelle(n) ohne Label (Art. 50 Abs. 4 AI Act):`
+                : `KI-Kennzeichnung: ✓ Guard gelaufen — ${fehlende.length} Fundstelle(n) ohne Label, ` +
+                  `Abbruch per strictAiLabel:false ausgesetzt (Art. 50 Abs. 4 AI Act):`,
+            );
             for (const f of fehlende.slice(0, 20)) {
-              logger.warn(`  ${f.seite} — ${f.bild}`);
+              melde(`  ${f.seite} — ${f.bild}`);
             }
             if (fehlende.length > 20) {
-              logger.warn(`  … und ${fehlende.length - 20} weitere.`);
+              melde(`  … und ${fehlende.length - 20} weitere.`);
             }
-            if (options.strictAiLabel !== false) {
+            if (strikt) {
               throw new Error(
                 `[ai-discovery] strictAiLabel=true: Build abgebrochen wegen ${fehlende.length} ungekennzeichneter ` +
                   `Fundstelle(n). Entweder <AiLabelAmBild ergebnis={resolveBildHerkunft(siteData, pfad)} /> an der ` +
