@@ -22,6 +22,23 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.149.1 (2026-09-03)
+
+**Fix: der neue Guard hätte den Release-Train blockiert, wo sein Abbruch ausgesetzt ist.**
+
+`strictAiLabel: false` unterdrückt den Build-Abbruch, aber v0.149.0 meldete die Befunde
+weiterhin per `logger.warn`. Der strict-warnings-Gate zählt jede `[WARN]`-Zeile mit
+`@cw/core`-Label als Befund (`customer-websites/scripts/lib/build-warnings.mjs`) — ein
+Kunde mit begründetem Opt-out hätte damit dauerhaft am Gate gehangen, ohne dass sein
+Build je bricht. Genau so hingen `allstargirls-regensburg` und `itk-regensburg` auf
+v0.110.0 fest; der Fall ist im Kopf von `planShapeReport` dokumentiert und wurde beim
+Bauen von v0.149.0 trotzdem wieder gebaut.
+
+Das Meldelevel hängt jetzt am Schalter: strict → `warn` und Abbruch (die Zeile ist dann
+ohnehin gegenstandslos, weil der Build stirbt), ausgesetzt → `info` mit `✓` und der Zahl
+der Fundstellen in derselben Zeile. Das `✓` ist kein Schönreden, sondern der Beleg, dass
+der Guard gelaufen ist — der Report zählt Info-Zeilen mit `✓` als `guardOk`.
+
 ## v0.149.0 (2026-09-03)
 
 - [kunde] Wo ein Bild auf Ihrer Website mit KI erzeugt wurde und das erklärt ist, prüft
