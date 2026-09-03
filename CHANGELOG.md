@@ -22,6 +22,28 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.149.2 (2026-09-03)
+
+**Fix: der Zähler kannte nur eine von zwei Kennzeichnungsformen.**
+
+`zaehleLabels` suchte `class="ai-label"` gefolgt von Leerzeichen oder Quote. Die
+Markdown-Form `class="ai-label-md"` fiel daran vorbei — sie entsteht in
+`rehype-ki-kennzeichnung` dort, wo Bilder aus einer `.md`-Datei kommen und keine
+Astro-Komponente eingesetzt werden kann. Folge: siluri.de meldete im Flottensweep sieben
+fehlende Kennzeichnungen auf Seiten, die vollständig gekennzeichnet sind. Im Guard wäre
+daraus ein **falscher Build-Abbruch** geworden.
+
+Das war derselbe Fehler zum zweiten Mal — erst traf das Merkmal zu viel (den gebündelten
+CSS-Block), dann zu wenig. Beide Male war es aus einem Beispiel abgeleitet statt erhoben.
+Die vollständige Liste der Formen steht jetzt im Kopf von `ai-label-check.js`, erhoben
+über sieben Live-Seiten und beide Repos.
+
+Neu `unbekannteLabelFormen()`: eine `ai-label-*`-Klasse, die weder Zähleinheit noch
+bekannte Hülle oder BEM-Kind ist, wird im Build **genannt** — statt still als fehlende
+Kennzeichnung zu erscheinen. Ein drittes Format soll auffallen, nicht zum Falschbefund
+werden. Der Sweep zeigt sie in derselben Zeile wie die Zahlen, weil sie die Zahlen
+fragwürdig macht.
+
 ## v0.149.1 (2026-09-03)
 
 **Fix: der neue Guard hätte den Release-Train blockiert, wo sein Abbruch ausgesetzt ist.**
