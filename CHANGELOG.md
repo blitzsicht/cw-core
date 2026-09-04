@@ -22,6 +22,28 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.149.3 (2026-09-04)
+
+**Fix: `kunde-gate.mjs` las den CHANGELOG aus dem Arbeitsbaum statt aus dem Ziel-Ref.**
+
+Releases entstehen in Worktrees und werden gepusht — der Haupt-Checkout bleibt stehen,
+und `git fetch` fasst ihn nicht an. Der Release-Train fetcht den cw-core-Klon und findet
+deshalb den neuen **Tag**, aber die CHANGELOG-Datei im Arbeitsbaum kennt die Version
+nicht. Beim Rollout von v0.149.2 meldete die Canary-Checkliste daraufhin „keine
+[kunde]-Einträge im Delta — rein interne Änderungen", obwohl v0.149.0 eine trägt; der
+Eintrag wäre aus der Monatsbericht-Sektion „Was ist neu auf Ihrer Website" gefallen.
+
+Gelesen wird jetzt `git show <ziel-pin>:CHANGELOG.md`. Das ist auch inhaltlich richtiger:
+maßgeblich ist der CHANGELOG des Releases, auf das gebumpt wird, nicht der eines
+beliebigen lokalen Standes. `--changelog <pfad>` behält Vorrang (Tests, Sonderfälle).
+
+**Kein stiller Rückfall auf die Arbeitsbaum-Datei.** Ein Rückfall liefert immer
+*irgendeinen* Text, und ob es der richtige ist, sieht man der Ausgabe nicht an — genau
+diese Konstruktion hat den Fehler unsichtbar gemacht. Ist der Ref nicht lesbar, kommt
+`unbekannt` (rc 2), und der Aufrufer behandelt das wie bisher als fail open.
+
+blitzsicht-ops#777.
+
 ## v0.149.2 (2026-09-03)
 
 **Fix: der Zähler kannte nur eine von zwei Kennzeichnungsformen.**
