@@ -128,6 +128,8 @@ export const SITE_GOALS = {
     { type: 'event', value: 'vorlage_kopiert',      note: 'Prompt in die Zwischenablage kopiert (Prop `slug`)' },
     { type: 'event', value: 'browserweg_interesse', note: 'Fake-Door — Entscheidungsgrundlage für Phase 5' },
     { type: 'event', value: 'fehler_gemeldet',     note: 'Melde-Block im Fuß der Anleitungen und Anlass-Seiten (Prop `weg`: whatsapp | mail | github)' },
+    { type: 'event', value: 'signatur_erzeugt',     note: 'Signatur-Baukasten hat erstmals ein Ergebnis — einmal je Seitenaufruf, ohne Prop (die Eingaben sind personenbezogen)' },
+    { type: 'event', value: 'signatur_kopiert',     note: 'Signatur in die Zwischenablage kopiert (Prop `format`: html | text)' },
   ],
 };
 

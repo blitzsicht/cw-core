@@ -145,6 +145,21 @@ test('ENGAGEMENT_IGNORE und Goal-Gruppen überschneiden sich nicht', async () =>
   }
 });
 
+// Angelegt, weil die Suite es NICHT fing: am 07.09.2026 wurde probeweise ein
+// zweiter `skill_download` in SITE_GOALS.falzmarke eingebaut — 15 von 15 Tests
+// blieben grün. Ein Duplikat ist hier kein Schönheitsfehler: plausible-add-goals
+// legt Goals über den Namen an, ein zweiter Eintrag ist also entweder eine
+// stille Nulloperation oder eine Dublette — und beides sieht man der Liste nicht
+// an, weil sie nach Reihenfolge gelesen wird, nicht nach Eindeutigkeit.
+test('SITE_GOALS: kein Slug führt denselben Event-Namen zweimal', async () => {
+  const { SITE_GOALS } = await import('./plausible-goals.mjs');
+  for (const [slug, goals] of Object.entries(SITE_GOALS)) {
+    const namen = goals.map((g) => g.value);
+    const doppelt = namen.filter((n, i) => namen.indexOf(n) !== i);
+    assert.deepEqual(doppelt, [], `${slug} führt ${doppelt.join(', ')} mehrfach`);
+  }
+});
+
 test('LEGACY_ALIASES zeigen auf Namen, die es wirklich gibt', async () => {
   const m = await import('./plausible-goals.mjs');
   const alle = [...m.CORE_GOALS, ...m.QUALITY_GOALS, ...m.FUNNEL_GOALS].map((g) => g.value);
