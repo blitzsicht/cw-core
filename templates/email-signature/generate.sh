@@ -173,7 +173,7 @@ except Exception:
   # Google-Bewertungs-CTA (prominent in Akzent-Farbe)
   if [ -n "${GOOGLE_REVIEW_URL:-}" ]; then
     local review_url_with_utm=$(add_utm "$GOOGLE_REVIEW_URL" "review")
-    parts="${parts}<table cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin-top:12px;\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\">⭐ Auf Google bewerten</a></td></tr></table>"
+    parts="${parts}<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin-top:12px;\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\">⭐ Auf Google bewerten</a></td></tr></table>"
   fi
 
   # vCard-Download-Link ("Kontakt speichern")
