@@ -150,6 +150,13 @@ build_compliance_block() {
   IFS="$IFS_OLD"
 }
 
+# Der Vertraulichkeitshinweis. EINE Quelle fuer beide Fassungen (#123): Bis
+# 09.09.2026 stand er fest in PERSON.txt.template und fehlte im HTML — der
+# Empfaenger las ihn oder nicht, je nachdem, welche Fassung sein Programm
+# zeigt. Zwei feste Kopien desselben Satzes laufen auseinander, deshalb steht
+# er hier und wird in beide Vorlagen eingesetzt.
+CONFIDENTIALITY_NOTE="${CONFIDENTIALITY_NOTE:-Hinweis: Diese E-Mail und etwaige Anhänge sind ausschließlich für den bezeichneten Empfänger bestimmt.}"
+
 COMPLIANCE_BLOCK=$(build_compliance_block)
 
 # ── UTM-Helper (Plausible-Klick-Tracking pro Mitarbeiter) ─────────────────────
@@ -275,6 +282,7 @@ replace_html() {
     -e "s|{{LOGO_URL}}|$(sed_escape "$LOGO_URL")|g" \
     -e "s|{{LOGO_ALT}}|$(sed_escape "$LOGO_ALT")|g" \
     -e "s|{{COMPLIANCE_BLOCK}}|$(sed_escape "$COMPLIANCE_BLOCK")|g" \
+    -e "s|{{CONFIDENTIALITY_NOTE}}|$(sed_escape "$CONFIDENTIALITY_NOTE")|g" \
     -e "s|{{EXTRAS_BLOCK}}|$(sed_escape "$EXTRAS_BLOCK")|g" \
     -e "s|{{PHOTO_BLOCK}}|$(sed_escape "$PHOTO_BLOCK")|g" \
     "$file"
@@ -287,9 +295,10 @@ replace_txt() {
 |g; s|&middot;|·|g; s|&nbsp;| |g')
 
   python3 - "$1" "$NAME" "$POSITION" "$EMAIL" "$PHONE" "$WEBSITE_URL" \
-              "$WEBSITE_FULL" "$COMPANY_NAME" "$block_txt" <<'PYEOF'
+              "$WEBSITE_FULL" "$COMPANY_NAME" "$block_txt" "$CONFIDENTIALITY_NOTE" <<'PYEOF'
 import sys
-path, NAME, POSITION, EMAIL, PHONE, WEBSITE_URL, WEBSITE_FULL, COMPANY_NAME, BLOCK = sys.argv[1:10]
+(path, NAME, POSITION, EMAIL, PHONE, WEBSITE_URL, WEBSITE_FULL, COMPANY_NAME,
+ BLOCK, NOTE) = sys.argv[1:11]
 with open(path) as f:
     t = f.read()
 repl = {
@@ -297,6 +306,8 @@ repl = {
     "{{PHONE}}": PHONE, "{{WEBSITE_URL}}": WEBSITE_URL,
     "{{WEBSITE_FULL}}": WEBSITE_FULL, "{{COMPANY_NAME}}": COMPANY_NAME,
     "{{COMPLIANCE_BLOCK}}": BLOCK,
+    # Derselbe Satz wie im HTML — eine Quelle, zwei Fassungen (#123).
+    "{{CONFIDENTIALITY_NOTE}}": NOTE,
 }
 for k, v in repl.items():
     t = t.replace(k, v)
