@@ -27,7 +27,11 @@ WEBSITE_FULL="https://${WEBSITE_URL}"
 COLOR_PRIMARY="${COLOR_PRIMARY:-#312783}"
 COLOR_ACCENT="${COLOR_ACCENT:-#3d7a12}"
 COMPANY_NAME="${COMPANY_NAME:?'COMPANY_NAME fehlt'}"
-LEGAL_FORM="${LEGAL_FORM:-GmbH}"
+# KEINE Vorgabe (#121): Wer keine Rechtsform gepflegt hat, bekommt auch keine.
+# Bis 09.09.2026 stand hier `${LEGAL_FORM:-GmbH}` — das schrieb "GmbH" in den
+# Pflichtangaben-Block jeder Signatur ohne gepflegten Wert und behauptete damit
+# eine Haftungsform, die es nicht gibt. Betroffen waren sechs Repos.
+LEGAL_FORM="${LEGAL_FORM:-}"
 GF_NAME="${GF_NAME:-}"
 REPRESENTATIVES="${REPRESENTATIVES:-}"  # GbR: alle vertretungsberechtigten Gesellschafter (Komma-getrennt)
 STREET="${STREET:?'STREET fehlt'}"
@@ -95,6 +99,9 @@ build_compliance_block() {
   lf_lower=$(printf '%s' "$LEGAL_FORM" | tr '[:upper:]' '[:lower:]')
 
   case "$lf_lower" in
+    "")
+      # Keine Rechtsform gepflegt heisst KEINE ZEILE — nicht eine leere (#121).
+      ;;
     einzelunternehmen|einzelunternehmer|freiberufler)
       # Keine GF/HRB-Zeile — bei Einzelunternehmen nicht relevant
       ;;
