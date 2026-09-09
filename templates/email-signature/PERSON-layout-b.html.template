@@ -55,6 +55,7 @@
         </p>
         <p class="esig-company" style="margin:0 0 2px 0;font-size:12px;font-weight:bold;color:#333333;">{{COMPANY_NAME}}</p>
         <p class="esig-compliance" style="margin:0;font-size:11px;color:#888888;line-height:1.6;">{{COMPLIANCE_BLOCK}}</p>
+        <p class="esig-compliance" style="margin:8px 0 0;font-size:10px;color:#888888;line-height:1.5;">{{CONFIDENTIALITY_NOTE}}</p>
         {{EXTRAS_BLOCK}}
       </td>
     </tr>
