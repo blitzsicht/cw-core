@@ -96,6 +96,12 @@ run_person_for_customer() {
   LAYOUT=$(printf '%s' "$PERSON_JSON" | jq -r '.layout // "auto"')
   SALUTATION=$(printf '%s' "$PERSON_JSON" | jq -r ".salutation // \"Hallo $(printf '%s' "$NAME" | cut -d' ' -f1)\"")
   ANIMATION_EFFECT=$(printf '%s' "$PERSON_JSON" | jq -r '.animationEffect // empty')
+  # Portraet (#129): rundes Personenfoto neben dem Firmenlogo. Ohne das Feld
+  # fiel customer-mika-elektrotechnik ganz aus dem Sammellauf — es fuehrt seine
+  # Signaturen mit Portraet, konnte sie deshalb nicht ueber persons[] pflegen
+  # und wurde still uebersprungen.
+  local PHOTO_URL
+  PHOTO_URL=$(printf '%s' "$PERSON_JSON" | jq -r '.photo // empty')
 
   [ -z "$SLUG" ] && { echo "  ⚠ Person ohne slug — skip"; return; }
   [ -z "$NAME" ] && { echo "  ⚠ Person $SLUG ohne name — skip"; return; }
@@ -190,6 +196,7 @@ run_person_for_customer() {
     LAYOUT="$LAYOUT" \
     GOOGLE_REVIEW_URL="$GOOGLE_REVIEW_URL" \
     BOOKING_URL="$BOOKING_URL" BOOKING_LABEL="$BOOKING_LABEL" \
+    PHOTO_URL="$PHOTO_URL" \
     VCARD_PUBLIC_URL="$VCARD_PUBLIC_URL" \
     ANIMATION_EFFECT="$ANIMATION_EFFECT" \
     OUT_DIR="$SIG_OUT" \
@@ -225,6 +232,7 @@ run_person_for_customer() {
 
 # Auto-Discovery
 PROCESSED=0
+UEBERSPRUNGEN=0
 for CUSTOMER_DIR in "$CUSTOMER_ROOT"/customer-*/; do
   CUSTOMER_DIR="${CUSTOMER_DIR%/}"
   CUSTOMER_NAME=$(basename "$CUSTOMER_DIR")
@@ -247,7 +255,18 @@ for CUSTOMER_DIR in "$CUSTOMER_ROOT"/customer-*/; do
   PERSON_COUNT=$(printf '%s' "$PERSONS_JSON" | jq 'length')
 
   if [ "$PERSON_COUNT" -eq 0 ]; then
-    continue  # Stilles Skip — Customer ohne persons[]
+    # Still bleibt es nur, solange das Repo gar keine Signaturen fuehrt — das
+    # ist der Normalfall fuer Kunden ohne diesen Service. HAT es welche, faellt
+    # es hier heraus, ohne dass es jemand merkt (#129): Beim Rollout am
+    # 10.09.2026 blieb customer-mika-elektrotechnik als einziges zurueck, und
+    # aufgefallen ist es erst beim Vergleich des Bestands hinterher.
+    VORHANDENE_SIGS=$(ls "$CUSTOMER_DIR"/email-signatures/*/*.html 2>/dev/null \
+      | grep -v -- '-install' | wc -l | tr -d ' ')
+    if [ "${VORHANDENE_SIGS:-0}" -gt 0 ]; then
+      echo "  ⚠ $CUSTOMER_NAME uebersprungen: kein persons[] in site-data.ts — aber $VORHANDENE_SIGS Signatur(en) im Repo"
+      UEBERSPRUNGEN=$((UEBERSPRUNGEN + 1))
+    fi
+    continue
   fi
 
   # Shared Stylesheet (v6.5): install.css 1x pro Customer nach public/email/ kopieren
@@ -266,4 +285,7 @@ echo ""
 echo "═══════════════════════════════════════════════════════════════"
 EML_COUNT=$(ls "$MAIL_OUT"/*.eml 2>/dev/null | wc -l | tr -d ' ')
 echo "DONE — $EML_COUNT .eml Files in $MAIL_OUT/"
+if [ "${UEBERSPRUNGEN:-0}" -gt 0 ]; then
+  echo "⚠ $UEBERSPRUNGEN Repo(s) mit vorhandenen Signaturen uebersprungen — siehe Meldungen oben"
+fi
 echo "═══════════════════════════════════════════════════════════════"
