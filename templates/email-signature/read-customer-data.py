@@ -85,6 +85,25 @@ def firmenname(src):
 
 # Top-level fields
 name = firmenname(content)
+
+
+def buchungsadresse(src):
+    """Die Terminbuchungs-Adresse, auch wenn sie neben den Seitendaten steht (#127).
+
+    Gesucht wird zuerst im Objekt (`booking.url`), danach in den exportierten
+    Konstanten desselben Dokuments: `CAL_BOOKING_URL`, `calUrl` und Verwandte.
+    Bei customer-blitzsicht steht sie als eigenes `export const` — der Leser
+    fand sie nicht, und die Signatur verlor beim Neuerzeugen ihren Knopf
+    „Termin vereinbaren", ohne dass es jemand meldete.
+
+    Kein Rueckfallwert und kein Abbruch: Wer keine Buchung anbietet, hat hier
+    nichts, und das ist der Normalfall.
+    """
+    for muster in (r"\b(?:CAL_BOOKING_URL|BOOKING_URL|calUrl|calBookingUrl)\s*[:=]\s*['\"]([^'\"]+)['\"]",):
+        treffer = re.search(muster, src)
+        if treffer:
+            return treffer.group(1)
+    return ""
 url = kv(content, "url")
 tagline = kv(content, "tagline")
 
@@ -134,7 +153,7 @@ phone = phone or kv(contact, "phone") or kv(contact, "telefon")
 gmb = extract_block("gmb")
 gmb_review_url = kv(gmb, "review_url")
 booking = extract_block("booking")
-booking_url = kv(booking, "url")
+booking_url = kv(booking, "url") or buchungsadresse(content)  # #127
 booking_label = kv(booking, "label", "Termin vereinbaren")
 
 # tokens.css → primary/accent
