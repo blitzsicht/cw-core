@@ -47,8 +47,44 @@ def kv_arr(block, key, idx=0, default=""):
     m = re.search(rf"\b{key}:\s*['\"]([^'\"]+)['\"]", block)
     return m.group(1) if m else default
 
+def firmenname(src):
+    """Der Name aus dem TOP-LEVEL-Objekt — nicht irgendein `name:` im Dokument (#125).
+
+    `kv()` sucht global und nimmt den ersten Treffer. Steht der Firmenname als
+    Variable (`name: BRAND`), greift der Ausdruck dort nicht und gewinnt
+    stattdessen ein spaeteres `name: '…'`: ein Angebotspaket, eine
+    Handwerkskammer, eine Aufsichtsbehoerde. Am 10.09.2026 gemessen: fuenf von
+    elf Repos mit Signatur bekamen so einen fremden Namen — er steht in der
+    Signatur im Firmenblock UND im Alternativtext des Logos.
+
+    Deshalb zwei Schritte statt einem:
+
+    1. Gesucht wird ab dem Beginn der Seitendaten (`siteData = {`), also im
+       Top-Level-Objekt, und dort das ERSTE `name:`.
+    2. Steht dort ein Bezeichner statt einer Zeichenkette, wird er im selben
+       Dokument aufgeloest (`const BRAND = '…'`).
+
+    Laesst sich nichts aufloesen, bricht der Leser ab. Ein falscher Firmenname
+    faellt niemandem auf, der die Signatur nicht auswendig kennt; eine
+    Fehlermeldung faellt sofort auf.
+    """
+    beginn = re.search(r"\bsiteData\s*=\s*\{", src)
+    ab = beginn.end() if beginn else 0
+    treffer = re.search(r"\bname:\s*(['\"]([^'\"]+)['\"]|[A-Za-z_$][\w$]*)", src[ab:])
+    if not treffer:
+        sys.exit("read-customer-data: kein `name:` in den Seitendaten gefunden")
+    if treffer.group(2):
+        return treffer.group(2)
+    bezeichner = treffer.group(1)
+    wert = re.search(rf"\b(?:const|let|var)\s+{re.escape(bezeichner)}\s*=\s*['\"]([^'\"]+)['\"]", src)
+    if not wert:
+        sys.exit(f"read-customer-data: `name: {bezeichner}` liess sich nicht aufloesen — "
+                 f"kein `const {bezeichner} = '…'` im Dokument")
+    return wert.group(1)
+
+
 # Top-level fields
-name = kv(content, "name")
+name = firmenname(content)
 url = kv(content, "url")
 tagline = kv(content, "tagline")
 
