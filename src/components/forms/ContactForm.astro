@@ -72,6 +72,28 @@ interface Props {
    * rendert der Consent-Block exakt wie bisher — die Nicht-Ads-Sites bleiben unberührt.
    */
   adsConsentDetails?: string;
+  /**
+   * Opt-in (Pilot): meldet das Formular per WebMCP als Werkzeug an, das ein KI-Agent im
+   * Browser ausfüllen kann (deklarative API: `toolname`/`tooldescription` am Formular,
+   * `toolparamdescription` an den Feldern). Default aus — ohne den Prop ist das Markup
+   * dasselbe wie in v0.149.4 (gemessen; nur der Astro-Scope-Hash wandert mit).
+   *
+   * Der Agent füllt nur aus; ABSCHICKEN MUSS DER MENSCH. `toolautosubmit` wird nie gesetzt.
+   *
+   * Gemessen in Chrome 153 (11.09.2026, CDP `WebMCP.toolsAdded`): Chrome übernimmt JEDES
+   * benannte Feld ins Schema außer `type="hidden"`, `disabled`, `readonly` (nur Textfelder!)
+   * und `<output>`. `display:none`, `aria-hidden`, `hidden` und `inert` schützen nicht.
+   * Naiv angeschaltet stünden beide Honeypots und die Consent-Checkbox als Parameter da —
+   * ein Agent, der den Honeypot füllt, lässt die Anfrage als Spam verschwinden. Deshalb im
+   * Agent-Modus: `url_honey` wird `readonly` (bleibt leer im Payload), die `botcheck`-
+   * Checkbox entfällt (eine nicht angehakte Checkbox wird ohnehin nie gesendet — der
+   * Payload eines Menschen bleibt derselbe). Turnstile bleibt der Hauptschutz.
+   *
+   * Mit `adsConsent` wird der Prop IGNORIERT (Build-Warnung): `readonly` schließt eine
+   * Checkbox nicht aus, und eine Einwilligung klickt der Mensch, nie ein Agent.
+   * Guard: ai-discovery `checkWebMcpForms`.
+   */
+  agentTool?: boolean;
 }
 
 const {
@@ -90,7 +112,38 @@ const {
   adsConsentVersion = 'ads-consent-v1',
   adsConsentText = 'Ich willige ein, dass zur Messung des Werbeerfolgs meine Google-Klick-Kennung an Google (Google Ireland Ltd. / Google LLC, USA) übermittelt wird. Freiwillig und jederzeit mit Wirkung für die Zukunft widerrufbar.',
   adsConsentDetails,
+  agentTool = false,
 } = Astro.props;
+
+if (agentTool && adsConsent) {
+  console.warn(
+    '[cw-core ContactForm] agentTool wird ignoriert, weil adsConsent gesetzt ist — ' +
+    'die Consent-Checkbox stünde sonst als Agent-Parameter im WebMCP-Schema.'
+  );
+}
+const agentMode = agentTool && !adsConsent;
+
+// WebMCP-Werkzeug je Formulartyp. Die Beschreibung liest der Agent, nicht der Mensch:
+// sie sagt, was das Werkzeug tut, und dass der Nutzer selbst abschickt.
+const TOOLS: Record<NonNullable<Props['formType']>, { name: string; tut: string }> = {
+  contact: { name: 'kontakt_anfrage', tut: 'Kontaktanfrage' },
+  audit: { name: 'website_check_anfragen', tut: 'Anfrage für einen kostenlosen Website-Check' },
+  bewerbung: { name: 'bewerbung_senden', tut: 'Bewerbung' },
+  waitlist: { name: 'warteliste_eintragen', tut: 'Eintrag in die Warteliste' },
+  updates: { name: 'updates_abonnieren', tut: 'Anmeldung für Benachrichtigungen über neue Versionen' },
+};
+const tool = TOOLS[formType];
+// Ohne agentMode sind alle Werte `undefined` — Astro lässt das Attribut dann weg.
+// Bewusst KEIN Spread (`{...attrs}`): schon ein leerer Spread lässt Astro zusätzlich
+// `class="astro-HASH"` an das Element hängen (gemessen am blitzsicht-Build, 11.09.2026)
+// — das Markup ohne Opt-in wäre dann nicht mehr dasselbe.
+const toolname = agentMode ? tool.name : undefined;
+const tooldescription = agentMode
+  ? `${tool.tut}${siteName ? ` an ${siteName}` : ''} vorbereiten. ` +
+    'Füllt das Formular aus; abschicken muss der Nutzer selbst.'
+  : undefined;
+/** Wert für `toolparamdescription` — nur im Agent-Modus, sonst entfällt das Attribut. */
+const param = (beschreibung: string): string | undefined => (agentMode ? beschreibung : undefined);
 
 // Build-Time-Warning wenn Form ohne Bot-Schutz produziert wird.
 // Erscheint im Vercel-Deploy-Log → catchbar via Log-Monitoring.
@@ -121,6 +174,8 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       data-web3form
       data-submit-url={submitUrl}
       data-form-type={formType}
+      toolname={toolname}
+      tooldescription={tooldescription}
     >
       {useWeb3Forms && (
         <>
@@ -136,9 +191,16 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
            Label im A11y-Baum steht. Zulaessig, weil tabindex="-1" das Feld nicht
            fokussierbar macht. Die Spam-Abwehr bleibt unveraendert — gelesen wird
            botcheck in handle-submission.js und contact-handler.js. -->
-      <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      {/* Im Agent-Modus (agentTool) entfällt die Checkbox: Chrome nähme sie ins
+          WebMCP-Schema auf, `readonly` schließt Checkboxen nicht aus. JSX-Kommentar,
+          damit das Markup ohne agentTool unverändert bleibt. */}
+      {!agentMode && (
+        <input type="checkbox" name="botcheck" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      )}
       <!-- URL-Honeypot — Bots füllen oft "url" oder "website" automatisch aus -->
-      <input type="text" name="url_honey" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" aria-hidden="true" />
+      {/* `readonly` im Agent-Modus hält ihn aus dem WebMCP-Schema; er wird weiter
+          (leer) gesendet, der Server prüft ihn unverändert. */}
+      <input type="text" name="url_honey" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px;opacity:0" aria-hidden="true" readonly={agentMode} />
 
       <!-- Ad-Attribution (gclid + utm_*) — client-seitig befüllt, cookielos -->
       {ATTRIBUTION_FIELDS.map((f) => (
@@ -149,19 +211,19 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         <>
           <div class="form-row">
             <label for="cf-name">Ihr Name <span aria-hidden="true">*</span></label>
-            <input type="text" id="cf-name" name="name" required autocomplete="name" />
+            <input type="text" id="cf-name" name="name" required autocomplete="name" toolparamdescription={param('Vor- und Nachname der anfragenden Person')} />
           </div>
           <div class="form-row">
             <label for="cf-email">E-Mail <span aria-hidden="true">*</span></label>
-            <input type="email" id="cf-email" name="email" required autocomplete="email" />
+            <input type="email" id="cf-email" name="email" required autocomplete="email" toolparamdescription={param('E-Mail-Adresse, an die die Antwort gehen soll')} />
           </div>
           <div class="form-row">
             <label for="cf-company">Unternehmen <span class="optional">(optional)</span></label>
-            <input type="text" id="cf-company" name="company" autocomplete="organization" />
+            <input type="text" id="cf-company" name="company" autocomplete="organization" toolparamdescription={param('Firmenname, falls die Anfrage für ein Unternehmen ist (optional)')} />
           </div>
           <div class="form-row">
             <label for="cf-message">Nachricht <span aria-hidden="true">*</span></label>
-            <textarea id="cf-message" name="message" rows="4" required></textarea>
+            <textarea id="cf-message" name="message" rows="4" required toolparamdescription={param('Das Anliegen in eigenen Worten')}></textarea>
           </div>
         </>
       )}
@@ -170,15 +232,15 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         <>
           <div class="form-row">
             <label for="cf-email">Ihre E-Mail <span aria-hidden="true">*</span></label>
-            <input type="email" id="cf-email" name="email" required autocomplete="email" />
+            <input type="email" id="cf-email" name="email" required autocomplete="email" toolparamdescription={param('E-Mail-Adresse, an die das Ergebnis gehen soll')} />
           </div>
           <div class="form-row">
             <label for="cf-url">Ihre Website-URL <span aria-hidden="true">*</span></label>
-            <input type="url" id="cf-url" name="website" required placeholder="https://ihre-website.de" />
+            <input type="url" id="cf-url" name="website" required placeholder="https://ihre-website.de" toolparamdescription={param('Vollständige Adresse der zu prüfenden Website, mit https://')} />
           </div>
           <div class="form-row">
             <label for="cf-name">Ihr Name <span class="optional">(optional)</span></label>
-            <input type="text" id="cf-name" name="name" autocomplete="name" />
+            <input type="text" id="cf-name" name="name" autocomplete="name" toolparamdescription={param('Name der anfragenden Person (optional)')} />
           </div>
         </>
       )}
@@ -187,19 +249,19 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         <>
           <div class="form-row">
             <label for="cf-name">Ihr Name <span aria-hidden="true">*</span></label>
-            <input type="text" id="cf-name" name="name" required autocomplete="name" />
+            <input type="text" id="cf-name" name="name" required autocomplete="name" toolparamdescription={param('Vor- und Nachname der Bewerberin oder des Bewerbers')} />
           </div>
           <div class="form-row">
             <label for="cf-email">E-Mail <span aria-hidden="true">*</span></label>
-            <input type="email" id="cf-email" name="email" required autocomplete="email" />
+            <input type="email" id="cf-email" name="email" required autocomplete="email" toolparamdescription={param('E-Mail-Adresse für die Rückmeldung')} />
           </div>
           <div class="form-row">
             <label for="cf-phone">Telefon <span class="optional">(optional)</span></label>
-            <input type="tel" id="cf-phone" name="phone" autocomplete="tel" />
+            <input type="tel" id="cf-phone" name="phone" autocomplete="tel" toolparamdescription={param('Telefonnummer für einen Rückruf (optional)')} />
           </div>
           <div class="form-row">
             <label for="cf-message">Anschreiben <span aria-hidden="true">*</span></label>
-            <textarea id="cf-message" name="message" rows="5" required
+            <textarea id="cf-message" name="message" rows="5" required toolparamdescription={param('Anschreiben mit der gewünschten Stelle oder dem Wort Initiativbewerbung')}
               placeholder="Bitte nenne die gewünschte Stelle oder schreibe &#34;Initiativbewerbung&#34;."></textarea>
           </div>
         </>
@@ -209,19 +271,19 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         <>
           <div class="form-row">
             <label for="cf-name">Dein Name <span aria-hidden="true">*</span></label>
-            <input type="text" id="cf-name" name="name" required autocomplete="name" />
+            <input type="text" id="cf-name" name="name" required autocomplete="name" toolparamdescription={param('Vor- und Nachname')} />
           </div>
           <div class="form-row">
             <label for="cf-studio">Dein Studio <span aria-hidden="true">*</span></label>
-            <input type="text" id="cf-studio" name="studio" required autocomplete="organization" />
+            <input type="text" id="cf-studio" name="studio" required autocomplete="organization" toolparamdescription={param('Name des Studios')} />
           </div>
           <div class="form-row">
             <label for="cf-email">Deine E-Mail <span aria-hidden="true">*</span></label>
-            <input type="email" id="cf-email" name="email" required autocomplete="email" />
+            <input type="email" id="cf-email" name="email" required autocomplete="email" toolparamdescription={param('E-Mail-Adresse für die Nachricht, wenn es losgeht')} />
           </div>
           <div class="form-row">
             <label for="cf-message">Nachricht <span class="optional">(optional)</span></label>
-            <textarea id="cf-message" name="message" rows="3"></textarea>
+            <textarea id="cf-message" name="message" rows="3" toolparamdescription={param('Zusätzliche Nachricht (optional)')}></textarea>
           </div>
         </>
       )}
@@ -229,7 +291,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       {formType === 'updates' && (
         <div class="form-row">
           <label for="cf-email">Deine E-Mail <span aria-hidden="true">*</span></label>
-          <input type="email" id="cf-email" name="email" required autocomplete="email" />
+          <input type="email" id="cf-email" name="email" required autocomplete="email" toolparamdescription={param('E-Mail-Adresse für Benachrichtigungen über neue Versionen')} />
         </div>
       )}
 
