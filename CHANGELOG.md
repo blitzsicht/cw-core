@@ -22,6 +22,35 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.150.0 (2026-09-11)
+
+**Feature: Flotten-Prüfung `layout-audit` — weiße Ränder, die kein anderer Check sieht (#134).**
+
+Neue blockierende Prüfung in `checks/` neben `mobile-audit` und `a11y-audit`, gemessen im
+gerenderten Browser bei 390, 768 und 1440 px (neues Projekt `desktop`, nur für diese Spec):
+
+- **Einseitige Lücke:** ein Bild oder eine Fläche schließt bündig mit einer vollbreiten Sektion
+  ab, endet auf der anderen Seite aber > 8 px früher, und in der Lücke steht nichts.
+- **Ungefärbter Kartenrest:** eine Karte im Grid/Flex ist zu ≥ 60 % bemalt, hat aber oben oder
+  unten einen leeren, ungefärbten Streifen.
+
+Kontext: customer-haarwerk-neutraubling, 11.09.2026. Das Hero-Bild endete rechts vor dem Rand
+(`aspect-ratio` + `max-height` ohne `width`), eine Kachel hatte unten einen ungefärbten Streifen
+(Farbe nur auf dem inneren Block). Beides fand der Operator per Screenshot. Kein Überstand, kein
+zu breites Bild, kein a11y-Verstoß — die bestehenden Checks sahen es nicht.
+
+Jeder Lauf beginnt mit einer Positivkontrolle (`KAPUTT` muss anschlagen, `HEIL` muss schweigen).
+Nachweis: alter Haarwerk-Stand rot (Hero-Lücke 245 px, Kachelrest 105 px), reparierter Stand
+30/30 grün. Flotten-Stichprobe über 13 Live-Kunden mit 471 Messungen: 0 Befunde, nachdem eine
+erste Fassung 10 Fehlalarme (Text im Streifen) geliefert hatte.
+
+**Migrations-Hinweis:** Keiner im Code. Die Workflow-Vorlage `site-checks.yml` bekommt den
+Schritt „Layout-Prüfung (blockierend)" und wird per `rollout-site-checks.sh` verteilt
+(cw-release Schritt 6b). Ein Kundenrepo, das dort rot wird, hat einen sichtbaren weißen Rand —
+Fix im Repo, nicht die Prüfung abschalten.
+
+---
+
 ## v0.149.4 (2026-09-11)
 
 - [kunde:sichtbar] Im Kontaktformular stehen die Sicherheitsprüfung und der Absende-Knopf jetzt nebeneinander in einer Zeile statt untereinander.
