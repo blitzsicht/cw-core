@@ -22,6 +22,34 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.151.1 (2026-09-11)
+
+**Fix: layout-audit misst den sichtbaren Ausschnitt, nicht die Box (#136, blitzsicht-ops#798).**
+
+Bewusst ohne `[kunde]`-Zeile: Es ändert sich nur die Flotten-Prüfung in der CI, an keiner
+Website.
+
+Der erste site-checks-Lauf mit der Layout-Prüfung aus v0.150.0 war auf customer-blitzsicht
+rot. Gemeldet wurden `/website-handwerker/` und `/jimdo-vs-wix/` bei 390 px mit
+„`table.vergleich-table`: 24 px Lücke links“. Die Tabelle (624 px) steht in einem
+`overflow-x: auto`-Wrapper von 342 px, mit beidseitig 24 px Rand, und ist seitlich
+scrollbar. Einen einseitigen Rand gibt es nicht. Regel 1 hat die ungekürzte Box gemessen
+(rechts 648 px, also über den Seitenrand) und daraus „rechts bündig, links Lücke“ gelesen.
+
+Jetzt beschneidet `sichtbarWaagerecht()` die Box an jedem Vorfahren mit `overflow-x` ≠
+`visible`. Die Fixture enthält eine Scroll-Tabelle nach dem blitzsicht-Muster (180 % der
+Wrapper-Breite, damit sie in allen drei Projekten auftritt). HEIL erbt sie, die bestehende
+Assertion „reparierte Seite meldet keine Lücke“ ist damit die Gegenprobe. Prüfmatrix per
+CDP, alte gegen neue Regel: HEIL mit Tabelle vorher 1 Lücke in 390/768/1440, jetzt 0. Die
+Haarwerk-Muster in KAPUTT (Hero-Lücke, Kartenrest) bleiben in allen drei Viewports rot.
+
+Die Flotten-Stichprobe in #134 nannte 0 Befunde über 13 Live-Kunden. Diese Seiten waren nicht
+darin. Die Reichweite über alle Sitemap-URLs zeigen erst die site-checks der Kundenrepos
+nach diesem Release (#798, AC 4).
+
+**Migrations-Hinweis:** Keiner. Guard-Pin in `templates/.github/workflows/site-checks.yml`
+auf v0.151.1 gehoben.
+
 ## v0.151.0 (2026-09-11)
 
 **Feature (Pilot, opt-in): `ContactForm agentTool` meldet das Formular per WebMCP als
