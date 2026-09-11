@@ -65,12 +65,35 @@ export function layoutBefunde() {
     return false;
   };
 
+  /**
+   * Sichtbarer waagerechter Ausschnitt: die Box, beschnitten von jedem Vorfahren mit
+   * `overflow-x` ≠ `visible`. Eine breite Tabelle in einem Scroll-Wrapper reicht
+   * rechnerisch über den Seitenrand hinaus, zu sehen ist sie nur bis zur Kante des
+   * Wrappers. Ohne den Beschnitt galt sie als „rechts bündig, links 24 px Lücke" —
+   * Fehlalarm auf blitzsicht.com /website-handwerker/ und /jimdo-vs-wix/ bei 390 px
+   * (blitzsicht-ops#798, 11.09.2026).
+   * @param {Element} el @param {DOMRect} r
+   */
+  const sichtbarWaagerecht = (el, r) => {
+    let links = r.left;
+    let rechts = r.right;
+    for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) {
+      if (getComputedStyle(a).overflowX === 'visible') continue;
+      const c = a.getBoundingClientRect();
+      links = Math.max(links, c.left);
+      rechts = Math.min(rechts, c.right);
+    }
+    return { left: links, right: rechts, width: Math.max(0, rechts - links) };
+  };
+
   // ── 1. Einseitige Lücke neben einem Vollbreiten-Element ────────────────────────
   // Ein bemaltes Element, das links (oder rechts) bündig mit einer vollbreiten
   // Sektion abschließt, auf der anderen Seite aber > 8 px früher endet — und in
   // dieser Lücke steht NICHTS (der Treffer an dieser Stelle ist die Sektion selbst
   // oder ein Vorfahr). Zentrierte Container haben symmetrische Ränder und fallen
   // nicht darunter; Split-Layouts haben in der Lücke ihren Text und fallen auch nicht.
+  // Gemessen wird der SICHTBARE Ausschnitt (sichtbarWaagerecht), nicht die Box: was ein
+  // Scroll-Container abschneidet, ist für den Besucher kein Rand.
   const luecken = [];
   const gesehen = new Set();
   for (const el of document.querySelectorAll('body *')) {
@@ -82,13 +105,14 @@ export function layoutBefunde() {
     if (!sektion || sektion === document.body || sektion === document.documentElement) continue;
     el.scrollIntoView({ block: 'center', inline: 'nearest' });
     r = el.getBoundingClientRect();
+    const v = sichtbarWaagerecht(el, r);
     const s = sektion.getBoundingClientRect();
-    const links = r.left - s.left;
-    const rechts = s.right - r.right;
+    const links = v.left - s.left;
+    const rechts = s.right - v.right;
     const buendig = Math.min(links, rechts) <= 1;
     const luecke = Math.max(links, rechts);
     if (!buendig || luecke <= 8) continue;
-    const x = rechts > links ? r.right + rechts / 2 : r.left - links / 2;
+    const x = rechts > links ? v.right + rechts / 2 : v.left - links / 2;
     const y = Math.min(Math.max(r.top + r.height / 2, 1), window.innerHeight - 2);
     const treffer = document.elementFromPoint(x, y);
     if (!treffer || !(treffer === sektion || treffer.contains(sektion))) continue;
@@ -100,7 +124,7 @@ export function layoutBefunde() {
       sektion: name(sektion),
       seite: rechts > links ? 'rechts' : 'links',
       px: Math.round(luecke),
-      elementBreite: Math.round(r.width),
+      elementBreite: Math.round(v.width),
       sektionBreite: Math.round(s.width),
     });
   }
@@ -182,6 +206,11 @@ export async function bereiteVor(page) {
  * aspect-ratio/max-height-Mechanik aus dem Anlass: die bricht erst ab einer bestimmten
  * Breite und wäre auf 390 px unauffällig — eine Kontrolle, die dort grün bliebe, bewiese
  * dort nichts.
+ *
+ * Dazu eine breite Tabelle im Scroll-Wrapper (Muster blitzsicht `.vergleich-wrapper`,
+ * blitzsicht-ops#798). Sie ist KEIN Fehler und steht deshalb auch in HEIL: meldet die
+ * Prüfung dort eine Lücke, misst sie die Box statt des sichtbaren Ausschnitts. 180 % der
+ * Wrapper-Breite, damit das Muster in allen drei Projekten auftritt.
  */
 export const KAPUTT = `<!doctype html><html><head><style>
   body { margin: 0; font-family: sans-serif; }
@@ -192,12 +221,21 @@ export const KAPUTT = `<!doctype html><html><head><style>
   .body { background: #222; color: #fff; padding: 12px; }
   .body h2 { margin: 0; font-size: 16px; line-height: 20px; }
   .body p { margin: 8px 0 0; font-size: 14px; line-height: 20px; }
+  .tabellen { background: #f8f9fc; }
+  .tabellen .container { padding: 24px; }
+  .scroll { overflow-x: auto; }
+  .vergleich { width: 180%; background: #fff; border-collapse: collapse; }
+  .vergleich td { padding: 16px; font-size: 14px; line-height: 20px; }
 </style></head><body>
   <section><div class="hero-wrap"></div></section>
   <section class="grid">
     <a class="karte"><div class="bild"></div><div class="body"><h2>Kurz</h2></div></a>
     <a class="karte"><div class="bild"></div><div class="body"><h2>Lang</h2><p>eins</p><p>zwei</p></div></a>
   </section>
+  <section class="tabellen"><div class="container"><div class="scroll"><table class="vergleich">
+    <tr><td>Kriterium</td><td>Eins</td><td>Zwei</td><td>Drei</td></tr>
+    <tr><td>Ladezeit</td><td>1 s</td><td>3 s</td><td>5 s</td></tr>
+  </table></div></div></section>
 </body></html>`;
 
 /** Dieselbe Seite repariert — Gegenprobe: hier darf die Prüfung NICHT anschlagen. */
