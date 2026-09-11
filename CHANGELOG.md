@@ -22,6 +22,45 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.149.4 (2026-09-11)
+
+- [kunde:sichtbar] Im Kontaktformular stehen die Sicherheitsprüfung und der Absende-Knopf jetzt nebeneinander in einer Zeile statt untereinander.
+
+**Fix: Turnstile-Widget und Absenden-Knopf in einer Zeile (#131).**
+
+Das Turnstile-Widget und der Absenden-Knopf waren zwei Geschwister des
+`flex-direction: column`-Formulars und landeten in zwei Etagen: Widget links, Knopf eine
+Zeile tiefer rechts. Rund 100px Höhe für nichts, und der Knopf wirkte vom Formular
+abgerissen. customer-platzfrei hatte das per Grid-Override in `WaitlistSection.astro`
+repariert und dort notiert, dass es nach cw-core gehört; customer-haarwerk-neutraubling
+zeigte es erneut (Operator: „unser Klassiker").
+
+Beide liegen jetzt im gemeinsamen Container `.form-actions` (Flex-Zeile, Widget links,
+Absenden rechts nach der Konvention „Vorwärts gehört nach rechts"). Ohne sichtbares
+Widget bleibt der Knopf allein rechts, unter 640px stehen beide untereinander in voller
+Breite. Die Selektoren `.cf-turnstile` und `button[type=submit]` sind unverändert, damit
+laufen Lazy-Load, Form-Health- und Touchpoint-Checks weiter.
+
+Test: `tests/blocks/contactform-turnstile-zeile.test.js` prüft die Verschachtelung im
+Template, nicht das Vorkommen der Klassennamen. Gegenprobe gegen die alte Fassung: 2 von
+3 Tests rot. Browser-Messung bei 1280px: Mittelpunkte von Widget und Knopf 493/494 px.
+
+**Außerdem seit v0.149.3 (bereits gemergt, Agentur-Tooling, nicht kundenwirksam über den Pin):**
+
+- E-Mail-Signatur: Porträts im Schema und kein stilles Überspringen mehr (#129/#130), die
+  Buchungsadresse wird auch daneben gefunden (#127/#128), der Firmenname kommt aus den
+  Seitendaten (#125/#126), der Vertraulichkeitshinweis steht in beiden Fassungen
+  (#123/#124), keine erfundene Rechtsform mehr (#121/#122), Layouttabellen tragen
+  `role="presentation"` (#118/#120)
+- Goals `signatur_erzeugt` und `signatur_kopiert` für falzmarke (#117)
+
+**Migrations-Hinweis:** Keiner. customer-platzfrei kann den Grid-Override in
+`WaitlistSection.astro` nach dem Pin-Bump entfernen; seine Selektoren
+(`.contact-form > .cf-turnstile`) treffen den verschachtelten Knoten nicht mehr und
+bleiben wirkungslos.
+
+---
+
 ## v0.149.3 (2026-09-04)
 
 **Fix: `kunde-gate.mjs` las den CHANGELOG aus dem Arbeitsbaum statt aus dem Ziel-Ref.**
