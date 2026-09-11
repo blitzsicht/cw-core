@@ -22,6 +22,93 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.151.0 (2026-09-11)
+
+**Feature (Pilot, opt-in): `ContactForm agentTool` meldet das Formular per WebMCP als
+Agent-Werkzeug an — dazu ein Guard, der Honeypots und Einwilligungen aus dem Schema hält.**
+
+Bewusst ohne `[kunde]`-Zeile. Ohne den Prop ist das ausgelieferte Formular-Markup dasselbe
+wie mit v0.149.4 — gemessen am Build von customer-blitzsicht `/kontakt`; abweichend nur
+der Astro-Scope-Hash (`data-astro-cid-…`), der sich bei jeder Änderung einer Komponente
+mitändert. Und noch nutzt kein ausgelieferter Browser-Agent die Werkzeuge („Gemini in
+Chrome will soon support WebMCP APIs", Google I/O 2026, ohne Datum).
+
+### Was `agentTool` tut
+
+WebMCP (W3C-Entwurf, Chrome-Origin-Trial ab 149) lässt eine Seite Werkzeuge anmelden, die
+ein KI-Agent im Browser gezielt aufruft, statt Knöpfe zu raten. Deklarativ genügen
+Attribute: `ContactForm` setzt je Formulartyp `toolname` (`kontakt_anfrage`,
+`website_check_anfragen`, `bewerbung_senden`, `warteliste_eintragen`,
+`updates_abonnieren`), eine `tooldescription` und an jedem sichtbaren Feld eine
+`toolparamdescription`. **Nie `toolautosubmit`: der Agent füllt aus, abschicken muss der
+Mensch.**
+
+Die Attribute stehen explizit am Element, mit `undefined` ohne Opt-in — kein Spread. Schon
+ein leerer Spread hängt in Astro `class="astro-HASH"` an das Element; die erste Fassung
+änderte so das Markup aller Kunden ohne Opt-in, der Vergleich gegen v0.149.4 fand es.
+Astros JSX-Typen kennen die Attribute nicht (`astro check`: 17× ts(2322)); `src/env.d.ts`
+erweitert `astroHTML.JSX` um sie — `toolautosubmit` absichtlich nicht.
+
+### Warum der Agent-Modus die Honeypots umbaut — gemessen, nicht angenommen
+
+Chrome 153 per CDP (`WebMCP.toolsAdded`): Chrome nimmt jedes benannte Feld ins Schema auf,
+außer `type="hidden"`, `disabled`, `readonly` (nur bei Textfeldern) und `<output>`.
+`display:none`, `aria-hidden`, `hidden` und `inert` schützen nicht, `readonly` an einer
+Checkbox auch nicht. Naiv angeschaltet standen beide Honeypots (`botcheck`, `url_honey`)
+und die Consent-Checkbox als Agent-Parameter da. Füllt ein Agent den Honeypot, verwirft der
+Server die Anfrage still als Spam; hakt er die Einwilligung an, gibt es eine Einwilligung,
+die kein Mensch gab. Deshalb im Agent-Modus:
+
+- `url_honey` wird `readonly` — raus aus dem Schema, weiter (leer) im Payload.
+- Die `botcheck`-Checkbox entfällt. Eine nicht angehakte Checkbox wird nie gesendet, der
+  Payload eines Menschen bleibt also derselbe. Beide Server-Handler prüfen auf
+  Wahrheitswert (`contact-handler.js`, `handle-submission`); Turnstile bleibt der
+  Hauptschutz.
+- Mit `adsConsent` wird `agentTool` ignoriert (Build-Warnung).
+
+### Guard `checkWebMcpForms` (ai-discovery, strict ab Default)
+
+Prüft jedes `<form toolname>` im ausgelieferten HTML: kein Honeypot und keine Einwilligung
+im Schema (Nachbildung der gemessenen Chrome-Regel), kein `toolautosubmit`, ein
+Absende-Knopf vorhanden (ohne ihn lehnt Chrome jeden Aufruf ab: „for a form without
+`toolautosubmit`, there must be a submit button"), kein doppelter `toolname` pro Seite,
+dazu die drei Fehlerbedingungen des Lighthouse-Audits „WebMCP schema validity". Formulare
+ohne `toolname` bleiben unberührt; in keinem der 24 Kunden-Repos steht heute ein
+`toolname`, strict kann also nichts Bestehendes brechen. Abschalten:
+`checkWebMcpForms: false` / `strictWebMcpForms: false`.
+
+### `scripts/webmcp-probe.mjs`
+
+Misst dasselbe wie DevTools → Application → WebMCP, aber wiederholbar per CDP. Weicht es
+von der Nachbildung im Guard ab, hat Chrome die Regel geändert. Ohne das Flag
+`WebMCPTesting` bzw. ein Origin-Trial-Token meldet Chrome 153 gar nichts an —
+`document.modelContext` fehlt dann (so gemessen).
+
+**Chrome-Fehler, nicht unserer — aber er täuscht:** Enthält eine Parameterbeschreibung ein
+Latin-1-Zeichen (ä, ü, é, auch aus dem Label-Text), fehlt `inputSchema` im CDP-Event und
+damit vermutlich auch im DevTools-Panel; das Werkzeug sieht parameterlos aus. „…"
+(U+2026) löst es nicht aus. `document.modelContext.getTools()` liefert das Schema
+vollständig, und ein Aufruf füllt die Felder korrekt („Bitte um Rückruf") — der Agent ist
+nicht betroffen. Das Probe-Skript liest das Schema deshalb aus `getTools()`.
+
+### Belege
+
+- Unit: 10 Tests in `webmcp-form-check.test.mjs`, die Fixtures wörtlich so in Chrome 153
+  geladen. Vier Sabotagen (Honeypot-Erkennung aus, `readonly` auch für Checkboxen,
+  autosubmit-Prüfung aus, Knopf-Prüfung immer „da") machen je genau ihren Test rot.
+- Build (customer-blitzsicht gegen diesen Stand): mit `agentTool` grün, Guard meldet
+  1 Seite sauber. Mit naivem Markup in der installierten Kopie: Abbruch, 2×
+  `honeypot_in_schema`.
+- Ende-zu-Ende (`/kontakt`, Chrome 153 mit Flag): der Aufruf füllt name/email/message, der
+  Fokus springt auf „Absenden", 0 Requests an `/api/contact`. Ein Aufruf, der zusätzlich
+  `url_honey` mitschickt, lehnt Chrome komplett ab („no such parameter for the tool").
+- Nicht gemessen: ein echter Versand nach Agent-Befüllung (lokal ohne Function und
+  Turnstile).
+
+**Migrations-Hinweis:** Keiner. `agentTool` ist opt-in; eingeschaltet wird je Kunden-Repo
+beim Rollout (mit `[kunde]`-Body-Zeile im Kunden-Commit). Guard-Pin in
+`templates/.github/workflows/site-checks.yml` auf v0.151.0 gehoben.
+
 ## v0.150.0 (2026-09-11)
 
 **Feature: Flotten-Prüfung `layout-audit` — weiße Ränder, die kein anderer Check sieht (#134).**
