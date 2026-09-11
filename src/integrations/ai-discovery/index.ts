@@ -35,6 +35,7 @@ import { auditHtml, formatFinding } from './csp-audit.js';
 import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-header-check.js';
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
 import { checkAnchorIntegrity, type AnchorIssue } from './anchor-integrity-check.js';
+import { checkWebMcpForms, type WebMcpIssue } from './webmcp-form-check.js';
 import {
   checkAiLabels,
   pruefeSeiteAufKennzeichnung,
@@ -331,6 +332,13 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   checkAnchorIntegrity?: boolean;
   /** Anker-Integritäts-Guard bricht den Build ab. Default: true. */
   strictAnchorIntegrity?: boolean;
+  /** WebMCP-Formular-Guard: prüft jedes `<form toolname>` im Build — keine Honeypots und
+   *  keine Einwilligung im Werkzeug-Schema, kein toolautosubmit, Lighthouse-Schema-Regeln.
+   *  Formulare ohne toolname bleiben unberührt. Default: true. */
+  checkWebMcpForms?: boolean;
+  /** WebMCP-Formular-Guard bricht den Build ab. Default: true — bis heute trägt kein
+   *  Kunden-Build ein `toolname`, der Guard kann also nichts Bestehendes brechen. */
+  strictWebMcpForms?: boolean;
   /**
    * KI-Kennzeichnungs-Guard: trägt jede ausgelieferte Seite ein Label für die
    * kennzeichnungspflichtigen Bilder, die auf ihr stehen? Default TRUE.
@@ -2934,6 +2942,47 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             if (options.strictAnchorIntegrity !== false) {
               throw new Error(
                 `[ai-discovery] strictAnchorIntegrity=true: Build abgebrochen wegen ${anchorIssues.length} kaputten Link(s).`,
+              );
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // WebMCP: Formulare, die sich als Agent-Werkzeug anmelden
+        // -------------------------------------------------------------------
+        // Chrome 153 nimmt jedes benannte Feld ins Werkzeug-Schema auf — auch
+        // Honeypots (display:none/aria-hidden schützen nicht) und Consent-
+        // Checkboxen. Ein Agent, der den Honeypot füllt, lässt die Anfrage still
+        // als Spam verschwinden. Gemessen am ausgelieferten HTML, weil nur dort
+        // steht, was der Browser zum Schema macht. Siehe webmcp-form-check.js.
+        if (options.checkWebMcpForms !== false) {
+          const seiten = htmlFiles.map((file) => {
+            const pfad = file.slice(distDir.length).replace(/\/index\.html$/, '/');
+            let html = '';
+            try {
+              html = readFileSync(file, 'utf-8');
+            } catch {
+              /* unlesbare Datei: andere Guards melden das laut genug */
+            }
+            return { page: pfad.startsWith('/') ? pfad : `/${pfad}`, html };
+          });
+          const werkzeugSeiten = seiten.filter((s) => /<form\b[^>]*\btoolname\s*=/i.test(s.html)).length;
+          const webMcpIssues: WebMcpIssue[] = checkWebMcpForms(seiten);
+          if (webMcpIssues.length === 0) {
+            if (werkzeugSeiten > 0) {
+              logger.info(`WebMCP-Guard: ✓ ${werkzeugSeiten} Page(s) mit Agent-Werkzeug — Schema sauber.`);
+            }
+          } else {
+            logger.warn(`WebMCP-Guard: ${webMcpIssues.length} Befund(e):`);
+            for (const issue of webMcpIssues.slice(0, 20)) {
+              logger.warn(`  ${issue.page} [${issue.type}] ${issue.detail}`);
+            }
+            if (webMcpIssues.length > 20) {
+              logger.warn(`  … und ${webMcpIssues.length - 20} weitere.`);
+            }
+            if (options.strictWebMcpForms !== false) {
+              throw new Error(
+                `[ai-discovery] strictWebMcpForms=true: Build abgebrochen wegen ${webMcpIssues.length} WebMCP-Befund(en).`,
               );
             }
           }
