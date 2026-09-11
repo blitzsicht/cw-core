@@ -247,18 +247,25 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         </div>
       )}
 
-      {turnstileSiteKey && (
-        <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme={turnstileTheme}></div>
-      )}
+      {/* Bot-Prüfung und Absenden teilen sich EINE Zeile (Prüfung links, Absenden
+          rechts). Vorher standen sie als zwei Etagen untereinander — der Klassiker,
+          den customer-platzfrei per Grid-Override und haarwerk per Screenshot
+          gemeldet haben. Der gemeinsame Container ist Absicht, Test:
+          tests/blocks/contactform-turnstile-zeile.test.js */}
+      <div class="form-actions">
+        {turnstileSiteKey && (
+          <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-theme={turnstileTheme}></div>
+        )}
 
-      <div class="form-submit">
-        <button type="submit" class="btn-accent">
-          <span class="btn-label">Absenden</span>
-          <span class="btn-loading" aria-hidden="true" hidden>
-            <span class="spinner" aria-hidden="true"></span>
-            Wird gesendet…
-          </span>
-        </button>
+        <div class="form-submit">
+          <button type="submit" class="btn-accent">
+            <span class="btn-label">Absenden</span>
+            <span class="btn-loading" aria-hidden="true" hidden>
+              <span class="spinner" aria-hidden="true"></span>
+              Wird gesendet…
+            </span>
+          </button>
+        </div>
       </div>
     </form>
 
@@ -540,13 +547,26 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
   /* Konvention „Vorwärts gehört nach rechts" (docs/ux-conventions.md): Absenden
      ist die Vorwärts-Aktion des Formulars und steht rechts. Auf schmalen
      Viewports volle Breite — dort gibt es kein „rechts". */
-  .form-submit {
+  /* Prüfung und Absenden in einer Zeile: Turnstile links (margin-right:auto),
+     Absenden rechts. Ohne sichtbares Widget (kein Sitekey oder Modus „invisible")
+     bleibt der Knopf allein rechts. flex-wrap fängt schmale Spalten ab. */
+  .form-actions {
     margin-top: 0.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+  }
+  .form-actions .cf-turnstile { margin-right: auto; }
+  .form-submit {
     display: flex;
     justify-content: flex-end;
   }
   /* stylelint-disable-next-line plugin/no-max-width-media -- konsistent zum Desktop-First-Rest dieser Datei */
   @media (max-width: 640px) {
+    .form-actions { display: block; }
+    .form-actions .cf-turnstile { margin-bottom: 1rem; }
     .form-submit { display: block; }
     .form-submit button { width: 100%; justify-content: center; }
   }
