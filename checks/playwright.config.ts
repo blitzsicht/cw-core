@@ -47,6 +47,14 @@ export default defineConfig({
       name: 'tablet',
       use: { ...devices['Desktop Chrome'], viewport: { width: 768, height: 1024 } },
     },
+    {
+      // Nur für layout-audit: der Hero-Fehler vom 11.09.2026 (aspect-ratio + max-height
+      // ohne width) bricht erst ab ~1195 px Viewport und ist auf 390/768 unsichtbar.
+      // testMatch hält mobile-audit und a11y-audit aus diesem Projekt heraus.
+      name: 'desktop',
+      testMatch: /layout-audit\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } },
+    },
   ],
   use: {
     baseURL: process.env.BASE_URL || `http://127.0.0.1:${PORT}`,
