@@ -75,7 +75,7 @@ jobs:
   # ohne einen Browser zu starten (~20 s).
   #
   # Ohne DIST_DIR findet seiten.ts keine sitemap-0.xml und faellt bewusst auf den
-  # Kern zurueck: 2 Specs x 2 Routen x 2 Projekte = 8 Tests. Die Zahl wird
+  # Kern zurueck (2 Routen); die erwartete Summe steht am Schritt unten. Die Zahl wird
   # geprueft, nicht
   # nur der Exit-Code — genau hier lag die teuerste Falle: unter Node 26 lieferte
   # @playwright/test 1.52.0 Exit 0 und NULL Tests, ohne eine Zeile Ausgabe. Ein
@@ -103,15 +103,26 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: checks
 
-      - name: Specs aufzaehlen (8 Tests erwartet — Kern-Rueckfall ohne DIST_DIR)
+      # Seit v0.150.0 (layout-audit) sind es 17 Tests:
+      #   mobile + tablet: mobile-audit 2 + a11y-audit 2 + layout-audit 3 (Positivkontrolle + 2 Routen) = 7 x 2 = 14
+      #   desktop: nur layout-audit (testMatch) = 3
+      # Zusaetzlich geprueft: im Projekt desktop taucht KEINE andere Spec auf — sonst liefe
+      # mobile-audit dort doppelt und a11y-audit mit einem Viewport, fuer den sie nie
+      # kalibriert wurde.
+      - name: Specs aufzaehlen (17 Tests erwartet — Kern-Rueckfall ohne DIST_DIR)
         working-directory: checks
         run: |
           set -euo pipefail
-          AUSGABE=$(pnpm exec playwright test --project=mobile --project=tablet --list)
+          AUSGABE=$(pnpm exec playwright test --project=mobile --project=tablet --project=desktop --list)
           echo "$AUSGABE"
           ANZAHL=$(echo "$AUSGABE" | grep -oE 'Total: [0-9]+ test' | grep -oE '[0-9]+' || echo 0)
           echo "gezaehlt: $ANZAHL"
-          if [ "${ANZAHL:-0}" -ne 8 ]; then
-            echo "::error::Erwartet waren 8 Tests (2 Specs x 2 Kern-Routen x 2 Viewports), gezaehlt: $ANZAHL"
+          if [ "${ANZAHL:-0}" -ne 17 ]; then
+            echo "::error::Erwartet waren 17 Tests (mobile+tablet je 7, desktop 3), gezaehlt: $ANZAHL"
+            exit 1
+          fi
+          FREMD=$(echo "$AUSGABE" | grep -E '\[desktop\]' | grep -vc 'layout-audit.spec.ts' || true)
+          if [ "${FREMD:-0}" -ne 0 ]; then
+            echo "::error::Projekt desktop enthaelt $FREMD Tests ausserhalb von layout-audit"
             exit 1
           fi
