@@ -271,6 +271,19 @@ jobs:
             --project=mobile --project=tablet
         working-directory: cw-core/checks
 
+      # Harter Gate, seit v0.150.0. Weiße Ränder, die kein anderer Check sieht:
+      # ein Vollbreiten-Bild, das einseitig vor dem Rand endet, und eine Karte mit
+      # ungefärbtem Rest. Anlass: customer-haarwerk-neutraubling, 11.09.2026 — beide
+      # Fehler vom Operator per Screenshot gefunden. Läuft zusätzlich auf 1440 px
+      # (Projekt desktop), weil der Hero-Fehler erst ab ~1195 px bricht.
+      # Jeder Lauf beginnt mit einer Positivkontrolle, die rot werden MUSS.
+      - name: Layout-Prüfung (blockierend)
+        run: |
+          DIST_DIR='${{ steps.webroot.outputs.dir }}' \
+          pnpm exec playwright test layout-audit.spec.ts \
+            --project=mobile --project=tablet --project=desktop
+        working-directory: cw-core/checks
+
       # Per Default meldend, nicht blockierend. Grundlage ist eine Messung, keine
       # Vermutung: am 28.08.2026 wurden alle 23 Kundenrepos gebaut und geprueft —
       # a11y war in 19 von 22 rot, mit color-contrast als dominierender Ursache

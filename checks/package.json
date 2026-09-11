@@ -11,7 +11,8 @@
   "scripts": {
     "test": "playwright test --project=mobile --project=tablet",
     "test:mobil": "playwright test mobile-audit.spec.ts --project=mobile --project=tablet",
-    "test:a11y": "playwright test a11y-audit.spec.ts --project=mobile --project=tablet"
+    "test:a11y": "playwright test a11y-audit.spec.ts --project=mobile --project=tablet",
+    "test:layout": "playwright test layout-audit.spec.ts --project=mobile --project=tablet --project=desktop"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",
