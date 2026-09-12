@@ -187,6 +187,21 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
   trackingMode={trackingMode}
   schema={schema}
 >
+  {/*
+    Head-Slot durchreichen, wie LandingPage es tut. Ohne diese Zeile kommt eine Seite,
+    die ContentPage nutzt, ueberhaupt nicht an den <head>: `<Etwas slot="head" />` wird
+    dann stillschweigend verworfen — ohne Fehler, ohne Warnung.
+
+    Aufgefallen am 30.08.2026 in customer-blitzsicht. Der Blog wollte einen
+    `<link rel="alternate" type="text/markdown">` auf die Markdown-Fassung setzen. Auf
+    `so-funktionierts` (LandingPage) erschien er, im Blog (ContentPage) nicht. Gefunden
+    hat das erst die Gegenprobe an der funktionierenden Seite — am Blog-Template allein
+    war die Ursache nicht zu sehen.
+
+    BaseLayout hat den Slot seit jeher, LandingPage reicht ihn durch; nur ContentPage
+    fiel bei dieser Verdrahtung durchs Raster.
+  */}
+  <slot name="head" slot="head" />
   <TurnstilePreClearance sitekey={turnstileSiteKey} />
   <Header
     siteName={siteName}

@@ -1,0 +1,50 @@
+---
+/**
+ * ContentPage mit `slot="head"`.
+ *
+ * Zweck: belegen, dass ContentPage den head-Slot an BaseLayout durchreicht.
+ * Bis zum 30.08.2026 tat es das nicht — `<Etwas slot="head" />` wurde
+ * stillschweigend verworfen, ohne Fehler und ohne Warnung. LandingPage reichte
+ * ihn durch, ContentPage nicht.
+ *
+ * Aufgefallen in customer-blitzsicht: Der Blog wollte einen
+ * `<link rel="alternate" type="text/markdown">` setzen. Auf einer
+ * LandingPage-Seite erschien er, auf der ContentPage-Blogseite nicht.
+ *
+ * Gegenprobe zu dieser Seite: Nimmt man die Zeile `<slot name="head" slot="head" />`
+ * aus ContentPage.astro wieder heraus, verschwindet der Marker unten aus dem
+ * gebauten `<head>`. Genau so wurde der Fix belegt.
+ */
+import ContentPage from '@cw/core/layouts/ContentPage.astro';
+---
+<ContentPage
+  title="ContentPage mit head-Slot"
+  description="Belegt, dass ContentPage den head-Slot durchreicht."
+  robots="noindex"
+  siteName="cw-core Examples"
+  siteUrl="http://localhost:4322"
+  defaultTitle="cw-core Examples"
+  defaultDescription="Component-Showcase"
+  defaultOgImage="/og.png"
+  header={{ navItems: [{ label: 'Übersicht', href: '/' }] }}
+  footer={{ siteName: 'cw-core Examples' }}
+>
+  <link
+    slot="head"
+    rel="alternate"
+    type="text/markdown"
+    href="/content-page-head-slot.md"
+    data-head-slot-marker
+  />
+
+  <p>
+    Diese Seite setzt über <code>slot="head"</code> einen
+    <code>&lt;link rel="alternate" type="text/markdown"&gt;</code>. Er muss im
+    gebauten HTML innerhalb von <code>&lt;head&gt;</code> stehen — erkennbar am
+    Attribut <code>data-head-slot-marker</code>.
+  </p>
+  <p>
+    Steht er dort nicht, reicht ContentPage den Slot nicht durch. Genau das war
+    bis v0.144.0 der Fall.
+  </p>
+</ContentPage>
