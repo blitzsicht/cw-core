@@ -177,7 +177,7 @@ build_extras_block() {
   if [ -n "${BOOKING_URL:-}" ]; then
     local label="${BOOKING_LABEL:-Termin vereinbaren}"
     local booking_url_utm=$(add_utm "$BOOKING_URL" "booking")
-    parts="${parts}<a href=\"${booking_url_utm}\" style=\"display:inline-block;margin-top:10px;padding:6px 12px;border:1px solid ${COLOR_PRIMARY};color:${COLOR_PRIMARY};text-decoration:none;font-size:11px;font-weight:600;border-radius:3px;\">📅 ${label}</a>"
+    parts="${parts}<a href=\"${booking_url_utm}\" style=\"display:inline-block;margin-top:10px;padding:6px 12px;border:1px solid ${COLOR_PRIMARY};color:${COLOR_PRIMARY};text-decoration:none;font-size:11px;font-weight:600;border-radius:3px;\"><span style=\"vertical-align:middle;\">📅</span> <span style=\"vertical-align:middle;\">${label}</span></a>"
   fi
 
   # Trust-Badges (komma-separierte Liste)
@@ -207,13 +207,13 @@ except Exception:
   # Google-Bewertungs-CTA (prominent in Akzent-Farbe)
   if [ -n "${GOOGLE_REVIEW_URL:-}" ]; then
     local review_url_with_utm=$(add_utm "$GOOGLE_REVIEW_URL" "review")
-    parts="${parts}<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"margin-top:12px;\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\">⭐ Auf Google bewerten</a></td></tr></table>"
+    parts="${parts}<div style=\"margin-top:12px;\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\"><span style=\"vertical-align:middle;\">⭐</span> <span style=\"vertical-align:middle;\">Auf Google bewerten</span></a></td></tr></table></div>"
   fi
 
   # vCard-Download-Link ("Kontakt speichern")
   if [ -n "${VCARD_PUBLIC_URL:-}" ]; then
     local vcard_url_utm=$(add_utm "$VCARD_PUBLIC_URL" "vcard")
-    parts="${parts}<p style=\"margin:10px 0 0 0;font-size:11px;\"><a href=\"${vcard_url_utm}\" style=\"color:${COLOR_PRIMARY};text-decoration:none;\">📇 Kontakt speichern (vCard)</a></p>"
+    parts="${parts}<p style=\"margin:10px 0 0 0;font-size:11px;\"><a href=\"${vcard_url_utm}\" style=\"color:${COLOR_PRIMARY};text-decoration:none;\"><span style=\"vertical-align:middle;\">📇</span> <span style=\"vertical-align:middle;\">Kontakt speichern (vCard)</span></a></p>"
   fi
 
   printf '%s' "$parts"
