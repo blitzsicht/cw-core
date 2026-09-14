@@ -55,11 +55,17 @@ JSON-LD-Output wird gegen schema.org-Spec validiert. CI-Fail bei invalid Schema.
 
 ## Was cw-core NICHT MACHT (mit Begründung)
 
-### ✗ Keine standardmäßige llms.txt-Generation
+### ~ llms.txt wird erzeugt, aber nicht als Ranking-Hebel verkauft
 
-`integrations/ai-discovery` (existing) bleibt opt-in. Customer-Sites die llms.txt bereits haben, behalten es — kein Auto-Cleanup.
+Korrektur 14.09.2026: Hier stand „bleibt opt-in“. Das stimmt nicht mehr. Die
+astro.config-Vorlage bindet `aiDiscovery({ siteData })` immer ein, und `ai-discovery`
+erzeugt bei jedem Build `/llms.txt` und `/llms-full.txt`. Gemessen am 14.09.2026: 17 von
+18 Live-Seiten liefern `/llms.txt` mit 200 aus.
 
-**Rationale:** Cyrus Shepard Ranking-Score 2.0 — kein nachgewiesener Citation-Effekt. Google-Guide sagt explizit: "llms.txt is not required". Wir bieten die Generation auf Customer-Wunsch an, aber empfehlen es nicht aktiv.
+**Rationale bleibt:** Cyrus Shepard Ranking-Score 2.0, also kein nachgewiesener
+Zitations-Effekt, und der Google-Guide sagt „llms.txt is not required“. Die Datei kostet
+nichts und hilft Agenten, die sie lesen. Gegenüber Kunden wird sie aber nicht als
+Sichtbarkeits-Hebel verkauft.
 
 ### ✗ Keine Custom-AI-Schema-Properties
 
