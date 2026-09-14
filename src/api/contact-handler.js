@@ -17,11 +17,14 @@ import { captureError } from './error-sink.js';
  *   2. Origin-Check    — nur erlaubte Domains (verhindert Cross-Site-Submission)
  *   3. Rate-Limit      — pro IP (Upstash Redis wenn konfiguriert, sonst in-memory)
  *   4. Body-Parsing
- *   5. Honeypot        — botcheck + url_honey -> silent drop (200 ok)
+ *   5. Honeypot        — botcheck + url_honey -> silent drop (200 ok); mit gültigem
+ *                        Turnstile-Token zusätzlich GlitchTip-Meldung (Feld, kein Inhalt)
  *   6. Turnstile       — optional: erzwungen NUR wenn TURNSTILE_SECRET_KEY gesetzt ist,
  *                        sonst übersprungen (Schichten 1-5 + 7-9 bleiben aktiv)
  *   7. Email-Validation
  *   8. Content-Filter  — Spam-Keywords / mehrere URLs / BTC/ETH / Cyrillic-Anteil
+ *                        -> silent drop (200 ok); mit Turnstile-Secret zusätzlich
+ *                        GlitchTip-Meldung (nur der Grund, kein Inhalt)
  *   9. Resend-Versand
  *
  * Erforderliche Vercel Env-Vars (Production):
@@ -161,23 +164,48 @@ function collectAttribution(body) {
 const inMemoryRateLimit = new Map();
 
 /**
+ * Warum der Inhaltsfilter anschlägt — oder `null`, wenn nicht. Der Grund geht in die
+ * Drop-Meldung an GlitchTip: nur die Kategorie, nie der Inhalt.
  * @param {string} message
  * @param {string[]} extraKeywords
- * @returns {boolean}
+ * @returns {'keyword'|'urls'|'crypto'|'script'|null}
  */
-function isSpamContent(message, extraKeywords) {
-  if (!message) return false;
+function spamGrund(message, extraKeywords) {
+  if (!message) return null;
   const lower = message.toLowerCase();
   const keywords = [...DEFAULT_SPAM_KEYWORDS, ...(extraKeywords || [])];
-  if (keywords.some(kw => lower.includes(kw))) return true;
+  if (keywords.some(kw => lower.includes(kw))) return 'keyword';
   const urls = message.match(URL_PATTERN);
-  if (urls && urls.length >= 2) return true;
-  if (BTC_PATTERN.test(message) || ETH_PATTERN.test(message)) return true;
+  if (urls && urls.length >= 2) return 'urls';
+  if (BTC_PATTERN.test(message) || ETH_PATTERN.test(message)) return 'crypto';
   const cyrillicCount = (message.match(/[Ѐ-ӿ]/g) || []).length;
   const cjkCount = (message.match(/[一-鿿぀-ヿ]/g) || []).length;
   const totalLetters = (message.match(/\p{L}/gu) || []).length;
-  if (totalLetters > 20 && (cyrillicCount + cjkCount) / totalLetters > 0.3) return true;
-  return false;
+  if (totalLetters > 20 && (cyrillicCount + cjkCount) / totalLetters > 0.3) return 'script';
+  return null;
+}
+
+/** Customer-Slug für GlitchTip-Events. */
+function projektSlug() {
+  return process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '';
+}
+
+/**
+ * Fragt Cloudflare, ob ein Turnstile-Token gültig ist. Wirft bei Netzfehlern — was das
+ * bedeutet, entscheidet der Aufrufer.
+ * @param {string} secret
+ * @param {string} token
+ * @param {string} ip
+ * @returns {Promise<boolean>}
+ */
+async function turnstileGueltig(secret, token, ip) {
+  const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret, response: token, remoteip: ip }),
+  });
+  const cfData = /** @type {{ success: boolean }} */ (await cfRes.json());
+  return cfData.success === true;
 }
 
 /**
@@ -275,9 +303,21 @@ export function createContactHandler(config) {
           catch { return {}; }
         })();
 
-    // Honeypot — silent drop
+    // Honeypot — silent drop. Ein echter Bot bleibt still. Bringt die Anfrage aber ein
+    // gültiges Turnstile-Token mit, saß ein Browser davor (Autofill oder ein KI-Agent, der
+    // das versteckte Feld mitfüllt) — dann ist gerade ein echter Lead verloren gegangen.
+    // Das melden wir an GlitchTip, ohne Inhalt: nur welches Feld. Die Antwort bleibt 200.
     if (body.botcheck || body.url_honey) {
       console.log('[contact-handler] honeypot triggered, ip=', ip);
+      const secret = process.env.TURNSTILE_SECRET_KEY;
+      const token = typeof body['cf-turnstile-response'] === 'string' ? body['cf-turnstile-response'] : '';
+      if (secret && token && (await turnstileGueltig(secret, token, ip).catch(() => false))) {
+        await captureError(new Error('contact-drop:honeypot-bei-gueltigem-turnstile'), {
+          project: projektSlug(),
+          where: 'contact-handler:honeypot',
+          extra: { feld: body.url_honey ? 'url_honey' : 'botcheck', formular: kind },
+        });
+      }
       res.status(200).json({ ok: true });
       return;
     }
@@ -296,13 +336,7 @@ export function createContactHandler(config) {
         return;
       }
       try {
-        const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret: turnstileSecret, response: token, remoteip: ip }),
-        });
-        const cfData = /** @type {{ success: boolean }} */ (await cfRes.json());
-        if (!cfData.success) {
+        if (!(await turnstileGueltig(turnstileSecret, token, ip))) {
           res.status(400).json({ ok: false, error: 'Bot-Schutz-Prüfung fehlgeschlagen.' });
           return;
         }
@@ -340,10 +374,21 @@ export function createContactHandler(config) {
       ? body.marketing_consent_version
       : undefined;
 
-    // Content-Filter — silent drop
+    // Content-Filter — silent drop. Mit gesetztem Turnstile-Secret hat die Anfrage die
+    // Prüfung oben bestanden, ein Browser saß also davor. Dann melden wir den Drop — ein
+    // KI-Agent, der zwei Links in die Nachricht schreibt, verschwindet sonst spurlos. Ohne
+    // Secret bleibt es still, sonst meldet jeder Bot. Weder Log noch Meldung tragen Inhalte.
     const haystack = [name, company, studio, message, website].filter(Boolean).join(' ');
-    if (isSpamContent(haystack, extraSpamKeywords)) {
-      console.log('[contact-handler] spam pattern matched, ip=', ip, 'preview=', haystack.slice(0, 80));
+    const grund = spamGrund(haystack, extraSpamKeywords);
+    if (grund) {
+      console.log('[contact-handler] spam pattern matched, ip=', ip, 'grund=', grund);
+      if (turnstileSecret) {
+        await captureError(new Error(`contact-drop:spam:${grund}`), {
+          project: projektSlug(),
+          where: 'contact-handler:content-filter',
+          extra: { grund, formular: kind },
+        });
+      }
       res.status(200).json({ ok: true });
       return;
     }

@@ -59,7 +59,11 @@ Auch ohne strikte CSP sind aktiv:
 - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
 - `Permissions-Policy: camera=(), microphone=(), geolocation=()`
 - Eingabe-Validierung in allen Form-Handlern (`cw-core/utils/forms/handle-submission`)
-- Cloudflare WAF + Bot-Fight-Mode + Turnstile (siehe `project_spam_defense_stack.md`)
+- Turnstile + Honeypot + Rate-Limit + Origin-Check + Inhaltsfilter im Form-Handler
+  (`src/api/contact-handler.js`). Cloudflare steht DNS-only (graue Wolke) vor Vercel —
+  Cloudflare-WAF und Bot-Fight-Mode greifen deshalb **nicht**; per CF-API am 14.09.2026
+  in allen Zonen als aus gemessen. Bot-Schutz auf Plattformebene liegt bei der
+  Vercel-Firewall (Dashboard, nicht im Repo).
 
 ## Audit-Tool-Wertung
 

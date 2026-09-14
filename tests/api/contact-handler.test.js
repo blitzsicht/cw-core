@@ -17,6 +17,8 @@
  *   4. Ohne LEAD_BCC_EMAIL existiert kein bcc-Feld
  *   5. bcc == to → kein bcc (keine Doppel-Mail bei customer-blitzsicht)
  *   6. CONTACT_EMAIL nur Whitespace → 500 + Telegram-deliveryError (Lead geht nicht verloren)
+ *   7. Stille Drops (Honeypot, Inhaltsfilter) aus einer bestandenen Turnstile-Sitzung
+ *      werden an GlitchTip gemeldet — ohne Lead-Inhalt (14.09.2026)
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -52,14 +54,20 @@ function makeRes() {
   };
 }
 
-/** Faengt den Resend-Payload ab. Telegram wird still geschluckt. */
-function installFakeFetch({ resendOk = true, resendStatus = 200 } = {}) {
+/**
+ * Faengt den Resend-Payload ab. Telegram wird still geschluckt.
+ * `turnstileOk` steuert die Antwort von Cloudflares siteverify.
+ */
+function installFakeFetch({ resendOk = true, resendStatus = 200, turnstileOk = true } = {}) {
   const calls = /** @type {Array<{url: string, body: any}>} */ ([]);
   const original = global.fetch;
   global.fetch = /** @type {any} */ (async (url, init) => {
     calls.push({ url: String(url), body: init && init.body ? JSON.parse(String(init.body)) : null });
     if (String(url).includes('resend.com') && !resendOk) {
       return { ok: false, status: resendStatus, text: async () => 'invalid recipient', json: async () => ({}) };
+    }
+    if (String(url).includes('challenges.cloudflare.com')) {
+      return { ok: true, status: 200, text: async () => 'OK', json: async () => ({ success: turnstileOk }) };
     }
     return { ok: true, status: 200, text: async () => 'OK', json: async () => ({ success: true }) };
   });
@@ -254,4 +262,84 @@ test('kind nicht gesetzt → Default contact-form bleibt (🆕-Header, abwärtsk
   assert.ok(tg, 'Telegram-Push muss raus');
   assert.ok(tg.body.text.includes('🆕'), 'Standard-Header unverändert');
   assert.ok(!tg.body.text.includes('Warteliste'), 'kein Warteliste-Label ohne kind waitlist');
+});
+
+// ===========================================================================
+// Stille Verluste melden (14.09.2026). Ein Drop antwortet weiter 200 — Spammer sollen
+// nichts merken. Kommt die Anfrage aber aus einer bestandenen Turnstile-Sitzung, war ein
+// Browser dran (Mensch, Autofill oder KI-Agent). Dann geht ein GlitchTip-Event raus, damit
+// ein verlorener Lead auffällt. Das Event traegt nur den Grund, keinen Lead-Inhalt.
+// ===========================================================================
+
+const DSN = 'https://k@errors.example/1';
+const MIT_TURNSTILE = { CONTACT_EMAIL: 'info@testkunde.de', TURNSTILE_SECRET_KEY: 'ts-secret', GLITCHTIP_DSN: DSN };
+const TOKEN = { 'cf-turnstile-response': 'tok' };
+const glitchtip = (calls) => calls.filter((c) => c.url.includes('/api/1/store/')).map((c) => c.body);
+const ohnePii = (event) => {
+  const roh = JSON.stringify(event);
+  return !roh.includes('Michaela') && !roh.includes('lead@example') && !roh.includes('https://a.example');
+};
+
+test('Inhaltsfilter (2 URLs) nach bestandenem Turnstile → 200, kein Versand, ein Event mit Grund', async () => {
+  const { res, resend, calls } = await run(MIT_TURNSTILE, {
+    ...validLead, ...TOKEN, message: 'Unsere Seiten: https://a.example und https://b.example',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.equal(resend, null);
+  const events = glitchtip(calls);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].exception.values[0].value, 'contact-drop:spam:urls');
+  assert.equal(events[0].extra.grund, 'urls');
+  assert.ok(ohnePii(events[0]), 'kein Lead-Inhalt im Event');
+});
+
+test('Inhaltsfilter ohne Turnstile-Secret → still, kein Event (sonst meldet jeder Bot)', async () => {
+  const { res, calls } = await run({ CONTACT_EMAIL: 'info@testkunde.de', GLITCHTIP_DSN: DSN }, {
+    ...validLead, message: 'best casino backlink service',
+  });
+  assert.equal(res.statusCode, 200);
+  assert.equal(glitchtip(calls).length, 0);
+});
+
+test('Honeypot ohne Token → 200, kein Event (echter Bot)', async () => {
+  const { res, calls } = await run(MIT_TURNSTILE, { ...validLead, url_honey: 'https://spam.example' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(glitchtip(calls).length, 0);
+});
+
+test('Honeypot mit gueltigem Turnstile-Token → 200, genau ein Event, Feld benannt, ohne PII', async () => {
+  const { res, resend, calls } = await run(MIT_TURNSTILE, { ...validLead, ...TOKEN, url_honey: 'x' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(resend, null, 'der Drop bleibt ein Drop');
+  const events = glitchtip(calls);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].exception.values[0].value, 'contact-drop:honeypot-bei-gueltigem-turnstile');
+  assert.equal(events[0].extra.feld, 'url_honey');
+  assert.ok(ohnePii(events[0]));
+});
+
+test('Honeypot mit ungueltigem Turnstile-Token → kein Event', async () => {
+  const { calls } = await run(MIT_TURNSTILE, { ...validLead, ...TOKEN, botcheck: 'on' }, { turnstileOk: false });
+  assert.equal(glitchtip(calls).length, 0);
+});
+
+test('normaler Lead mit Turnstile → Versand, kein Drop-Event', async () => {
+  const { res, resend, calls } = await run(MIT_TURNSTILE, { ...validLead, ...TOKEN });
+  assert.equal(res.statusCode, 200);
+  assert.ok(resend);
+  assert.equal(glitchtip(calls).length, 0);
+});
+
+test('das Log des Inhaltsfilters traegt keinen Nachrichtentext mehr', async () => {
+  const zeilen = [];
+  const original = console.log;
+  console.log = (...args) => { zeilen.push(args.join(' ')); };
+  try {
+    await run(MIT_TURNSTILE, { ...validLead, ...TOKEN, message: 'Seiten: https://a.example und https://b.example' });
+  } finally {
+    console.log = original;
+  }
+  const spam = zeilen.filter((z) => z.includes('spam pattern matched'));
+  assert.equal(spam.length, 1, 'die Log-Zeile selbst muss es noch geben');
+  assert.ok(!spam[0].includes('Michaela') && !spam[0].includes('https://a.example'), spam[0]);
 });

@@ -36,6 +36,7 @@ import { checkCacheHeaders, extractHeaderRulesFromVercelJson } from './cache-hea
 import { checkTableScroll, type TableIssue } from './table-scroll-check.js';
 import { checkAnchorIntegrity, type AnchorIssue } from './anchor-integrity-check.js';
 import { checkWebMcpForms, type WebMcpIssue } from './webmcp-form-check.js';
+import { checkRobotsAiPolicy } from './robots-ai-check.js';
 import {
   checkAiLabels,
   pruefeSeiteAufKennzeichnung,
@@ -339,6 +340,15 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   /** WebMCP-Formular-Guard bricht den Build ab. Default: true — bis heute trägt kein
    *  Kunden-Build ein `toolname`, der Guard kann also nichts Bestehendes brechen. */
   strictWebMcpForms?: boolean;
+  /** Robots-KI-Guard: prüft `dist/robots.txt`. Kein Such- oder Abruf-Bot (OAI-SearchBot,
+   *  ChatGPT-User, Claude-User, PerplexityBot, MistralAI-User, Meta-ExternalFetcher …) und
+   *  nicht `*` mit `Disallow: /`; jede offene Gruppe trägt `Content-Signal`. Trainings-Bots
+   *  zu sperren bleibt erlaubt. Default: true. Siehe robots-ai-check.js. */
+  checkRobotsAiPolicy?: boolean;
+  /** Robots-KI-Guard bricht den Build bei Fehlern (nicht bei Hinweisen) ab. Default: false —
+   *  im September 2026 standen fünf robots-Varianten in der Flotte; scharf erst, wenn alle
+   *  angeglichen sind. */
+  strictRobotsAiPolicy?: boolean;
   /**
    * KI-Kennzeichnungs-Guard: trägt jede ausgelieferte Seite ein Label für die
    * kennzeichnungspflichtigen Bilder, die auf ihr stehen? Default TRUE.
@@ -3177,6 +3187,33 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           }
         } else {
           logger.info(`Brand-Name-Linter (assets): ✓ robots.txt ohne Marken-Literal.`);
+        }
+
+        // -------------------------------------------------------------------
+        // Robots-KI-Guard: Such- und Abruf-Bots dürfen rein, Content-Signal gesetzt
+        // -------------------------------------------------------------------
+        // Die Vorlage bis v0.151.1 sperrte MistralAI-User und Meta-ExternalFetcher
+        // als „Training-Only“; in der Flotte standen fünf Varianten, keine mit
+        // Content-Signal. Siehe robots-ai-check.js.
+        if (options.checkRobotsAiPolicy !== false) {
+          const robotsPath = join(distDir, 'robots.txt');
+          if (existsSync(robotsPath)) {
+            const robotsIssues = checkRobotsAiPolicy(readFileSync(robotsPath, 'utf-8'));
+            const robotsFehler = robotsIssues.filter((i) => i.severity === 'error');
+            if (robotsIssues.length === 0) {
+              logger.info('Robots-KI-Guard: ✓ Such- und Abruf-Bots erlaubt, Content-Signal gesetzt.');
+            } else {
+              logger.warn(`Robots-KI-Guard: ${robotsIssues.length} Befund(e):`);
+              for (const issue of robotsIssues) {
+                logger.warn(`  [${issue.type}] ${issue.detail}`);
+              }
+              if (options.strictRobotsAiPolicy && robotsFehler.length > 0) {
+                throw new Error(
+                  `[ai-discovery] strictRobotsAiPolicy=true: Build abgebrochen wegen ${robotsFehler.length} gesperrter Such-/Abruf-Bot(s) in robots.txt.`,
+                );
+              }
+            }
+          }
         }
 
         // -------------------------------------------------------------------
