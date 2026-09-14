@@ -2,7 +2,7 @@
 /**
  * wire-site-analytics.mjs — verdrahtet First-Party-Plausible in einem Customer-Repo.
  *
- * Setzt die zwei Vercel-Rewrites (same-origin Proxy auf stats.blitzsicht.com) in
+ * Setzt die zwei Vercel-Rewrites (same-origin Proxy auf events.blitzsicht.com) in
  * `vercel.json` und verifiziert den `analytics`-Block in `src/data/site-data.ts`.
  * Die pa-ID sitzt AUSSCHLIESSLICH im destination des /js/script.js-Rewrites; der
  * site-data.ts-Block ist für jeden Kunden identisch (/js/script.js + /api/event).
@@ -19,7 +19,11 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-const STATS_HOST = 'https://stats.blitzsicht.com';
+// Zählweg, NICHT das Dashboard. Seit 14.09.2026 getrennt: stats.blitzsicht.com (Dashboard)
+// liegt hinter Cloudflare Access; dahinter liest Plausible `cf-connecting-ip` vor
+// `x-forwarded-for` und sähe jeden Besucher als den Vercel-Server, der weiterleitet.
+// events.blitzsicht.com hat keinen Cloudflare-Proxy und nimmt nur /js/* und /api/event an.
+const STATS_HOST = 'https://events.blitzsicht.com';
 const REWRITE_SCRIPT_SOURCE = '/js/script.js';
 const REWRITE_EVENT_SOURCE = '/api/event';
 const EXPECTED_SCRIPT = '/js/script.js';
