@@ -661,6 +661,14 @@ PYEOF
   # Install-Page auch ins public/email kopieren
   cp "$INSTALL_OUT" "$PUBLIC_EMAIL_DIR/$SLUG-install.html" \
     && echo "  ✓ public/email/$SLUG-install.html"
+
+  # Das Stylesheet gehört zur Seite: Sie verweist auf /email/install.css, also
+  # liefert der Generator es mit. Bis 15.09.2026 kopierte nur regenerate-all.sh
+  # die Datei, und nur in customer-*-Verzeichnisse. siluri-de wird von Hand
+  # erzeugt; seine Installationsseiten standen ohne Gestaltung da, siluri.de
+  # lieferte 404 auf install.css.
+  cp "$INSTALL_CSS_PATH" "$PUBLIC_EMAIL_DIR/install.css" \
+    && echo "  ✓ public/email/install.css"
 fi
 
 # ── README ────────────────────────────────────────────────────────────────────
