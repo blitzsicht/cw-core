@@ -173,11 +173,31 @@ add_utm() {
 build_extras_block() {
   local parts=""
 
-  # Booking-CTA (subtil, primary-Farbe als border)
+  # Knopfleiste: Termin und Google-Bewertung als gefüllte Zellen gleicher
+  # Breite nebeneinander (#142). Bis 15.09.2026 war der Termin-Knopf ein
+  # nacktes <a> mit display:inline-block, margin und border, der Google-Knopf
+  # eine eigene Tabelle hinter einem div mit margin-top. Im neuen Outlook für
+  # Mac wirkt beides nicht: Der Rahmen zerriss und lag über der Hinweiszeile,
+  # zwischen den Knöpfen fehlte der Abstand. Zellen mit Hintergrund und
+  # padding tragen in beiden Outlooks; der Abstand nach oben kommt deshalb
+  # über padding-top einer umgebenden Zelle, der zwischen den Knöpfen über
+  # eine leere Zelle. Kein margin, kein display an einem Knopf.
+  local breite="${BUTTON_WIDTH:-150}"
+  knopf_zelle() {  # $1 URL · $2 Icon · $3 Beschriftung · $4 Hintergrund
+    printf '%s' "<td width=\"${breite}\" align=\"center\" bgcolor=\"$4\" style=\"width:${breite}px;padding:7px 0;background:$4;border-radius:3px;text-align:center;\"><a href=\"$1\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\"><span style=\"vertical-align:middle;\">$2</span> <span style=\"vertical-align:middle;\">$3</span></a></td>"
+  }
+  local knoepfe=""
   if [ -n "${BOOKING_URL:-}" ]; then
     local label="${BOOKING_LABEL:-Termin vereinbaren}"
-    local booking_url_utm=$(add_utm "$BOOKING_URL" "booking")
-    parts="${parts}<a href=\"${booking_url_utm}\" style=\"display:inline-block;margin-top:10px;padding:6px 12px;border:1px solid ${COLOR_PRIMARY};color:${COLOR_PRIMARY};text-decoration:none;font-size:11px;font-weight:600;border-radius:3px;\"><span style=\"vertical-align:middle;\">📅</span> <span style=\"vertical-align:middle;\">${label}</span></a>"
+    knoepfe="$(knopf_zelle "$(add_utm "$BOOKING_URL" "booking")" "📅" "$label" "$COLOR_PRIMARY")"
+  fi
+  if [ -n "${GOOGLE_REVIEW_URL:-}" ]; then
+    [ -n "$knoepfe" ] && knoepfe="${knoepfe}<td width=\"8\" style=\"width:8px;\">&nbsp;</td>"
+    knoepfe="${knoepfe}$(knopf_zelle "$(add_utm "$GOOGLE_REVIEW_URL" "review")" "⭐" "Auf Google bewerten" "$COLOR_ACCENT")"
+  fi
+  if [ -n "$knoepfe" ]; then
+    local t="<table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\">"
+    parts="${parts}${t}<tr><td style=\"padding-top:12px;\">${t}<tr>${knoepfe}</tr></table></td></tr></table>"
   fi
 
   # Trust-Badges (komma-separierte Liste)
@@ -202,12 +222,6 @@ except Exception:
     if [ -n "$badges" ]; then
       parts="${parts}<p style=\"margin:10px 0 0 0;font-size:10px;color:#888;\">${badges}</p>"
     fi
-  fi
-
-  # Google-Bewertungs-CTA (prominent in Akzent-Farbe)
-  if [ -n "${GOOGLE_REVIEW_URL:-}" ]; then
-    local review_url_with_utm=$(add_utm "$GOOGLE_REVIEW_URL" "review")
-    parts="${parts}<div style=\"margin-top:12px;\"><table role=\"presentation\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\"><tr><td style=\"padding:6px 12px;background:${COLOR_ACCENT};border-radius:3px;\"><a href=\"${review_url_with_utm}\" style=\"color:#ffffff;font-size:11px;font-weight:600;text-decoration:none;\"><span style=\"vertical-align:middle;\">⭐</span> <span style=\"vertical-align:middle;\">Auf Google bewerten</span></a></td></tr></table></div>"
   fi
 
   # vCard-Download-Link ("Kontakt speichern")
