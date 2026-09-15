@@ -22,6 +22,65 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.152.0 (2026-09-15)
+
+**Feature: Die robots-Vorlage öffnet KI-Bots, der Guard `checkRobotsAiPolicy` prüft Such-
+und Abruf-Bots. Fix: Das Kontaktformular meldet stille Verluste an GlitchTip (#141).**
+
+Bewusst ohne `[kunde]`-Zeile im Core. Die robots.txt liegt in jedem Kundenrepo unter
+`public/`, der Pin-Bump allein ändert dort nichts. Die `[kunde]`-Zeile kommt im Train mit dem
+Angleichen je Repo (`customer-websites/scripts/robots-ki-angleichen.mjs`). Die Meldung
+stiller Verluste bemerkt der Kunde nicht.
+
+Kontext, gemessen am 14.09.2026:
+
+- **Cloudflare und DNS blockieren nichts.** In 48 Zonen sind alle Bot-Schalter aus, 18 Seiten
+  × 13 Bot-Kennungen ergeben durchgehend HTTP 200.
+- **Die robots-Vorlage hat gebremst.** Unter „Training-Only“ sperrte sie MistralAI-User und
+  Meta-ExternalFetcher, die Seiten im Auftrag eines Nutzers holen. In der Flotte liefen fünf
+  Varianten, keine davon mit Content-Signal.
+- **Der `contact-handler` hat spurlos verworfen.** Honeypot- und Inhaltsfilter-Treffer
+  bekamen 200, und niemand erfuhr davon.
+
+Änderungen:
+
+- `src/templates/robots.txt.template`:
+  - Training ist erlaubt (Operator-Entscheid 14.09.), nur Bytespider bleibt gesperrt.
+  - `Content-Signal: ai-train=yes, search=yes, ai-input=yes` steht in jeder offenen Gruppe.
+  - Google-Extended-Kommentar korrigiert: AI Overviews laufen über Googlebot.
+- Neuer Guard `checkRobotsAiPolicy` (`src/integrations/ai-discovery/robots-ai-check.js`):
+  - Fehler, wenn `*` oder ein Such- bzw. Abruf-Bot `Disallow: /` hat.
+  - Hinweis, wenn in einer offenen Gruppe kein Content-Signal steht.
+  - Optionen: `checkRobotsAiPolicy` (Default `true`) und `strictRobotsAiPolicy` (Default
+    **`false`**; scharf erst, wenn die Flotte angeglichen ist).
+- `src/api/contact-handler.js`:
+  - Ein Honeypot-Treffer mit gültigem Turnstile-Token geht als GlitchTip-Event raus, ebenso
+    ein Inhaltsfilter-Treffer bei gesetztem `TURNSTILE_SECRET_KEY` (`contact-drop:…`).
+  - Das Event trägt nur den Grund bzw. das Feld. Die Antwort bleibt 200.
+  - Die Nachrichtenvorschau steht nicht mehr im Vercel-Log (PII).
+- Außerdem enthalten, bisher unveröffentlicht:
+  - #138: E-Mail-Signatur, Akzentlinie als Rahmen, Knopfabstand, Icons auf Texthöhe
+    (klassisches Outlook für Mac).
+  - #140: Onboarding zählt über events.blitzsicht.com, weil stats.blitzsicht.com hinter
+    Cloudflare Access liegt.
+
+Prüfung:
+
+- Guard: 10 Tests, die alte Vorlage wird rot, die neue ist grün. Gegen die 17
+  Live-robots.txt: die 9 Seiten mit alter Vorlage sind rot, die 8 übrigen ohne Fehler.
+- Handler: 7 Tests, davon waren 3 auf dem alten Handler rot.
+- Suite 827 Tests, 0 rot. `astro check` 0 Fehler.
+
+**Migrations-Hinweis:** Nach dem Pin-Bump meldet der Build bis zum Angleichen von
+`public/robots.txt` Folgendes, jeweils nur als Warnung und ohne Abbruch:
+
+- bei den Kunden mit alter Vorlage einen Robots-KI-Befund
+- bei allen den Content-Signal-Hinweis
+
+Angeglichen wird mit `node scripts/robots-ki-angleichen.mjs` in customer-websites
+(Trockenlauf; `--only <slug> --repo <worktree> --write` schreibt).
+Guard-Pin in `templates/.github/workflows/site-checks.yml` auf v0.152.0 gehoben.
+
 ## v0.151.1 (2026-09-11)
 
 **Fix: layout-audit misst den sichtbaren Ausschnitt, nicht die Box (#136, blitzsicht-ops#798).**
