@@ -22,6 +22,39 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.153.0 (2026-09-16)
+
+**Feature: `StickyContact` kann jetzt auch eine E-Mail anbieten, und der Puls am
+WhatsApp-Knopf lässt sich abschalten.**
+
+- [kunde:sichtbar] Die schwebende Kontaktleiste kann neben WhatsApp und Telefon auch einen
+  Knopf für E-Mail zeigen. Wo der Auftritt sachlich bleiben soll, lässt sich der pulsierende
+  Ring am WhatsApp-Knopf ausschalten.
+
+Anlass: Auf einem Wohnungs-Exposé (`customer-gowohnen`) ist die schriftliche Anfrage der
+Hauptweg und WhatsApp nur die Abkürzung. Der Baustein kannte Termin, WhatsApp und Telefon —
+keine Mail. `customer-falzmarke` hat sich aus einem verwandten Grund gegen den Baustein
+entschieden und einen eigenen gebaut (Kommentar in `MeldenSticky.astro`): dort war der Puls
+für Fehlermeldungen die falsche Einladung. Beides ist jetzt im Baustein lösbar.
+
+Änderungen in `src/components/blocks/StickyContact.astro`:
+
+- Neue optionale Props `email` und `emailSubject` — rendern einen vierten Knopf mit
+  `mailto:`-Link, Kanal `sticky-mail` im bestehenden Plausible-Event.
+- Neues optionales Prop `pulse` (Default **`true`**, also unverändert). Bei `false` entfällt
+  der Ring über `.sticky-contact--no-pulse`.
+- Die Sichtbarkeitsbedingung berücksichtigt den Mail-Link, sonst bliebe eine Leiste mit nur
+  einer Mail-Adresse unsichtbar.
+- Mail-Knopf in `--color-accent`: unterscheidbar von WhatsApp-Grün und Telefon-Dunkel, ohne
+  eine vierte Farbe einzuführen.
+
+**Kein Breaking Change.** Alle vier Zugänge sind optional, der Default von `pulse` dreht sich
+nicht — Seiten ohne die neuen Props sehen unverändert aus. Geprüft an den drei Sites, die den
+Baustein einbinden: `customer-allstargirls-regensburg`, `customer-hausamlago`,
+`customer-hausammincio`.
+
+---
+
 ## v0.152.0 (2026-09-15)
 
 **Feature: Die robots-Vorlage öffnet KI-Bots, der Guard `checkRobotsAiPolicy` prüft Such-

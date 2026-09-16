@@ -6,7 +6,8 @@
  * lokalen Handwerks- und Dienstleistungs-Sites typisch 60-75% beträgt.
  * Tap auf WhatsApp öffnet wa.me-Link, Tap auf Phone löst tel:-Call aus.
  *
- * Plausible-Events: 'Sticky Contact Click' mit Prop channel='sticky-wa'|'sticky-phone'.
+ * Plausible-Events: 'Sticky Contact Click' mit Prop
+ * channel='sticky-cal'|'sticky-wa'|'sticky-phone'|'sticky-mail'.
  *
  * Zugänglichkeit: role="complementary" + aria-label, focus-visible outline,
  * prefers-reduced-motion respektiert (kein Puls-Effekt).
@@ -26,6 +27,15 @@
  *     whatsapp="+4915156083331"
  *     phone="+4994029380193"
  *     prefilledMessage="Hallo Soleno, ich interessiere mich für eine PV-Beratung."
+ *   />
+ *
+ * @example Mit E-Mail und ohne Puls (sachlicher Ton, z.B. Wohnungs-Exposé)
+ *   <StickyContact
+ *     whatsapp="+49176xxxxxxxx"
+ *     phone="+49176xxxxxxxx"
+ *     email="wohnung@example.com"
+ *     emailSubject="Anfrage Maisonette"
+ *     pulse={false}
  *   />
  */
 
@@ -50,6 +60,21 @@ interface Props {
    */
   prefilledMessage?: string;
   /**
+   * E-Mail-Adresse für den Mail-Button. Rendert als letzter Button im Cluster.
+   * Für Seiten, auf denen die Mail der Hauptweg ist und WhatsApp nur eine
+   * Abkürzung — etwa Wohnungs-Exposés, wo die Anfrage schriftlich kommen soll.
+   */
+  email?: string;
+  /** Betreff der Mail. Ohne Angabe öffnet das Mailprogramm ohne Betreff. */
+  emailSubject?: string;
+  /**
+   * Pulsierender Ring am WhatsApp-Button. Default true (unverändert).
+   * Auf false setzen, wo der Ton sachlich bleiben soll: Der Ring ist ein
+   * Verkaufssignal und wirkt auf einer privaten oder behördlichen Seite
+   * aufdringlich. `prefers-reduced-motion` schaltet ihn ohnehin ab.
+   */
+  pulse?: boolean;
+  /**
    * Wenn true: StickyContact wird auf mobilen Viewports (< 768px) ausgeblendet.
    * Nützlich wenn StickyMobileCTA bereits vorhanden ist und ein visuelles
    * Überlappen der beiden Floating-Elemente verhindert werden soll.
@@ -63,7 +88,10 @@ const {
   calLabel = 'Termin buchen',
   whatsapp,
   phone,
+  email,
+  emailSubject,
   prefilledMessage = 'Hallo, ich interessiere mich für Ihr Angebot.',
+  pulse = true,
   hideOnMobile = false,
 } = Astro.props;
 
@@ -72,9 +100,12 @@ const waLink = waNumber
   ? `https://wa.me/${waNumber}?text=${encodeURIComponent(prefilledMessage)}`
   : null;
 const telLink = phone ? `tel:${phone.replace(/\s/g, '')}` : null;
+const mailLink = email
+  ? `mailto:${email}${emailSubject ? `?subject=${encodeURIComponent(emailSubject)}` : ''}`
+  : null;
 ---
-{(calUrl || waLink || telLink) && (
-  <div class:list={['sticky-contact', { 'sticky-contact--hide-mobile': hideOnMobile }]} role="complementary" aria-label="Schnellkontakt">
+{(calUrl || waLink || telLink || mailLink) && (
+  <div class:list={['sticky-contact', { 'sticky-contact--hide-mobile': hideOnMobile, 'sticky-contact--no-pulse': !pulse }]} role="complementary" aria-label="Schnellkontakt">
     {calUrl && (
       <a
         href={calUrl}
@@ -115,6 +146,19 @@ const telLink = phone ? `tel:${phone.replace(/\s/g, '')}` : null;
       >
         <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+        </svg>
+      </a>
+    )}
+    {mailLink && (
+      <a
+        href={mailLink}
+        class="sticky-btn sticky-btn--mail"
+        aria-label="Per E-Mail anfragen"
+        data-track="sticky-mail"
+      >
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="2.5" y="4.5" width="19" height="15" rx="2"/>
+          <path d="M3 6.5l9 6.5 9-6.5"/>
         </svg>
       </a>
     )}
@@ -178,6 +222,12 @@ const telLink = phone ? `tel:${phone.replace(/\s/g, '')}` : null;
     background: var(--color-primary, #1f2937);
   }
   .sticky-btn--phone:hover { filter: brightness(1.1); }
+  /* Mail in der Akzentfarbe: unterscheidet sich von WhatsApp-Grün und Telefon-Dunkel,
+     ohne eine vierte Farbe einzuführen. */
+  .sticky-btn--mail {
+    background: var(--color-accent, #ef7612);
+  }
+  .sticky-btn--mail:hover { background: var(--color-accent-hover, #d46610); }
 
   /* Pulse dezent damit der WA-Button auffällt ohne zu nerven */
   .sticky-btn--wa::after {
@@ -212,6 +262,10 @@ const telLink = phone ? `tel:${phone.replace(/\s/g, '')}` : null;
       height: 56px;
     }
   }
+
+  /* pulse={false}: Der Ring ist ein Verkaufssignal. Wo der Ton sachlich bleiben soll,
+     wirkt er aufdringlich — deshalb abschaltbar, ohne den Default zu drehen. */
+  .sticky-contact--no-pulse .sticky-btn--wa::after { content: none; }
 
   @media (prefers-reduced-motion: reduce) {
     .sticky-btn--wa::after { animation: none; }
