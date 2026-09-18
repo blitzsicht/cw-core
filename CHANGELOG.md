@@ -22,6 +22,53 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.153.1 (2026-09-18)
+
+**Fix: `VergleichsTabelle` hatte eine hart weisse Tischfläche — auf einem dunklen
+Mandanten fällt der Text darauf unter 1,3:1 (blitzsicht-ops#817, Upstream
+blitzsicht/cw-core#148).**
+
+Bewusst ohne `[kunde]`-Zeile: der Fallback hält Fläche und Kopf-Text für alle vier
+hellen Mandanten (blitzsicht, digital-direkt, falzmarke, mazterplan) exakt gleich —
+nachgewiesen über die reine Fallback-Kette (kein einziges Custom Property gesetzt),
+nicht nur behauptet.
+
+Anlass: platzfrei.club (dunkler Mandant) hat die Komponente vor ihrer eigenen Lösung
+eingesetzt. `.vergleich-table` setzte `background: white` unbedingt; Zeilenlabel,
+Markenspalte und Wettbewerberspalte kommen aus Text-Tokens, die für eine dunkle
+Fläche gedacht sind. Gemessen am 17.09.2026: Zeilenlabel 1,07 / Markenspalte 1,26 /
+Wettbewerberspalte 3,06 statt der geforderten 4,5. platzfrei ist inzwischen auf eine
+eigene Komponente ausgewichen (customer-platzfrei#34, blitzsicht-ops#816) — für den
+nächsten dunklen Mandanten blieb die Falle in cw-core bestehen.
+
+Änderungen in `src/components/blocks/VergleichsTabelle.astro`:
+
+- `.vergleich-table` (Tischfläche): `background: white` → `background:
+  var(--color-surface-elevated, white)`. Neuer, optionaler Token.
+- `.vergleich-table thead th` (Kopfzeile Kriterium/Wettbewerber): `color: white` →
+  `color: var(--color-primary-text, white)`. Neuer, optionaler Token, dasselbe Muster
+  wie das bestehende `--color-accent-btn-text` an `.col-brand-header`.
+
+Neuer Wächter `src/components/blocks/vergleichstabelle-kontrast-check.mjs` (Tests:
+`tests/blocks/vergleichstabelle-kontrast.test.js`, läuft unter `pnpm test`): liest die
+echte Datei, löst jede `var(--x, fallback)`-Kette gegen einen Token-Satz auf und
+rechnet WCAG-Kontrast für alle sechs Text/Fläche-Paare der Tabelle (beide Kopfzellen,
+Zeilenlabel, Markenspalte mit/ohne Gewinn-Markierung, Wettbewerberspalte). Die
+Gegenprobe steht fest im Testsuite verankert: ein Abbild des alten Stands meldet
+weiterhin exakt 1,07 / 1,26 / 3,06.
+
+**Kein Breaking Change.** Beide neuen Tokens sind optional mit `white` als Fallback —
+ohne eigene `tokens.css`-Ergänzung sehen alle bestehenden Kunden die Tabelle
+unverändert (geprüft: `astro check` 0 Fehler, `pnpm test` 839/840 grün, 1 Skip
+vorbestehend und unabhängig). `--color-surface-elevated` und `--color-primary-text`
+stehen bislang nicht in der Master-Token-Liste (`tokens-base.css`), analog zu
+`--color-header-bg`: optionale Komponenten-Overrides mit sicherem Fallback müssen dort
+nicht gelistet sein.
+
+**Migrations-Hinweis:** Keiner. Ein künftiger dunkler Mandant setzt
+`--color-surface-elevated` und `--color-primary-text` in seiner `tokens.css`, sonst
+bleibt der Fallback aktiv.
+
 ## v0.153.0 (2026-09-16)
 
 **Feature: `StickyContact` kann jetzt auch eine E-Mail anbieten, und der Puls am

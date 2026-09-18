@@ -121,10 +121,18 @@ const schemaItemList = {
     border-radius: 0.75rem;
     box-shadow: 0 1px 3px rgba(0,0,0,.08);
   }
+  /* `background: white` war bis blitzsicht-ops#817 hart verdrahtet — auf einem
+     dunklen Mandanten (platzfrei.club, vor dessen eigener Komponente) standen
+     die Text-Tokens dieser Tabelle (`--color-text`, `--color-primary`,
+     `--color-muted`) damit auf einer Flaeche, fuer die sie nie gedacht waren:
+     1,07 / 1,26 / 3,06 statt der geforderten 4,5. `--color-surface-elevated`
+     ist NEU und optional — der Fallback `white` haelt das Ergebnis fuer alle
+     vier hellen Mandanten exakt gleich (Nachweis: vergleichstabelle-kontrast-check.mjs,
+     Token-Satz "hell" = reine Fallback-Kette, ohne eine einzige Custom Property). */
   .vergleich-table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
+    background: var(--color-surface-elevated, white);
     font-size: 0.95rem;
   }
   .vergleich-table th,
@@ -134,9 +142,15 @@ const schemaItemList = {
     border-bottom: 1px solid var(--color-border, #e5e7eb);
     vertical-align: top;
   }
+  /* `color: white` war hart, obwohl die Flaeche daneben (`--color-primary`)
+     bereits ein Token ist — bei einem hellen oder sehr kraeftigen Primary-Ton
+     (denkbar bei einem dunklen Mandanten, siehe blitzsicht-ops#817) waere
+     weisse Schrift darauf unlesbar, dasselbe Muster wie bei `.col-brand-header`
+     oben. `--color-primary-text` ist NEU und optional, Fallback `white` haelt
+     die vier hellen Mandanten unveraendert. */
   .vergleich-table thead th {
     background: var(--color-primary, #1d1e3b);
-    color: white;
+    color: var(--color-primary-text, white);
     font-weight: 600;
     white-space: nowrap;
   }
