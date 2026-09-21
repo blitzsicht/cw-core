@@ -133,14 +133,19 @@
     });
   });
 
+  // Auffangnetz fuer Formulare OHNE eigenes Tracking. Traegt ein <form> den
+  // Marker data-cw-form-tracked, zaehlt die Komponente selbst (mit status
+  // success/error) — dann hier nicht mitzaehlen, sonst erscheint jede Absendung
+  // doppelt. status:'submitted' grenzt den Absendeversuch vom Ergebnis ab.
   document.querySelectorAll<HTMLFormElement>('form').forEach((form) => {
+    if (form.hasAttribute('data-cw-form-tracked')) return;
     form.addEventListener('submit', () => {
       const formId =
         form.id ||
         form.getAttribute('name') ||
         form.getAttribute('action') ||
         'unknown';
-      track('Form Submit', { form: formId });
+      track('Form Submit', { form: formId, status: 'submitted' });
     });
   });
 

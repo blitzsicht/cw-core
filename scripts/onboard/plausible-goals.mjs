@@ -152,6 +152,13 @@ export const ENGAGEMENT_IGNORE = [
   'Time on Page',
   'Nav Click',
   'Mobile Nav Open',
+  // Seit v0.154.0 hier, und das ist kein Nachtrag aus Ordnungsliebe: Der
+  // Karte-laden-Button trug bis dahin `data-cta="map:load"` und feuerte damit
+  // BEIDES — sein eigenes `Map Load` und das CORE-Goal `CTA Click`. Mit dem
+  // entfernten data-cta bliebe `Map Load` ein Event ohne Goal-Eintrag und
+  // eventsWithoutGoal() in plausible-reconcile.mjs meldete es bei jeder Site
+  // mit Karte als Luecke. Bewusst kein Goal: eine Karte anzusehen ist kein Lead.
+  'Map Load',
 ];
 
 /**
