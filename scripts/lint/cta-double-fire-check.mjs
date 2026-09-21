@@ -101,6 +101,70 @@ export function hasFormTrackedMarker(content) {
   return content.includes(FORM_TRACKED_MARKER);
 }
 
+/**
+ * Kommentare entfernen, bevor im Markup gesucht wird.
+ *
+ * Ohne diesen Schritt schlug der Guard auf seine eigene Dokumentation an:
+ * LeistungenSection.astro erklaert in einem Kommentar, welches Element frueher
+ * `<a data-cta="leistung-card:">` trug — ein Zitat, kein Code. Dieselbe Falle hat
+ * im Repo schon einmal zugeschlagen, als eine Regex ausgerechnet die Commits
+ * loeschte, die eine Regel zitierten.
+ *
+ * Erfasst `//`-Zeilen, Block- und HTML-Kommentare. Bewusst grob: Ein
+ * uebersehener Kommentar erzeugt hoechstens einen Fehlalarm, den ein Mensch
+ * sofort erkennt — waehrend eine zu scharfe Entfernung echten Code verstecken
+ * wuerde.
+ */
+export function ohneKommentare(content) {
+  return content
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^[ \t]*\/\/.*$/gm, '');
+}
+
+/**
+ * Literal ins Markup geschriebenes `data-cta=` / `data-nav-click=`.
+ *
+ * NICHT gemeint ist `data-nav=` ohne Suffix — Header.astro nutzt das als
+ * CSS-Zustandsattribut fuer den kompakten Modus, es hat mit Tracking nichts zu tun.
+ *
+ * Seit v0.156.0 vergibt `utils/analytics/cta-kind.js` diese Attribute über
+ * `ctaAttrs(href, name)` — genau EINES je Element, abgeleitet aus dem Ziel des
+ * Links. Wer es von Hand schreibt, umgeht diese Entscheidung und trifft sie
+ * implizit selbst: meist zugunsten von `data-cta`, weil das die vertraute Form
+ * ist. Genau so ist das Goal ursprünglich verwässert worden.
+ *
+ * Bewusst eine Struktur-Regel statt einer Präfix-Allowlist: Eine Liste erlaubter
+ * Namen altert still, sobald jemand ein neues Präfix erfindet (`filialen-karte:`,
+ * `sortiment:hero-filialen`). Diese Regel bleibt gültig, egal wie die Werte heißen.
+ *
+ * `data-cta-type` ist NICHT gemeint — das ist ein semantischer Anker für
+ * Browser-Agents mit eigenem Wertebereich, kein Tracking-Attribut.
+ */
+export function hasLiteralCtaAttr(content) {
+  const code = ohneKommentare(content).replace(/\bdata-cta-type\s*=/g, '');
+  return /\bdata-(cta|nav-click)\s*=/.test(code);
+}
+
+/** Nutzt die Datei den vorgesehenen Weg? */
+export function usesCtaAttrs(content) {
+  return /\bctaAttrs\s*\(/.test(content);
+}
+
+/**
+ * Ein Element mit BEIDEN Attributen — ein Klick zählte dann als Conversion und
+ * als Navigation. `ctaAttrs` kann das nicht erzeugen; von Hand schon.
+ *
+ * Grob, aber in die sichere Richtung: geprüft wird je öffnendem Tag.
+ */
+export function hasBothCtaAndNav(content) {
+  for (const tag of ohneKommentare(content).match(/<[a-zA-Z][^>]*>/g) ?? []) {
+    const ohneTyp = tag.replace(/\bdata-cta-type\s*=/g, '');
+    if (/\bdata-cta\s*=/.test(ohneTyp) && /\bdata-nav-click\s*=/.test(ohneTyp)) return true;
+  }
+  return false;
+}
+
 /** data-cta-Attribut-Nutzung in der Template-Markup (data-cta=...). */
 export function hasDataCtaAttr(content) {
   return /data-cta\s*=/.test(content);
@@ -131,6 +195,12 @@ export function analyze(path, content) {
   const annotated = content.includes(SAFE_ANNOTATION);
   const ctaViolation = clickTrack && dataCta && !allowlisted && !annotated;
 
+  const literalCta = hasLiteralCtaAttr(content);
+  const bothAttrs = hasBothCtaAndNav(content);
+  // Die SSOT-Listener und die Util selbst duerfen die Attribute nennen.
+  const literalViolation = literalCta && !allowlisted;
+  const exclusivityViolation = bothAttrs;
+
   const submitTrack = hasSubmitTrackListener(content);
   const formEl = hasFormElement(content);
   const formMarker = hasFormTrackedMarker(content);
@@ -147,9 +217,13 @@ export function analyze(path, content) {
     submitTrack,
     formEl,
     formMarker,
+    literalCta,
+    bothAttrs,
     ctaViolation,
     formViolation,
-    violation: ctaViolation || formViolation,
+    literalViolation,
+    exclusivityViolation,
+    violation: ctaViolation || formViolation || literalViolation || exclusivityViolation,
   };
 }
 
@@ -163,6 +237,24 @@ export function findViolations(files) {
 
 /** Menschenlesbare Fehlermeldung für eine Violation (graceful degradation). */
 export function formatViolation(v) {
+  if (v.exclusivityViolation) {
+    return (
+      `data-cta UND data-nav-click am selben Element: ${v.path}\n` +
+      `  Ein Klick zaehlte dort als Conversion UND als Navigation.\n` +
+      `  Fix: ctaAttrs(href, name) verwenden — es vergibt immer genau eines.`
+    );
+  }
+  if (v.literalViolation) {
+    return (
+      `Literales data-cta/data-nav-click im Markup: ${v.path}\n` +
+      `  Seit v0.156.0 vergibt ctaAttrs(href, name) diese Attribute anhand des\n` +
+      `  Link-Ziels. Von Hand geschrieben wird die Entscheidung implizit selbst\n` +
+      `  getroffen — meist zugunsten von data-cta, und genau so ist das Goal\n` +
+      `  "CTA Click" ueber Monate zu vier Fuenfteln Navigation geworden.\n` +
+      `  Fix: {...ctaAttrs(href, \`praefix:\${label}\`)} statt data-cta={…}.\n` +
+      `  Ist die Heuristik im Einzelfall falsch: ctaAttrs(href, name, 'conversion').`
+    );
+  }
   if (v.formViolation && !v.ctaViolation) {
     return (
       `Form-Submit-Doppelfeuer: ${v.path}\n` +

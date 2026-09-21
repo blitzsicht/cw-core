@@ -31,6 +31,7 @@ import MagneticButton from '../motion/MagneticButton.astro';
 import TiltCard from '../motion/TiltCard.astro';
 import AiLabelAmBild from './AiLabelAmBild.astro';
 import { bildLabel } from '../../utils/bildlabel.js';
+import { ctaAttrs } from '../../utils/analytics/cta-kind.js';
 
 export interface HeroCollageImage {
   src: ImageMetadata;
@@ -247,7 +248,7 @@ const collagenLabel = hasImages
       <div class="hero-cta">
         {motionCfg.magnetic ? (
           <MagneticButton>
-            <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
+            <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" {...ctaAttrs(ctaPrimary.href, `hero-primary:${ctaPrimary.label}`)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
@@ -256,7 +257,7 @@ const collagenLabel = hasImages
             </a>
           </MagneticButton>
         ) : (
-          <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" data-cta={`hero-primary:${ctaPrimary.label}`}>
+          <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" {...ctaAttrs(ctaPrimary.href, `hero-primary:${ctaPrimary.label}`)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
               <polyline points="22,6 12,13 2,6"/>
@@ -265,7 +266,7 @@ const collagenLabel = hasImages
           </a>
         )}
         {ctaSecondary && (
-          <a href={ctaSecondary.href} target={ctaSecondary.target} rel={ctaSecondary.rel} class="btn-outline" data-cta={`hero-secondary:${ctaSecondary.label}`}>
+          <a href={ctaSecondary.href} target={ctaSecondary.target} rel={ctaSecondary.rel} class="btn-outline" {...ctaAttrs(ctaSecondary.href, `hero-secondary:${ctaSecondary.label}`)}>
             {ctaSecondary.label}
           </a>
         )}

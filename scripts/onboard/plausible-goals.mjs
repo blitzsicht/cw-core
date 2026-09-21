@@ -36,7 +36,7 @@ export const CORE_GOALS = [
   { type: 'event', value: 'Phone Click',    note: 'Anruf-Intent — bei B2B oft 30–50% der Leads' },
   { type: 'event', value: 'Email Click',    note: 'mailto-Klick' },
   { type: 'event', value: 'WhatsApp Click', note: 'WhatsApp-Kontakt' },
-  { type: 'event', value: 'CTA Click',      note: 'CTA-Button-Klick (data-cta) — inline + full' },
+  { type: 'event', value: 'CTA Click',      note: 'Conversion-Klick (data-cta) — NUR Kontakt/Anruf/Buchung, Navigation zaehlt seit v0.156.0 als Nav Click' },
   { type: 'page',  value: '/danke',         note: 'Danke-/Bestätigungsseite nach Absenden' },
 ];
 
@@ -147,6 +147,36 @@ export const SITE_GOALS = {
  * wer sie doch sehen will, legt sie jederzeit an und bekommt die Historie mit.
  * @type {string[]}
  */
+/**
+ * ─── Wann eine Kennzahl ihre Bedeutung geändert hat ─────────────────────────
+ *
+ * Zahlen aus verschiedenen Zeiträumen sind nicht immer vergleichbar. Ein
+ * Changelog-Eintrag von vor sechs Monaten warnt davor niemanden — deshalb steht
+ * es hier, wo die Goals definiert sind, und `plausible-reconcile.mjs` gibt es im
+ * Report mit aus.
+ *
+ * Kein Backfill: Die Historie in ClickHouse bleibt, wie sie ist. Der Bruch wird
+ * datiert, nicht repariert.
+ * @type {{event: string, version: string, note: string}[]}
+ */
+export const GOAL_SEMANTICS_CHANGES = [
+  {
+    event: 'Form Submit',
+    version: 'v0.154.0',
+    note: 'Doppelzaehlung behoben — ContactForm und der globale Listener zaehlten dieselbe Absendung. Werte davor rund 2x zu hoch.',
+  },
+  {
+    event: 'CTA Click',
+    version: 'v0.156.0',
+    note: 'Navigation zaehlt seitdem als Nav Click. Werte davor enthielten Leistungskarten, sekundaere Hero-Buttons und Menuepunkte — gemessen rund vier Fuenftel. Nicht mit Werten danach vergleichen.',
+  },
+  {
+    event: 'Map Load',
+    version: 'v0.154.0',
+    note: 'Der Karte-laden-Button trug zusaetzlich data-cta und feuerte doppelt (Map Load + CTA Click).',
+  },
+];
+
 export const ENGAGEMENT_IGNORE = [
   'Scroll Depth',
   'Time on Page',

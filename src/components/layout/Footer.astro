@@ -1,6 +1,7 @@
 ---
 import cwCorePkg from '../../../package.json';
 import { phoneToTelHref } from '../../utils/text/tel-href';
+import { ctaAttrs } from '../../utils/analytics/cta-kind.js';
 const cwCoreVersion = cwCorePkg.version;
 
 /**
@@ -248,7 +249,7 @@ const psiDetailUrl = effectiveSlug
           </a>
         )}
         {bookingUrl && (
-          <a href={bookingUrl} class="contact-link" target="_blank" rel="noopener noreferrer" data-cta="footer:booking">
+          <a href={bookingUrl} class="contact-link" target="_blank" rel="noopener noreferrer" {...ctaAttrs(bookingUrl, 'footer:booking')}>
             Termin buchen
           </a>
         )}

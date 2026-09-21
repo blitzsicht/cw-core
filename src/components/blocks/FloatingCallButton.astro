@@ -13,6 +13,7 @@
  *   <FloatingCallButton phone="0160 91172381" label="Schnellhilfe" variant="notfall" stacked />
  */
 import { phoneToTelHref } from '../../utils/text/tel-href';
+import { ctaAttrs } from '../../utils/analytics/cta-kind.js';
 
 interface Props {
   /** Sichtbare Rufnummer, z. B. "0160 91172381". Der tel:-Link wird normalisiert. */
@@ -41,7 +42,7 @@ const telHref = phoneToTelHref(phone);
   <a
     class:list={['floating-call', `variant-${variant}`, stacked && 'is-stacked']}
     href={`tel:${telHref}`}
-    data-cta="floating-call"
+    {...ctaAttrs(`tel:${telHref}`, 'floating-call')}
     aria-label={ariaLabel}
   >
     <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

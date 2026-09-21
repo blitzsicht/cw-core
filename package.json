@@ -26,6 +26,10 @@
       "types": "./src/utils/copyright.d.ts",
       "default": "./src/utils/copyright.js"
     },
+    "./utils/analytics/cta-kind": {
+      "types": "./src/utils/analytics/cta-kind.d.ts",
+      "default": "./src/utils/analytics/cta-kind.js"
+    },
     "./utils/bildherkunft": {
       "types": "./src/utils/bildherkunft.d.ts",
       "default": "./src/utils/bildherkunft.js"

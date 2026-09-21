@@ -1,4 +1,5 @@
 ---
+import { ctaAttrs } from '../../utils/analytics/cta-kind.js';
 /**
  * @cw/core – CTAPrimary.astro
  *
@@ -72,6 +73,7 @@ if (isVague && import.meta.env.DEV) {
 <a
   href={href}
   data-cta-type={ctaType}
+  {...ctaAttrs(href, `cta-primary:${ctaType}`)}
   class={`cta-primary cta-${variant} ${cls ?? ''}`.trim()}
   target={target}
   rel={rel}

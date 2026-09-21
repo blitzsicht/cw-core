@@ -68,10 +68,11 @@ const CLEAN_LISTENER = `
   });
 </script>`;
 
-// Hero NACH Fix: data-cta im Template, aber kein click→track-Script mehr.
+// Hero NACH Fix: Attribut ueber ctaAttrs, kein click→track-Script mehr.
+// Seit v0.156.0 darf kein literales data-cta mehr im Markup stehen.
 const HERO_FIXED = `
 <div class="hero-cta">
-  <a href={ctaPrimary.href} class="btn-accent" data-cta={\`hero-primary:\${ctaPrimary.label}\`}>{ctaPrimary.label}</a>
+  <a href={ctaPrimary.href} class="btn-accent" {...ctaAttrs(ctaPrimary.href, \`hero-primary:\${ctaPrimary.label}\`)}>{ctaPrimary.label}</a>
 </div>
 <!-- Kein komponenten-lokaler CTA-Click-Listener mehr (entfernt v0.66). -->`;
 
@@ -101,11 +102,14 @@ const HEADER_OLD = `
   });
 </script>`;
 
-// Header NACH Fix: data-cta nur auf nav-highlight, Listener :not(.btn-accent), annotiert.
+// Header NACH Fix (Stand v0.66.0, mit lokalem Nav-Listener). Seit v0.156.0 gibt
+// Header.astro diesen Listener ab — das Fixture bleibt trotzdem gueltig: Es prueft,
+// dass ein lokaler Listener NEBEN Tracking-Attributen erlaubt ist, wenn er
+// nachweislich andere Elemente trifft und das per Annotation belegt.
 const HEADER_FIXED = `
 <nav id="main-nav">
-  <a href={item.href} class="btn-accent" data-cta={\`nav-highlight:\${item.label}\`}>{item.label}</a>
-  <a href={item.href}>{item.label}</a>
+  <a href={item.href} class="btn-accent" {...ctaAttrs(item.href, \`nav-highlight:\${item.label}\`)}>{item.label}</a>
+  <a href={item.href} {...ctaAttrs(item.href, \`nav:\${item.label}\`)}>{item.label}</a>
 </nav>
 <script>
   import { track } from '../../utils/analytics/track';
@@ -118,7 +122,7 @@ const HEADER_FIXED = `
 
 // LeistungenSection NACH Fix: annotiert, Selektor a.leistung-link (kein Span).
 const LEISTUNGEN_FIXED = `
-<a href={item.href} class="leistung-card leistung-card-link" data-cta={\`leistung-card:\${item.title}\`}>
+<a href={item.href} class="leistung-card leistung-card-link" {...ctaAttrs(item.href, \`leistung-card:\${item.title}\`)}>
   <span class="leistung-link" aria-hidden="true">Mehr →</span>
 </a>
 <script>
@@ -150,9 +154,11 @@ test('1. clean: click→track ohne data-cta → keine Violation', () => {
   assert.equal(analyze('src/components/blocks/StellenListe.astro', CLEAN_LISTENER).violation, false);
 });
 
-test('2. data-cta ohne Listener (Hero nach Fix) → keine Violation', () => {
+test('2. Tracking-Attribut ohne Listener (Hero nach Fix) → keine Violation', () => {
   const r = analyze('src/components/blocks/Hero.astro', HERO_FIXED);
-  assert.equal(r.dataCta, true);
+  // Seit v0.156.0 vergibt ctaAttrs das Attribut — literales data-cta gibt es
+  // im Markup nicht mehr, deshalb ist dataCta hier false und literalCta ebenso.
+  assert.equal(r.literalCta, false);
   assert.equal(r.clickTrack, false);
   assert.equal(r.violation, false);
 });
@@ -169,10 +175,10 @@ test('4. NEGATIV-TEST echter Bug: Header-Altcode → MUSS flaggen', () => {
   assert.equal(r.violation, true);
 });
 
-test('5. Header nach Fix (annotiert) → keine Violation', () => {
+test('5. Header mit lokalem Listener + Annotation → keine Violation', () => {
   const r = analyze('src/components/layout/Header.astro', HEADER_FIXED);
   assert.equal(r.clickTrack, true);
-  assert.equal(r.dataCta, true);
+  assert.equal(r.literalCta, false, 'Attribute kommen aus ctaAttrs, nicht literal');
   assert.equal(r.annotated, true);
   assert.equal(r.violation, false);
 });

@@ -174,6 +174,20 @@ function initClickEvents(): void {
       track('CTA Click', { name: cta.getAttribute('data-cta') || 'unnamed' });
     }
 
+    // Navigation getrennt von Conversion (v0.156.0). Ein Element traegt immer
+    // nur eines der beiden Attribute — ctaAttrs() gibt genau eines aus, und ein
+    // Guard prueft die Ausschliesslichkeit zusaetzlich im Markup.
+    // `Nav Click` ist bewusst KEIN Goal (ENGAGEMENT_IGNORE), aber auswertbar:
+    // Davor floss Navigation in `CTA Click` ein und machte dort rund vier
+    // Fuenftel der Treffer aus.
+    const nav = target.closest('[data-nav-click]');
+    if (nav) {
+      track('Nav Click', {
+        name: nav.getAttribute('data-nav-click') || 'unnamed',
+        label: nav.textContent?.trim().slice(0, 80) ?? '',
+      });
+    }
+
     const a = target.closest('a');
     if (!a) return;
     const href = a.getAttribute('href') ?? '';

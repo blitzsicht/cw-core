@@ -1,4 +1,5 @@
 ---
+import { ctaAttrs } from '../../utils/analytics/cta-kind.js';
 /**
  * @cw/core – Header.astro
  *
@@ -78,8 +79,8 @@ const {
     <nav id="main-nav" aria-label="Hauptnavigation">
       {navItems.map((item: NavItem) =>
         item.highlight
-          ? <a href={item.href} target={item.target} rel={item.rel} class="btn-accent" data-cta={`nav-highlight:${item.label}`}>{item.label}</a>
-          : <a href={item.href} target={item.target} rel={item.rel}>{item.label}</a>
+          ? <a href={item.href} target={item.target} rel={item.rel} class="btn-accent" {...ctaAttrs(item.href, `nav-highlight:${item.label}`)}>{item.label}</a>
+          : <a href={item.href} target={item.target} rel={item.rel} {...ctaAttrs(item.href, `nav:${item.label}`)}>{item.label}</a>
       )}
       {showKarriereLink && <a href={karriereHref}>{karriereLabel}</a>}
     </nav>
@@ -364,14 +365,13 @@ const {
     toggle.setAttribute('aria-expanded', String(open));
     if (open) track('Mobile Nav Open');
   });
-  // cw-tracking-safe: Der Nav-Click-Listener schliesst .btn-accent (nav-highlight)
-  // aus. Nur der highlight-Link trägt noch data-cta (nav-highlight:) und wird vom
-  // globalen SSOT-Listener als "CTA Click" gezählt; normale nav:-Links haben kein
-  // data-cta mehr → sie feuern ausschliesslich "Nav Click". Kein Klick löst beide
-  // Events aus (Doppelfeuer-Fix 2026-07-10, Guard: cta-double-fire.test.js).
-  document.querySelectorAll<HTMLAnchorElement>('#main-nav a:not(.btn-accent)').forEach((link) => {
-    link.addEventListener('click', () => {
-      track('Nav Click', { label: link.textContent?.trim() ?? '', href: link.getAttribute('href') ?? '' });
-    });
-  });
+  // cw-tracking-safe: "Nav Click" kommt seit v0.156.0 nicht mehr von hier,
+  // sondern vom globalen SSOT-Listener ueber das Attribut data-nav (siehe
+  // utils/analytics/auto-events.js). Die Navigationslinks tragen es im Markup.
+  //
+  // Warum abgegeben: Der lokale Listener band per querySelectorAll an die beim
+  // Hydrieren vorhandenen Links und musste .btn-accent von Hand ausschliessen,
+  // damit der Highlight-Button nicht doppelt zaehlt. Beides entfaellt, weil
+  // ctaAttrs() nun genau EIN Attribut vergibt — data-cta oder data-nav, nie beide.
+  // Hier bleibt nur das Menue-Oeffnen, das kein Pendant im SSOT-Listener hat.
 </script>
