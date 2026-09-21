@@ -22,6 +22,28 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.156.2 (2026-09-21)
+
+**Nachtrag: Warteliste, Anmeldung und Buchung zählen als Conversion.**
+
+Aufgefallen beim Umstellen von `platzfrei`: Die Seite meldete **null**
+Conversions bei 84 Navigations-Klicks. Das Produkt sammelt Anmeldungen — der
+Haupt-Button im Menü heißt „Auf die Warteliste" und zeigt auf `/#warteliste`.
+Nach der Heuristik aus v0.156.0/v0.156.1 war das Navigation, womit der einzige
+Conversion-Pfad dieses Kunden unsichtbar geworden wäre.
+
+Ergänzt in Pfaden und Ankern: `warteliste`, `waitlist`, `anmeldung`, `anmelden`,
+`registrieren`, `signup`, `buchung`. Gegenprobe im Test:
+`/wartelisten-tipps-blog` und `/blog/anmeldungen-steigern` bleiben Navigation.
+
+Dass eine Zahl von 0 auffällt, war Glück — die Lücke wäre bei einem Kunden mit
+gemischten Zielen nicht aufgefallen. Deshalb gehört beim Umstellen jedes Repos
+der Blick auf die Verteilung dazu, nicht nur auf einen grünen Build.
+
+861 Tests grün.
+
+---
+
 ## v0.156.1 (2026-09-21)
 
 **Nachtrag zur Taxonomie: Karten- und Routen-Ziele zählen als Conversion.**

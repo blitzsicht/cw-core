@@ -32,6 +32,22 @@ test('Messenger- und Buchungsziele sind Conversion', () => {
   assert.equal(ctaKind('https://cal.eu/siluri/termin'), 'conversion');
 });
 
+test('Warteliste, Anmeldung und Buchung sind Conversion', () => {
+  // platzfrei.club sammelt Anmeldungen — /#warteliste ist dort der einzige
+  // Conversion-Pfad ueberhaupt. Ohne diese Begriffe haette der Kunde null
+  // Conversions gemessen bei 84 gezaehlten Navigations-Klicks.
+  assert.equal(ctaKind('/#warteliste'), 'conversion');
+  assert.equal(ctaKind('/warteliste'), 'conversion');
+  assert.equal(ctaKind('/anmeldung'), 'conversion');
+  assert.equal(ctaKind('/buchung'), 'conversion');
+  assert.equal(ctaKind('#signup'), 'conversion');
+});
+
+test('Gegenprobe: ein Blogbeitrag ueber Wartelisten bleibt Navigation', () => {
+  assert.equal(ctaKind('/wartelisten-tipps-blog'), 'navigation');
+  assert.equal(ctaKind('/blog/anmeldungen-steigern'), 'navigation');
+});
+
 test('Karten- und Routen-Ziele sind Conversion', () => {
   // Bei einem Geschaeft mit Ladenlokal ist "Route anzeigen" das Gegenstueck zum
   // Anruf. Erster Fall ist der exakte Link, den baeckerei-zink fuer seine elf

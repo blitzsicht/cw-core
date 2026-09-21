@@ -60,10 +60,19 @@ const CONVERSION_MAP = /(^|\/\/|\.)(google\.[a-z.]+\/maps|maps\.google\.|maps\.a
  * `/kontakt-formular` ist ein gängiges Muster. Ohne ihn bliebe `/kontaktlinsen`
  * trotzdem Navigation: dort folgt auf „kontakt" kein Trenner.
  */
-const CONVERSION_PATH = /(^|\/)(kontakt|contact|anfrage|angebot|termin|buchen|booking|bewerbung|beratung)(\/|-|$|[?#])/i;
+const CONVERSION_PATH =
+  /(^|\/)(kontakt|contact|anfrage|angebot|termin|buchen|booking|buchung|bewerbung|beratung|warteliste|waitlist|anmeldung|anmelden|registrieren|signup)(\/|-|$|[?#])/i;
 
-/** Anker, die auf ein Formular auf derselben Seite springen. */
-const CONVERSION_HASH = /#(anfrage|kontakt|contact|termin|angebot|formular|form)\b/i;
+/**
+ * Anker, die auf ein Formular auf derselben Seite springen.
+ *
+ * `warteliste` steht hier, weil es bei platzfrei.club der einzige Conversion-Pfad
+ * ueberhaupt ist: Das Produkt sammelt Anmeldungen, der Haupt-Button im Menue
+ * heisst "Auf die Warteliste" und zeigt auf /#warteliste. Ohne den Begriff haette
+ * dieser Kunde null Conversions gemessen — bei 84 gezaehlten Navigations-Klicks.
+ */
+const CONVERSION_HASH =
+  /#(anfrage|kontakt|contact|termin|angebot|formular|form|warteliste|waitlist|anmeldung|anmelden|signup)\b/i;
 
 /**
  * Art eines Klickziels.
