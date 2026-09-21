@@ -22,6 +22,26 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.156.1 (2026-09-21)
+
+**Nachtrag zur Taxonomie: Karten- und Routen-Ziele zählen als Conversion.**
+
+Aufgefallen beim Umstellen der Kunden-Repos: `baeckerei-zink` verlinkt für jede
+seiner elf Filialen „Route anzeigen" auf Google Maps. Nach der Heuristik aus
+v0.156.0 wäre das Navigation gewesen — bei einem Geschäft mit Ladenlokal ist es
+aber das Gegenstück zum Anruf: Wer sich den Weg heraussuchen lässt, will hin.
+
+Erkannt werden `google.*/maps`, `maps.google.*`, `maps.apple.com`, `goo.gl/maps`
+und `openstreetmap.org`. Gegenprobe im Test: `/blog/maps-und-seo` bleibt
+Navigation — „maps" irgendwo im Pfad macht noch keine Route.
+
+Bewusst in der Heuristik statt per `force` im Kundenrepo: Das ist kein
+Sonderfall, sondern tritt bei jedem Kunden mit Standort auf.
+
+859 Tests grün.
+
+---
+
 ## v0.156.0 (2026-09-21)
 
 **`CTA Click` misst wieder Conversion. Navigation zählt seitdem als `Nav Click` —

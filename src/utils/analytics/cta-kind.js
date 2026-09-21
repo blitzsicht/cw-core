@@ -38,6 +38,19 @@ const CONVERSION_SCHEME = /^(tel:|mailto:|sms:)/i;
 const CONVERSION_HOST = /(^|\/\/|\.)(wa\.me|api\.whatsapp\.com|cal\.com|cal\.eu|calendly\.com)(\/|$)/i;
 
 /**
+ * Karten- und Routen-Ziele.
+ *
+ * Bei einem Geschaeft mit Ladenlokal ist „Route anzeigen" das Gegenstueck zum
+ * Anruf: Wer sich den Weg zur Filiale heraussuchen laesst, will hin. Das als
+ * Navigation zu zaehlen haette bei jedem lokalen Kunden ein echtes Kaufsignal
+ * verschluckt — bei baeckerei-zink allein an elf Filialen.
+ *
+ * Nicht per `force` im Kundenrepo geloest, weil es kein Sonderfall ist, sondern
+ * bei jedem Kunden mit Standort auftritt.
+ */
+const CONVERSION_MAP = /(^|\/\/|\.)(google\.[a-z.]+\/maps|maps\.google\.|maps\.apple\.com|goo\.gl\/maps|openstreetmap\.org)/i;
+
+/**
  * Seitenpfade, auf denen eine Anfrage beginnt. Bewusst knapp gehalten: Jeder
  * zusätzliche Begriff hier macht aus Navigation eine gezählte Conversion, und
  * genau diese schleichende Aufweichung hat das Goal ursprünglich ruiniert.
@@ -70,6 +83,7 @@ export function ctaKind(href) {
   if (!h) return 'navigation';
   if (CONVERSION_SCHEME.test(h)) return 'conversion';
   if (CONVERSION_HOST.test(h)) return 'conversion';
+  if (CONVERSION_MAP.test(h)) return 'conversion';
   if (CONVERSION_HASH.test(h)) return 'conversion';
   if (CONVERSION_PATH.test(h)) return 'conversion';
   return 'navigation';

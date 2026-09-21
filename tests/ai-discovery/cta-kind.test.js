@@ -32,6 +32,21 @@ test('Messenger- und Buchungsziele sind Conversion', () => {
   assert.equal(ctaKind('https://cal.eu/siluri/termin'), 'conversion');
 });
 
+test('Karten- und Routen-Ziele sind Conversion', () => {
+  // Bei einem Geschaeft mit Ladenlokal ist "Route anzeigen" das Gegenstueck zum
+  // Anruf. Erster Fall ist der exakte Link, den baeckerei-zink fuer seine elf
+  // Filialen baut (LocationsSection.astro).
+  assert.equal(ctaKind('https://www.google.com/maps/search/?api=1&query=Regensburg'), 'conversion');
+  assert.equal(ctaKind('https://www.google.de/maps/dir//Laden'), 'conversion');
+  assert.equal(ctaKind('https://maps.apple.com/?q=Barbing'), 'conversion');
+  assert.equal(ctaKind('https://goo.gl/maps/abc'), 'conversion');
+});
+
+test('Gegenprobe: "maps" im Pfad macht noch keine Route', () => {
+  assert.equal(ctaKind('https://example.org/maps-tipps'), 'navigation');
+  assert.equal(ctaKind('/blog/maps-und-seo'), 'navigation');
+});
+
 test('Anfrage-Seiten sind Conversion — mit und ohne Schrägstrich', () => {
   assert.equal(ctaKind('/kontakt'), 'conversion');
   assert.equal(ctaKind('/kontakt/'), 'conversion');
