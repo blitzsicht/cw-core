@@ -375,85 +375,18 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
     <slot />
   </body>
   <script>
-    import { track } from '../utils/analytics/track';
-    // trackingMode-Gate (v0.54.0): bei 'full' ist <PlausibleEvents /> die alleinige
-    // Event-Quelle, bei 'none' gibt es keine Auto-Events — der Block darf dann
-    // nichts registrieren, sonst feuern Phone/Email/Scroll doppelt (Doppelfeuer-Bug).
-    // Runtime-Gate über das html-Attribut, weil gebundelte Module-Scripts nicht
-    // zuverlässig konditional gerendert werden können.
+    import { initAutoEvents } from '../utils/analytics/auto-events';
+    // trackingMode-Gate (v0.54.0): bei 'full' ist <PlausibleEvents /> die Quelle
+    // (die ruft dieselbe Implementierung mit Attribution auf), bei 'none' gibt es
+    // keine Auto-Events. Runtime-Gate ueber das html-Attribut, weil gebundelte
+    // Module-Scripts nicht zuverlaessig konditional gerendert werden koennen.
+    //
+    // Seit v0.155.0 steht der Event-Code nicht mehr hier, sondern in
+    // utils/analytics/auto-events.ts — vorher existierte derselbe Satz zweimal
+    // (hier und in PlausibleEvents.astro) und war ueber Monate auseinandergelaufen.
     const cwTrackingMode = document.documentElement.dataset.cwTracking ?? 'inline';
     if (cwTrackingMode === 'inline') {
-      document.addEventListener('click', (e) => {
-        // CTA Click zuerst und unabhängig vom Anchor-Zweig (data-cta sitzt auch auf
-        // <button>). Spiegelt PlausibleEvents (full-Mode) — ohne diesen Listener
-        // wäre das CORE_GOAL "CTA Click" bei jedem inline-Kunden eine tote DB-Zeile
-        // (Tracking-Audit 2026-07-09). Ein Klick = genau ein CTA-Click-Event.
-        const cta = (e.target as Element).closest('[data-cta]');
-        if (cta) {
-          track('CTA Click', { name: cta.getAttribute('data-cta') || 'unnamed' });
-        }
-        const a = (e.target as Element).closest('a');
-        if (!a) return;
-        const href = a.getAttribute('href') ?? '';
-        if (href.startsWith('tel:')) {
-          track('Phone Click', { number: href.replace('tel:', '') });
-        } else if (href.startsWith('mailto:')) {
-          track('Email Click', { address: href.replace('mailto:', '').split('?')[0] });
-        } else if (/(^|\/\/)(wa\.me|api\.whatsapp\.com)\//.test(href)) {
-          // VOR dem Outbound-Check, sonst zählt WhatsApp nur als generischer
-          // Outbound Click (Tracking-Lücke blitzsicht/mika, Erkundung 2026-07-08).
-          const number = href.match(/wa\.me\/(\d+)/)?.[1] ?? '';
-          track('WhatsApp Click', number ? { number } : {});
-        } else if (href.endsWith('.pdf') || href.includes('.pdf?')) {
-          const filename = href.split('/').pop()?.split('?')[0] ?? href;
-          track('File Download', { filename });
-        } else if (href.startsWith('http') && !href.includes(window.location.hostname)) {
-          try {
-            track('Outbound Click', { url: new URL(href).origin });
-          } catch {}
-        }
-      });
-
-      const depths = new Set<number>();
-      const milestones = [25, 50, 75, 100];
-      function onScroll() {
-        const el = document.documentElement;
-        const scrolled = el.scrollTop + el.clientHeight;
-        const total = el.scrollHeight;
-        const pct = Math.round((scrolled / total) * 100);
-        for (const m of milestones) {
-          if (pct >= m && !depths.has(m)) {
-            depths.add(m);
-            // depth als Zahl (vorher "25%"-String) — angeglichen an PlausibleEvents,
-            // damit Dashboards modeübergreifend dieselbe Prop-Semantik sehen.
-            track('Scroll Depth', { depth: m });
-          }
-        }
-      }
-      document.addEventListener('scroll', onScroll, { passive: true });
-
-      const timeMilestones: Array<[number, string]> = [[30000, '30s'], [120000, '2min'], [300000, '5min']];
-      timeMilestones.forEach(([ms, label]) => {
-        setTimeout(() => track('Time on Page', { duration: label }), ms);
-      });
-
-      // Kanonisches Form-Event (v0.54.2): ersetzt das abgeschaltete Tracker-
-      // eingebaute "Form: Submission" — gleicher Name/Props wie PlausibleEvents
-      // im full-Mode, damit das Goal "Form Submit" clusterweit greift.
-      // Auffangnetz fuer Formulare OHNE eigenes Tracking. data-cw-form-tracked
-      // heisst: die Komponente zaehlt selbst (mit status success/error).
-      // Der Marker MUSS statisch im Markup stehen — dieser Listener laeuft in
-      // der Capture-Phase am document und damit vor jeder Hydration; ein per JS
-      // nachgeruestetes Attribut kaeme zu spaet.
-      document.addEventListener('submit', (e) => {
-        const f = e.target as HTMLFormElement | null;
-        if (!f || f.tagName !== 'FORM') return;
-        if (f.hasAttribute('data-cw-form-tracked')) return;
-        track('Form Submit', {
-          form: f.id || f.getAttribute('name') || f.getAttribute('action') || 'form',
-          status: 'submitted',
-        });
-      }, true);
+      initAutoEvents();
     }
   </script>
 </html>

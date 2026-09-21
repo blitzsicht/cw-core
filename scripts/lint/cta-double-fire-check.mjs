@@ -25,8 +25,17 @@
  */
 
 /**
- * Die beiden globalen SSOT-Listener. Sie SOLLEN [data-cta] abfangen — das ist
- * ihr Zweck. Pfad-Suffix-Match, damit absolute Test-Pfade auch greifen.
+ * Die beiden Einstiegspunkte des SSOT-Listeners. Sie SOLLEN [data-cta] abfangen —
+ * das ist ihr Zweck. Pfad-Suffix-Match, damit absolute Test-Pfade auch greifen.
+ *
+ * Seit v0.155.0 steht der Event-Code selbst nicht mehr in diesen beiden Dateien,
+ * sondern in `src/utils/analytics/auto-events.ts`; sie rufen ihn nur noch auf.
+ * Die Einträge bleiben trotzdem stehen: Der Guard scannt `.astro`-Dateien, und
+ * beide würden bei einem Rückfall in Inline-Code sofort wieder darunterfallen.
+ *
+ * Die Prüflogik selbst ist von der Verschiebung nicht betroffen — sie sucht
+ * Komponenten, die ZUSÄTZLICH zum SSOT-Listener selbst zählen, und das sind
+ * weiterhin `.astro`-Dateien.
  */
 export const ALLOWLIST = [
   'src/layouts/BaseLayout.astro',

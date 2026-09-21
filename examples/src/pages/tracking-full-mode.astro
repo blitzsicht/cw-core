@@ -1,0 +1,68 @@
+---
+/**
+ * Tracking im `full`-Modus — die Gegenprobe zum inline-Modus.
+ *
+ * Zweck: belegen, dass `<PlausibleEvents />` dieselbe Event-Implementierung
+ * einbindet wie der inline-Zweig von BaseLayout. Seit v0.155.0 rufen beide
+ * `initAutoEvents()` aus `utils/analytics/auto-events.ts` auf — vorher stand der
+ * komplette Event-Satz zweimal im Code und war über Monate auseinandergelaufen
+ * (kein `Time on Page` im full-Zweig, andere Properties bei Phone/Mail,
+ * `querySelectorAll` statt Delegation).
+ *
+ * Ohne diese Seite deckte `examples/` nur den inline-Pfad ab: Ein Refactoring,
+ * das den full-Pfad still abhängt, wäre in allen Tests grün und im Browser tot.
+ *
+ * Gegenprobe: Entfernt man `<PlausibleEvents />` unten, verschwinden die
+ * Tracking-Marker aus dem gebauten JS dieser Seite.
+ *
+ * Geprüft wird am Build:
+ *   grep -l "__cwAutoEvents" dist/_astro/*.js   → muss die Datei finden
+ *   grep -o 'data-cw-tracking="[^"]*"' dist/tracking-full-mode/index.html
+ */
+import ContentPage from '@cw/core/layouts/ContentPage.astro';
+import PlausibleEvents from '@cw/core/components/analytics/PlausibleEvents.astro';
+---
+
+<ContentPage
+  title="Tracking: full-Modus"
+  description="Belegt, dass PlausibleEvents dieselbe Event-Implementierung einbindet wie der inline-Zweig."
+  robots="noindex"
+  siteName="cw-core Examples"
+  siteUrl="http://localhost:4322"
+  defaultTitle="cw-core Examples"
+  defaultDescription="Component-Showcase"
+  defaultOgImage="/og.png"
+  header={{ navItems: [{ label: 'Übersicht', href: '/' }] }}
+  footer={{ siteName: 'cw-core Examples' }}
+  trackingMode="full"
+>
+  <h1>Tracking im full-Modus</h1>
+
+  <p>
+    Diese Seite bindet <code>&lt;PlausibleEvents /&gt;</code> ein. Beide
+    Tracking-Modi teilen sich seit v0.155.0 eine Implementierung.
+  </p>
+
+  <h2>Elemente, an denen die Events hängen</h2>
+
+  <ul>
+    <li><a href="tel:+499401539590" data-cta="example:phone">Telefon-Link (Phone Click + CTA Click)</a></li>
+    <li><a href="mailto:hallo@example.com">E-Mail-Link (Email Click)</a></li>
+    <li><a href="https://example.org/datei.pdf">PDF-Link (File Download)</a></li>
+    <li><a href="https://example.org/">Externer Link (Outbound Click)</a></li>
+  </ul>
+
+  <form id="example-form">
+    <label for="example-field">Formular ohne eigenes Tracking (Form Submit)</label>
+    <input id="example-field" name="feld" type="text" />
+    <button type="submit">Absenden</button>
+  </form>
+
+  <form id="example-form-tracked" data-cw-form-tracked>
+    <label for="example-field-2">Formular mit eigenem Tracking — zählt hier NICHT mit</label>
+    <input id="example-field-2" name="feld" type="text" />
+    <button type="submit">Absenden</button>
+  </form>
+
+  <PlausibleEvents />
+</ContentPage>
