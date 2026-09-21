@@ -22,6 +22,74 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.154.0 (2026-09-21)
+
+**Fix: `Form Submit` zählte jede Absendung doppelt, `Map Load` feuerte zusammen mit
+`CTA Click` — und der Guard, der genau das verhindern sollte, konnte beides
+strukturell nicht sehen.**
+
+Bewusst ohne `[kunde]`-Zeile: Diese Ereignisse stehen in keinem Kundenbericht. Der
+Monatsreport (`cw-seo-system/pipeline/customer_report.py`) zieht aus Plausible
+ausschließlich KI-Referrer-Sitzungen aus `sessions_v2`, kein Goal. Kein Kunde hat
+falsche Zahlen erhalten — betroffen sind ausschließlich unsere eigenen Auswertungen.
+
+Anlass: Beim Leadgen-Ausbau für digital-direkt war der Conversion-Trichter falsch.
+Der Export zeigte 26 `Form Submit`-Ereignisse bei 13 Besuchern — glatt das Doppelte.
+Beinahe hätte das zu einer Formular-Optimierung geführt, die der tatsächlichen
+Abschlussquote von 81 % geschadet hätte.
+
+**Zwei Doppelzählungen:**
+
+- `ContactForm.astro` feuert `Form Submit` selbst (mit `status`, `type`), und
+  zusätzlich zählte der generische Listener dieselbe Absendung — in beiden
+  Tracking-Modi. `preventDefault()` in der Komponente half nicht: der Listener in
+  `BaseLayout.astro` hängt am `document` mit `useCapture = true` und läuft damit vor
+  jedem Handler am Formular. Nur ein Markup-Marker funktioniert.
+- `MapEmbed.astro` trug `data-cta="map:load"` auf demselben Button, der bereits
+  `Map Load` feuert. Ein Klick, zwei Ereignisse.
+
+**Änderungen:**
+
+- `src/components/forms/ContactForm.astro`: `data-cw-form-tracked` statisch im
+  Markup — nicht per JS, das käme in der Capture-Phase zu spät.
+- `src/layouts/BaseLayout.astro`, `src/components/analytics/PlausibleEvents.astro`:
+  markierte Formulare überspringen; die eigene Zählung trägt jetzt
+  `status: 'submitted'` und grenzt damit den Absendeversuch vom Ergebnis ab
+  (`success`/`error` kommen aus der Komponente).
+- `src/components/blocks/MapEmbed.astro`: `data-cta` entfernt, `Map Load` bleibt die
+  einzige Quelle.
+- `scripts/onboard/plausible-goals.mjs`: `Map Load` neu in `ENGAGEMENT_IGNORE`. Ohne
+  diesen Eintrag meldet `eventsWithoutGoal()` das Ereignis ab sofort bei jeder Site
+  mit Karte als Lücke. Bewusst kein Goal — eine Karte anzusehen ist kein Lead.
+
+**Guard (`scripts/lint/cta-double-fire-check.mjs`), zwei geschlossene Lücken:**
+
+- `hasTrackListener(content, eventType)` prüft jetzt `'click'` **und** `'submit'`.
+  Bisher nur `'click'` — ein Doppelfeuer über `submit` war unsichtbar.
+- `hasTrackCall` erkennt neben `track(…)` auch den Direktaufruf
+  `window.plausible(…)`. Deshalb lief MapEmbed seit jeher unbemerkt: die Komponente
+  benutzt `track()` gar nicht.
+- Neuer Check: ein `<form>` mit eigenem submit→track **muss**
+  `data-cw-form-tracked` tragen.
+
+**Belegt statt behauptet:** Der Guard wurde in einem eigenen Commit (`153ac825`)
+**vor** dem Fix eingebaut und meldete gegen den unveränderten Code genau die beiden
+echten Fundstellen namentlich — `MapEmbed.astro` und `ContactForm.astro`. Wer den
+Nachweis sehen will, checkt diesen Commit aus und lässt die Tests laufen. Ein Guard,
+der erst nach dem Fix schweigt, belegt nur, dass er schweigt.
+
+Fünf neue Testfälle (12–16), darunter zwei Negativtests gegen genau diese Bugs und
+einer, der zeigt, dass der verbreiterte Detektor nicht überzieht: `window.plausible`
+ohne `data-cta` (StickyContact, CalEmbed, VideoEmbed) bleibt sauber.
+
+**Wirkung auf die Zahlen:** `Form Submit` halbiert sich bei jedem Kunden mit
+`ContactForm`, `CTA Click` sinkt bei Sites mit Karte leicht. Werte vor diesem Release
+sind mit Werten danach nicht vergleichbar.
+
+846 Tests grün, Guard 18/18.
+
+---
+
 ## v0.153.1 (2026-09-18)
 
 **Fix: `VergleichsTabelle` hatte eine hart weisse Tischfläche — auf einem dunklen
