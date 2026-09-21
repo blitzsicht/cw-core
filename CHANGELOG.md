@@ -22,6 +22,68 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.155.0 (2026-09-21)
+
+**Refactoring: Der automatische Event-Satz stand zweimal im Code und war über
+Monate auseinandergelaufen. Jetzt gibt es ihn einmal —
+`src/utils/analytics/auto-events.ts`.**
+
+Bewusst ohne `[kunde]`-Zeile: Die öffentliche API bleibt unverändert,
+`trackingMode` und `<PlausibleEvents />` funktionieren wie bisher, kein
+Kundenrepo muss angefasst werden.
+
+Betroffen waren zwei Hälften der Flotte: `BaseLayout.astro` im Modus `inline`
+(Default, 8 Sites) und `PlausibleEvents.astro` im Modus `full` (6 Sites). Beide
+fingen `[data-cta]` ab, beide zählten Scroll-Tiefe, beide hörten auf
+Formular-Absendungen. Jede Abweichung zwischen ihnen war ein stiller Messfehler
+bei genau einer Hälfte:
+
+- `Time on Page` gab es nur im inline-Zweig.
+- Phone/Mail/WhatsApp sendeten unterschiedliche Properties — `number`/`address`
+  gegen `location`.
+- Der full-Zweig band Listener per `querySelectorAll` an die beim Hydrieren
+  vorhandenen Elemente und verpasste alles, was später ins DOM kam.
+- Die Scroll-Messung nutzte nur im full-Zweig `requestAnimationFrame`.
+
+Beim Zusammenführen hat jeweils die bessere Variante gewonnen: Delegation statt
+`querySelectorAll`, rAF beim Scrollen, `Time on Page` für beide Modi. Die
+Properties sind additiv vereinigt (`location` **und** `number`/`address`), damit
+keine bestehende Auswertung etwas verliert.
+
+**Nebenbefund, dabei mitbehoben — die Ads-Attribution war bei 8 Kunden praktisch
+tot.** Sie lief nur im full-Zweig. Bei den inline-Kunden schrieb einzig
+`ContactForm.astro` die `cw_attr_*`-Werte, und zwar erst beim Laden der
+Kontaktseite — zu einem Zeitpunkt, an dem das `gclid` längst nicht mehr in der
+URL steht. Wer über eine Anzeige auf der Startseite landete und dann
+weiternavigierte, verlor seine Attribution vollständig. Das Sichern läuft jetzt
+immer (cookielos, kein Consent nötig, kein Event); nur `Paid Visit` bleibt
+gegated, weil es ein PAID_GOAL ist und sonst bei jeder Nicht-Ads-Site als Event
+ohne Goal auflaufen würde. Die Option heißt deshalb jetzt `paidVisit` statt
+`attribution`.
+
+**Belegt am echten Build, nicht nur in Tests.** Ein Refactoring, das den Code
+ausbaut und nicht wieder einbindet, wäre in allen Unit-Tests grün und im Browser
+tot. Die beiden Einstiegs-Bundles sind auf je einen Aufruf geschrumpft und
+importieren dasselbe Chunk:
+
+```js
+// BaseLayout      import{i}from"./auto-events.BrmZGDw9.js";
+//                 const n=…dataset.cwTracking??"inline";n==="inline"&&i();
+// PlausibleEvents import{i}from"./auto-events.BrmZGDw9.js";i({paidVisit:!0});
+```
+
+Neu `examples/src/pages/tracking-full-mode.astro`: Bis hierher deckte
+`examples/` nur den inline-Pfad ab — ein Refactoring, das den full-Pfad still
+abhängt, wäre nirgends aufgefallen.
+
+`initAutoEvents` ist idempotent (`window.__cwAutoEvents`). Auf einer
+full-Modus-Seite lädt der Browser beide Bundles; das `trackingMode`-Gate hält
+den inline-Zweig zurück, die Idempotenz ist der zweite Riegel.
+
+846 Tests grün, `astro check` 0 Fehler, examples 24 Seiten gebaut.
+
+---
+
 ## v0.154.0 (2026-09-21)
 
 **Fix: `Form Submit` zählte jede Absendung doppelt, `Map Load` feuerte zusammen mit
