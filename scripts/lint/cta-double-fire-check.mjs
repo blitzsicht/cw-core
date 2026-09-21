@@ -36,9 +36,60 @@ export const ALLOWLIST = [
 /** Marker-String, mit dem eine Komponente einen geprüften Nicht-Overlap belegt. */
 export const SAFE_ANNOTATION = 'cw-tracking-safe';
 
+/**
+ * Markup-Marker, mit dem ein <form> dem globalen SSOT-Listener signalisiert:
+ * "ich zähle 'Form Submit' selbst, halte dich raus".
+ *
+ * Warum ein Attribut und nicht stopPropagation(): BaseLayout registriert seinen
+ * submit-Listener am `document` mit useCapture = true und läuft damit VOR jedem
+ * Handler am Formular selbst. Kein Form-Handler kann ihn per Propagation
+ * erreichen — der Marker ist der einzige Weg, der funktioniert.
+ */
+export const FORM_TRACKED_MARKER = 'data-cw-form-tracked';
+
+/**
+ * Feuert die Datei ein Plausible-Event? Deckt alle drei im Cluster benutzten
+ * Schreibweisen ab:
+ *   track(…) / trackPlausible(…)  — der Helper aus utils/analytics/track
+ *   window.plausible(…) / w.plausible(…)  — Direktaufruf (MapEmbed, CalEmbed,
+ *     StickyContact, VideoEmbed nutzen diese Form)
+ *
+ * Die alte Fassung prüfte nur `track(` und war deshalb blind für die
+ * Direktaufrufe — MapEmbed feuerte seit jeher `Map Load` UND `CTA Click` auf
+ * demselben Button, ohne dass der Guard etwas sah.
+ */
+export function hasTrackCall(content) {
+  return /\b(track|trackPlausible)\s*\(/.test(content) || /(^|[\s.(])plausible\s*\(/m.test(content);
+}
+
+/**
+ * Komponenten-lokaler Listener für `eventType`, der ein Plausible-Event feuert.
+ * @param {string} content
+ * @param {'click'|'submit'} eventType
+ */
+export function hasTrackListener(content, eventType) {
+  const re = new RegExp(`addEventListener\\(\\s*['"]${eventType}['"]`);
+  return re.test(content) && hasTrackCall(content);
+}
+
 /** Komponenten-lokaler Listener, der auf 'click' ein track()-Event feuert. */
 export function hasClickTrackListener(content) {
-  return /addEventListener\(\s*['"]click['"]/.test(content) && /\btrack\s*\(/.test(content);
+  return hasTrackListener(content, 'click');
+}
+
+/** Komponenten-lokaler Listener, der auf 'submit' ein track()-Event feuert. */
+export function hasSubmitTrackListener(content) {
+  return hasTrackListener(content, 'submit');
+}
+
+/** Enthält die Datei ein eigenes <form>-Element im Markup? */
+export function hasFormElement(content) {
+  return /<form[\s>]/.test(content);
+}
+
+/** Trägt das Markup den Marker, der den globalen Form-Listener zurücktreten lässt? */
+export function hasFormTrackedMarker(content) {
+  return content.includes(FORM_TRACKED_MARKER);
 }
 
 /** data-cta-Attribut-Nutzung in der Template-Markup (data-cta=...). */
@@ -54,15 +105,43 @@ export function isAllowlisted(path) {
 
 /**
  * Analysiert eine einzelne .astro-Datei.
- * @returns {{path:string, clickTrack:boolean, dataCta:boolean, allowlisted:boolean, annotated:boolean, violation:boolean}}
+ *
+ * Zwei unabhängige Befunde:
+ *   ctaViolation  — eigener click→track-Listener auf einem [data-cta]-Element
+ *   formViolation — eigenes <form> mit submit→track, aber ohne Marker, sodass
+ *                   der globale SSOT-Listener dasselbe Ereignis mitzählt
+ *
+ * @returns {{path:string, clickTrack:boolean, dataCta:boolean, allowlisted:boolean,
+ *   annotated:boolean, submitTrack:boolean, formEl:boolean, formMarker:boolean,
+ *   ctaViolation:boolean, formViolation:boolean, violation:boolean}}
  */
 export function analyze(path, content) {
   const clickTrack = hasClickTrackListener(content);
   const dataCta = hasDataCtaAttr(content);
   const allowlisted = isAllowlisted(path);
   const annotated = content.includes(SAFE_ANNOTATION);
-  const violation = clickTrack && dataCta && !allowlisted && !annotated;
-  return { path, clickTrack, dataCta, allowlisted, annotated, violation };
+  const ctaViolation = clickTrack && dataCta && !allowlisted && !annotated;
+
+  const submitTrack = hasSubmitTrackListener(content);
+  const formEl = hasFormElement(content);
+  const formMarker = hasFormTrackedMarker(content);
+  // Die SSOT-Listener selbst dürfen den generischen submit-Listener haben —
+  // sie besitzen kein eigenes <form>, fallen also ohnehin nicht in die Regel.
+  const formViolation = submitTrack && formEl && !formMarker && !allowlisted;
+
+  return {
+    path,
+    clickTrack,
+    dataCta,
+    allowlisted,
+    annotated,
+    submitTrack,
+    formEl,
+    formMarker,
+    ctaViolation,
+    formViolation,
+    violation: ctaViolation || formViolation,
+  };
 }
 
 /**
@@ -75,13 +154,24 @@ export function findViolations(files) {
 
 /** Menschenlesbare Fehlermeldung für eine Violation (graceful degradation). */
 export function formatViolation(v) {
-  return (
+  if (v.formViolation && !v.ctaViolation) {
+    return (
+      `Form-Submit-Doppelfeuer: ${v.path}\n` +
+      `  Diese Komponente hat ein eigenes <form> mit submit→track-Listener, aber das\n` +
+      `  Markup trägt kein "${FORM_TRACKED_MARKER}". Der globale SSOT-Listener zählt\n` +
+      `  "Form Submit" deshalb ein zweites Mal — jede Absendung erscheint doppelt.\n` +
+      `  Fix: ${FORM_TRACKED_MARKER} ans <form>-Tag schreiben (statisch ins Markup,\n` +
+      `  NICHT per JS — der globale Listener läuft in der Capture-Phase und damit vor\n` +
+      `  jeder Hydration). Siehe ContactForm.astro.`
+    );
+  }
+  const kopf =
     `CTA-Doppelfeuer-Risiko: ${v.path}\n` +
     `  Diese Komponente hat einen eigenen click→track-Listener UND ein data-cta-Attribut.\n` +
     `  Der globale SSOT-Listener feuert bereits "CTA Click" für [data-cta] — ein Klick\n` +
     `  kann so zwei Events auslösen (Doppelfeuer).\n` +
     `  Fix: entweder den Komponenten-Listener/das data-cta entfernen, ODER — wenn Listener\n` +
     `  und data-cta nachweislich VERSCHIEDENE Elemente treffen — eine "${SAFE_ANNOTATION}"-\n` +
-    `  Kommentar-Annotation mit Begründung ergänzen. Siehe Header.astro / LeistungenSection.astro.`
-  );
+    `  Kommentar-Annotation mit Begründung ergänzen. Siehe Header.astro / LeistungenSection.astro.`;
+  return v.formViolation ? `${kopf}\n  Zusätzlich: Form-Submit-Doppelfeuer (Marker fehlt).` : kopf;
 }

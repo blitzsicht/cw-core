@@ -22,6 +22,16 @@
  *   9. Komponente ganz ohne Tracking → keine Violation
  *  10. findViolations meldet mehrere gleichzeitig
  *  11. Integration: echter src-Tree hat NULL Violations (Fix-Verifikation)
+ *
+ * Erweiterung 2026-09-21 — der Guard war fuer zwei reale Bugs blind:
+ *  12. MapEmbed-Altcode: data-cta + window.plausible() → MUSS flaggen.
+ *      Der alte Detektor prueft nur `track(` und sah den Direktaufruf nicht.
+ *  13. ContactForm ohne Marker: <form> + submit→track → MUSS flaggen.
+ *      Der alte Detektor prueft nur 'click', nie 'submit'.
+ *  14. Dieselbe Form MIT Marker → keine Violation.
+ *  15. Formular ohne eigenes Tracking (BriefingForm-artig) → keine Violation.
+ *  16. Detektor ueberzieht nicht: window.plausible OHNE data-cta (StickyContact,
+ *      CalEmbed, VideoEmbed) bleibt sauber.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -33,7 +43,12 @@ import {
   findViolations,
   isAllowlisted,
   hasClickTrackListener,
+  hasSubmitTrackListener,
+  hasTrackCall,
   hasDataCtaAttr,
+  hasFormElement,
+  hasFormTrackedMarker,
+  FORM_TRACKED_MARKER,
 } from '../../scripts/lint/cta-double-fire-check.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -197,6 +212,104 @@ test('detektor-primitive: hasClickTrackListener / hasDataCtaAttr', () => {
   assert.equal(hasClickTrackListener(NO_TRACKING), false);
   assert.equal(hasDataCtaAttr(HERO_OLD), true);
   assert.equal(hasDataCtaAttr(NO_TRACKING), false);
+});
+
+// ---------------------------------------------------------------------------
+// Erweiterung 2026-09-21: submit-Listener + Direktaufruf window.plausible()
+// ---------------------------------------------------------------------------
+
+// MapEmbed ALTCODE (echter Bug): derselbe Button traegt data-cta UND feuert
+// direkt window.plausible — ein Klick ergab "Map Load" + "CTA Click".
+const MAPEMBED_OLD = `
+<button class="map-load" data-cta="map:load">Karte laden</button>
+<script>
+  const b = document.querySelector('.map-load');
+  b?.addEventListener('click', () => {
+    const w = window;
+    if (typeof w.plausible === 'function') w.plausible('Map Load');
+  });
+</script>`;
+
+// ContactForm ALTCODE (echter Bug): eigenes <form> mit submit→track, kein Marker.
+const CONTACTFORM_OLD = `
+<form id="contact-form" data-web3form data-form-type={formType}>
+  <input name="email" />
+</form>
+<script>
+  import { track } from '../../utils/analytics/track';
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    track('Form Submit', { type: formType, status: 'success' });
+  });
+</script>`;
+
+// ContactForm NACH Fix: Marker statisch im Markup.
+const CONTACTFORM_FIXED = CONTACTFORM_OLD.replace('data-web3form', `data-web3form ${FORM_TRACKED_MARKER}`);
+
+// BriefingForm-artig: <form> ohne jedes eigene Tracking — der globale Listener
+// ist hier die einzige Quelle und soll es auch bleiben.
+const FORM_NO_TRACKING = `
+<form id="briefing"><input name="firma" /></form>
+<script>
+  form.addEventListener('submit', async (e) => { e.preventDefault(); await fetch(url); });
+</script>`;
+
+// StickyContact-artig: window.plausible, aber KEIN data-cta → kein Doppelfeuer.
+const DIRECT_PLAUSIBLE_NO_CTA = `
+<a href={telLink} class="sticky-btn" data-track="sticky-phone">Anrufen</a>
+<script>
+  document.querySelectorAll('[data-track]').forEach((el) => {
+    el.addEventListener('click', () => window.plausible('Sticky Contact Click', { props: { channel: el.dataset.track } }));
+  });
+</script>`;
+
+test('12. NEGATIV-TEST echter Bug: MapEmbed-Altcode (data-cta + window.plausible) → MUSS flaggen', () => {
+  const r = analyze('src/components/blocks/MapEmbed.astro', MAPEMBED_OLD);
+  assert.equal(hasTrackCall(MAPEMBED_OLD), true, 'Direktaufruf window.plausible muss erkannt werden');
+  assert.equal(r.clickTrack, true);
+  assert.equal(r.dataCta, true);
+  assert.equal(r.ctaViolation, true);
+});
+
+test('13. NEGATIV-TEST echter Bug: Formular mit submit→track ohne Marker → MUSS flaggen', () => {
+  const r = analyze('src/components/forms/ContactForm.astro', CONTACTFORM_OLD);
+  assert.equal(r.submitTrack, true);
+  assert.equal(r.formEl, true);
+  assert.equal(r.formMarker, false);
+  assert.equal(r.formViolation, true);
+  // Gegenprobe zum alten Detektor: ueber 'click' ist hier nichts zu sehen.
+  assert.equal(r.clickTrack, false, 'der Bug ist per click-Pruefung unsichtbar — genau die alte Luecke');
+});
+
+test('14. Dieselbe Form MIT Marker → keine Violation', () => {
+  const r = analyze('src/components/forms/ContactForm.astro', CONTACTFORM_FIXED);
+  assert.equal(r.formMarker, true);
+  assert.equal(r.formViolation, false);
+  assert.equal(r.violation, false);
+});
+
+test('15. Formular ohne eigenes Tracking → keine Violation (globaler Listener bleibt zustaendig)', () => {
+  const r = analyze('src/components/forms/BriefingForm.astro', FORM_NO_TRACKING);
+  assert.equal(r.formEl, true);
+  assert.equal(r.submitTrack, false);
+  assert.equal(r.formViolation, false);
+});
+
+test('16. Detektor ueberzieht nicht: window.plausible ohne data-cta bleibt sauber', () => {
+  const r = analyze('src/components/blocks/StickyContact.astro', DIRECT_PLAUSIBLE_NO_CTA);
+  assert.equal(hasTrackCall(DIRECT_PLAUSIBLE_NO_CTA), true);
+  assert.equal(r.dataCta, false);
+  assert.equal(r.violation, false);
+});
+
+test('detektor-primitive (neu): submit / form / marker / plausible-direktaufruf', () => {
+  assert.equal(hasSubmitTrackListener(CONTACTFORM_OLD), true);
+  assert.equal(hasSubmitTrackListener(HERO_OLD), false);
+  assert.equal(hasFormElement(CONTACTFORM_OLD), true);
+  assert.equal(hasFormElement(HERO_OLD), false);
+  assert.equal(hasFormTrackedMarker(CONTACTFORM_FIXED), true);
+  assert.equal(hasFormTrackedMarker(CONTACTFORM_OLD), false);
+  assert.equal(hasTrackCall(NO_TRACKING), false);
 });
 
 // ---------------------------------------------------------------------------
