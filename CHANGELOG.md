@@ -22,6 +22,79 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.156.0 (2026-09-21)
+
+**`CTA Click` misst wieder Conversion. Navigation zählt seitdem als `Nav Click` —
+die Zahl sinkt dadurch deutlich, und das ist der Punkt.**
+
+- [kunde] Die Statistik unterscheidet jetzt zwischen „jemand will Kontakt
+  aufnehmen" und „jemand blättert weiter". Vorher floss beides in eine Zahl.
+
+Das Goal sollte zählen, wie oft jemand Kontakt aufnehmen will. Gezählt hat es
+jedes Element mit `data-cta` — und das saß auch auf Leistungskarten, sekundären
+Hero-Buttons und Menüpunkten. Gemessen an den Plausible-Exporten (Mai–Juli 2026,
+bereinigt um die in v0.66.0 behobenen `nav:*`): rund **4:1 zugunsten der
+Navigation**. gottl-richter-gomeier 40 zu 9, schiller-gartenbau 36 zu 9.
+
+**Neu `src/utils/analytics/cta-kind.js`:** `ctaAttrs(href, name)` vergibt genau
+ein Attribut, abgeleitet aus dem Ziel des Links — `data-cta` bei `tel:`/`mailto:`/
+`sms:`, wa.me/cal.com, Pfaden wie `/kontakt` `/angebot` `/termin` und Ankern auf
+ein Formular; sonst `data-nav-click`.
+
+Warum der href entscheidet und nicht die Komponente: `hero-secondary` und
+`nav-highlight` sind pro Kunde konfigurierbar. Bei einem Kunden zeigt der
+sekundäre Hero-Button auf „Unsere Leistungen" (Navigation), beim nächsten auf
+eine Telefonnummer (Conversion). Eine feste Regel „secondary ist immer
+Navigation" hätte den zweiten Fall still falsch gemessen. Für Fälle, die eine
+Heuristik nicht wissen kann, gibt es den dritten Parameter `force`.
+
+„Kontakt" im Menü bleibt übrigens Conversion. Wer dort klickt, beginnt eine
+Kontaktaufnahme — schwächer als „Angebot anfordern", aber Absicht.
+
+**Der neue Guard fand sofort einen echten Konflikt:** `Header.astro` vergibt
+`data-nav="compact"` bereits als CSS-Zustandsattribut am Header-Element. Ein
+Listener mit `closest('[data-nav]')` hätte von jedem Link aus nach oben gesucht,
+dort angeschlagen und **jeden Klick im Header** als Navigation mit dem Namen
+„compact" gezählt. Deshalb heißt das Tracking-Attribut `data-nav-click`. Von
+Hand war das nicht zu sehen.
+
+**Änderungen:**
+
+- Umgestellt auf `ctaAttrs`: `Hero`, `CTABlock`, `CTAHeroBlock`,
+  `LeistungenSection`, `FloatingCallButton`, `Footer`, `Header`, `CTAPrimary`.
+- `Header.astro` gibt seinen lokalen `Nav Click`-Listener ab — er band per
+  `querySelectorAll` und musste `.btn-accent` von Hand ausschließen. Netto ein
+  Listener weniger, obwohl ein Event dazugekommen ist.
+- `CTAPrimary` behält `data-cta-type` (semantischer Anker für Browser-Agents,
+  eigener Wertebereich) und bekommt zusätzlich die Tracking-Attribute.
+- Zwei Guards: literales `data-cta=`/`data-nav-click=` im Markup ist verboten
+  (nur `{...ctaAttrs(`), und kein Element darf beide tragen. Bewusst eine
+  Struktur-Regel statt einer Präfix-Allowlist — eine Liste erlaubter Namen
+  altert still, sobald jemand `filialen-karte:` erfindet.
+- `ohneKommentare()` im Guard: Er schlug zunächst auf seine eigene Dokumentation
+  an, weil `LeistungenSection` in einem Kommentar den alten Zustand zitiert.
+  Dieselbe Falle hat im Repo schon einmal zugeschlagen, als eine Regex
+  ausgerechnet die Commits löschte, die eine Regel zitierten.
+- `plausible-goals.mjs`: neue `GOAL_SEMANTICS_CHANGES` — wann welche Kennzahl
+  ihre Bedeutung geändert hat, dort wo die Goals definiert sind statt in einem
+  Changelog von vor sechs Monaten. Kein Backfill: der Bruch wird datiert, nicht
+  repariert.
+
+**Belegt am Build, nicht nur in Tests:** Die Heuristik trennt echte Fälle —
+`hero-primary:Kontakt` und `cta-primary:*` als Conversion, `nav:Übersicht` und
+`hero-secondary:Leistungen` als Navigation; ein Hero-Button mit `href="#"` landet
+korrekt bei Navigation.
+
+⚠️ **Noch offen:** In den Kunden-Repos liegen 82 weitere `data-cta`-Setzer
+(zink-baeckerei 30, blitzsicht 13, soleno 13, digital-direkt 8, gowohnen 7,
+platzfrei 6, Rest einzeln), ebenfalls gemischt. Bis die umgestellt sind, bleibt
+`CTA Click` dort unsauber. `@cw/core/utils/analytics/cta-kind` ist dafür
+exportiert.
+
+857 Tests grün, `astro check` 0 Fehler, examples 24 Seiten.
+
+---
+
 ## v0.155.0 (2026-09-21)
 
 **Refactoring: Der automatische Event-Satz stand zweimal im Code und war über
