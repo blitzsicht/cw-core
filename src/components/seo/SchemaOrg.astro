@@ -81,7 +81,11 @@ interface Props {
   url: string;
   /** Path or absolute URL to OG image (resolved against `url`). */
   ogImage: string;
-  /** Path or absolute URL to logo. Defaults to `${url}/logo.png`. */
+  /**
+   * Pfad oder absolute URL zum Logo. OHNE Vorgabe: fehlt der Wert, wird das
+   * `logo`-Feld weggelassen statt geraten (siehe Kommentar bei `resolvedLogo`).
+   * Im Kundenrepo `logoUrl: siteData.logoSrc` setzen.
+   */
   logoUrl?: string;
   /**
    * Rechtlich verantwortliche Entität für die `copyrightNotice` des Primärbild-
@@ -228,7 +232,23 @@ const areaServedValue = areaServedArr
   ? areaServedArr.map((a) => ({ '@type': 'Place', name: a }))
   : areaServed;
 
-const resolvedLogo = logoUrl ?? `${url}/logo.png`;
+// 🔴 Bis 22.09.2026 stand hier `logoUrl ?? `${url}/logo.png``. Dieser geratene
+// Default hat 10 der 13 Live-Seiten ein Organisations-Logo veroeffentlichen lassen,
+// das es nicht gibt: gemessen am 21.09.2026 lieferte `/logo.png` bei hausamlago,
+// hausammincio, steller-sanierungen, digital-direkt, soleno, zink, schiller,
+// elektro-mika, platzfrei und falzmarke HTTP 404. Sie alle fuehren eine `logo.svg`.
+// Sauber waren genau die drei, die zufaellig eine `logo.png` hatten oder `logoUrl`
+// selbst setzten.
+//
+// Gefunden hat es nicht der Blick in diese Datei, sondern der erweiterte
+// Asset-Guard in scripts/verify-touchpoints.mjs, nachdem er gelernt hatte, auch
+// JSON-LD-Bildfelder zu lesen.
+//
+// Kein Default mehr. Ein fehlendes `logo` ist ein fehlendes Feld -- schema.org fuehrt
+// es als empfohlen, nicht als Pflicht. Ein `logo`, das 404 liefert, ist dagegen ein
+// falsches Signal an genau die Stelle, aus der Google das Markenlogo zieht.
+// Kundenrepos setzen `logoUrl: siteData.logoSrc` in ihrer schemaConfig.
+const resolvedLogo = logoUrl ?? null;
 const resolvedImage = new URL(ogImage, url).toString();
 
 // Build @type array: always LocalBusiness + ProfessionalService, plus any extras
@@ -249,7 +269,7 @@ const localBusinessSchema = {
   name,
   description,
   url,
-  logo: resolvedLogo,
+  ...(resolvedLogo ? { logo: resolvedLogo } : {}),
   // ImageObject statt nackter URL: strukturiertes Bild-Signal für Google Images +
   // KI-Suche (caption/creator/credit). Der eigentliche Bild-Ranking-Hebel — anders
   // als EXIF wird schema.org/ImageObject beim Indexieren tatsächlich ausgewertet.
