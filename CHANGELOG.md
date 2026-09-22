@@ -22,6 +22,50 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.157.0 (2026-09-22)
+
+- [kunde] Das Logo Ihrer Firma steht jetzt korrekt in den strukturierten Daten Ihrer
+  Website — dort liest Google es aus, um Ihr Markenlogo in den Suchergebnissen zu zeigen.
+  Bei zehn Seiten zeigte dieser Eintrag bisher auf eine Datei, die es nicht gibt.
+
+**Drei Schichten gegen tote Asset-Verweise, in der Reihenfolge ihrer Verlässlichkeit.**
+
+*Anlass.* Im JSON-LD eines blitzsicht-Artikels stand
+`"image": ".../images/blog/og-ki-kennzeichnung.png"` — und die URL lieferte live HTTP 404.
+Das Bild war von `optimize-images --delete-originals` nach `.webp` gewandelt und gelöscht
+worden. Kein Mensch sieht dieses Feld; jeder Crawler liest es. Der Artikel handelt von
+KI-Kennzeichnung.
+
+*Schicht 1 — die Denylist schließt eine Lücke.* Sie schützte OG-Bilder nur in der
+Suffix-Form (`og-images-og.png`); die Präfix-Form (`og-ki-kennzeichnung.png`) fiel durch.
+Ergänzt um `/(^|\/)og[-_]/i`, mit Negativ-Guards gegen Content-Bilder, die zufällig mit
+diesen Buchstaben beginnen (`ogris-portrait.webp`).
+
+*Schicht 2 — der Asset-Guard liest zwei Quellen mehr.* `verify-touchpoints` läuft seit
+v0.112.0 fleetweit auf „fail" und ist für genau diese Bugklasse gebaut — er hat den Fall
+trotzdem nicht gesehen: gelesen wurden `src`/`srcset` an Tags und `url()` in CSS.
+`og:image` steht in einem `content`-Attribut, das JSON-LD-Bild im **Körper** eines
+`<script>`-Tags. Beides jetzt erfasst, eng begrenzt: nur `og:image`/`twitter:image`, nur
+die Bildfelder `image`/`logo`/`contentUrl`/`thumbnailUrl`, und `url` nur innerhalb eines
+Bildfeldes. `url`, `@id` und `sameAs` tragen Seitenadressen — sie mitzuzählen hieße, jede
+Unterseite als fehlende Datei zu melden. Nur `application/ld+json` wird im Körper gelesen:
+das sind Daten, kein Code; die Zusicherung, nie Skriptcode zu lesen, gilt unverändert.
+
+*Schicht 3 — das Organisations-Logo wird nicht mehr geraten.* Der Default
+`logoUrl ?? ${url}/logo.png` hat **10 von 13 Live-Seiten** ein Logo veröffentlichen lassen,
+das HTTP 404 liefert (gemessen 21.09.2026 gegen die Live-Seiten). Alle zehn führen eine
+`logo.svg`; sauber waren genau die drei mit `logo.png` oder eigenem `logoUrl`. Fehlt der
+Wert, entfällt das Feld — schema.org führt `logo` als empfohlen, nicht als Pflicht, und ein
+fehlendes Feld ist besser als ein falsches.
+
+Gefunden hat Schicht 3 nicht der Blick in den Quelltext, sondern Schicht 2, unmittelbar
+nachdem sie gebaut war. Das ist der Beleg, dass die Erweiterung trägt.
+
+**Für Kundenrepos:** `logoUrl: siteData.logoSrc` in der `schemaConfig` setzen. Ohne den
+Wert hat die Seite nach diesem Release **kein** `logo` mehr im Schema. Der Sweep über alle
+Repos lief am 22.09.2026 und wirkt bereits auf dem alten Pin — die alte Fassung nimmt
+`logoUrl` genauso entgegen, sie rät nur, wenn er fehlt.
+
 ## v0.156.2 (2026-09-21)
 
 **Nachtrag: Warteliste, Anmeldung und Buchung zählen als Conversion.**
