@@ -98,6 +98,25 @@ test('Denylist: /social/ (FB-Share-PNGs, spec-fixe Größe) ausgenommen — v0.8
   assert.equal(isDenied('public/images/social-media-tipps.webp'), false);
 });
 
+test('Denylist: OG-Bilder am PRAEFIX, nicht nur am Suffix — 21.09.2026', () => {
+  // 🔴 Der Anlass: images/blog/og-ki-kennzeichnung.png wurde konvertiert und das
+  // Original geloescht, obwohl es als ogImage im Frontmatter und als "image" im
+  // JSON-LD des Artikels stand. Live lieferte die URL danach HTTP 404 — in den
+  // strukturierten Daten, wo es kein Mensch sieht und jeder Crawler liest.
+  //
+  // Die Regel von 23.07.2026 fing nur die Suffix-Form (og-images-og.png), weil das
+  // das eine Beispiel war, das damals vorlag. Dieselbe Sorte Datei mit dem Kuerzel
+  // VORNE fiel weiter durch. Beide Formen kommen real vor.
+  assert.equal(isDenied('public/images/blog/og-ki-kennzeichnung.png'), true);
+  assert.equal(isDenied('public/images/team/og_teaser.jpg'), true);
+  assert.equal(isDenied('public/images/blog/og-images-og.png'), true, 'Suffix-Form bleibt');
+  // Negativ-Guard: "og" als blosser Wortanfang eines echten Wortes ist KEIN OG-Bild.
+  // Ohne den Trenner [-_] traefe die Regel ogen.webp, ogris-portrait.webp und jedes
+  // andere Content-Bild, das zufaellig mit diesen zwei Buchstaben beginnt.
+  assert.equal(isDenied('public/images/hero/ogris-portrait.webp'), false);
+  assert.equal(isDenied('public/images/blog/oglasi.png'), false);
+});
+
 test('Denylist: echte Content-Bilder werden optimiert (Negativ-Test)', () => {
   assert.equal(isDenied('public/images/hero/bodenrichtwerte.webp'), false);
   assert.equal(isDenied('public/staedte/tegernheim.webp'), false); // die #541-Lücke

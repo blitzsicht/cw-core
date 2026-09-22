@@ -76,9 +76,16 @@ const SUPPORTED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.JPG', '.JPEG'
 // Marken- und Social-Assets werden extern referenziert (Schema.org, OG-Tags,
 // E-Mail-Signaturen, fremde Seiten) und dürfen nicht unter den Füßen wegkonvertiert
 // werden — ein paar KB sind billiger als eine tote Logo-URL.
+// Ergaenzt 21.09.2026: die Regel darueber fing OG-Bilder nur am SUFFIX
+// (`og-images-og.png`), weil das das eine Beispiel war, das damals vorlag. Dieselbe
+// Sorte Datei mit dem Kuerzel VORNE fiel weiter durch: `images/blog/og-ki-kennzeichnung.png`
+// wurde konvertiert, das Original geloescht, und die URL lieferte live HTTP 404 — im
+// JSON-LD-Feld `image` des Artikels, wo es kein Mensch sieht und jeder Crawler liest.
+// Der Trenner `[-_]` ist Absicht: ohne ihn traefe die Regel jedes Content-Bild, das
+// zufaellig mit diesen zwei Buchstaben beginnt (ogris-portrait.webp, oglasi.png).
 const DENY_PATTERNS = [
   /\/og\//i, /\/icons?\//i, /\/email\//i, /\/social\//i, /favicon/i,
-  /logo/i, /[-_]og\.(png|jpe?g)$/i,
+  /logo/i, /[-_]og\.(png|jpe?g)$/i, /(^|\/)og[-_]/i,
 ];
 export function isDenied(filePath) {
   const norm = String(filePath).replace(/\\/g, '/');
