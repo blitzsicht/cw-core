@@ -999,3 +999,84 @@ test('E2E: eagerScriptChecks laeuft auch, wenn distLinkChecks und assetRefChecks
   assert.match(out, /cdn\.fremd\.io/);
   assert.doesNotMatch(out, /fehlt\.png/, 'die anderen Checks muessen wirklich aus sein');
 });
+
+// ── og:image und JSON-LD (21.09.2026) ────────────────────────────────────────
+//
+// ANLASS: Im JSON-LD des blitzsicht-Artikels "KI-Bilder kennzeichnen" stand
+// "image": "https://blitzsicht.com/images/blog/og-ki-kennzeichnung.png" — und die URL
+// lieferte HTTP 404, seit optimize-images das Original nach .webp gewandelt und
+// geloescht hatte. Dieser Guard lief damals bereits fleetweit auf "fail" und hat es
+// NICHT gesehen: er las `src`/`srcset` an Tags und `url()` in CSS. og:image steht in
+// einem `content`-Attribut, das JSON-LD-Bild im KOERPER eines <script>-Tags — und von
+// <script> las er nur das src-Attribut.
+//
+// Das ist kein Schoenheitsfehler: genau diese beiden Felder liest kein Mensch und
+// jeder Crawler.
+
+test('extractAssetRefs: og:image aus dem content-Attribut wird erfasst', () => {
+  const html = '<meta property="og:image" content="/og/home.png">'
+    + '<meta name="twitter:image" content="/og/tw.png">';
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/og/home.png', '/og/tw.png']);
+});
+
+test('GEGENPROBE: andere meta-content-Werte sind KEINE Dateien', () => {
+  // Ohne diese Einschraenkung meldete der Guard jede Beschreibung und jedes
+  // Schluesselwort als fehlende Datei.
+  const html = '<meta name="description" content="Wir bauen Websites in 7 Werktagen.">'
+    + '<meta property="og:title" content="/Startseite">'
+    + '<meta charset="utf-8">';
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs, []);
+});
+
+test('extractAssetRefs: Bildfelder im JSON-LD werden erfasst', () => {
+  const html = '<script type="application/ld+json">'
+    + JSON.stringify({
+      '@type': 'Article',
+      image: 'https://kunde.de/images/blog/held.png',
+      publisher: { '@type': 'Organization', logo: { '@type': 'ImageObject', url: '/logo.png' } },
+    })
+    + '</script>';
+  const { refs } = extractAssetRefs(html, 'https://kunde.de');
+  assert.ok(refs.includes('/images/blog/held.png'), 'image-Feld');
+  assert.ok(refs.includes('/logo.png'), 'verschachteltes ImageObject.url');
+});
+
+test('extractAssetRefs: JSON-LD image als Liste', () => {
+  const html = '<script type="application/ld+json">'
+    + JSON.stringify({ image: ['/a.webp', '/b.webp'] }) + '</script>';
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/a.webp', '/b.webp']);
+});
+
+test('GEGENPROBE JSON-LD: Seiten-URLs und Texte werden NICHT als Datei gezaehlt', () => {
+  // `url`, `@id` und `sameAs` tragen Seiten- und Profil-Adressen. Sie mitzuzaehlen
+  // hiesse, jede Unterseite als fehlende Datei zu melden.
+  const html = '<script type="application/ld+json">'
+    + JSON.stringify({
+      '@type': 'WebPage',
+      '@id': 'https://kunde.de/leistungen/',
+      url: 'https://kunde.de/leistungen/',
+      name: 'Leistungen',
+      sameAs: ['https://www.linkedin.com/company/x'],
+    })
+    + '</script>';
+  const { refs } = extractAssetRefs(html, 'https://kunde.de');
+  assert.deepEqual(refs, []);
+});
+
+test('GEGENPROBE: ein kaputtes JSON-LD legt den Guard nicht lahm', () => {
+  const html = '<script type="application/ld+json">{ das ist kein JSON </script>'
+    + '<img src="/x.webp">';
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs, ['/x.webp'], 'der Rest wird weiter gelesen');
+});
+
+test('GEGENPROBE: ein normales <script> wird weiterhin NICHT im Koerper gelesen', () => {
+  // Die bestehende Zusicherung des Guards: er liest Tag-Attribute, nie Skriptcode.
+  // Nur ld+json ist Daten, kein Code -- die Ausnahme gilt genau dort.
+  const html = '<script>const bild = "/images/nur-ein-string.png";</script>';
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs, []);
+});

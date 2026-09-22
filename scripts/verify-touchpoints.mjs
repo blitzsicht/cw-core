@@ -281,6 +281,29 @@ const ASSET_TAG_RE = /<(?:img|source|script|video|audio|track|embed|iframe)\b[^>
  * @param {{cssOnly?: boolean}} [opts]
  * @returns {{refs: string[], skippedRelative: number}} Pfade ab `/`, dedupliziert
  */
+/**
+ * Felder im JSON-LD, deren Wert eine BILDADRESSE ist.
+ *
+ * Bewusst kurz. `url`, `@id` und `sameAs` tragen Seiten- und Profiladressen; sie
+ * mitzuzaehlen hiesse, jede Unterseite als fehlende Datei zu melden. `url` zaehlt
+ * nur INNERHALB eines Bildfeldes — genau die Form, die schema.org fuer ein
+ * ImageObject vorsieht: `publisher.logo = { "@type": "ImageObject", "url": "…" }`.
+ */
+const JSONLD_BILDFELDER = new Set(['image', 'logo', 'contenturl', 'thumbnailurl']);
+
+/** Laeuft den JSON-LD-Baum ab und reicht jede Bildadresse an `push`. */
+function sammleJsonLdBilder(knoten, push, inBild = false) {
+  if (typeof knoten === 'string') { if (inBild) push(knoten); return; }
+  if (Array.isArray(knoten)) { for (const k of knoten) sammleJsonLdBilder(k, push, inBild); return; }
+  if (!knoten || typeof knoten !== 'object') return;
+  for (const [schluessel, wert] of Object.entries(knoten)) {
+    const k = schluessel.toLowerCase();
+    if (JSONLD_BILDFELDER.has(k)) sammleJsonLdBilder(wert, push, true);
+    else if (inBild && k === 'url') { if (typeof wert === 'string') push(wert); }
+    else sammleJsonLdBilder(wert, push, false);
+  }
+}
+
 export function extractAssetRefs(source, origin, opts = {}) {
   const refs = new Set();
   let skippedRelative = 0;
@@ -330,6 +353,36 @@ export function extractAssetRefs(source, origin, opts = {}) {
   for (const css of cssBlocks) {
     for (const m of css.matchAll(/url\(\s*([^)]*?)\s*\)/gi)) {
       push(m[1].replace(/^["']|["']$/g, ''));
+    }
+  }
+
+  // 🔴 Ergaenzt 21.09.2026. Dieser Guard lief bereits fleetweit auf "fail" und sah
+  // trotzdem nicht, dass im JSON-LD eines blitzsicht-Artikels
+  // `"image": "…/og-ki-kennzeichnung.png"` stand, waehrend die URL live HTTP 404
+  // lieferte — optimize-images hatte das Original nach .webp gewandelt und geloescht.
+  // Der Grund war die Quellenauswahl: gelesen wurden `src`/`srcset` an Tags und
+  // `url()` in CSS. og:image steht in einem `content`-Attribut, das JSON-LD-Bild im
+  // KOERPER eines <script>-Tags. Beides fiel durch.
+  //
+  // Diese zwei Felder liest kein Mensch und jeder Crawler. Ein 404 darin bleibt
+  // sonst beliebig lange unbemerkt — im konkreten Fall Wochen.
+  if (!opts.cssOnly) {
+    for (const m of source.matchAll(/<meta\b[^>]*>/gi)) {
+      const tag = m[0];
+      const feld = (tag.match(/\s(?:property|name)=["']([^"']+)["']/i)?.[1] ?? '').toLowerCase();
+      // Eng gehalten: `description`, `og:title` und Konsorten tragen Freitext. Ohne
+      // die Liste meldete der Guard jeden Beschreibungstext als fehlende Datei.
+      if (!/^(og:image(:secure_url|:url)?|twitter:image(:src)?)$/.test(feld)) continue;
+      push(tag.match(/\scontent=["']([^"']+)["']/i)?.[1]);
+    }
+    // Nur `application/ld+json` — das ist Daten, kein Code. Die Zusicherung dieses
+    // Moduls, Skriptkoerper nie zu lesen (siehe eagerThirdPartyScripts), gilt
+    // unveraendert fuer jedes andere <script>: ein Dateiname in einer JS-Zeichenkette
+    // bleibt ungelesen.
+    for (const m of source.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+      let daten;
+      try { daten = JSON.parse(m[1]); } catch { continue; }  // kaputtes JSON-LD legt den Guard nicht lahm
+      sammleJsonLdBilder(daten, push);
     }
   }
 
