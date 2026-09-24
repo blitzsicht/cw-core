@@ -981,6 +981,7 @@ function isStandaloneMatch(lowerHaystack: string, pos: number, needleLength: num
 export function lintBrandNameInSiteData(
   data: AiDiscoverySiteData,
   brandName: string,
+  siteDataPath?: string,
 ): BrandNameIssue[] {
   if (!brandName || brandName.trim().length < 2) return [];
 
@@ -1055,7 +1056,143 @@ export function lintBrandNameInSiteData(
     // Literal zu unterscheiden, und der Check damit unerfüllbar.
   }
 
-  return issues;
+  return dropInterpolierteProsa(issues, brandName, siteDataPath);
+}
+
+/**
+ * Wirft Prosa-Befunde weg, für die der Quelltext **belegt**, dass die Marke interpoliert ist.
+ *
+ * Warum es diesen zweiten Schritt gibt: die Prosa-Prüfung oben liest den ausgewerteten Wert und
+ * weiß deshalb genau, welches Feld betroffen ist — aber `` `… ${BRAND} …` `` und `'… Marke …'`
+ * sind zur Laufzeit derselbe String. Für FAQs und den seo-Block war dasselbe Problem schon
+ * erkannt und die Prüfung dort auf den Quelltext verlegt (v0.103.1); die Prosa-Felder blieben
+ * zurück. Belegt an haarwerk-neutraubling (24.09.2026): drei Befunde, alle drei `${BRAND}` —
+ * eine Umbenennung hätte dort genau eine Zeile gekostet, also genau das, was die Konvention will.
+ *
+ * Bewusst als Filter statt als Ersatz der Wert-Prüfung: ein Befund fällt nur, wenn die Quelle
+ * gefunden UND dort kein ausgeschriebenes Literal ist. Fehlt der Pfad, ist die Datei nicht
+ * lesbar oder der Feldpfad nicht auffindbar, bleibt der Befund stehen. Ein Guard, der beim
+ * kleinsten Zweifel schweigt, ist von einem abgeschalteten Guard nicht zu unterscheiden.
+ */
+function dropInterpolierteProsa(
+  issues: BrandNameIssue[],
+  brandName: string,
+  siteDataPath?: string,
+): BrandNameIssue[] {
+  if (!siteDataPath || !existsSync(siteDataPath)) return issues;
+  let source: string;
+  try {
+    source = readFileSync(siteDataPath, 'utf-8');
+  } catch {
+    return issues;
+  }
+
+  const spans = collectProseSpans(source);
+  if (spans.size === 0) return issues;
+  const needle = brandName.trim().toLowerCase();
+
+  const behalten: BrandNameIssue[] = [];
+  for (const issue of issues) {
+    if (issue.type !== 'prose_literal') {
+      behalten.push(issue);
+      continue;
+    }
+    const span = spans.get(issue.location);
+    if (!span) {
+      behalten.push(issue); // Feldpfad im Quelltext nicht auffindbar → nicht raten
+      continue;
+    }
+    const n = span.lines.reduce((sum, l) => sum + countBrandLiteralsInLine(l, needle).count, 0);
+    if (n === 0) continue; // vollständig interpoliert → rename-sicher, kein Befund
+    behalten.push({
+      ...issue,
+      count: n, // im Quelltext ausgeschriebene Vorkommen, nicht die des ausgewerteten Werts
+      location: `${issue.location} (site-data.ts:${span.startLine})`,
+    });
+  }
+  return behalten;
+}
+
+/** Entfernt String-Literale aus einer Zeile — nur für die Klammer-Tiefe, nie für die Zählung. */
+function stripStrings(line: string): string {
+  return line
+    .replace(/\/\/.*$/, '')
+    .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, "''")
+    .replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/g, '""')
+    .replace(/`([^`\\]*(?:\\.[^`\\]*)*)`/g, '``');
+}
+
+/**
+ * Sammelt für jedes Prosa-Feld von `siteData` den zugehörigen Quelltext.
+ *
+ * Schlüssel sind exakt die `location`-Strings der Wert-Prüfung (`siteData.description`,
+ * `siteData.leistungen[2].description`), damit sich beide Seiten ohne Übersetzung treffen.
+ *
+ * Abgedeckt sind die zwei Formen, die die Wert-Prüfung kennt: Felder direkt unter `siteData`
+ * und Felder in Objekten eines Arrays direkt unter `siteData`. Alles andere wird bewusst nicht
+ * erfasst — ein nicht gefundener Span lässt den Befund stehen (siehe dropInterpolierteProsa).
+ *
+ * Mehrzeilige Werte sind der Normalfall, nicht die Ausnahme: `description:` steht oft allein
+ * auf seiner Zeile und der Text folgt darunter. Wer nur die Schlüsselzeile liest, baut einen
+ * Check, der nie wieder rot wird.
+ */
+function collectProseSpans(source: string): Map<string, { lines: string[]; startLine: number }> {
+  const spans = new Map<string, { lines: string[]; startLine: number }>();
+  const lines = source.split('\n');
+
+  const start = lines.findIndex((l) => /export\s+const\s+siteData\s*=/.test(l));
+  if (start === -1) return spans; // Struktur unbekannt → lieber nichts erfassen
+
+  const PROSA_KEYS = /^\s*(description|tagline|title)\s*:/;
+  const KEY = /^\s*([A-Za-z_$][\w$]*)\s*:/;
+
+  let depth = 0;
+  let topKey: string | null = null;
+  let arrayIdx = -1;
+  let inArray = false;
+
+  for (let i = start; i < lines.length; i++) {
+    const raw = lines[i];
+    const code = stripStrings(raw);
+    const vorher = depth; // Tiefe VOR dieser Zeile — die Klammern der Zeile zählen erst danach
+
+    if (vorher === 1) {
+      const m = raw.match(KEY);
+      if (m) {
+        topKey = m[1];
+        inArray = code.includes('[');
+        arrayIdx = -1;
+      }
+    } else if (vorher === 2 && inArray && /^\s*\{/.test(code)) {
+      arrayIdx++;
+    }
+
+    if (PROSA_KEYS.test(raw)) {
+      const key = raw.match(KEY)![1];
+      let location: string | null = null;
+      if (vorher === 1) location = `siteData.${key}`;
+      else if (vorher === 3 && inArray && topKey && arrayIdx >= 0) {
+        location = `siteData.${topKey}[${arrayIdx}].${key}`;
+      }
+      if (location && !spans.has(location)) {
+        const span = [raw];
+        for (let j = i + 1; j < lines.length; j++) {
+          const naechste = stripStrings(lines[j]);
+          if (KEY.test(lines[j]) || /^\s*[}\])]/.test(naechste)) break;
+          span.push(lines[j]);
+        }
+        spans.set(location, { lines: span, startLine: i + 1 });
+      }
+    }
+
+    for (const ch of code) {
+      if (ch === '{' || ch === '[' || ch === '(') depth++;
+      else if (ch === '}' || ch === ']' || ch === ')') depth--;
+    }
+    if (depth <= 0 && i > start) break; // siteData-Objekt zu
+  }
+
+  return spans;
 }
 
 /**
@@ -1121,6 +1258,7 @@ function countBrandLiteralsInLine(
 
   let count = 0;
   for (const lit of literals) {
+    if (isPathLiteral(lit)) continue;
     const lower = lit.toLowerCase();
     let pos = 0;
     while ((pos = lower.indexOf(needle, pos)) !== -1) {
@@ -1129,6 +1267,22 @@ function countBrandLiteralsInLine(
     }
   }
   return { count, literals };
+}
+
+/**
+ * Ist das Literal als Ganzes ein Pfad oder eine URL — also ein Dateiname, kein Text?
+ *
+ * Anlass (24.09.2026): haarwerk-neutraubling trug `ogImage: '/og/haarwerk-og-alt.jpg'`. Der
+ * seo-Check meldete den Dateinamen als Marken-Literal und riet, ihn zu interpolieren — „dort,
+ * wo <title> und <meta description> herkommen". Der Rat geht ins Leere: die Datei heißt auf der
+ * Platte so, und eine Umbenennung der Marke benennt keine Assets um.
+ *
+ * Bewusst nur das **ganze** Literal: ein Pfad mitten in Prosa („Mehr auf /marke-seite lesen")
+ * enthält Leerzeichen und bleibt ein Treffer — dort kostet eine Umbenennung sehr wohl eine
+ * Textänderung.
+ */
+function isPathLiteral(literal: string): boolean {
+  return /^(?:https?:\/\/|data:|\.{0,2}\/)\S*$/.test(literal.trim());
 }
 
 /** Entfernt Zeilenkommentare und `${…}`-Interpolationen — beides zählt nicht als Literal. */
@@ -2342,7 +2496,11 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // Felder (description, tagline, FAQs, Leistungen) müssen generisch
         // formuliert sein — kein Literal-Duplikat des Markennamens.
         const brandIssuesSiteData = [
-          ...lintBrandNameInSiteData(data, data.name),
+          ...lintBrandNameInSiteData(
+            data,
+            data.name,
+            customerSrcDir ? join(customerSrcDir, 'data', 'site-data.ts') : undefined,
+          ),
           // Der seo-Block wird im Quelltext geprüft, nicht am Wert — Begründung an
           // lintBrandNameInSeoSource. Ohne srcDir (config.srcDir nicht auflösbar) entfällt
           // der Check still; das meldet der Motion-Guard bereits als ungeprüft.
@@ -3214,6 +3372,13 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               }
             }
           }
+        } else {
+          // Abgeschaltet heißt nicht geprüft, und das gehört ins Log. Sonst ist ein Repo mit
+          // stummgeschaltetem Guard von einem sauberen nicht zu unterscheiden — im Log steht
+          // in beiden Fällen nichts (belegt an haarwerk-neutraubling, 24.09.2026).
+          logger.info(
+            'Robots-KI-Guard: übersprungen (checkRobotsAiPolicy: false) — robots.txt NICHT geprüft.',
+          );
         }
 
         // -------------------------------------------------------------------

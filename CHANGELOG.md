@@ -22,6 +22,53 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.158.0 (2026-09-24)
+
+*Bewusst ohne `[kunde]`-Zeile: die Änderung betrifft ausschließlich, was der Build meldet.
+Am Verhalten und am Erscheinungsbild der Kundenseiten ändert sich nichts.*
+
+**Der Brand-Name-Linter meldete vier Befunde, von denen keiner einer war.**
+
+*Anlass.* `customer-haarwerk-neutraubling` blieb als einziges Repo der Flotte auf einem alten
+Pin stehen. Nicht, weil der Bump fehlschlug — das `strict-warnings`-Gate des Release-Trains
+verweigert den PR, solange der Build Guard-Warnungen wirft, und dieser Build warf vier. Alle
+vier hielten der Prüfung nicht stand.
+
+*Befund 1 — `${BRAND}` war von einem Literal nicht zu unterscheiden.* Der Zweck der Konvention
+ist eine Zahl: was kostet eine Umbenennung? Steht die Marke als `${BRAND}` im Quelltext, kostet
+sie eine Zeile — genau das Ziel. Die Prosa-Prüfung las aber den **ausgewerteten** Wert, und dort
+sind `` `… ${BRAND} …` `` und `'… Marke …'` derselbe String. Für FAQs (v0.103.1) und den
+seo-Block war dasselbe Problem längst erkannt und die Prüfung dort auf den Quelltext verlegt;
+die Prosa-Felder blieben zurück. Drei der vier Befunde waren Interpolationen.
+
+Die Wert-Prüfung bleibt — sie weiß präzise, **welches** Feld betroffen ist. Neu ist ein zweiter
+Schritt: der Befund fällt nur, wenn der Quelltext des Feldes die Interpolation **belegt**. Fehlt
+der Pfad, ist die Datei nicht lesbar oder der Feldpfad nicht auffindbar, bleibt der Befund
+stehen. Ein Guard, der beim kleinsten Zweifel schweigt, ist von einem abgeschalteten Guard nicht
+zu unterscheiden.
+
+*Befund 2 — ein Dateiname ist kein Text.* `ogImage: '/og/haarwerk-og-alt.jpg'` wurde als
+Marken-Literal im seo-Block gemeldet, mit dem Rat, es zu interpolieren — „dort, wo `<title>` und
+`<meta description>` herkommen". Der Rat geht ins Leere: die Datei heißt auf der Platte so.
+Literale, die als Ganzes ein Pfad oder eine URL sind, zählen nicht mehr. Ein Pfad **mitten** in
+Prosa („Mehr auf /marke-seite lesen") bleibt ein Treffer — dort kostet eine Umbenennung sehr
+wohl eine Textänderung.
+
+*Dazu: ein abgeschalteter Guard sagt das jetzt.* `checkRobotsAiPolicy: false` ließ den
+Robots-KI-Guard bisher spurlos aus dem Log verschwinden — ein stummgeschaltetes Repo war von
+einem sauberen nicht zu unterscheiden. Jetzt steht im Build-Log, dass robots.txt **nicht**
+geprüft wurde.
+
+*Belege.* 44 Tests (37 vorher, 7 neu). Sabotage-Gegenprobe mit disjunkter Fehlermenge: mit
+zurückgenommenem Fix fallen genau die drei Tests, die ihn prüfen (36/38/41), während die vier,
+die gegen einen toten Guard prüfen (37/39/40/42), grün bleiben. Am echten Objekt gemessen:
+haarwerk 4 Befunde → 0, und mit einem ausgeschriebenen `'Haarwerk'` statt `${BRAND}` sofort
+wieder 1. Voller Lauf: 876/876. Flotten-Seitenwirkung ausgeschlossen — die übrigen 17
+ausliefernden Repos hatten im v0.157.0-Lauf bereits null Brand-Befunde, ein Filter kann dort
+nichts wegnehmen.
+
+---
+
 ## v0.157.0 (2026-09-22)
 
 - [kunde] Das Logo Ihrer Firma steht jetzt korrekt in den strukturierten Daten Ihrer

@@ -21,6 +21,7 @@
  *   9. robots.txt nicht vorhanden → keine Issues (kein Crash)
  *  10. Kurzer/leerer Markenname → Guard deaktiviert (keine false-positives)
  *  11. Negativ-Test gegen echten Bug: "Mika Elektrotechnik" in description → MUSS flaggen
+ *  36-42. Prosa-Befunde fallen nur bei belegter Interpolation; Pfad-Literale zaehlen nicht
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -108,7 +109,8 @@ test('4. Leistungen am Wert geprüft, FAQs NICHT (die macht der Quelltext-Check)
   const issues = lintBrandNameInSiteData(data, data.name);
   const locations = issues.map((i) => i.location);
 
-  // leistungen bleibt Wert-Check: dort ist "generisch formulieren" die richtige Antwort.
+  // leistungen wird weiter am Wert gefunden. Ohne Quelltext-Pfad (wie hier) bleibt jeder
+  // Befund stehen; mit Pfad faellt er nur, wenn die Quelle Interpolation belegt (Test 36/41).
   assert.ok(locations.includes('siteData.leistungen[0].title'), 'leistungen muss weiter flaggen.');
 
   // FAQs nicht mehr — am Wert ist `${BRAND}` nicht von einem Literal zu unterscheiden,
@@ -610,4 +612,123 @@ test('28. Redundantes titleTemplate wird NICHT doppelt gemeldet', () => {
   const issues = lintBrandNameInSeoSource(diverging, 'Mika Elektrotechnik');
   assert.equal(issues.length, 1);
   assert.match(issues[0].location, /seo\.titleTemplate/);
+});
+
+
+// ---------------------------------------------------------------------------
+// Tests 36-42: Prosa-Befunde gegen den Quelltext gegenpruefen (#647-Nachzug)
+//
+// Anlass 24.09.2026: haarwerk-neutraubling meldete 4 Brand-Befunde, alle 4 unecht —
+// drei `${BRAND}`-Interpolationen und ein og-Bildpfad. Der Train verweigerte den PR und
+// das Repo blieb als einziges der Flotte auf einem alten Pin stehen.
+// ---------------------------------------------------------------------------
+
+/** Schreibt eine vollstaendige site-data.ts aus den uebergebenen Body-Zeilen. */
+function makeProseSource(bodyLines, { brandConst = 'Haarwerk' } = {}) {
+  const dir = join(tmpdir(), `cw-test-prosa-${process.pid}-${Math.random().toString(36).slice(2)}`, 'data');
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, 'site-data.ts');
+  writeFileSync(
+    file,
+    [`const BRAND = '${brandConst}';`, 'export const siteData = {', '  name: BRAND,', ...bodyLines, '};'].join('\n'),
+    'utf-8',
+  );
+  return file;
+}
+
+test('36. [Kern] Interpolierte Marke in description → KEIN Issue, obwohl der Wert gleich ist', () => {
+  const file = makeProseSource(['  description: `${BRAND} und Haarwerkstatt in Neutraubling.`,']);
+  const data = makeSiteData({
+    name: 'Haarwerk',
+    description: 'Haarwerk und Haarwerkstatt in Neutraubling.',
+    tagline: undefined,
+    leistungen: [],
+  });
+  assert.deepEqual(lintBrandNameInSiteData(data, 'Haarwerk', file), []);
+});
+
+test('37. [Gegenprobe zu 36] Ausgeschriebene Marke in description → Issue bleibt', () => {
+  const file = makeProseSource(["  description: 'Haarwerk und Haarwerkstatt in Neutraubling.',"]);
+  const data = makeSiteData({
+    name: 'Haarwerk',
+    description: 'Haarwerk und Haarwerkstatt in Neutraubling.',
+    tagline: undefined,
+    leistungen: [],
+  });
+  const issues = lintBrandNameInSiteData(data, 'Haarwerk', file);
+  assert.equal(issues.length, 1, 'Ohne diesen Fall waere der Filter von einem toten Guard nicht zu unterscheiden.');
+  assert.ok(issues[0].location.startsWith('siteData.description'), issues[0].location);
+});
+
+test('38. og-Bildpfad im seo-Block → kein Issue (Dateiname, kein Text)', () => {
+  const file = makeSiteDataSource("    ogImage: '/og/haarwerk-og-alt.jpg',", { brandConst: 'Haarwerk' });
+  assert.deepEqual(lintBrandNameInSeoSource(file, 'Haarwerk'), []);
+});
+
+test('39. [Gegenprobe zu 38] Pfad MITTEN in Prosa → Issue bleibt', () => {
+  const file = makeProseSource(["  description: 'Mehr dazu auf /haarwerk-salon lesen.',"]);
+  const data = makeSiteData({
+    name: 'Haarwerk',
+    description: 'Mehr dazu auf /haarwerk-salon lesen.',
+    tagline: undefined,
+    leistungen: [],
+  });
+  assert.equal(
+    lintBrandNameInSiteData(data, 'Haarwerk', file).length,
+    1,
+    'Ein Pfad im Fliesstext kostet bei einer Umbenennung sehr wohl eine Textaenderung.',
+  );
+});
+
+test('40. Mehrzeiliger Wert mit ausgeschriebener Marke → Issue (Schluesselzeile allein reicht nicht)', () => {
+  const file = makeProseSource(['  description:', "    'Haarwerk in Neutraubling, Schnitt und Farbe mit Termin.',"]);
+  const data = makeSiteData({
+    name: 'Haarwerk',
+    description: 'Haarwerk in Neutraubling, Schnitt und Farbe mit Termin.',
+    tagline: undefined,
+    leistungen: [],
+  });
+  assert.equal(
+    lintBrandNameInSiteData(data, 'Haarwerk', file).length,
+    1,
+    'Werte stehen oft unter ihrem Schluessel — wer nur die Schluesselzeile liest, baut einen Check, der nie rot wird.',
+  );
+});
+
+test('41. leistungen: interpoliert faellt, hartkodiert bleibt — im selben Array', () => {
+  const file = makeProseSource([
+    '  leistungen: [',
+    '    {',
+    '      title: `Schnitt im ${BRAND}`,',
+    '      description: `Mit Termin im ${BRAND}.`,',
+    '    },',
+    '    {',
+    "      title: 'Haarwerk Notdienst',",
+    "      description: 'Ohne Termin.',",
+    '    },',
+    '  ],',
+  ]);
+  const data = makeSiteData({
+    name: 'Haarwerk',
+    description: 'Friseur in Neutraubling.',
+    tagline: undefined,
+    leistungen: [
+      { title: 'Schnitt im Haarwerk', description: 'Mit Termin im Haarwerk.', slug: 'schnitt' },
+      { title: 'Haarwerk Notdienst', description: 'Ohne Termin.', slug: 'notdienst' },
+    ],
+  });
+  const locations = lintBrandNameInSiteData(data, 'Haarwerk', file).map((i) => i.location);
+  assert.equal(locations.length, 1, `Erwartet genau den hartkodierten Fall, bekam: ${locations.join(', ')}`);
+  assert.ok(locations[0].startsWith('siteData.leistungen[1].title'), locations[0]);
+});
+
+test('42. Ohne Quelltext-Pfad bleibt alles stehen — der Filter greift nur mit Beleg', () => {
+  const data = makeSiteData({
+    name: 'Haarwerk',
+    description: 'Haarwerk und Haarwerkstatt in Neutraubling.',
+    tagline: undefined,
+    leistungen: [],
+  });
+  assert.equal(lintBrandNameInSiteData(data, 'Haarwerk').length, 1);
+  assert.equal(lintBrandNameInSiteData(data, 'Haarwerk', '/gibt/es/nicht/site-data.ts').length, 1);
 });
