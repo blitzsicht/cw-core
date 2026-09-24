@@ -124,7 +124,7 @@ interface Props {
   /**
    * Explicit OG image override (fallback chain level 1).
    * If omitted, BaseLayout auto-resolves via fallback chain:
-   *   heroImage → contentImage → /og/default.png → defaultOgImage
+   *   heroImage → contentImage → generatedOgImage → defaultOgImage
    */
   ogImage?: string | null | undefined;
   /**
@@ -136,7 +136,7 @@ interface Props {
   contentImage?: string | null | undefined;
   /**
    * Level 4: path to a build-time generated OG image.
-   * Defaults to /og/default.png. Set to null to skip to defaultOgImage.
+   * Fehlt es, greift defaultOgImage — BaseLayout rät seit v0.159.0 keinen Pfad mehr.
    */
   generatedOgImage?: string | null | undefined;
   canonicalUrl?: string;

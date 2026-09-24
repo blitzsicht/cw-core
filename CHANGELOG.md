@@ -22,6 +22,41 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.159.0 (2026-09-24)
+
+- [kunde] Wenn jemand einen Link zu Ihrer Website teilt, zeigt die Vorschau jetzt auch bei
+  Seiten ohne eigenes Vorschaubild verlässlich Ihr Bild — vorher konnte dort ein Platzhalter
+  stehen, den es auf Ihrer Seite gar nicht gibt.
+
+**Der og:image-Pfad wird nicht mehr geraten.**
+
+*Anlass.* Der Pin-Bump von haarwerk-neutraubling auf v0.158.0 machte einen Verweis sichtbar,
+den vorher keine Prüfung sehen konnte: `og:image` der 404-Seite zeigte auf
+`/og/default.png` — eine Datei, die dieses Repo nicht führt. Ein toter Verweis unter 1210
+Asset-Referenzen der Flotte, und der einzige.
+
+*Ursache.* Die Fallback-Kette in `BaseLayout` hatte auf Stufe 4 einen Literal-Pfad:
+`generatedOgImage ?? '/og/default.png'`. Fehlte ein generiertes Bild, setzte sie diesen Pfad
+ein — er existiert bei 20 von 24 Repos, weil die meisten die Datei zufällig führen. Vier
+führen sie nicht. Schlimmer: der Rateschritt stand **vor** Stufe 5, dem kundenkonfigurierten
+`defaultOgImage`, das im Kommentar derselben Liste als „always present" geführt wird. Der
+geratene Pfad verhinderte also ausgerechnet den garantierten.
+
+Gleiche Klasse wie `logoUrl ?? ${url}/logo.png` in v0.157.0: ein geratener Pfad ist
+schlechter als ein fehlendes Feld, weil er wie ein Wert aussieht. Stufe 4 liefert jetzt
+nichts, wenn nichts generiert wurde, und die Kette fällt auf `seo.ogImage`.
+
+*Damit das nicht still durch `undefined` ersetzt wird:* lässt sich am Ende der Kette kein
+Bild auflösen, hält der Build an, statt `content=".../undefined"` auszuliefern. Gegenprobe
+gemessen — mit entferntem `seo.ogImage` bricht der Build mit genau dieser Meldung ab.
+
+*Belege.* Am echten Objekt: haarwerks 404-Seite zeigte `…/og/default.png` (HTTP 404), jetzt
+`…/og/haarwerk-og-alt.jpg`; Touchpoint-Audit von „68 Referenzen, 1 nicht auflösbar" auf „67
+Referenzen, alle auflösbar" — die tote Referenz ist weg, nicht versteckt. Alle 18
+ausliefernden Repos führen ein `seo.ogImage`, keins davon leer oder `undefined` (gemessen).
+
+---
+
 ## v0.158.0 (2026-09-24)
 
 *Bewusst ohne `[kunde]`-Zeile: die Änderung betrifft ausschließlich, was der Build meldet.

@@ -92,7 +92,7 @@ interface Props {
    *   1. ogImage (page-level, explicit)
    *   2. headerImage (page header/hero image — e.g. siteData.hero.image)
    *   3. contentImage (first image in page content)
-   *   4. generatedOgImage (build-time generated, typically /og/default.png — with logo+CTA overlay)
+   *   4. generatedOgImage (build-time generated per page — with logo+CTA overlay)
    *   5. defaultOgImage prop (customer standard OG — always present)
    *
    * All paths are relative to siteUrl (absolute paths starting with /).
@@ -105,7 +105,7 @@ interface Props {
   contentImage?: string | null | undefined;
   /**
    * Level 4: path to a build-time generated OG image with logo+CTA overlay.
-   * Defaults to /og/default.png (generated via `pnpm generate:og`).
+   * Ohne generiertes Bild greift `defaultOgImage` — kein geratener Pfad (seit v0.159.0).
    * Set to null to skip level 4 and fall through to defaultOgImage.
    */
   generatedOgImage?: string | null | undefined;
@@ -215,15 +215,38 @@ const resolvedDescription = description ?? defaultDescription;
  * 1. Explicit page-level ogImage prop
  * 2. headerImage (page hero/header image)
  * 3. contentImage (first image in page content)
- * 4. generatedOgImage (build-time generated, /og/default.png by default)
+ * 4. generatedOgImage (build-time generated per page, if one exists)
  * 5. defaultOgImage prop (customer-configured standard OG — always present)
+ *
+ * Stufe 4 hat bis v0.158.0 einen Pfad GERATEN: fehlte ein generiertes Bild, setzte sie
+ * `/og/default.png` ein — eine Datei, die nur deshalb meist existierte, weil die meisten
+ * Repos sie zufällig führen. Vier von 24 führen sie nicht, und bei
+ * haarwerk-neutraubling lieferte damit die 404-Seite ein og:image mit HTTP 404 aus
+ * (gemessen 24.09.2026, der einzige tote Verweis in 1210 Asset-Referenzen der Flotte).
+ * Der geratene Pfad stand dabei VOR Stufe 5 — dem kundenkonfigurierten Bild, das laut
+ * dieser Liste „always present" ist. Der Rateschritt verhinderte also ausgerechnet den
+ * garantierten. Gleiche Klasse wie `logoUrl ?? ${url}/logo.png` in v0.157.0: ein
+ * geratener Pfad ist schlechter als ein fehlendes Feld, weil er wie ein Wert aussieht.
  */
 const resolvedOgImage =
   ogImage ??
   headerImage ??
   contentImage ??
-  (generatedOgImage !== null ? (generatedOgImage ?? '/og/default.png') : null) ??
+  (generatedOgImage !== null ? generatedOgImage : null) ??
   defaultOgImage;
+// Ohne den geratenen Pfad aus Stufe 4 ist `defaultOgImage` der letzte Halt. Der Typ sagt
+// `string`, aber ein Kunde kann `seo.ogImage` auf undefined setzen und TypeScript sieht das
+// in einer .astro-Prop nicht zuverlässig. Dann stünde `content="…/undefined"` in jeder
+// Seite — ein toter Verweis, der wie ein Wert aussieht, also genau der Fehler, den dieser
+// Umbau abstellt. Lieber der Build hält an.
+if (!resolvedOgImage) {
+  throw new Error(
+    '[cw/core BaseLayout] Kein og:image aufloesbar: weder ogImage/headerImage/contentImage/' +
+      'generatedOgImage noch defaultOgImage gesetzt. Setze siteData.seo.ogImage auf eine ' +
+      'Datei, die in public/ liegt — seit v0.159.0 wird kein Pfad mehr geraten.',
+  );
+}
+
 const resolvedTitleTemplate = titleTemplate ?? (siteName ? `%s | ${siteName}` : '%s');
 const pageTitle = title ? resolvedTitleTemplate.replace('%s', title) : defaultTitle;
 const canonical = canonicalUrl ?? new URL(Astro.url.pathname, siteUrl).toString();
