@@ -22,6 +22,37 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.159.1 (2026-09-25)
+
+- [kunde] Die Überschriften der Website sind jetzt lückenlos gegliedert: Die Vorteils-Leiste
+  unter dem Seitentitel und die Spaltentitel der Fußzeile überspringen keine Ebene mehr.
+  Suchmaschinen und Screenreader lesen die Seite dadurch in sauberer Reihenfolge.
+
+**Fix:** Keine übersprungene Überschriften-Ebene mehr in `USPSection` und `Footer`.
+
+*Anlass.* Eine Agentur schrieb Bäckerei Zink per Kaltakquise an, die Überschriften seien
+„durcheinander". Gemessen an der Live-Startseite stimmte das nur in einem Punkt: Die vier
+USP-Karten standen als H3 direkt unter der H1, ohne H2 dazwischen. Dazu kamen die Footer-
+Spaltentitel als H3 unter der letzten Content-H2. Auf die Rangfolge wirkt das praktisch
+nicht, Prüfwerkzeuge melden es aber, und Wettbewerber verkaufen damit.
+
+*Änderung.*
+
+- `USPSection`: Ohne `heading` rendert der Kartentitel als `<p class="usp-title">`, mit
+  `heading` bleibt er `<h3>` unter der Section-H2. Die Überschriften-Styles (Schrift,
+  Gewicht, Zeilenhöhe, Umbruch) stehen jetzt explizit an `.usp-title`.
+- `Footer`: Die Spaltentitel („Leistungen", „Rechtliches", Extra-Spalten) sind `<h2>`
+  statt `<h3>`. Die Fußzeile ist ein eigener Landmark, H2 ist dort die richtige Ebene.
+  Alle Kunden-Stylesheets behandeln h2 und h3 gleich, das Aussehen bleibt unverändert.
+
+*Belege.* customer-zink-baeckerei gegen die geänderten Dateien gebaut: Startseite vorher
+1 Sprung (H1→H3 „Seit 1898 in Familienhand"), nachher 0; Filial- und Sortimentsseite
+0 Sprünge. `pnpm test` 875/875 grün (1 skipped), `astro check` 0 Fehler.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.159.0 (2026-09-24)
 
 - [kunde] Wenn jemand einen Link zu Ihrer Website teilt, zeigt die Vorschau jetzt auch bei

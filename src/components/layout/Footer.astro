@@ -256,7 +256,7 @@ const psiDetailUrl = effectiveSlug
       </div>
 
       <div class="footer-links">
-        <h3>{leistungenHeading}</h3>
+        <h2>{leistungenHeading}</h2>
         <ul>
           {leistungenLinks.map((item) => (
             <li><a href={item.href}>{item.label}</a></li>
@@ -266,7 +266,7 @@ const psiDetailUrl = effectiveSlug
       </div>
 
       <div class="footer-links">
-        <h3>{rechtlichesHeading}</h3>
+        <h2>{rechtlichesHeading}</h2>
         <ul>
           {rechtlichesLinks.map((item) => (
             <li><a href={item.href}>{item.label}</a></li>
@@ -276,7 +276,7 @@ const psiDetailUrl = effectiveSlug
 
       {(extraLinks?.length ?? 0) > 0 && (
         <div class="footer-links">
-          <h3>{extraHeading ?? 'Mehr'}</h3>
+          <h2>{extraHeading ?? 'Mehr'}</h2>
           <ul>
             {extraLinks!.map((item) => (
               <li><a href={item.href}>{item.label}</a></li>
@@ -287,7 +287,7 @@ const psiDetailUrl = effectiveSlug
 
       {(extraLinks2?.length ?? 0) > 0 && (
         <div class="footer-links">
-          <h3>{extraHeading2 ?? 'Mehr'}</h3>
+          <h2>{extraHeading2 ?? 'Mehr'}</h2>
           <ul>
             {extraLinks2!.map((item) => (
               <li><a href={item.href}>{item.label}</a></li>
@@ -328,7 +328,7 @@ const psiDetailUrl = effectiveSlug
    * _SILURI-CHANGE-LOG: 2026-05-19 — Issue #180
    * WCAG 2.1 AA Kontrast-Fix: alle Footer-Text-Farben auf ≥ 4.5:1 angehoben.
    * CSS Custom Properties eingeführt damit Customer-Repos bei Bedarf überschreiben können.
-   * --color-footer-text-muted:   h3-Labels     0.5 → 0.85 (war ~3.1:1, jetzt ~8.0:1)
+   * --color-footer-text-muted:   Spalten-Titel 0.5 → 0.85 (war ~3.1:1, jetzt ~8.0:1)
    * --color-footer-text-bottom:  Copyright-Bar 0.6 → 0.75 (war ~3.9:1, jetzt ~6.0:1)
    * --color-footer-credit-link:  Blitzsicht-Link 0.55 → 0.75 (war ~3.5:1, jetzt ~6.0:1)
    */
@@ -377,7 +377,7 @@ const psiDetailUrl = effectiveSlug
     font-size: 0.9rem;
   }
   .contact-link:hover { text-decoration: underline; color: white; }
-  .footer-links h3 {
+  .footer-links h2 {
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
