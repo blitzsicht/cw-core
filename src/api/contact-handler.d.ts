@@ -27,6 +27,15 @@ export interface ContactHandlerConfig {
    * GlitchTip gemeldet (kein stiller Lead-Verlust).
    */
   allowRueckruf?: boolean;
+  /**
+   * Opt-in für ContactForm `formType="empfehlung"` (Default false, getrennt von
+   * `allowRueckruf`). Nur mit `true`: Name Pflicht, E-Mail ODER Telefon (mindestens eins),
+   * Feld `empfohlen` (Vorname oder Firma, max. 80 Zeichen, läuft durch den Inhaltsfilter),
+   * Lead als `kind: 'empfehlung'` (Telegram-Kopf „🤝 Empfehlung“). Ohne Opt-in wie ein
+   * Kontakt; eine Empfehlung ohne E-Mail, aber mit Telefon → 400 + Alarm an Telegram und
+   * GlitchTip.
+   */
+  allowEmpfehlung?: boolean;
 }
 
 type ContactHandler = (req: any, res: any) => Promise<void>;
@@ -35,6 +44,9 @@ type ContactHandler = (req: any, res: any) => Promise<void>;
  * Body-Felder mit `formType: 'rueckruf'` (ContactForm `formType="rueckruf"`, nur mit
  * `allowRueckruf: true`): E-Mail freiwillig, `telefon` Pflicht, `zeitfenster` optional
  * (max. 60 Zeichen).
+ *
+ * Body-Felder mit `formType: 'empfehlung'` (nur mit `allowEmpfehlung: true`): `name`
+ * Pflicht, `email` ODER `telefon`, `empfohlen` optional (max. 80 Zeichen).
  */
 export function createContactHandler(config: ContactHandlerConfig): ContactHandler;
 

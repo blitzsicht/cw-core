@@ -167,6 +167,32 @@ export function findSchemelessContactHrefs(html) {
 }
 
 /**
+ * Teilen-Links der EmpfehlungSection aus dem Audit nehmen.
+ *
+ * `mailto:?subject=…` hat bewusst keine Adresse (der Besucher wählt den Empfänger),
+ * `https://wa.me/?text=…` bewusst keine Nummer. Ohne diese Ausnahme meldete der Audit
+ * beide hart („leere mailto:", „WhatsApp-Link ohne erkennbare Nummer") und jedes
+ * Kundenrepo mit Empfehlungsseite fiele im CI durch.
+ *
+ * Eng gefasst: nur ein `<a>` mit Marker `data-referral-share` UND in Teilen-Form. Ein
+ * mailto mit Adresse oder ein wa.me mit Nummer wird trotz Marker geprüft, ein leerer
+ * mailto ohne Marker bleibt ein Befund. Test: verify-touchpoints-share.test.mjs
+ *
+ * @param {string} html
+ * @returns {string}
+ */
+export function ohneTeilenLinks(html) {
+  return html.replace(/<a\b[^>]*>/gi, (tag) => {
+    if (!/\sdata-referral-share=/i.test(tag)) return tag;
+    const href = /\shref=["']([^"']*)["']/i.exec(tag)?.[1] ?? '';
+    const teilen =
+      /^mailto:\?/i.test(href) ||
+      /^https?:\/\/(?:wa\.me\/|api\.whatsapp\.com\/send)\?text=/i.test(href);
+    return teilen ? '<a data-referral-share>' : tag;
+  });
+}
+
+/**
  * Prüft alle tel:/mailto:/wa.me-Hrefs einer HTML-Seite gegen die SSOT-Sets.
  * @param {string} html
  * @param {{ phones: Set<string>, emails: Set<string> }} ssot
@@ -174,6 +200,7 @@ export function findSchemelessContactHrefs(html) {
  * @returns {{ href: string, problem: string }[]}
  */
 export function auditHtml(html, ssot, cfg = {}) {
+  html = ohneTeilenLinks(html);
   const problems = [...findSchemelessContactHrefs(html)];
   // Die Adresse der Datenschutz-Aufsichtsbehörde steht naturgemäss NICHT im
   // E-Mail-Set des Kunden — sie gehört niemandem im Haus. cw-core schreibt sie

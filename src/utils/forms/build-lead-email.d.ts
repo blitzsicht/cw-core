@@ -14,6 +14,8 @@ export interface BuildLeadEmailInput {
   leadMessage?: string;
   /** Gewünschtes Rückruf-Zeitfenster (ContactForm formType="rueckruf"). */
   leadCallbackSlot?: string;
+  /** Vorname oder Firma der empfohlenen Person (ContactForm formType="empfehlung"). */
+  leadEmpfohlen?: string;
   /** gclid + utm_* (Ad-Herkunft) */
   leadAttribution?: Record<string, string>;
   /** Betreff der Lead-Mail (intern beim Customer) */
