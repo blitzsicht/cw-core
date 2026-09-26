@@ -17,7 +17,7 @@
 //   foto        eigenes Foto aus dem Repo (quelle = Pfad relativ zum Repo), nur verkleinert
 //
 // Herkunft: customer-blitzsicht/scripts (26.09.2026), nach cw-core gehoben mit blitzsicht-ops #894.
-import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
@@ -155,4 +155,6 @@ async function main() {
   console.log(`✓ ${auswahl.length} Bild(er) in ${proSlug.size} Beitrag/Beiträgen verankert`);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await main();
+// realpath: Aufruf über node_modules/@cw/core (pnpm-Symlink) liefert in argv[1] einen anderen Pfad
+// als import.meta.url — ohne Auflösung lief das Skript still durch, ohne etwas zu tun.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) await main();
