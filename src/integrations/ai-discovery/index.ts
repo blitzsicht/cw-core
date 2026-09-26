@@ -63,6 +63,7 @@ import { lintRenderEntropy } from './render-entropy-check.js';
 import { geotagDist } from './geotag.js';
 import { ogProSeite } from './og-pages.js';
 import { resolveBildHerkunft, istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
+import { pruefeVerzeichnis as pruefeBlogStandard } from '../../blog-standard/blog-check.js';
 import { walkImages, BUDGET_EXT } from './geotag-core.js';
 
 // ---------------------------------------------------------------------------
@@ -583,6 +584,17 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * @example acknowledgedMotion: ['tilt']
    */
   acknowledgedMotion?: readonly string[];
+
+  /**
+   * Blog-Standard (Operator-Regel 26.09.2026, blitzsicht-ops #894): jeder Beitrag in
+   * `src/content/blog` braucht `kurzGesagt` und max(3, ceil(Wörter/400)) Bilder im Text,
+   * jedes mit Herkunftsregel aus `siteData.bildHerkunft`. Läuft ohne Konfiguration, sobald
+   * es das Verzeichnis gibt, und nur bei `astro build` — im Dev-Server soll ein halb
+   * geschriebener Entwurf nicht den Server stoppen. Verstoß bricht den Build.
+   *
+   * `false` schaltet ab — nur für Sites, deren „Blog“ etwas anderes ist (dann begründen).
+   */
+  blogStandard?: false | { dir?: string; kiUnterschrift?: boolean };
 }
 
 /** Hostname ohne führendes www., lowercase. Leerer String bei ungültiger URL. */
@@ -2419,10 +2431,14 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
   // gibt es nur im config-Hook, geprüft wird erst nach dem Build.
   let customerSrcDir: string | null = null;
   let customerPublicDir: string | null = null;
+  let istBuild = false;
 
   return {
     name: '@cw/core/integrations/ai-discovery',
     hooks: {
+      'astro:config:setup': ({ command }) => {
+        istBuild = command === 'build';
+      },
       // Domain-Guard: fängt den Fall, dass astro.config `site` und
       // site-data `url` auf verschiedene Domains zeigen. Genau dieser Drift
       // (config.site = echte Domain, site-data.url = Tippfehler-Domain) führt
@@ -2445,6 +2461,28 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           data = await options.siteData();
         } catch {
           return; // siteData nicht ladbar → andere Hooks/Checks melden das
+        }
+
+        // Blog-Standard: vor dem Rendern prüfen, damit ein Beitrag ohne „Kurz gesagt“
+        // oder mit zu wenigen Bildern gar nicht erst gebaut wird.
+        const blogOpt = options.blogStandard === false ? null : (options.blogStandard ?? {});
+        if (istBuild && blogOpt && customerSrcDir) {
+          const blogDir = join(customerSrcDir, blogOpt.dir ?? 'content/blog');
+          if (existsSync(blogDir)) {
+            const regeln = Array.isArray(data.bildHerkunft) ? data.bildHerkunft : [];
+            const r = await pruefeBlogStandard(blogDir, {
+              herkunft: (p: string) => resolveBildHerkunft({ bildHerkunft: regeln }, p),
+              kiUnterschrift: blogOpt.kiUnterschrift ?? true,
+            });
+            if (r.fehler.length) {
+              throw new Error(
+                `[ai-discovery] Blog-Standard: ${r.fehler.length} Befund(e)\n  ` + r.fehler.join('\n  '),
+              );
+            }
+            if (r.artikel) {
+              logger.info(`Blog-Standard: ${r.artikel} Artikel, ${r.bilder} Bilder im Text, alle mit „Kurz gesagt“ und Herkunft`);
+            }
+          }
         }
 
         const siteDataHost = normHost(data.url);

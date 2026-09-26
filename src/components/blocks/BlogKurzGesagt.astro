@@ -1,0 +1,45 @@
+---
+/**
+ * BlogKurzGesagt — der „Kurz gesagt“-Kasten des Blog-Standards (26.09.2026).
+ *
+ * Steht in der Blog-Vorlage direkt über dem ersten Absatz, Inhalt aus dem Pflichtfeld
+ * `kurzGesagt` (geprüft von @cw/core/blog-standard). Der Name ist Operator-Entscheid:
+ * „Kurz gesagt“ statt „TL;DR“, die Zielgruppe sind Handwerker und Betriebe.
+ * Farben nur über Tokens, damit jede Site ihren Kasten in eigener Farbe bekommt.
+ */
+interface Props {
+  text: string;
+  titel?: string;
+  class?: string;
+}
+const { text, titel = 'Kurz gesagt', class: klasse } = Astro.props;
+// Feste id: ein Kasten je Seite, und ein Zufallswert machte den Build unreproduzierbar.
+const id = 'blog-kurz-titel';
+---
+
+<aside class:list={['blog-kurz', klasse]} aria-labelledby={id}>
+  <h2 id={id}>{titel}</h2>
+  <p>{text}</p>
+</aside>
+
+<style>
+  .blog-kurz {
+    margin: 0 0 2rem;
+    padding: 1.25rem 1.5rem;
+    background: var(--blog-kurz-bg, var(--color-bg-muted, #f7f7f9));
+    border-left: 4px solid var(--blog-kurz-rand, var(--color-text, currentColor));
+    border-radius: 0 8px 8px 0;
+  }
+  .blog-kurz h2 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--blog-kurz-titel, var(--color-text, inherit));
+  }
+  .blog-kurz p {
+    margin: 0;
+    line-height: 1.65;
+    font-size: 1.05rem;
+  }
+</style>
