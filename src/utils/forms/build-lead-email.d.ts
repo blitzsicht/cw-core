@@ -4,6 +4,7 @@ export interface BuildLeadEmailInput {
   /** z.B. 'noreply@blitzsicht.com' */
   fromAddress: string;
   leadName?: string;
+  /** Darf beim Rückruf-Wunsch leer sein — dann führt der Knopf auf `tel:` statt `mailto:`. */
   leadEmail: string;
   leadCompany?: string;
   /** Studio-/Betriebsname (Wartelisten-Formular) */
@@ -11,6 +12,10 @@ export interface BuildLeadEmailInput {
   leadPhone?: string;
   leadWebsite?: string;
   leadMessage?: string;
+  /** Gewünschtes Rückruf-Zeitfenster (ContactForm formType="rueckruf"). */
+  leadCallbackSlot?: string;
+  /** gclid + utm_* (Ad-Herkunft) */
+  leadAttribution?: Record<string, string>;
   /** Betreff der Lead-Mail (intern beim Customer) */
   subject: string;
 }

@@ -31,6 +31,13 @@ interface Props {
   bildHerkunft?: unknown[];
   /** Alt text for `photo`. Required if `photo` is set. */
   photoAlt?: string;
+  /**
+   * Nächste Schritte als nummerierte Liste unter der Nachricht (z. B. nach einem
+   * Rückruf-Wunsch). Ohne den Prop (oder mit leerem Array) bleibt das Markup unverändert.
+   */
+  nextSteps?: string[];
+  /** Zusatzhinweis zum Rückruf als eigener Absatz unter Nachricht bzw. Liste. */
+  callbackNote?: string;
 }
 
 const {
@@ -41,11 +48,18 @@ const {
   photo,
   photoAlt = heading,
   bildHerkunft,
+  nextSteps,
+  callbackNote,
 } = Astro.props;
 
 /* Kein Farbabgleich: das Badge sitzt unter dem Bild auf hellem Seitengrund, nicht auf
    dem Motiv. Die Messung waere hier ohne Bezugspunkt. */
 const fotoLabel = photo ? await bildLabel({ bildHerkunft }, photo) : null;
+
+/* `nextSteps` und `callbackNote` hängen im Template ohne Leerraum an der Nachricht:
+   jede eigene Zeile (auch ein JSX-Kommentar) hinterließe ohne die Props zusätzliche
+   Leerzeichen im HTML. Ohne die Props soll das Markup Byte für Byte das bisherige sein
+   (Test gegen den v0.159.1-Schnappschuss: tests/blocks/contactform-rueckruf.test.js). */
 ---
 <main class="danke-page">
   <div class="danke-content">
@@ -72,7 +86,11 @@ const fotoLabel = photo ? await bildLabel({ bildHerkunft }, photo) : null;
     )}
 
     <h1 class="danke-heading">{heading}</h1>
-    <p class="danke-message">{message}</p>
+    <p class="danke-message">{message}</p>{nextSteps && nextSteps.length > 0 && (
+      <ol class="danke-next-steps">
+        {nextSteps.map((schritt) => <li>{schritt}</li>)}
+      </ol>
+    )}{callbackNote && <p class="danke-callback-note">{callbackNote}</p>}
 
     <a href={ctaHref} class="danke-cta">{ctaLabel}</a>
   </div>
@@ -118,6 +136,20 @@ const fotoLabel = photo ? await bildLabel({ bildHerkunft }, photo) : null;
        Volltonflaeche (--color-primary), kein Verlauf: der Wert war mit 2.68:1 an
        Zink gemessen der schlechteste der Site, und der Fix wird deshalb auch in der
        pa11y-Zahl sichtbar. Voll deckend sind es 4.99:1. */
+    color: #ffffff;
+    margin-bottom: 2rem;
+  }
+  /* Nächste Schritte / Rückruf-Hinweis: gleiche Volltonfläche wie .danke-message,
+     deshalb ebenfalls volle Deckkraft (Kontrast s. dort). */
+  .danke-next-steps {
+    display: inline-block;
+    text-align: left;
+    color: #ffffff;
+    margin: -1rem 0 2rem;
+    padding-left: 1.25rem;
+  }
+  .danke-next-steps li + li { margin-top: 0.375rem; }
+  .danke-callback-note {
     color: #ffffff;
     margin-bottom: 2rem;
   }
