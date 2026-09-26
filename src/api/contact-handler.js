@@ -21,7 +21,12 @@ import { captureError } from './error-sink.js';
  *                        Turnstile-Token zusätzlich GlitchTip-Meldung (Feld, kein Inhalt)
  *   6. Turnstile       — optional: erzwungen NUR wenn TURNSTILE_SECRET_KEY gesetzt ist,
  *                        sonst übersprungen (Schichten 1-5 + 7-9 bleiben aktiv)
- *   7. Email-Validation
+ *   7. Email-Validation — bei `formType=rueckruf` UND `allowRueckruf: true` stattdessen
+ *                        Telefon Pflicht, E-Mail freiwillig (wenn angegeben, muss sie
+ *                        plausibel sein). Ohne Opt-in bleibt die E-Mail Pflicht, s. u.
+ *                        Telefon + Zeitfenster werden in jedem Formular geprüft, sobald
+ *                        sie gesendet werden (Telefon: nur Ziffern, Leerzeichen, + ( ) / - .
+ *                        und ein Durchwahl-Trenner).
  *   8. Content-Filter  — Spam-Keywords / mehrere URLs / BTC/ETH / Cyrillic-Anteil
  *                        -> silent drop (200 ok); mit Turnstile-Secret zusätzlich
  *                        GlitchTip-Meldung (nur der Grund, kein Inhalt)
@@ -72,6 +77,14 @@ import { captureError } from './error-sink.js';
  *   'contact-form' (bisheriges Verhalten). 'waitlist' für Wartelisten-Formulare
  *   (ContactForm formType="waitlist"): extrahiert zusätzlich `studio` und labelt
  *   den Telegram-Push als Warteliste.
+ * @property {boolean} [allowRueckruf] – Opt-in für ContactForm formType="rueckruf".
+ *   Default false. Nur mit `true` nimmt der Endpoint einen Rückruf-Wunsch OHNE E-Mail
+ *   an (Telefon ist dann Pflicht) und labelt den Lead als `kind: 'rueckruf'`. Grund:
+ *   `formType` kommt vom Client — ohne Opt-in könnte ein handgebauter POST an jedem
+ *   Endpoint die E-Mail-Pflicht aufheben und `kind` (z. B. 'waitlist') überschreiben.
+ *   Ohne Opt-in wird `formType=rueckruf` wie ein normaler Kontakt behandelt; fehlt dann
+ *   die E-Mail, antwortet der Endpoint 400, meldet den Lead aber als Zustellfehler an
+ *   Telegram + GlitchTip (eingebautes Formular, vergessenes Opt-in → kein stiller Verlust).
  */
 
 /**
@@ -83,6 +96,9 @@ import { captureError } from './error-sink.js';
  * @property {string} [message]
  * @property {string} [website]
  * @property {string} [studio]  – Studio-/Betriebsname (formType="waitlist")
+ * @property {string} [formType] – nur 'rueckruf' wird ausgewertet (Hidden-Feld des Rückruf-Formulars)
+ * @property {string} [telefon]  – Rückrufnummer (formType="rueckruf"), mind. 6 Ziffern
+ * @property {string} [zeitfenster] – gewünschtes Rückruf-Zeitfenster, max. 60 Zeichen
  * @property {string|boolean} [botcheck]
  * @property {string} [url_honey]
  * @property {string} [cf-turnstile-response]
@@ -141,6 +157,28 @@ const ATTRIBUTION_KEYS = [
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
 ];
 const ATTRIBUTION_MAX_LEN = 512; // harte Kappung gegen Payload-Missbrauch
+
+// Rückruf-Wunsch (ContactForm formType="rueckruf").
+const TELEFON_MIN_ZIFFERN = 6;
+const TELEFON_MAX_LEN = 40;     // „+49 (0) 941 123 456-78 Durchwahl 12“ passt, ein Roman nicht
+const ZEITFENSTER_MAX_LEN = 60;
+// Erlaubte Zeichen: Ziffern, Leerzeichen, + ( ) / - . — optional EIN Durchwahl-Trenner
+// („ext“, „ext.“, „x“, „DW“, „Durchwahl“) mit Ziffern dahinter. Buchstaben sonst nie:
+// die Nummer steht in der Lead-Mail als tel:-Link, dort hat Text nichts verloren.
+const TELEFON_ZEICHEN = /^[\d +()\/.-]+(?:(?:ext\.?|x|dw\.?|durchwahl)[ ]*[\d -]+)?$/i;
+
+/**
+ * Plausible Telefonnummer: nur erlaubte Zeichen (s. TELEFON_ZEICHEN), max. 40 Zeichen,
+ * und nach dem Entfernen aller Zeichen außer Ziffern und `+` bleiben mindestens 6 Ziffern.
+ * @param {string} telefon – bereits getrimmt
+ * @returns {boolean}
+ */
+export function telefonGueltig(telefon) {
+  if (!telefon || telefon.length > TELEFON_MAX_LEN) return false;
+  if (!TELEFON_ZEICHEN.test(telefon)) return false;
+  const ziffern = telefon.replace(/[^\d+]/g, '').replace(/\+/g, '');
+  return ziffern.length >= TELEFON_MIN_ZIFFERN;
+}
 
 /**
  * Sammelt nur die Whitelist-Attribution-Keys aus dem Body, getrimmt + gekappt.
@@ -267,6 +305,7 @@ export function createContactHandler(config) {
   const rateLimitWindowMs = config.rateLimitWindowMs ?? 10 * 60 * 1000;
   const extraSpamKeywords = config.extraSpamKeywords || [];
   const kind = config.kind || 'contact-form';
+  const allowRueckruf = config.allowRueckruf === true;
 
   const inner = async function handleContact(req, res) {
     if (req.method !== 'POST') {
@@ -349,16 +388,47 @@ export function createContactHandler(config) {
       console.warn('[contact-handler] TURNSTILE_SECRET_KEY nicht gesetzt — Turnstile übersprungen (Honeypot + Rate-Limit + Origin-Check + Content-Filter bleiben aktiv).');
     }
 
-    // Email-Validation
+    // Email-Validation. Beim Rückruf-Wunsch ist die E-Mail freiwillig — wer zurück-
+    // gerufen werden will, gibt eine Nummer an, keine Adresse. `formType` kommt aber vom
+    // Client: es wirkt nur an Endpoints mit `allowRueckruf: true`. Alle anderen Formulare
+    // senden kein `formType` und laufen exakt durch die bisherige Prüfung.
+    const rueckrufAngefragt = body.formType === 'rueckruf';
+    const istRueckruf = rueckrufAngefragt && allowRueckruf;
     const email = typeof body.email === 'string' ? body.email.trim() : '';
-    if (!email || !email.includes('@')) {
+    const telefon = typeof body.telefon === 'string' ? body.telefon.trim() : '';
+    // Rückruf-Formular an einem Endpoint ohne Opt-in: vermutlich ein vergessenes
+    // `allowRueckruf`. Nicht annehmen, aber auch nicht still verlieren — der Lead geht
+    // unten als Zustellfehler an Telegram (+ GlitchTip), der Nutzer bekommt 400.
+    const rueckrufNichtFreigeschaltet = rueckrufAngefragt && !allowRueckruf && !email && !!telefon;
+    if (istRueckruf) {
+      if (email && !email.includes('@')) {
+        res.status(400).json({ ok: false, error: 'E-Mail-Adresse ist ungültig.' });
+        return;
+      }
+    } else if (!rueckrufNichtFreigeschaltet && (!email || !email.includes('@'))) {
       res.status(400).json({ ok: false, error: 'E-Mail-Adresse fehlt oder ist ungültig.' });
+      return;
+    }
+
+    // Telefon + Zeitfenster (Rückruf). Geprüft, sobald gesendet; Pflicht nur beim Rückruf.
+    if (istRueckruf && !telefon) {
+      res.status(400).json({ ok: false, error: 'Telefonnummer fehlt.' });
+      return;
+    }
+    if (telefon && !telefonGueltig(telefon)) {
+      res.status(400).json({ ok: false, error: 'Telefonnummer ist ungültig.' });
+      return;
+    }
+    const zeitfenster = typeof body.zeitfenster === 'string' ? body.zeitfenster.trim() : '';
+    if (zeitfenster.length > ZEITFENSTER_MAX_LEN) {
+      res.status(400).json({ ok: false, error: 'Zeitfenster ist zu lang.' });
       return;
     }
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const company = typeof body.company === 'string' ? body.company.trim() : '';
-    const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
+    // `telefon` (Rückruf) vor `phone` (Bewerbung) — beide landen im selben Lead-Feld.
+    const phone = telefon || (typeof body.phone === 'string' ? body.phone.trim() : '');
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const website = typeof body.website === 'string' ? body.website.trim() : '';
     const studio = typeof body.studio === 'string' ? body.studio.trim() : '';
@@ -378,7 +448,7 @@ export function createContactHandler(config) {
     // Prüfung oben bestanden, ein Browser saß also davor. Dann melden wir den Drop — ein
     // KI-Agent, der zwei Links in die Nachricht schreibt, verschwindet sonst spurlos. Ohne
     // Secret bleibt es still, sonst meldet jeder Bot. Weder Log noch Meldung tragen Inhalte.
-    const haystack = [name, company, studio, message, website].filter(Boolean).join(' ');
+    const haystack = [name, company, studio, message, website, zeitfenster, telefon].filter(Boolean).join(' ');
     const grund = spamGrund(haystack, extraSpamKeywords);
     if (grund) {
       console.log('[contact-handler] spam pattern matched, ip=', ip, 'grund=', grund);
@@ -397,8 +467,9 @@ export function createContactHandler(config) {
     const leadData = {
       project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
       fromName, name, email, company, phone, website, message,
-      kind,
+      kind: istRueckruf ? /** @type {const} */ ('rueckruf') : kind,
       ...(studio ? { studio } : {}),
+      ...(zeitfenster ? { zeitfenster } : {}),
       ...(attribution ? { attribution } : {}),
     };
     const leadCtx = {
@@ -406,6 +477,22 @@ export function createContactHandler(config) {
       ua: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : undefined,
       origin: sourceUrl,
     };
+
+    // Rückruf ohne Opt-in (s. o.): kein Versand, aber Alarm mit dem Lead statt stillem Verlust.
+    if (rueckrufNichtFreigeschaltet) {
+      console.error('[contact-handler] formType=rueckruf ohne allowRueckruf — Lead nur per Telegram gemeldet');
+      await emitLead(leadData, {
+        ...leadCtx,
+        deliveryError: 'Rückruf-Formular an diesem Endpoint nicht freigeschaltet (allowRueckruf fehlt in api/contact)',
+      });
+      await captureError(new Error('contact-drop:rueckruf-ohne-opt-in'), {
+        project: leadData.project,
+        where: 'contact-handler:rueckruf-ohne-opt-in',
+        extra: { formular: kind },
+      });
+      res.status(400).json({ ok: false, error: 'Rückruf-Formular ist hier nicht freigeschaltet.' });
+      return;
+    }
 
     // Resend-Versand. Fehlt eine Env-Var, wird der Lead trotzdem via Telegram gemeldet
     // (deliveryError) → Ops wird aktiv alarmiert UND der Lead geht nicht verloren.
@@ -442,6 +529,7 @@ export function createContactHandler(config) {
       leadPhone: phone,
       leadWebsite: website,
       leadMessage: message,
+      leadCallbackSlot: zeitfenster,
       leadAttribution: attribution,
       subject,
     });
@@ -457,7 +545,8 @@ export function createContactHandler(config) {
           from: mail.fromHeader,
           to: recipients,
           ...(bccList.length ? { bcc: bccList } : {}),
-          reply_to: email,
+          // Ohne Lead-Adresse (Rückruf) kein reply_to — Resend lehnt einen leeren Wert ab.
+          ...(email ? { reply_to: email } : {}),
           subject: mail.subject,
           html: mail.html,
           text: mail.text,

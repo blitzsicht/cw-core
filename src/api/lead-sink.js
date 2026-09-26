@@ -27,7 +27,8 @@
  * @property {string} [phone]
  * @property {string} [website]
  * @property {string} [message]
- * @property {'contact-form'|'audit'|'bewerbung'|'briefing-form'|'waitlist'} [kind]
+ * @property {string} [zeitfenster] – gewünschtes Rückruf-Zeitfenster (kind 'rueckruf')
+ * @property {'contact-form'|'audit'|'bewerbung'|'briefing-form'|'waitlist'|'rueckruf'} [kind]
  * @property {Record<string,string>} [attribution] – gclid + utm_* (Ad-Herkunft), cookielos durchgereicht.
  * @property {string} [customerName]              – Briefing-only: Anzeigename des Kunden.
  * @property {number} [requiredFilled]            – Briefing-only: ausgefuellte Pflichtfelder.
@@ -129,24 +130,27 @@ function formatTelegramMessage(lead, ctx) {
   // gesendet, mit Warn-Header — Ops wird alarmiert UND der Lead geht nicht verloren.
   const header = lead.kind === 'waitlist'
     ? `📋 *Warteliste* · ${project}`
-    : `🆕 *Lead* · ${project}`;
+    : lead.kind === 'rueckruf'
+      ? `📞 *Rückruf* · ${project}`
+      : `🆕 *Lead* · ${project}`;
   const lines = ctx.deliveryError
     ? [
         `⚠️ *ZUSTELLUNG FEHLGESCHLAGEN* · ${project}`,
         `_${esc(ctx.deliveryError)} — Lead per Mail nicht zugestellt, bitte manuell bearbeiten:_`,
         '',
         `*Name:*  ${esc(lead.name || '—')}`,
-        `*Email:* ${esc(lead.email)}`,
+        `*Email:* ${esc(lead.email || '—')}`,
       ]
     : [
         header,
         '',
         `*Name:*  ${esc(lead.name || '—')}`,
-        `*Email:* ${esc(lead.email)}`,
+        `*Email:* ${esc(lead.email || '—')}`,
       ];
   if (lead.studio)  lines.push(`*Studio:* ${esc(lead.studio)}`);
   if (lead.company) lines.push(`*Co\\.:*   ${esc(lead.company)}`);
   if (lead.phone)   lines.push(`*Tel:*   ${esc(lead.phone)}`);
+  if (lead.zeitfenster) lines.push(`*Zeitfenster:* ${esc(lead.zeitfenster)}`);
   if (lead.message) {
     const trimmed = lead.message.length > 400
       ? lead.message.slice(0, 400) + '…'

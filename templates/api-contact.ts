@@ -12,6 +12,10 @@
 // Optional:
 //   TURNSTILE_SECRET_KEY (+ PUBLIC_TURNSTILE_SITE_KEY im Build + challenges.cloudflare.com in CSP)
 //
+// Rückruf-Formular (ContactForm formType="rueckruf", E-Mail freiwillig): zusätzlich
+// `allowRueckruf: true` setzen. Ohne das Opt-in bleibt die E-Mail Pflicht; ein Rückruf ohne
+// E-Mail wird abgelehnt und nur als Zustellfehler an Telegram/GlitchTip gemeldet.
+//
 // OHNE diese Datei liefert Vercel 404 auf /api/contact → totes Formular. Der CI-Guard
 // `validate-form-backend.mjs` erzwingt ihre Existenz.
 import { createContactHandler } from '@cw/core/api/contact-handler';

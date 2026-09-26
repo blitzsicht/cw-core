@@ -4,7 +4,7 @@ export interface Lead {
   /** Anzeigename des Customers (gleich wie ContactHandlerConfig.fromName). */
   fromName: string;
   name?: string;
-  /** Bei `kind: 'briefing-form'` darf email leer sein (Briefing kann ohne Mail-Adresse abgegeben werden). */
+  /** Bei `kind: 'briefing-form'` und `kind: 'rueckruf'` darf email leer sein. */
   email: string;
   company?: string;
   /** Studio-/Betriebsname (Wartelisten-Formular). */
@@ -12,7 +12,9 @@ export interface Lead {
   phone?: string;
   website?: string;
   message?: string;
-  kind?: 'contact-form' | 'audit' | 'bewerbung' | 'briefing-form' | 'waitlist';
+  /** Gewünschtes Rückruf-Zeitfenster (kind 'rueckruf'). */
+  zeitfenster?: string;
+  kind?: 'contact-form' | 'audit' | 'bewerbung' | 'briefing-form' | 'waitlist' | 'rueckruf';
 
   /** Ad-Herkunft (gclid + utm_*), cookielos aus Hidden-Feldern durchgereicht. */
   attribution?: Record<string, string>;

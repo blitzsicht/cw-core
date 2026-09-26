@@ -23,12 +23,14 @@ const FOOTER_LINK = 'https://blitzsicht.com';
  * @property {string} siteName       – z.B. 'Sachverstaendigenbuero Gottl Richter Gomeier'
  * @property {string} fromAddress    – z.B. 'noreply@blitzsicht.com'
  * @property {string} [leadName]
- * @property {string}  leadEmail
+ * @property {string}  leadEmail    – darf beim Rückruf-Wunsch leer sein; dann führt der
+ *                                   Knopf auf `tel:` statt `mailto:`
  * @property {string} [leadCompany]
  * @property {string} [leadStudio]  – Studio-/Betriebsname (Wartelisten-Formular)
  * @property {string} [leadPhone]
  * @property {string} [leadWebsite]
  * @property {string} [leadMessage]
+ * @property {string} [leadCallbackSlot] – gewünschtes Rückruf-Zeitfenster (formType="rueckruf")
  * @property {Record<string, string>} [leadAttribution] – gclid + utm_* (Ad-Herkunft)
  * @property {string}  subject       – Betreff der Lead-Mail (intern)
  */
@@ -95,6 +97,7 @@ export function buildLeadEmail(input) {
     leadPhone = '',
     leadWebsite = '',
     leadMessage = '',
+    leadCallbackSlot = '',
     leadAttribution = undefined,
     subject,
   } = input;
@@ -129,8 +132,9 @@ export function buildLeadEmail(input) {
   textLines.push(`Lead-Anfrage über ${siteName}`);
   textLines.push('');
   if (leadName) textLines.push(`Name:    ${leadName}`);
-  textLines.push(`E-Mail:  ${leadEmail}`);
+  if (leadEmail) textLines.push(`E-Mail:  ${leadEmail}`);
   if (leadPhone) textLines.push(`Telefon: ${leadPhone}`);
+  if (leadCallbackSlot) textLines.push(`Zeitfenster: ${leadCallbackSlot}`);
   if (leadCompany) textLines.push(`Firma:   ${leadCompany}`);
   if (leadStudio) textLines.push(`Studio:  ${leadStudio}`);
   if (leadWebsite) textLines.push(`Website: ${leadWebsite}`);
@@ -148,7 +152,9 @@ export function buildLeadEmail(input) {
   }
   textLines.push('');
   textLines.push('---');
-  textLines.push(`Direkt antworten: ${mailtoHref}`);
+  // Ohne Lead-Adresse (Rückruf-Wunsch) wäre `mailto:` leer — dann zurückrufen.
+  if (leadEmail) textLines.push(`Direkt antworten: ${mailtoHref}`);
+  else if (leadPhone) textLines.push(`Zurückrufen: tel:${leadPhone}`);
   textLines.push('');
   textLines.push('—');
   textLines.push(`Lead-Erfassung • blitzsicht.com`);
@@ -163,6 +169,7 @@ export function buildLeadEmail(input) {
   const safeLeadPhone = leadPhone ? escapeHtml(leadPhone) : '';
   const safeLeadWebsite = leadWebsite ? escapeHtml(leadWebsite) : '';
   const safeLeadMessage = leadMessage ? escapeHtml(leadMessage) : '';
+  const safeLeadCallbackSlot = leadCallbackSlot ? escapeHtml(leadCallbackSlot) : '';
   const buttonLabel = leadName.trim()
     ? `Direkt an ${escapeHtml(leadName.split(/\s+/)[0])} antworten →`
     : `Direkt antworten →`;
@@ -170,8 +177,9 @@ export function buildLeadEmail(input) {
   /** @type {string[]} */
   const rows = [];
   if (safeLeadName) rows.push(detailRow('Name', safeLeadName));
-  rows.push(detailRow('E-Mail', `<a href="mailto:${safeLeadEmail}" style="color:${BRAND_PRIMARY};text-decoration:underline;">${safeLeadEmail}</a>`));
+  if (safeLeadEmail) rows.push(detailRow('E-Mail', `<a href="mailto:${safeLeadEmail}" style="color:${BRAND_PRIMARY};text-decoration:underline;">${safeLeadEmail}</a>`));
   if (safeLeadPhone) rows.push(detailRow('Telefon', `<a href="tel:${safeLeadPhone}" style="color:${BRAND_PRIMARY};text-decoration:underline;">${safeLeadPhone}</a>`));
+  if (safeLeadCallbackSlot) rows.push(detailRow('Zeitfenster', safeLeadCallbackSlot));
   if (safeLeadCompany) rows.push(detailRow('Firma', safeLeadCompany));
   if (safeLeadStudio) rows.push(detailRow('Studio', safeLeadStudio));
   if (safeLeadWebsite) rows.push(detailRow('Website', safeLeadWebsite));
@@ -195,6 +203,26 @@ export function buildLeadEmail(input) {
             </tr>`).join('')}
         </table>`
     : '';
+
+  // Antwort-Knopf: per Mail, wenn es eine Adresse gibt (bisheriges Verhalten), sonst
+  // per Telefon (Rückruf-Wunsch ohne E-Mail). Ohne beides entfällt er.
+  const replyBlock = leadEmail
+    ? `
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 4px;">
+            <tr><td bgcolor="${BRAND_ACCENT}" style="border-radius:8px;">
+              <a href="${mailtoHref}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${buttonLabel}</a>
+            </td></tr>
+          </table>
+          <p style="margin:8px 0 0;font-size:12px;color:#9ca3af;">Antwort geht direkt an ${safeLeadEmail}</p>`
+    : safeLeadPhone
+      ? `
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 4px;">
+            <tr><td bgcolor="${BRAND_ACCENT}" style="border-radius:8px;">
+              <a href="tel:${safeLeadPhone}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">Zurückrufen →</a>
+            </td></tr>
+          </table>
+          <p style="margin:8px 0 0;font-size:12px;color:#9ca3af;">Rückruf erbeten unter ${safeLeadPhone}${safeLeadCallbackSlot ? ` (${safeLeadCallbackSlot})` : ''}</p>`
+      : '';
 
   const html = `<!DOCTYPE html>
 <html lang="de">
@@ -225,13 +253,7 @@ export function buildLeadEmail(input) {
           </table>
 ${messageBlock}
 ${attributionBlock}
-
-          <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 4px;">
-            <tr><td bgcolor="${BRAND_ACCENT}" style="border-radius:8px;">
-              <a href="${mailtoHref}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">${buttonLabel}</a>
-            </td></tr>
-          </table>
-          <p style="margin:8px 0 0;font-size:12px;color:#9ca3af;">Antwort geht direkt an ${safeLeadEmail}</p>
+${replyBlock}
         </td></tr>
 
         <tr><td style="background:${BRAND_PRIMARY};padding:14px 32px;color:#ffffff;font-size:12px;text-align:center;">

@@ -42,8 +42,24 @@ interface Props {
    * ohne Name, Firma und Nachricht — was nicht erhoben wird, muss nicht verwahrt
    * werden, und für einen Release-Versand reicht die Adresse. Texte per Du wie
    * bei `waitlist` (Produkt-Tonalität, z. B. falzmarke).
+   * `rueckruf`: Rückruf-Wunsch (Pflicht: Name + Telefon; optional: Zeitfenster aus
+   * `callbackSlots` und Anliegen). Keine E-Mail — wer zurückgerufen werden will, soll
+   * keine Adresse hergeben müssen. Sendet ein Hidden-Feld `formType=rueckruf`, damit
+   * der contact-handler Telefon statt E-Mail verlangt — nur, wenn der Endpoint
+   * `createContactHandler({ allowRueckruf: true, … })` setzt, sonst antwortet er 400. Anlass: 9 von 12 Kundenseiten
+   * boten weder Online-Termin noch Rückruf-Zeitfenster (Audit 26.09.2026).
    */
-  formType?: 'contact' | 'audit' | 'bewerbung' | 'waitlist' | 'updates';
+  formType?: 'contact' | 'audit' | 'bewerbung' | 'waitlist' | 'updates' | 'rueckruf';
+  /**
+   * Nur `formType="rueckruf"`: Auswahl im Feld „Zeitfenster“. Die erste Option
+   * („egal“, leerer Wert) steht immer davor. Werte max. 60 Zeichen (Server-Grenze).
+   */
+  callbackSlots?: string[];
+  /**
+   * Nächste Schritte im Erfolgsblock, als nummerierte Liste unter dem Text. Gilt für
+   * alle formTypes. Ohne den Prop (oder mit leerem Array) bleibt das Markup unverändert.
+   */
+  nextSteps?: string[];
   /** Email address shown in the no-JS / error fallback. */
   fallbackEmail?: string;
   /** Custom submit endpoint. When set, Web3Forms is bypassed. */
@@ -113,6 +129,8 @@ const {
   adsConsentText = 'Ich willige ein, dass zur Messung des Werbeerfolgs meine Google-Klick-Kennung an Google (Google Ireland Ltd. / Google LLC, USA) übermittelt wird. Freiwillig und jederzeit mit Wirkung für die Zukunft widerrufbar.',
   adsConsentDetails,
   agentTool = false,
+  callbackSlots = ['vormittags (8–12 Uhr)', 'nachmittags (12–17 Uhr)', 'abends (17–19 Uhr)'],
+  nextSteps,
 } = Astro.props;
 
 if (agentTool && adsConsent) {
@@ -131,6 +149,7 @@ const TOOLS: Record<NonNullable<Props['formType']>, { name: string; tut: string 
   bewerbung: { name: 'bewerbung_senden', tut: 'Bewerbung' },
   waitlist: { name: 'warteliste_eintragen', tut: 'Eintrag in die Warteliste' },
   updates: { name: 'updates_abonnieren', tut: 'Anmeldung für Benachrichtigungen über neue Versionen' },
+  rueckruf: { name: 'rueckruf_anfordern', tut: 'Rückruf-Wunsch' },
 };
 const tool = TOOLS[formType];
 // Ohne agentMode sind alle Werte `undefined` — Astro lässt das Attribut dann weg.
@@ -296,6 +315,35 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         </div>
       )}
 
+      {/* Rückruf: Pflicht sind nur Name und Telefon. Das Hidden-Feld `formType` sagt dem
+          contact-handler, dass hier Telefon statt E-Mail verlangt wird — die übrigen
+          Formulare senden es nicht und bleiben unverändert. Test:
+          tests/blocks/contactform-rueckruf.test.js */}
+      {formType === 'rueckruf' && (
+        <>
+          <input type="hidden" name="formType" value="rueckruf" />
+          <div class="form-row">
+            <label for="cf-name">Ihr Name <span aria-hidden="true">*</span></label>
+            <input type="text" id="cf-name" name="name" required autocomplete="name" toolparamdescription={param('Vor- und Nachname der Person, die zurückgerufen werden möchte')} />
+          </div>
+          <div class="form-row">
+            <label for="cf-telefon">Telefon <span aria-hidden="true">*</span></label>
+            <input type="tel" id="cf-telefon" name="telefon" required autocomplete="tel" toolparamdescription={param('Telefonnummer für den Rückruf')} />
+          </div>
+          <div class="form-row">
+            <label for="cf-zeitfenster">Wann passt es Ihnen? <span class="optional">(optional)</span></label>
+            <select id="cf-zeitfenster" name="zeitfenster" toolparamdescription={param('Bevorzugtes Zeitfenster für den Rückruf (optional)')}>
+              <option value="">egal</option>
+              {callbackSlots.map((slot) => <option value={slot}>{slot}</option>)}
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="cf-message">Anliegen <span class="optional">(optional)</span></label>
+            <textarea id="cf-message" name="message" rows="3" toolparamdescription={param('Worum es beim Rückruf gehen soll (optional)')}></textarea>
+          </div>
+        </>
+      )}
+
       {adsConsent && (
         <div class:list={['form-consent', adsConsentDetails && 'has-details']}>
           <input type="checkbox" id="cf-ads-consent" name="marketing_consent" value="true" />
@@ -346,6 +394,12 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       {formType === 'contact' && <p>Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>}
       {formType === 'waitlist' && <p>Wir melden uns, sobald es für dein Studio losgehen kann.</p>}
       {formType === 'updates' && <p>Du bekommst eine Nachricht, wenn eine neue Version erscheint. Sonst nichts.</p>}
+      {formType === 'rueckruf' && <p>Wir rufen Sie im gewünschten Zeitfenster zurück, spätestens am nächsten Werktag.</p>}
+      {nextSteps && nextSteps.length > 0 && (
+        <ol class="form-next-steps">
+          {nextSteps.map((schritt) => <li>{schritt}</li>)}
+        </ol>
+      )}
     </div>
 
     <div class="form-error" hidden>
@@ -539,7 +593,8 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
   }
 
   .contact-form input,
-  .contact-form textarea {
+  .contact-form textarea,
+  .contact-form select {
     padding: 0.625rem 0.875rem;
     border: 1px solid #d1d5db;
     border-radius: 0.375rem;
@@ -551,7 +606,8 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
   }
 
   .contact-form input:focus,
-  .contact-form textarea:focus {
+  .contact-form textarea:focus,
+  .contact-form select:focus {
     outline: 2px solid var(--color-accent);
     outline-offset: 1px;
     border-color: transparent;
@@ -699,6 +755,15 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
   }
   .form-success h3 { font-size: 1.25rem; margin-bottom: 0.5rem; color: var(--color-primary); }
   .form-success p { color: var(--color-muted); margin: 0; }
+  /* Nächste Schritte (Prop nextSteps): Liste linksbündig im zentrierten Block. */
+  .form-next-steps {
+    display: inline-block;
+    text-align: left;
+    margin: 1rem 0 0;
+    padding-left: 1.25rem;
+    color: var(--color-muted);
+  }
+  .form-next-steps li + li { margin-top: 0.25rem; }
 
   /* Fehler */
   .form-error {
