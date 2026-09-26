@@ -1,0 +1,252 @@
+---
+import { PRUEFHINWEIS_GOOGLE } from '../../utils/pruefhinweis.js';
+/**
+ * @cw/core – GoogleBewertungen.astro
+ *
+ * Zeigt Schnitt und Anzahl der Google-Bewertungen eines Kunden — OHNE Google-Request
+ * beim Besucher. Kein Widget, keine Places-API im Browser, kein Google-Font, kein Bild
+ * von Google: Der Operator trägt Schnitt, Anzahl und Stichtag im Monatslauf von Hand in
+ * die Site-Config ein und deployt. Damit braucht der Block keine Einwilligung.
+ *
+ * Rechtliche Leitplanken (recherchiert 26.09.2026, hier fest eingebaut):
+ *   - Stichtag wird immer mit angezeigt („Stand: 09/2026“).
+ *   - Link auf das Google-Profil ist Pflicht (`profileUrl`).
+ *   - „Google“ nur als Wort — KEIN Google-Logo, keine Google-Farben, keine
+ *     Google-Sterne-Optik, kein Maps-Pin. Die Sterne sind ein eigenes, neutrales SVG
+ *     in Markenfarbe.
+ *   - Prüfhinweis nach § 5b Abs. 3 UWG, sobald Zahlen erscheinen.
+ *   - NIE „echte“ oder „verifizierte“ Bewertungen (UWG Anhang Nr. 23b) — der
+ *     Guard `checkReviewClaims` in ai-discovery meldet solche Formulierungen.
+ *   - KEIN AggregateRating-Markup: Google zeigt für selbst erteilte
+ *     LocalBusiness-Bewertungen ohnehin keine Sterne und kann eine manuelle
+ *     Maßnahme verhängen. Der Block gibt deshalb weder Microdata noch JSON-LD aus.
+ *
+ * Veraltete Zahlen: Ist `stand` älter als `maxAgeDays` (Default 45 — ein Monatslauf plus
+ * zwei Wochen Luft), blendet der Block die Zahlen aus und warnt zur Build-Zeit per
+ * `console.warn` mit Präfix `[GoogleBewertungen]`. Der Build bricht NICHT ab: Ein
+ * vergessener Monatslauf soll keinen Hotfix blockieren, er soll nur keinen falschen
+ * Schnitt ausliefern. Ohne Zahlen bleiben Überschrift und Links stehen — dann ist auch
+ * kein Prüfhinweis nötig, weil keine Bewertung wiedergegeben wird.
+ *
+ * Tracking: Klicks auf beide Links feuern `Google Reviews Click` mit Prop
+ * `ziel=profil|schreiben` (OPTIONAL_GOALS in scripts/onboard/plausible-goals.mjs).
+ * Bewusst NICHT über `ctaAttrs()`: ein Klick zu Google ist keine Kontaktaufnahme, und
+ * `ctaKind()` stuft `google.com/maps`-Links als Conversion ein (Routenplanung) — der
+ * Profil-Link wäre sonst still als `CTA Click` gezählt worden. Der globale Listener
+ * zählt denselben Klick zusätzlich als `Outbound Click`; das ist ein anderes Event und
+ * keine Doppelzählung desselben Goals.
+ *
+ * @example
+ *   // site-data.ts — im Monatslauf aktualisieren:
+ *   google: {
+ *     profileUrl: 'https://maps.google.com/?cid=…',
+ *     reviewUrl: 'https://search.google.com/local/writereview?placeid=…',
+ *     rating: 4.8, count: 24, stand: '2026-09-26',
+ *   } satisfies GoogleBewertungenDaten,
+ *
+ *   // Seite:
+ *   <GoogleBewertungen {...siteData.google} />
+ */
+
+/**
+ * Die Daten, die der Operator im Monatslauf pflegt — Form für `siteData.google`.
+ * Per Spread übergeben: `<GoogleBewertungen {...siteData.google} />`.
+ */
+export interface GoogleBewertungenDaten {
+  /** Link auf das Google-Unternehmensprofil (Pflicht). */
+  profileUrl: string;
+  /** Link „Bewertung schreiben“ (z. B. `https://search.google.com/local/writereview?placeid=…`). */
+  reviewUrl?: string;
+  /** Schnitt 1–5, eine Nachkommastelle. */
+  rating?: number;
+  /** Anzahl der Bewertungen. */
+  count?: number;
+  /** Stichtag der Zahlen, ISO `YYYY-MM-DD`. */
+  stand?: string;
+}
+
+interface Props extends GoogleBewertungenDaten {
+  /** Überschrift. Default „Bewertungen auf Google“. */
+  heading?: string;
+  /** Ab wie vielen Tagen die Zahlen als veraltet gelten. Default 45. */
+  maxAgeDays?: number;
+  /** Nur für Tests: Bezugszeitpunkt. Default: Build-Zeit. */
+  now?: Date;
+}
+
+const {
+  profileUrl,
+  reviewUrl,
+  rating,
+  count,
+  stand,
+  heading = 'Bewertungen auf Google',
+  maxAgeDays = 45,
+  now = new Date(),
+} = Astro.props;
+
+const TAG_MS = 86_400_000;
+const warn = (grund: string) => console.warn(`[GoogleBewertungen] ${grund} Zahlen im Monatslauf aktualisieren.`);
+
+/**
+ * Entscheidet, ob Zahlen erscheinen. Jede Abweichung außer „gar nichts gesetzt“ warnt,
+ * weil sie auf einen vergessenen oder verschriebenen Monatslauf hindeutet.
+ */
+function zahlenAnzeigen(): boolean {
+  const gesetzt = [rating, count, stand].filter((v) => v !== undefined && v !== null && v !== '').length;
+  if (gesetzt === 0) return false;
+  if (gesetzt < 3) {
+    warn(`Unvollständig (rating=${rating}, count=${count}, stand=${stand}) — Zahlen ausgeblendet.`);
+    return false;
+  }
+  if (typeof rating !== 'number' || !Number.isFinite(rating) || rating < 1 || rating > 5) {
+    warn(`rating=${rating} liegt nicht zwischen 1 und 5 — Zahlen ausgeblendet.`);
+    return false;
+  }
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 1) {
+    warn(`count=${count} ist keine positive ganze Zahl — Zahlen ausgeblendet.`);
+    return false;
+  }
+  const standMs = /^\d{4}-\d{2}-\d{2}$/.test(String(stand)) ? Date.parse(`${stand}T00:00:00Z`) : NaN;
+  if (Number.isNaN(standMs)) {
+    warn(`stand=${stand} ist kein Datum im Format YYYY-MM-DD — Zahlen ausgeblendet.`);
+    return false;
+  }
+  const alterTage = Math.floor((now.getTime() - standMs) / TAG_MS);
+  // Ein Tag Toleranz nach vorn: Ein Build kurz nach Mitternacht Ortszeit liegt in UTC
+  // noch am Vortag.
+  if (alterTage < -1) {
+    warn(`Stand ${stand} liegt in der Zukunft — Zahlen ausgeblendet.`);
+    return false;
+  }
+  if (alterTage > maxAgeDays) {
+    warn(`Stand ${stand} ist ${alterTage} Tage alt (Grenze ${maxAgeDays}) — Zahlen ausgeblendet.`);
+    return false;
+  }
+  return true;
+}
+
+const mitZahlen = zahlenAnzeigen();
+const ratingText = mitZahlen ? (rating as number).toFixed(1).replace('.', ',') : '';
+const anteil = mitZahlen ? Math.round(((rating as number) / 5) * 1000) / 10 : 0;
+const countText = mitZahlen ? (count as number).toLocaleString('de-DE') : '';
+const bewertungWort = count === 1 ? 'Google-Bewertung' : 'Google-Bewertungen';
+const standText = mitZahlen ? `${String(stand).slice(5, 7)}/${String(stand).slice(0, 4)}` : '';
+const sternenLabel = `${ratingText} von 5 Sternen`;
+
+/** Fünf neutrale Sterne nebeneinander, viewBox 120×24. Kein Google-Design. */
+const STERN = 'M12 2.5l2.83 6.13 6.67.7-5 4.52 1.42 6.57L12 17.1l-5.92 3.32 1.42-6.57-5-4.52 6.67-.7z';
+const sternPfade = [0, 1, 2, 3, 4].map((i) => `translate(${i * 24} 0)`);
+---
+<section class="google-bewertungen">
+  <div class="container">
+    <h2 class="gb-heading">{heading}</h2>
+
+    {mitZahlen && (
+      <p class="gb-zahlen">
+        <span class="gb-sterne" role="img" aria-label={sternenLabel} style={`--gb-anteil: ${anteil}%`}>
+          <svg class="gb-sterne-leer" viewBox="0 0 120 24" width="120" height="24" aria-hidden="true" focusable="false">
+            {sternPfade.map((t) => <path d={STERN} transform={t} fill="currentColor" />)}
+          </svg>
+          <span class="gb-sterne-voll">
+            <svg viewBox="0 0 120 24" width="120" height="24" aria-hidden="true" focusable="false">
+              {sternPfade.map((t) => <path d={STERN} transform={t} fill="currentColor" />)}
+            </svg>
+          </span>
+        </span>
+        <span class="gb-text">{ratingText} von 5 Sternen · {countText} {bewertungWort} · Stand: {standText}</span>
+      </p>
+    )}
+
+    <div class="gb-links">
+      <a href={profileUrl} class="gb-link" target="_blank" rel="noopener" data-google-reviews="profil">
+        Alle Bewertungen auf Google ansehen<span class="sr-only"> (öffnet in neuem Tab)</span>
+      </a>
+      {reviewUrl && (
+        <a href={reviewUrl} class="gb-link" target="_blank" rel="noopener" data-google-reviews="schreiben">
+          Bewertung schreiben<span class="sr-only"> (öffnet in neuem Tab)</span>
+        </a>
+      )}
+    </div>
+
+    {mitZahlen && <p class="gb-hinweis">{PRUEFHINWEIS_GOOGLE}</p>}
+  </div>
+</section>
+
+<script>
+  import { track } from '../../utils/analytics/track';
+  // Delegiert: ein Listener je Seite, auch bei mehreren Blöcken (Astro bündelt das
+  // Skript einmal). Kennzeichen ist `data-google-reviews`, nicht `data-cta` — siehe Kopf.
+  document.addEventListener('click', (e) => {
+    const ziel = (e.target as Element | null)?.closest?.('[data-google-reviews]');
+    if (ziel) track('Google Reviews Click', { ziel: ziel.getAttribute('data-google-reviews') || 'unbekannt' });
+  });
+</script>
+
+<style>
+  .google-bewertungen {
+    padding: 4rem 0;
+    background: var(--color-surface);
+    text-align: center;
+  }
+  .gb-heading {
+    font-size: clamp(1.5rem, 2.5vw, 2rem);
+    font-weight: 700;
+    color: var(--color-primary);
+    margin: 0 0 1rem;
+  }
+  .gb-zahlen {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem 0.75rem;
+    margin: 0 0 1.5rem;
+    color: var(--color-text);
+    font-size: 1.0625rem;
+  }
+  .gb-sterne {
+    position: relative;
+    display: inline-block;
+    line-height: 0;
+    color: var(--color-accent);
+  }
+  /* Leere Sterne: dieselbe Form in abgeschwächter Markenfarbe, keine Graustufe von
+     außen — so bleibt der Block auf hellen wie dunklen Flächen stimmig. */
+  .gb-sterne-leer { opacity: 0.25; }
+  .gb-sterne-voll {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: var(--gb-anteil, 0%);
+    overflow: hidden;
+  }
+  .gb-text { font-weight: 600; }
+  .gb-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem 1.5rem;
+  }
+  /* min-height 48px: WCAG-Tap-Target wie .btn-accent/.btn-outline. */
+  .gb-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0.5rem 0.25rem;
+    color: var(--color-primary);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+  .gb-link:hover { color: var(--color-accent-text, var(--color-primary)); }
+  .gb-link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  .gb-hinweis {
+    max-width: 40rem;
+    margin: 1.5rem auto 0;
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+  }
+</style>
