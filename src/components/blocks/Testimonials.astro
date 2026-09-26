@@ -1,9 +1,10 @@
 ---
+import { PRUEFHINWEIS_GOOGLE, hatPruefhinweis } from '../../utils/pruefhinweis.js';
 /**
  * @cw/core – Testimonials.astro
  *
- * Marquee-Karussell (kontinuierlich nach links scrollend) für verifizierte
- * Kundenstimmen mit Schema.org Review-Markup. Hover/Focus pausiert die
+ * Marquee-Karussell (kontinuierlich nach links scrollend) für Kundenstimmen,
+ * optional mit Schema.org Review-Markup (`schema`, s. u.). Hover/Focus pausiert die
  * Animation, prefers-reduced-motion fällt auf eine statische Centered-Wrap
  * zurück.
  *
@@ -11,9 +12,20 @@
  * sozialen Beweis kinetisch, lässt mehr Stimmen sichtbar als ein 3-Karten-
  * Grid und passt zu jeder Anzahl an Items, ohne das Layout zu kippen.
  *
- * Aggregate-Rating wird automatisch aus den Sternen errechnet und als
- * sichtbarer (nicht display:none) Schema-Knoten ausgespielt — Google
- * akzeptiert nur sichtbares Markup als Quelle für Rich Snippets.
+ * Bewertungs-Markup (Product + AggregateRating + Review-Microdata) gibt es seit
+ * 26.09.2026 NUR noch auf ausdrücklichen Wunsch: `schema` ist per Default nur an,
+ * wenn `productName` gesetzt ist. Vorher war es immer an, Name per Default
+ * „${siteName} Website-Service“ — passend für eine Agentur, die Website-Service
+ * verkauft, auf jeder Kundenseite aber falsches, selbst erteiltes Bewertungs-Markup
+ * für ein Produkt, das es nicht gibt. Google zeigt für selbst erteilte
+ * LocalBusiness-/Organization-Bewertungen keine Sterne und kann eine manuelle
+ * Maßnahme verhängen. Der Guard `checkReviewClaims` (ai-discovery) meldet solches
+ * Markup im gebauten HTML.
+ *
+ * `reviewSource="google"` kennzeichnet die Stimmen mit dem WORT „Google-Bewertung“
+ * (kein Logo — die Wortnennung ist zulässig, das Google-„G“ in Markenfarben nicht)
+ * und setzt den Prüfhinweis nach § 5b Abs. 3 UWG unter den Block, sofern die
+ * `subheading` ihn nicht schon enthält.
  *
  * @example
  *   <Testimonials items={siteData.testimonials} siteName={siteData.name} />
@@ -39,11 +51,22 @@ interface Props {
   heading?: string;
   /** Optional override for the section subheading. */
   subheading?: string;
-  /** Optional override for the Product itemprop name (defaults to `${siteName} Website-Service`). */
+  /**
+   * Name des bewerteten Produkts im Markup (Default `${siteName} Website-Service`).
+   * Wer ihn setzt, bekommt das Markup automatisch (`schema` wird dann `true`).
+   */
   productName?: string;
   /**
-   * Kennzeichnet die Stimmen als Google-Rezensionen: rendert pro Karte ein
-   * Google-„G"-Logo + Label. Opt-in — ohne diesen Prop unverändert.
+   * Schema.org-Markup (Product + AggregateRating + Review) ausgeben.
+   * Default: `true` NUR, wenn `productName` gesetzt ist, sonst `false`.
+   * Nur für ein echtes, eigenes Produkt bzw. eine Dienstleistung einschalten —
+   * nie für den eigenen Betrieb (selbst erteiltes LocalBusiness-Rating).
+   */
+  schema?: boolean;
+  /**
+   * Kennzeichnet die Stimmen als Google-Rezensionen: pro Karte der Text
+   * „Google-Bewertung“ (kein Logo), unter dem Block der Prüfhinweis nach
+   * § 5b Abs. 3 UWG. Opt-in — ohne diesen Prop unverändert.
    */
   reviewSource?: 'google';
   /**
@@ -69,6 +92,7 @@ const {
   heading = 'Das sagen unsere Kunden',
   subheading = 'Bewertungen von Unternehmen aus der Region.',
   productName,
+  schema = productName !== undefined,
   reviewSource,
   ratingValue,
   reviewCount,
@@ -82,16 +106,35 @@ const avgRating = items.length > 0
 // Schema-Aggregat: explizite GBP-Zahlen haben Vorrang vor dem items-Durchschnitt.
 const schemaRating = ratingValue !== undefined ? ratingValue.toFixed(1) : avgRating;
 const schemaCount = reviewCount ?? items.length;
+
+/**
+ * Microdata-Attribute nur mit `schema`. Ohne `schema` entfällt jedes itemscope/
+ * itemtype/itemprop — das sichtbare Markup bleibt Element für Element gleich.
+ * `undefined` lässt Astro das Attribut weg, `true` rendert `itemscope` als
+ * Boolean-Attribut. Bewusst einzelne Attribute statt Spread: Ein Spread auf ein
+ * Element mit Scoped-Style lässt Astro den Scope als `class="astro-…"` statt als
+ * `data-astro-cid-…` setzen — das Markup wiche dann auch MIT `schema` ab.
+ */
+const ip = (name: string) => (schema ? name : undefined);
+const scope = schema ? true : undefined;
+const typ = (name: string) => (schema ? `https://schema.org/${name}` : undefined);
+
+// Prüfhinweis nicht doppeln, wenn der Kunde ihn schon in die Unterzeile geschrieben hat.
+const zeigePruefhinweis = reviewSource === 'google' && !hatPruefhinweis(subheading);
 ---
 {items.length > 0 && (
-<section class="testimonials-marquee" itemscope itemtype="https://schema.org/Product">
-  <meta itemprop="name" content={itempropName} />
-  <div itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
-    <meta itemprop="ratingValue" content={schemaRating} />
-    <meta itemprop="reviewCount" content={String(schemaCount)} />
-    <meta itemprop="bestRating" content="5" />
-    <meta itemprop="worstRating" content="1" />
-  </div>
+<section class="testimonials-marquee" itemscope={scope} itemtype={typ('Product')}>
+  {schema && (
+    <>
+      <meta itemprop="name" content={itempropName} />
+      <div itemprop="aggregateRating" itemscope itemtype="https://schema.org/AggregateRating">
+        <meta itemprop="ratingValue" content={schemaRating} />
+        <meta itemprop="reviewCount" content={String(schemaCount)} />
+        <meta itemprop="bestRating" content="5" />
+        <meta itemprop="worstRating" content="1" />
+      </div>
+    </>
+  )}
   <div class="container">
     <div class="section-header">
       <h2 class="section-heading">{heading}</h2>
@@ -104,31 +147,25 @@ const schemaCount = reviewCount ?? items.length;
       {loop.map((t, i) => (
         <div
           class="testimonial-card"
-          itemprop="review"
-          itemscope
-          itemtype="https://schema.org/Review"
+          itemprop={ip('review')}
+          itemscope={scope}
+          itemtype={typ('Review')}
           aria-hidden={i >= items.length ? 'true' : undefined}
         >
-          <div class="stars" itemprop="reviewRating" itemscope itemtype="https://schema.org/Rating">
-            <meta itemprop="ratingValue" content={String(t.stars)} />
-            <meta itemprop="bestRating" content="5" />
+          <div class="stars" itemprop={ip('reviewRating')} itemscope={scope} itemtype={typ('Rating')}>
+            {schema && <meta itemprop="ratingValue" content={String(t.stars)} />}
+            {schema && <meta itemprop="bestRating" content="5" />}
             {'★'.repeat(t.stars)}
           </div>
-          <blockquote itemprop="reviewBody">{t.text}</blockquote>
+          <blockquote itemprop={ip('reviewBody')}>{t.text}</blockquote>
           <div class="card-foot">
-            <div class="author" itemprop="author" itemscope itemtype="https://schema.org/Person">
-              <strong itemprop="name">{t.name}</strong>
+            <div class="author" itemprop={ip('author')} itemscope={scope} itemtype={typ('Person')}>
+              <strong itemprop={ip('name')}>{t.name}</strong>
               <span>{t.role}</span>
             </div>
             {reviewSource === 'google' && (
-              <span class="gbadge" title="Bewertung auf Google" aria-label="Bewertung auf Google">
-                <svg class="gbadge-logo" viewBox="0 0 48 48" width="20" height="20" role="img" aria-label="Google">
-                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                  <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                  <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-                </svg>
-                <span class="gbadge-text">Google</span>
+              <span class="gbadge">
+                <span class="gbadge-text">Google-Bewertung</span>
               </span>
             )}
           </div>
@@ -136,6 +173,11 @@ const schemaCount = reviewCount ?? items.length;
       ))}
     </div>
   </div>
+  {zeigePruefhinweis && (
+    <div class="container">
+      <p class="pruefhinweis">{PRUEFHINWEIS_GOOGLE}</p>
+    </div>
+  )}
 </section>
 )}
 
@@ -223,10 +265,17 @@ const schemaCount = reviewCount ?? items.length;
     gap: 0.375rem;
     flex: 0 0 auto;
   }
-  .gbadge-logo { display: block; }
   .gbadge-text {
     font-size: 0.8125rem;
     font-weight: 600;
+    color: var(--color-muted, #6b7280);
+  }
+
+  .pruefhinweis {
+    max-width: 40rem;
+    margin: 1.5rem auto 0;
+    text-align: center;
+    font-size: 0.8125rem;
     color: var(--color-muted, #6b7280);
   }
 

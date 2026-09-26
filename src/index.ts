@@ -40,6 +40,7 @@ export type { LeistungItem } from './components/blocks/LeistungenSection.astro';
 export type { PaketeItem } from './components/blocks/PaketeSection.astro';
 export type { FAQItem } from './components/blocks/FAQ.astro';
 export type { Testimonial } from './components/blocks/Testimonials.astro';
+export type { GoogleBewertungenDaten } from './components/blocks/GoogleBewertungen.astro';
 export type { ProcessStep } from './components/blocks/ProcessSteps.astro';
 export type { BenefitItem } from './components/blocks/ArbeitgeberVorteile.astro';
 export type { StelleItem, StelleTyp } from './components/blocks/StellenListe.astro';

@@ -34,6 +34,7 @@ export const PlausibleEvents = {
   ScrollDepth: 'Scroll Depth',
   FaqOpen: 'FAQ Open',
   StickyContactClick: 'Sticky Contact Click',
+  GoogleReviewsClick: 'Google Reviews Click',
 } as const;
 
 export type PlausibleEventName = typeof PlausibleEvents[keyof typeof PlausibleEvents] | string;
