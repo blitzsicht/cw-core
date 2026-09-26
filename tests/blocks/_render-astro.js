@@ -24,7 +24,7 @@ import { experimental_AstroContainer } from 'astro/container';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 
-/** @type {Promise<{ render: (datei: string, props?: Record<string, unknown>) => Promise<string>, close: () => Promise<void> }> | null} */
+/** @type {Promise<{ render: (datei: string, props?: Record<string, unknown>) => Promise<string>, laden: (datei: string) => Promise<Record<string, any>>, close: () => Promise<void> }> | null} */
 let instanz = null;
 
 async function starten() {
@@ -50,6 +50,13 @@ async function starten() {
       const mod = await server.ssrLoadModule(resolve(ROOT, datei));
       return container.renderToString(mod.default, { props });
     },
+    /**
+     * Lädt ein Modul über denselben Vite-Server — für TypeScript mit endungslosen
+     * Imports (z. B. `src/utils/analytics/auto-events.ts`), das `node --test` allein
+     * nicht auflösen kann.
+     * @param {string} datei Pfad relativ zum Repo-Root
+     */
+    laden: (datei) => server.ssrLoadModule(resolve(ROOT, datei)),
     close: () => server.close(),
   };
 }

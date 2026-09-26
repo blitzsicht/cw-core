@@ -1,0 +1,44 @@
+---
+/**
+ * Empfehlungsseite: EmpfehlungSection + ContactForm formType="empfehlung".
+ *
+ * Zweck: im Browser zeigen, was die Unit-Tests nicht erreichen — das Skript
+ * „Link kopieren“ (Clipboard API, Fallback Markieren, aria-live) und die Prüfung
+ * „E-Mail ODER Telefon“ beim Absenden. Dazu `<PlausibleEvents />`, damit ein
+ * Teilen-Klick als `Referral Share` sichtbar wird (window.plausible im DevTools-Log).
+ *
+ * Vorlage für Kundenrepos: src/templates/empfehlen.astro.template
+ */
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import EmpfehlungSection from '@cw/core/components/blocks/EmpfehlungSection.astro';
+import ContactForm from '@cw/core/components/forms/ContactForm.astro';
+import PlausibleEvents from '@cw/core/components/analytics/PlausibleEvents.astro';
+---
+<ExampleLayout
+  title="EmpfehlungSection"
+  description="Teilen per WhatsApp, E-Mail oder Link; Empfehlungs-Formular ohne Pflichtfelder zu Dritten."
+>
+  <div class="example-section">
+    <h2>Ohne Prämie (Default)</h2>
+    <EmpfehlungSection siteName="Bäckerei Müller & Söhne" shareUrl="https://example.org/?a=1&b=2" />
+  </div>
+
+  <div class="example-section">
+    <h2>Mit Prämie (Text 1:1 vom Kunden)</h2>
+    <EmpfehlungSection
+      id="empfehlung-praemie"
+      siteName="Bäckerei Müller & Söhne"
+      shareUrl="https://example.org/"
+      intro="Sie waren zufrieden? Dann erzählen Sie es gern weiter."
+      praemie="Für jede Empfehlung, aus der ein Auftrag wird: 50 € Gutschein."
+      praemieBedingungen="Gilt für Neukunden. Keine Barauszahlung."
+    />
+  </div>
+
+  <div class="example-section">
+    <h2>Formular formType="empfehlung"</h2>
+    <ContactForm formType="empfehlung" actionUrl="/api/contact" siteName="Beispiel" fallbackEmail="info@example.org" turnstileSiteKey="" />
+  </div>
+
+  <PlausibleEvents />
+</ExampleLayout>

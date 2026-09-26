@@ -87,6 +87,12 @@ const TIME_MILESTONES: ReadonlyArray<readonly [number, string]> = [
 const WHATSAPP_RE = /(^|\/\/)(wa\.me|api\.whatsapp\.com)\//;
 
 /**
+ * Teilen-Kanäle der EmpfehlungSection (`data-referral-share`). Whitelist, damit kein
+ * beliebiger Attributwert als Property in Plausible landet.
+ */
+const SHARE_KANAELE = new Set(['whatsapp', 'mail', 'link']);
+
+/**
  * Sektions-Auflösung: explizites `data-location`, sonst die nächste
  * `[data-section]` (der Footer trägt z. B. `data-section="footer"`), sonst
  * 'unknown'.
@@ -168,6 +174,18 @@ function initClickEvents(): void {
   document.addEventListener('click', (e) => {
     const target = e.target as Element | null;
     if (!target?.closest) return;
+
+    // Teilen (EmpfehlungSection) VOR allem anderen und exklusiv: `wa.me/?text=` und
+    // `mailto:?subject=` sind keine Kontaktaufnahme mit dem Kunden. Liefe der Klick
+    // weiter, zählte er als `WhatsApp Click` bzw. `Email Click` — beides CORE-Goals —
+    // und jede geteilte Empfehlung erhöhte die Kontakt-Quote. Dasselbe Messproblem
+    // wie beim `CTA Click` vor v0.156.0. Test: tests/blocks/auto-events-referral-share.test.js
+    const share = target.closest('[data-referral-share]');
+    if (share) {
+      const kanal = share.getAttribute('data-referral-share') ?? '';
+      track('Referral Share', { kanal: SHARE_KANAELE.has(kanal) ? kanal : 'unbekannt' });
+      return;
+    }
 
     const cta = target.closest('[data-cta]');
     if (cta) {

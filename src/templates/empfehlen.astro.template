@@ -1,0 +1,65 @@
+---
+/**
+ * @cw/core Template — Empfehlungsseite
+ *
+ * Copy to: src/pages/empfehlen.astro
+ *
+ * Zweck: Zufriedene Kundinnen und Kunden können die Website weiterempfehlen (Teilen
+ * per WhatsApp, E-Mail oder Link) oder über das Formular sagen, wen sie empfohlen
+ * haben. Anlass: 11 von 12 Kundenseiten hatten keine Empfehlungsseite (Audit
+ * 26.09.2026, Check C8).
+ *
+ * Voraussetzungen im Kundenrepo:
+ *   1. `api/contact.ts` mit `allowEmpfehlung: true` (s. cw-core `templates/api-contact.ts`).
+ *      Ohne das Opt-in lehnt der Endpoint eine Empfehlung ohne E-Mail mit 400 ab und
+ *      meldet sie nur als Zustellfehler an Telegram/GlitchTip.
+ *   2. Datenschutzerklärung mit Kontaktformular-Abschnitt (wie bei /kontakt).
+ *   3. Plausible-Goal „Referral Share“ anlegen, wenn die Seite live geht
+ *      (`plausible-add-goals.mjs --optional`).
+ *
+ * Prämie: NUR eintragen, wenn der Kunde sie selbst formuliert und schriftlich
+ * bestätigt hat. Ohne `praemie` erscheint kein Prämientext.
+ *
+ * Datenschutz: das Formular erhebt über die empfohlene Person höchstens Vorname oder
+ * Firma (freiwillig, 80 Zeichen). Keine weiteren Felder zu Dritten ergänzen.
+ */
+import BaseLayout from '@cw/core/layouts/BaseLayout.astro';
+import EmpfehlungSection from '@cw/core/components/blocks/EmpfehlungSection.astro';
+import ContactForm from '@cw/core/components/forms/ContactForm.astro';
+import { siteData } from '@/data/site-data';
+import PlausibleEvents from '@/components/PlausibleEvents.astro';
+---
+
+<BaseLayout
+  siteName={siteData.name}
+  siteUrl={siteData.url}
+  defaultTitle={siteData.seo.defaultTitle}
+  defaultDescription={siteData.seo.defaultDescription}
+  defaultOgImage={siteData.seo.ogImage}
+  titleTemplate={siteData.seo.titleTemplate}
+  plausibleScript={siteData.analytics?.plausibleScript}
+  plausibleEndpoint="/api/event"
+  title="Weiterempfehlen"
+  description="Zufrieden mit uns? Empfehlen Sie uns per WhatsApp, E-Mail oder Link weiter – oder sagen Sie uns, wen Sie empfohlen haben."
+>
+  {/* Optionale Props:
+        intro="Sie waren zufrieden? Dann erzählen Sie es gern weiter."
+        praemie="Für jede Empfehlung, aus der ein Auftrag wird: 50 € Gutschein."  ← nur mit Freigabe des Kunden
+        praemieBedingungen="Gilt für Neukunden. Keine Barauszahlung." */}
+  <EmpfehlungSection siteName={siteData.name} shareUrl={siteData.url} />
+
+  <section class="empfehlung-formular">
+    <div class="container">
+      <h2 class="section-heading">Sagen Sie uns, wen Sie empfohlen haben</h2>
+      <ContactForm
+        formType="empfehlung"
+        actionUrl="/api/contact"
+        fallbackEmail={siteData.contact.email}
+        siteName={siteData.name}
+        turnstileSiteKey={import.meta.env.PUBLIC_TURNSTILE_SITE_KEY}
+      />
+    </div>
+  </section>
+
+  <PlausibleEvents />
+</BaseLayout>

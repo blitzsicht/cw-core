@@ -16,6 +16,11 @@
 // `allowRueckruf: true` setzen. Ohne das Opt-in bleibt die E-Mail Pflicht; ein Rückruf ohne
 // E-Mail wird abgelehnt und nur als Zustellfehler an Telegram/GlitchTip gemeldet.
 //
+// Empfehlungs-Formular (ContactForm formType="empfehlung", Vorlage
+// src/templates/empfehlen.astro.template): zusätzlich `allowEmpfehlung: true` setzen. Dann
+// genügt Name + E-Mail ODER Telefon; das Feld `empfohlen` (max. 80 Zeichen) landet in Mail
+// und Telegram. Ohne Opt-in gilt dasselbe wie beim Rückruf.
+//
 // OHNE diese Datei liefert Vercel 404 auf /api/contact → totes Formular. Der CI-Guard
 // `validate-form-backend.mjs` erzwingt ihre Existenz.
 import { createContactHandler } from '@cw/core/api/contact-handler';
