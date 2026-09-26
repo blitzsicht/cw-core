@@ -22,6 +22,44 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.160.0 (2026-09-26)
+
+- [kunde:sichtbar] Jeder Blogbeitrag beginnt jetzt mit einem Kasten „Kurz gesagt“, der den
+  Beitrag in wenigen Sätzen zusammenfasst, und zeigt mehr Bilder im Text. Leser sehen
+  sofort, worum es geht, und Suchmaschinen wie KI-Assistenten übernehmen die Zusammenfassung.
+
+**Feature:** Blog-Standard als cw-core-Modul (blitzsicht-ops #894).
+
+*Anlass.* Operator-Regel vom 26.09.2026: jeder Blogbeitrag mit „Kurz gesagt“ am Anfang und
+vielen Bildern. In customer-blitzsicht umgesetzt (#154, #155), dort lokal. Derselbe Befund
+bei Zink (5 Beiträge, 0 Bilder im Text) und siluri.de (41 von 45 ohne Bild) — die Lücke ist
+systemisch, deshalb gehört der Guard hierher.
+
+*Änderung.*
+- `@cw/core/blog-standard`: Prüfregeln (kurzGesagt 120–600 Zeichen, kein `## Kurz gesagt`
+  im Text, Hero nicht doppelt, `max(3, ceil(Wörter/400))` Bilder, Herkunft je Bild, KI-Bild
+  mit Unterschrift). Zählt auch rohes `<img>`/`<figure>`, liest `heroImage` und `image`.
+- ai-discovery prüft `src/content/blog` ohne Konfiguration bei jedem `astro build` und bricht
+  bei Verstoß ab. Abschalten nur mit `blogStandard: false`.
+- `scripts/check-blog-standard.mjs` für den prebuild, auch für Repos ohne ai-discovery
+  (`--herkunft <modul>`, `--ohne-ki-unterschrift`, `--deepfake-label`, `--warnen`).
+  `--deepfake-label`: die Site setzt das AI-Label an Markdown-Bildern selbst (siluri.de).
+- `@cw/core/blog-standard/rehype`: Textbilder werden `<figure class="blog-bild">` mit Maßen,
+  lazy und Bildunterschrift aus dem Titel.
+- `components/blocks/BlogKurzGesagt.astro`: der Kasten, Farben über Tokens.
+- `scripts/blog-bilder-erzeugen.mjs`: Bilder aus `marketing/blog-bilder/manifest.json` erzeugen
+  (Gemini, Screenshot oder eigenes Foto) und in die Beiträge einfügen.
+- Regeltext: `docs/blog-standard.md`.
+
+*Wirkung beim Pin-Bump.* Eine Site mit `src/content/blog` baut erst, wenn jeder Beitrag
+`kurzGesagt` und genug Bilder hat. Vor dem Bump nachrüsten.
+
+*Belege.* 27 Tests in `src/blog-standard/blog-check.test.mjs` (15 aus blitzsicht übernommen),
+4 in `scripts/blog-bilder-erzeugen.test.mjs`;
+Sabotage-Gegenprobe (kurzGesagt-Pflicht aus, Bildzahl nicht streng) → 4 Tests rot.
+
+---
+
 ## v0.159.1 (2026-09-25)
 
 - [kunde] Die Überschriften der Website sind jetzt lückenlos gegliedert: Die Vorteils-Leiste
