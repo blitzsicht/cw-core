@@ -10,6 +10,8 @@ export interface PruefOptionen {
   kurzGesagt?: boolean;
   /** KI-Bilder brauchen den Titel „…KI-generiert“ (Default true). */
   kiUnterschrift?: boolean;
+  /** Die Site setzt das AI-Label an Markdown-Bildern selbst — Deepfakes im Text erlaubt (Default false). */
+  deepfakeLabel?: boolean;
   /** Frontmatter-Felder des Hero-Bilds (Default ['heroImage', 'image']). */
   heroFelder?: string[];
   /** Bildmangel als Fehler statt Hinweis (Default BILDZAHL_STRENG). */

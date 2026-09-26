@@ -8,6 +8,7 @@
 //   --herkunft <modul>         eigener Resolver: Modul exportiert `herkunft(pfad)` (siluri.de)
 //   --ohne-herkunft            Herkunftsprüfung aus (nur für Repos ohne Bild-Register)
 //   --ohne-ki-unterschrift     KI-Bilder brauchen keinen Titel — die Site kennzeichnet selbst
+//   --deepfake-label           die Site labelt Deepfakes im Markdown selbst (rehype-Plugin)
 //   --warnen                   Bildmangel nur als Hinweis (Übergang beim Nachrüsten)
 //
 // Ohne --herkunft liest es src/data/bild-herkunft.ts (Export `bildHerkunft`, erzeugt von
@@ -58,6 +59,7 @@ if (wert('--herkunft')) {
 const r = await pruefeVerzeichnis(dir, {
   herkunft,
   kiUnterschrift: !hat('--ohne-ki-unterschrift'),
+  deepfakeLabel: hat('--deepfake-label'),
   streng: !hat('--warnen'),
 });
 

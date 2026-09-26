@@ -22,6 +22,8 @@
 //    Art. 50 AI Act live. Ein KI-Bild braucht den sichtbaren Titel „…KI-generiert“, der
 //    von rehype-blog-bilder zur Bildunterschrift wird — außer die Site kennzeichnet
 //    Markdown-Bilder selbst (siluri.de: rehype-ki-kennzeichnung), dann `kiUnterschrift: false`.
+//    Ein Deepfake im Text ist ein Fehler, weil Markdown-Bilder kein AI-Label bekommen — es
+//    sei denn, ein rehype-Plugin der Site setzt es (`deepfakeLabel: true`, siluri.de).
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -108,7 +110,7 @@ export const sollBilder = (anzahlWoerter) => Math.max(MIN_BILDER, Math.ceil(anza
  * @returns {import('./blog-check').PruefErgebnis}
  */
 export function pruefe(name, text, opt = {}) {
-  const { herkunft, kurzGesagt = true, kiUnterschrift = true, heroFelder = ['heroImage', 'image'], streng = BILDZAHL_STRENG } = opt;
+  const { herkunft, kurzGesagt = true, kiUnterschrift = true, deepfakeLabel = false, heroFelder = ['heroImage', 'image'], streng = BILDZAHL_STRENG } = opt;
   const teile = zerlege(text);
   if (!teile) return { fehler: [`${name}: kein Frontmatter gefunden — Blogbeiträge brauchen mindestens title und kurzGesagt.`], hinweise: [], ist: 0, soll: 0 };
   const { fm, body } = teile;
@@ -163,6 +165,9 @@ export function pruefe(name, text, opt = {}) {
       if (!r?.quelle) {
         fehler.push(`${name}: ${norm(src)} hat keine Herkunftsregel — in der Bild-Arbeitsliste einordnen und bild-herkunft.ts neu erzeugen.`);
       } else if (r.deepfake === 'ja') {
+        // Mit deepfakeLabel setzt ein rehype-Plugin der Site das Label „Mit KI erzeugt“ ans
+        // Bild — das ist die sichtbare Kennzeichnung, eine zweite Unterschrift braucht es nicht.
+        if (deepfakeLabel) continue;
         fehler.push(`${name}: ${norm(src)} ist als Deepfake deklariert — im Markdown-Text gibt es kein AI-Label, solche Bilder gehören nicht in den Fließtext.`);
       } else if (kiUnterschrift && /^ki-/.test(r.herkunft ?? '') && r.herkunft !== 'ki-veraendert' && !/KI-generiert/i.test(titel)) {
         fehler.push(`${name}: ${norm(src)} ist KI-erzeugt, trägt aber keine sichtbare Unterschrift — Titel „Symbolbild, KI-generiert“ ans Markdown-Bild: ![alt](pfad "Symbolbild, KI-generiert").`);

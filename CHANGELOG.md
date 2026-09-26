@@ -42,7 +42,8 @@ systemisch, deshalb gehört der Guard hierher.
 - ai-discovery prüft `src/content/blog` ohne Konfiguration bei jedem `astro build` und bricht
   bei Verstoß ab. Abschalten nur mit `blogStandard: false`.
 - `scripts/check-blog-standard.mjs` für den prebuild, auch für Repos ohne ai-discovery
-  (`--herkunft <modul>`, `--ohne-ki-unterschrift`, `--warnen`).
+  (`--herkunft <modul>`, `--ohne-ki-unterschrift`, `--deepfake-label`, `--warnen`).
+  `--deepfake-label`: die Site setzt das AI-Label an Markdown-Bildern selbst (siluri.de).
 - `@cw/core/blog-standard/rehype`: Textbilder werden `<figure class="blog-bild">` mit Maßen,
   lazy und Bildunterschrift aus dem Titel.
 - `components/blocks/BlogKurzGesagt.astro`: der Kasten, Farben über Tokens.
@@ -53,7 +54,7 @@ systemisch, deshalb gehört der Guard hierher.
 *Wirkung beim Pin-Bump.* Eine Site mit `src/content/blog` baut erst, wenn jeder Beitrag
 `kurzGesagt` und genug Bilder hat. Vor dem Bump nachrüsten.
 
-*Belege.* 25 Tests in `src/blog-standard/blog-check.test.mjs` (15 aus blitzsicht übernommen),
+*Belege.* 27 Tests in `src/blog-standard/blog-check.test.mjs` (15 aus blitzsicht übernommen),
 4 in `scripts/blog-bilder-erzeugen.test.mjs`;
 Sabotage-Gegenprobe (kurzGesagt-Pflicht aus, Bildzahl nicht streng) → 4 Tests rot.
 

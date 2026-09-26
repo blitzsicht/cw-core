@@ -164,3 +164,15 @@ test('pruefeVerzeichnis: zählt Artikel, meldet den schlechten, ignoriert _-Ordn
   assert.equal(r.fehler.length, 2); // kurzGesagt fehlt + 0 von 3 Bildern, beide in schlecht.md
   assert.ok(r.fehler.every((f) => f.startsWith('schlecht.md')));
 });
+
+test('deepfakeLabel:true — Site labelt selbst, Deepfake im Text erlaubt; ohne Schalter Fehler', () => {
+  const t = fm() + bild('/images/blog/deepfake-ort.webp');
+  assert.ok(pruefe('d.md', t, { herkunft: deklariert }).fehler.some((f) => f.includes('Deepfake')));
+  assert.equal(pruefe('d.md', t, { herkunft: deklariert, deepfakeLabel: true }).fehler.filter((f) => f.includes('Deepfake')).length, 0);
+});
+
+test('deepfakeLabel:true — gelabelter KI-Deepfake braucht keine zusätzliche Unterschrift', () => {
+  const her = (p) => ({ quelle: p, deepfake: 'ja', herkunft: 'ki-erzeugt' });
+  const r = pruefe('d.md', fm() + bild('/images/blog/ki-szene.webp'), { herkunft: her, deepfakeLabel: true });
+  assert.equal(r.fehler.filter((f) => f.includes('Unterschrift') || f.includes('Deepfake')).length, 0);
+});
