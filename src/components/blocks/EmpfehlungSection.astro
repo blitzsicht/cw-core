@@ -1,0 +1,236 @@
+---
+/**
+ * @cw/core – EmpfehlungSection.astro
+ *
+ * „Empfehlen Sie uns weiter“: drei Schritte, Teilen per WhatsApp / E-Mail / Link
+ * kopieren, optional ein Prämien-Satz, den der Kunde selbst formuliert.
+ *
+ * Anlass: 11 von 12 Kundenseiten hatten keine Empfehlungsseite (Audit 26.09.2026,
+ * Check C8). Effekt niedrig, deshalb billig und risikoarm gebaut:
+ *   - Kein Drittanbieter-Script. WhatsApp und E-Mail sind reine Links
+ *     (`https://wa.me/?text=…`, `mailto:?subject=…&body=…`), „Link kopieren“ nutzt die
+ *     Clipboard API mit Fallback auf Markieren im Link-Feld.
+ *   - Keine Prämie ohne `praemie`-Prop. Der Text kommt 1:1 vom Kunden — cw-core
+ *     erfindet kein Versprechen, das der Kunde einlösen müsste.
+ *   - Keine Daten über Dritte. Wer jemanden namentlich empfehlen will, nimmt das
+ *     Formular `ContactForm formType="empfehlung"` (ein freiwilliges Feld, 80 Zeichen).
+ *
+ * Messung: jedes Teilen-Element trägt `data-referral-share="whatsapp|mail|link"`. Der
+ * zentrale Klick-Listener (`utils/analytics/auto-events.ts`) zählt daraus `Referral
+ * Share` mit Prop `kanal` — und NICHT `WhatsApp Click`/`Email Click`: Teilen ist keine
+ * Kontaktaufnahme mit dem Kunden. Deshalb auch kein `ctaAttrs()`/`data-cta` hier. Der
+ * Touchpoint-Audit (`scripts/verify-touchpoints.mjs`) lässt Links mit diesem Marker in
+ * Teilen-Form durch. Goal: OPTIONAL_GOALS in `scripts/onboard/plausible-goals.mjs`.
+ *
+ * Test: tests/blocks/empfehlung-section.test.js
+ *
+ * @example
+ *   <EmpfehlungSection siteName={siteData.name} shareUrl={siteData.url} />
+ */
+interface Props {
+  /** Überschrift. Default „Empfehlen Sie uns weiter“. */
+  heading?: string;
+  /** Einleitungssatz unter der Überschrift (optional). */
+  intro?: string;
+  /** Ablauf als nummerierte Liste. Default: drei Schritte (s. u.). */
+  schritte?: string[];
+  /**
+   * Prämien-Satz, 1:1 vom Kunden (z. B. „Für jede Empfehlung, aus der ein Auftrag wird:
+   * 50 € Gutschein.“). Ohne diesen Prop erscheint KEIN Prämientext.
+   */
+  praemie?: string;
+  /** Kleingedrucktes unter der Prämie. Wirkt nur zusammen mit `praemie`. */
+  praemieBedingungen?: string;
+  /** Die URL, die geteilt wird (in der Regel `siteData.url`). */
+  shareUrl: string;
+  /**
+   * Vorformulierter Teilen-Text. Platzhalter `{siteName}` und `{shareUrl}`. Fehlt
+   * `{shareUrl}`, wird der Link angehängt — sonst teilte man einen Satz ohne Ziel.
+   * Default „Ich kann dir {siteName} empfehlen: {shareUrl}“.
+   */
+  shareText?: string;
+  /** Name des Kunden (`siteData.name`), für Teilen-Text und Mail-Betreff. */
+  siteName: string;
+  /**
+   * Präfix für die Element-IDs (Überschrift, Link-Feld). Default 'empfehlung'. Nur
+   * nötig, wenn der Baustein zweimal auf einer Seite steht — IDs müssen eindeutig sein.
+   */
+  id?: string;
+}
+
+const {
+  heading = 'Empfehlen Sie uns weiter',
+  intro,
+  schritte = ['Link teilen oder uns nennen', 'Ihr Kontakt meldet sich bei uns', 'Wir kümmern uns um den Rest'],
+  praemie,
+  praemieBedingungen,
+  shareUrl,
+  shareText,
+  siteName,
+  id = 'empfehlung',
+} = Astro.props;
+
+const vorlage = shareText ?? 'Ich kann dir {siteName} empfehlen: {shareUrl}';
+let text = vorlage.replaceAll('{siteName}', siteName).replaceAll('{shareUrl}', shareUrl);
+if (!vorlage.includes('{shareUrl}') && !text.includes(shareUrl)) text = `${text} ${shareUrl}`;
+
+// encodeURIComponent: Leerzeichen als %20 (nicht +, das Mailprogramme wörtlich zeigen),
+// & und ? im Text kodiert, damit sie den Query-String nicht zerteilen.
+const whatsappHref = `https://wa.me/?text=${encodeURIComponent(text)}`;
+const mailHref = `mailto:?subject=${encodeURIComponent(`Empfehlung: ${siteName}`)}&body=${encodeURIComponent(text)}`;
+---
+<section class="empfehlung-section" data-section="empfehlung" aria-labelledby={`${id}-heading`}>
+  <div class="container">
+    <h2 id={`${id}-heading`} class="section-heading">{heading}</h2>
+    {intro && <p class="empfehlung-intro">{intro}</p>}
+    {praemie && (
+      <div class="empfehlung-praemie-box">
+        <p class="empfehlung-praemie">{praemie}</p>
+        {praemieBedingungen && <p class="empfehlung-praemie-bedingungen"><small>{praemieBedingungen}</small></p>}
+      </div>
+    )}
+
+    <ol class="empfehlung-schritte">
+      {schritte.map((schritt) => <li class="empfehlung-schritt">{schritt}</li>)}
+    </ol>
+
+    <div class="empfehlung-share" data-empfehlung-share>
+      <div class="empfehlung-share-links">
+        <a class="btn-accent" href={whatsappHref} target="_blank" rel="noopener noreferrer" data-referral-share="whatsapp">Per WhatsApp teilen</a>
+        <a class="btn-outline" href={mailHref} data-referral-share="mail">Per E-Mail teilen</a>
+      </div>
+      <div class="empfehlung-copy">
+        <label for={`${id}-link`}>Link zu unserer Website</label>
+        <div class="empfehlung-copy-row">
+          <input id={`${id}-link`} type="text" readonly value={shareUrl} />
+          <button type="button" class="empfehlung-copy-btn" data-referral-share="link" data-share-url={shareUrl}>Link kopieren</button>
+        </div>
+        <p class="empfehlung-status" aria-live="polite" data-empfehlung-status></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // „Link kopieren“: Clipboard API, sonst Link im Feld markieren. Die Rückmeldung geht
+  // in die aria-live-Region, damit ein Screenreader sie ansagt. Gezählt wird der Klick
+  // zentral in auto-events.ts (data-referral-share), nicht hier.
+  document.querySelectorAll<HTMLElement>('[data-empfehlung-share]').forEach((box) => {
+    const btn = box.querySelector<HTMLButtonElement>('button[data-share-url]');
+    const feld = box.querySelector<HTMLInputElement>('input[readonly]');
+    const status = box.querySelector<HTMLElement>('[data-empfehlung-status]');
+    if (!btn) return;
+    const melden = (t: string) => {
+      if (status) status.textContent = t;
+    };
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.shareUrl ?? '';
+      try {
+        if (!navigator.clipboard?.writeText) throw new Error('keine Clipboard API');
+        await navigator.clipboard.writeText(url);
+        melden('Link kopiert.');
+      } catch {
+        feld?.focus();
+        feld?.select();
+        melden('Link markiert – jetzt mit Strg+C bzw. ⌘+C kopieren.');
+      }
+    });
+  });
+</script>
+
+<style>
+  .empfehlung-section { padding: 4.5rem 0 5rem; }
+  .empfehlung-section .section-heading { text-align: center; }
+
+  .empfehlung-intro {
+    max-width: 40rem;
+    margin: 0.75rem auto 0;
+    text-align: center;
+    color: var(--color-muted);
+  }
+
+  .empfehlung-praemie-box {
+    max-width: 40rem;
+    margin: 1.5rem auto 0;
+    padding: 1rem 1.25rem;
+    border-left: 4px solid var(--color-accent);
+    background: var(--color-surface);
+    border-radius: 0.5rem;
+  }
+  .empfehlung-praemie {
+    margin: 0;
+    font-weight: 700;
+    color: var(--color-primary);
+  }
+  .empfehlung-praemie-bedingungen {
+    margin: 0.5rem 0 0;
+    color: var(--color-muted);
+  }
+
+  .empfehlung-schritte {
+    max-width: 40rem;
+    margin: 2rem auto 0;
+    padding-left: 1.5rem;
+    color: var(--color-text);
+  }
+  .empfehlung-schritt + .empfehlung-schritt { margin-top: 0.5rem; }
+
+  .empfehlung-share {
+    max-width: 40rem;
+    margin: 2rem auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .empfehlung-share-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .empfehlung-copy label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 0.375rem;
+  }
+  .empfehlung-copy-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .empfehlung-copy-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--color-muted);
+    border-radius: 0.375rem;
+    font: inherit;
+    font-size: 0.875rem;
+    color: var(--color-text);
+    background: var(--color-surface);
+  }
+  .empfehlung-copy-btn {
+    padding: 0.5rem 0.875rem;
+    border: 1px solid var(--color-primary);
+    border-radius: 0.375rem;
+    background: transparent;
+    color: var(--color-primary);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .empfehlung-share a:focus-visible,
+  .empfehlung-copy-btn:focus-visible,
+  .empfehlung-copy-row input:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  .empfehlung-status {
+    min-height: 1.25rem;
+    margin: 0.375rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+  }
+</style>

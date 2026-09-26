@@ -34,6 +34,8 @@ export const PlausibleEvents = {
   ScrollDepth: 'Scroll Depth',
   FaqOpen: 'FAQ Open',
   StickyContactClick: 'Sticky Contact Click',
+  /** EmpfehlungSection: Link geteilt (Prop `kanal`). Kein Kontakt-Goal. */
+  ReferralShare: 'Referral Share',
 } as const;
 
 export type PlausibleEventName = typeof PlausibleEvents[keyof typeof PlausibleEvents] | string;

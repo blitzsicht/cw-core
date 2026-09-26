@@ -27,6 +27,9 @@ import { captureError } from './error-sink.js';
  *                        Telefon + Zeitfenster werden in jedem Formular geprüft, sobald
  *                        sie gesendet werden (Telefon: nur Ziffern, Leerzeichen, + ( ) / - .
  *                        und ein Durchwahl-Trenner).
+ *                        Bei `formType=empfehlung` UND `allowEmpfehlung: true`: Name
+ *                        Pflicht, E-Mail ODER Telefon (mindestens eins), `empfohlen`
+ *                        freiwillig und max. 80 Zeichen.
  *   8. Content-Filter  — Spam-Keywords / mehrere URLs / BTC/ETH / Cyrillic-Anteil
  *                        -> silent drop (200 ok); mit Turnstile-Secret zusätzlich
  *                        GlitchTip-Meldung (nur der Grund, kein Inhalt)
@@ -85,6 +88,11 @@ import { captureError } from './error-sink.js';
  *   Ohne Opt-in wird `formType=rueckruf` wie ein normaler Kontakt behandelt; fehlt dann
  *   die E-Mail, antwortet der Endpoint 400, meldet den Lead aber als Zustellfehler an
  *   Telegram + GlitchTip (eingebautes Formular, vergessenes Opt-in → kein stiller Verlust).
+ * @property {boolean} [allowEmpfehlung] – Opt-in für ContactForm formType="empfehlung".
+ *   Default false, Begründung wie bei `allowRueckruf`. Nur mit `true` gilt: Name Pflicht,
+ *   E-Mail ODER Telefon (mindestens eins), Feld `empfohlen` (max. 80 Zeichen, läuft durch
+ *   den Inhaltsfilter), Lead als `kind: 'empfehlung'`. Ohne Opt-in wie ein Kontakt; eine
+ *   Empfehlung ohne E-Mail, aber mit Telefon → 400 + Alarm an Telegram und GlitchTip.
  */
 
 /**
@@ -96,9 +104,10 @@ import { captureError } from './error-sink.js';
  * @property {string} [message]
  * @property {string} [website]
  * @property {string} [studio]  – Studio-/Betriebsname (formType="waitlist")
- * @property {string} [formType] – nur 'rueckruf' wird ausgewertet (Hidden-Feld des Rückruf-Formulars)
+ * @property {string} [formType] – nur 'rueckruf' und 'empfehlung' werden ausgewertet (Hidden-Feld)
  * @property {string} [telefon]  – Rückrufnummer (formType="rueckruf"), mind. 6 Ziffern
  * @property {string} [zeitfenster] – gewünschtes Rückruf-Zeitfenster, max. 60 Zeichen
+ * @property {string} [empfohlen] – Vorname oder Firma der empfohlenen Person (formType="empfehlung"), max. 80 Zeichen
  * @property {string|boolean} [botcheck]
  * @property {string} [url_honey]
  * @property {string} [cf-turnstile-response]
@@ -162,6 +171,9 @@ const ATTRIBUTION_MAX_LEN = 512; // harte Kappung gegen Payload-Missbrauch
 const TELEFON_MIN_ZIFFERN = 6;
 const TELEFON_MAX_LEN = 40;     // „+49 (0) 941 123 456-78 Durchwahl 12“ passt, ein Roman nicht
 const ZEITFENSTER_MAX_LEN = 60;
+// Empfehlung (ContactForm formType="empfehlung"): nur Vorname oder Firma — mehr über
+// Dritte soll das Formular nicht erheben. Gleiche Grenze wie `maxlength` im Formular.
+const EMPFOHLEN_MAX_LEN = 80;
 // Erlaubte Zeichen: Ziffern, Leerzeichen, + ( ) / - . — optional EIN Durchwahl-Trenner
 // („ext“, „ext.“, „x“, „DW“, „Durchwahl“) mit Ziffern dahinter. Buchstaben sonst nie:
 // die Nummer steht in der Lead-Mail als tel:-Link, dort hat Text nichts verloren.
@@ -306,6 +318,7 @@ export function createContactHandler(config) {
   const extraSpamKeywords = config.extraSpamKeywords || [];
   const kind = config.kind || 'contact-form';
   const allowRueckruf = config.allowRueckruf === true;
+  const allowEmpfehlung = config.allowEmpfehlung === true;
 
   const inner = async function handleContact(req, res) {
     if (req.method !== 'POST') {
@@ -400,12 +413,26 @@ export function createContactHandler(config) {
     // `allowRueckruf`. Nicht annehmen, aber auch nicht still verlieren — der Lead geht
     // unten als Zustellfehler an Telegram (+ GlitchTip), der Nutzer bekommt 400.
     const rueckrufNichtFreigeschaltet = rueckrufAngefragt && !allowRueckruf && !email && !!telefon;
+    // Empfehlung: dasselbe Muster mit eigenem Opt-in `allowEmpfehlung`. Die beiden
+    // Opt-ins sind getrennt — ein Rückruf-Endpoint nimmt keine Empfehlung an und umgekehrt.
+    const empfehlungAngefragt = body.formType === 'empfehlung';
+    const istEmpfehlung = empfehlungAngefragt && allowEmpfehlung;
+    const empfehlungNichtFreigeschaltet = empfehlungAngefragt && !allowEmpfehlung && !email && !!telefon;
     if (istRueckruf) {
       if (email && !email.includes('@')) {
         res.status(400).json({ ok: false, error: 'E-Mail-Adresse ist ungültig.' });
         return;
       }
-    } else if (!rueckrufNichtFreigeschaltet && (!email || !email.includes('@'))) {
+    } else if (istEmpfehlung) {
+      if (!email && !telefon) {
+        res.status(400).json({ ok: false, error: 'Bitte E-Mail-Adresse oder Telefonnummer angeben.' });
+        return;
+      }
+      if (email && !email.includes('@')) {
+        res.status(400).json({ ok: false, error: 'E-Mail-Adresse ist ungültig.' });
+        return;
+      }
+    } else if (!rueckrufNichtFreigeschaltet && !empfehlungNichtFreigeschaltet && (!email || !email.includes('@'))) {
       res.status(400).json({ ok: false, error: 'E-Mail-Adresse fehlt oder ist ungültig.' });
       return;
     }
@@ -426,6 +453,17 @@ export function createContactHandler(config) {
     }
 
     const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (istEmpfehlung && !name) {
+      res.status(400).json({ ok: false, error: 'Name fehlt.' });
+      return;
+    }
+    // `empfohlen` nur mit Opt-in auswerten — ohne bleibt die Anfrage ein Kontakt, und
+    // der kennt das Feld nicht.
+    const empfohlen = istEmpfehlung && typeof body.empfohlen === 'string' ? body.empfohlen.trim() : '';
+    if (empfohlen.length > EMPFOHLEN_MAX_LEN) {
+      res.status(400).json({ ok: false, error: 'Angabe zur empfohlenen Person ist zu lang (höchstens 80 Zeichen).' });
+      return;
+    }
     const company = typeof body.company === 'string' ? body.company.trim() : '';
     // `telefon` (Rückruf) vor `phone` (Bewerbung) — beide landen im selben Lead-Feld.
     const phone = telefon || (typeof body.phone === 'string' ? body.phone.trim() : '');
@@ -448,7 +486,7 @@ export function createContactHandler(config) {
     // Prüfung oben bestanden, ein Browser saß also davor. Dann melden wir den Drop — ein
     // KI-Agent, der zwei Links in die Nachricht schreibt, verschwindet sonst spurlos. Ohne
     // Secret bleibt es still, sonst meldet jeder Bot. Weder Log noch Meldung tragen Inhalte.
-    const haystack = [name, company, studio, message, website, zeitfenster, telefon].filter(Boolean).join(' ');
+    const haystack = [name, company, studio, message, website, zeitfenster, telefon, empfohlen].filter(Boolean).join(' ');
     const grund = spamGrund(haystack, extraSpamKeywords);
     if (grund) {
       console.log('[contact-handler] spam pattern matched, ip=', ip, 'grund=', grund);
@@ -467,9 +505,12 @@ export function createContactHandler(config) {
     const leadData = {
       project: process.env.PROJECT_NAME || process.env.VERCEL_GIT_REPO_SLUG || '',
       fromName, name, email, company, phone, website, message,
-      kind: istRueckruf ? /** @type {const} */ ('rueckruf') : kind,
+      kind: istRueckruf
+        ? /** @type {const} */ ('rueckruf')
+        : istEmpfehlung ? /** @type {const} */ ('empfehlung') : kind,
       ...(studio ? { studio } : {}),
       ...(zeitfenster ? { zeitfenster } : {}),
+      ...(empfohlen ? { empfohlen } : {}),
       ...(attribution ? { attribution } : {}),
     };
     const leadCtx = {
@@ -491,6 +532,22 @@ export function createContactHandler(config) {
         extra: { formular: kind },
       });
       res.status(400).json({ ok: false, error: 'Rückruf-Formular ist hier nicht freigeschaltet.' });
+      return;
+    }
+
+    // Empfehlung ohne Opt-in: wie beim Rückruf kein Versand, aber Alarm statt Verlust.
+    if (empfehlungNichtFreigeschaltet) {
+      console.error('[contact-handler] formType=empfehlung ohne allowEmpfehlung — Lead nur per Telegram gemeldet');
+      await emitLead(leadData, {
+        ...leadCtx,
+        deliveryError: 'Empfehlungs-Formular an diesem Endpoint nicht freigeschaltet (allowEmpfehlung fehlt in api/contact)',
+      });
+      await captureError(new Error('contact-drop:empfehlung-ohne-opt-in'), {
+        project: leadData.project,
+        where: 'contact-handler:empfehlung-ohne-opt-in',
+        extra: { formular: kind },
+      });
+      res.status(400).json({ ok: false, error: 'Empfehlungs-Formular ist hier nicht freigeschaltet.' });
       return;
     }
 
@@ -530,6 +587,7 @@ export function createContactHandler(config) {
       leadWebsite: website,
       leadMessage: message,
       leadCallbackSlot: zeitfenster,
+      leadEmpfohlen: empfohlen,
       leadAttribution: attribution,
       subject,
     });

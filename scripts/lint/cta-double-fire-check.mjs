@@ -165,6 +165,78 @@ export function hasBothCtaAndNav(content) {
   return false;
 }
 
+/**
+ * Echter Kontaktweg im öffnenden Tag: `tel:`, `mailto:` MIT Adresse, `wa.me/<nummer>`,
+ * `api.whatsapp.com/send?…phone=`. Teilen-Links (`mailto:?…`, `wa.me/?text=`) sind es nicht.
+ * @param {string} tag
+ */
+function istKontaktLink(tag) {
+  const href = /\shref\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1]?.trim() ?? '';
+  return (
+    /^tel:/i.test(href) ||
+    /^mailto:[^?\s]/i.test(href) ||
+    /^https?:\/\/wa\.me\/\+?\d/i.test(href) ||
+    /^https?:\/\/api\.whatsapp\.com\/send\?(?:[^"']*&(?:amp;|#38;)?)?phone=/i.test(href)
+  );
+}
+
+/** Zählender Tag: data-cta / data-nav-click (ohne data-cta-type) oder ctaAttrs-Spread. @param {string} tag */
+function istZaehlend(tag) {
+  const ohneTyp = tag.replace(/\bdata-cta-type\s*=/g, '');
+  return /\bdata-(cta|nav-click)\s*=/.test(ohneTyp) || /\{\s*\.\.\.\s*ctaAttrs\s*\(/.test(tag);
+}
+
+/** HTML-Elemente ohne schließendes Tag. */
+const VOID_TAGS = new Set(['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr']);
+
+/**
+ * `data-referral-share` schluckt einen echten Kontakt-Klick.
+ *
+ * auto-events.ts sucht per `closest('[data-referral-share]')` und kehrt danach zurück
+ * (exklusiver Zweig, damit Teilen nicht als WhatsApp/Email Click zählt). Liegt der
+ * Marker auf demselben Element, einem Vorfahren oder einem Nachfahren eines echten
+ * Kontaktwegs (`tel:`, `mailto:` mit Adresse, `wa.me/<nummer>`,
+ * `api.whatsapp.com/send?phone=`) oder eines zählenden Elements (`data-cta`,
+ * `data-nav-click`, `ctaAttrs`-Spread), verschwindet dieser Klick still aus der Messung.
+ *
+ * Nachfahre zählt mit: Ein Klick auf ein Kind mit Marker innerhalb eines tel:-Links
+ * findet zuerst das Kind — der Anruf würde nie gezählt.
+ *
+ * Grob wie `hasBothCtaAndNav`, aber mit Verschachtelung: Stapel über die öffnenden
+ * und schließenden Tags. Frontmatter, `<script>` und `<style>` werden vorher entfernt
+ * (TypeScript-Generics wie `querySelector<HTMLElement>` sähen sonst wie Tags aus).
+ * Läuft auf `.astro`-Quelltext und auf gerendertem HTML.
+ *
+ * @param {string} content
+ * @returns {boolean}
+ */
+export function hasReferralShareConflict(content) {
+  const markup = ohneKommentare(content.replace(/^---[\s\S]*?\n---/, ''))
+    .replace(/<script\b[\s\S]*?<\/script>/gi, '')
+    .replace(/<style\b[\s\S]*?<\/style>/gi, '');
+  if (!/\bdata-referral-share\b/.test(markup)) return false;
+  /** @type {{name: string, marker: boolean, kontakt: boolean}[]} */
+  const stapel = [];
+  // Öffnende Tags dürfen {…}-Ausdrücke mit `>` enthalten (Arrow-Functions in Astro).
+  const TAG = /<\/([a-zA-Z][\w-]*)\s*>|<([a-zA-Z][\w-]*)((?:[^>{}]|\{(?:[^{}]|\{[^{}]*\})*\})*)>/g;
+  for (const m of markup.matchAll(TAG)) {
+    if (m[1]) {
+      const name = m[1].toLowerCase();
+      const i = stapel.map((e) => e.name).lastIndexOf(name);
+      if (i >= 0) stapel.length = i;
+      continue;
+    }
+    const name = m[2].toLowerCase();
+    const tag = m[0];
+    const marker = /\sdata-referral-share\b/.test(tag);
+    const kontakt = istKontaktLink(tag) || istZaehlend(tag);
+    if (marker && (kontakt || stapel.some((e) => e.kontakt))) return true;
+    if (kontakt && stapel.some((e) => e.marker)) return true;
+    if (!VOID_TAGS.has(name) && !/\/\s*>$/.test(tag)) stapel.push({ name, marker, kontakt });
+  }
+  return false;
+}
+
 /** data-cta-Attribut-Nutzung in der Template-Markup (data-cta=...). */
 export function hasDataCtaAttr(content) {
   return /data-cta\s*=/.test(content);
@@ -186,7 +258,8 @@ export function isAllowlisted(path) {
  *
  * @returns {{path:string, clickTrack:boolean, dataCta:boolean, allowlisted:boolean,
  *   annotated:boolean, submitTrack:boolean, formEl:boolean, formMarker:boolean,
- *   ctaViolation:boolean, formViolation:boolean, violation:boolean}}
+ *   ctaViolation:boolean, formViolation:boolean, literalCta:boolean, bothAttrs:boolean,
+ *   literalViolation:boolean, exclusivityViolation:boolean, shareConflict:boolean, violation:boolean}}
  */
 export function analyze(path, content) {
   const clickTrack = hasClickTrackListener(content);
@@ -200,6 +273,7 @@ export function analyze(path, content) {
   // Die SSOT-Listener und die Util selbst duerfen die Attribute nennen.
   const literalViolation = literalCta && !allowlisted;
   const exclusivityViolation = bothAttrs;
+  const shareConflict = hasReferralShareConflict(content);
 
   const submitTrack = hasSubmitTrackListener(content);
   const formEl = hasFormElement(content);
@@ -223,7 +297,8 @@ export function analyze(path, content) {
     formViolation,
     literalViolation,
     exclusivityViolation,
-    violation: ctaViolation || formViolation || literalViolation || exclusivityViolation,
+    shareConflict,
+    violation: ctaViolation || formViolation || literalViolation || exclusivityViolation || shareConflict,
   };
 }
 
@@ -237,6 +312,16 @@ export function findViolations(files) {
 
 /** Menschenlesbare Fehlermeldung für eine Violation (graceful degradation). */
 export function formatViolation(v) {
+  if (v.shareConflict) {
+    return (
+      `data-referral-share an einem Kontaktweg: ${v.path}\n` +
+      `  Der Marker sitzt auf, über oder unter einem tel:/mailto:/wa.me-Link oder einem\n` +
+      `  data-cta/data-nav-click-Element. auto-events.ts zählt dann nur "Referral Share"\n` +
+      `  und der echte Kontakt-Klick fehlt still in Phone/Email/WhatsApp/CTA Click.\n` +
+      `  Fix: Marker nur an reine Teilen-Elemente (mailto:? ohne Adresse, wa.me/?text=,\n` +
+      `  Kopier-Button) — nie in deren Verschachtelung mit einem Kontaktweg.`
+    );
+  }
   if (v.exclusivityViolation) {
     return (
       `data-cta UND data-nav-click am selben Element: ${v.path}\n` +
