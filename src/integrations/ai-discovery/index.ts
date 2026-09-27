@@ -53,6 +53,8 @@ import {
 } from './perf-check.js';
 import { checkEmbedConsent } from './embed-consent-check.js';
 import { checkReviewClaims } from './review-claims-check.js';
+import { checkStickyTel } from './sticky-tel-check.js';
+import { checkOpeningHours } from './opening-hours-check.js';
 import {
   buildMarkerOwners,
   checkMotionConsent,
@@ -483,6 +485,42 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * ohne False-Positives.
    */
   strictReviewClaims?: boolean;
+
+  /**
+   * Default true. Sticky-Anruf-Guard: hat die Site einen `tel:`-Link, aber auf der
+   * Startseite keinen in einem fixierten, auf dem Handy sichtbaren Element
+   * (StickyMobileCTA href="tel:…", FloatingCallButton, StickyContact, sticky Header),
+   * kommt EINE Warnung pro Site. Impressum/Datenschutz/Danke/404 zählen nicht.
+   *
+   * Auslöser (Lead-Rakete-Audit 26.09.2026): gottl-richter-gomeier und schiller-gartenbau
+   * führten die Sticky-Leiste auf /kontakt, baeckereizink hatte gar keine, allstargirls
+   * blendete StickyContact auf dem Handy aus. Grenzen: sticky-tel-check.js (Kopf).
+   */
+  checkStickyTel?: boolean;
+  /**
+   * Default FALSE (Soft-Warn-Start, opt-IN) → `true` bricht den Build ab.
+   */
+  strictStickyTel?: boolean;
+  /**
+   * Opt-out je Site: `false` = die Site will bewusst keine fixierte Anruf-Möglichkeit
+   * (z. B. SaaS-Produktseite, Nummer nur als Pflichtangabe). Wirkt wie
+   * `checkStickyTel: false`, sagt aber, WARUM.
+   */
+  stickyTel?: boolean;
+
+  /**
+   * Default true. Öffnungszeiten-Guard: meldet JSON-LD-Knoten mit LocalBusiness-Typ
+   * (inkl. Untertypen wie Bakery, Electrician, HairSalon) ohne `openingHours` und ohne
+   * `openingHoursSpecification`. Pro Knoten-`@id` eine Meldung, nicht pro Seite.
+   *
+   * Auslöser (Lead-Rakete-Audit 26.09.2026): baeckereizink — Bakery-Hauptobjekt mit
+   * `seo.openingHours: []`; SchemaOrg.astro lässt die leere Liste still weg.
+   */
+  checkOpeningHours?: boolean;
+  /**
+   * Default FALSE (Soft-Warn-Start, opt-IN) → `true` bricht den Build ab.
+   */
+  strictOpeningHours?: boolean;
 
   /**
    * Default TRUE seit v0.75.0 (strict-Flip, Fleet clean nach v0.74.0-a11y-Fix) → Build-Fail
@@ -3643,6 +3681,58 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             }
           } else {
             logger.info('Bewertungs-Guard: ✓ keine unzulässigen Bewertungs-Aussagen, kein selbst erteiltes AggregateRating.');
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Sticky-Anruf-Guard: Nummer vorhanden, aber nichts Fixiertes zum Anrufen
+        // -------------------------------------------------------------------
+        // Auslöser 2026-09-26 (Lead-Rakete-Audit): GRG/SCH Sticky auf /kontakt, ZNK ohne
+        // Sticky, ASG StickyContact auf dem Handy ausgeblendet. Einmal pro Site.
+        if (options.checkStickyTel !== false && options.stickyTel !== false) {
+          const seiten = walkHtml(distDir).map((file) => ({
+            page: file.slice(distDir.length).replace(/^\//, '') || 'index.html',
+            html: readFileSync(file, 'utf-8'),
+          }));
+          const stickyIssues = checkStickyTel(seiten, { stickyTel: options.stickyTel });
+          if (stickyIssues.length > 0) {
+            for (const si of stickyIssues) logger.warn(`Sticky-Anruf-Guard: [${si.type}] ${si.details}`);
+            if (options.strictStickyTel === true) {
+              throw new Error('[ai-discovery] strictStickyTel=true: Build abgebrochen — keine fixierte Anruf-Möglichkeit auf Mobilgeräten.');
+            }
+          } else {
+            logger.info('Sticky-Anruf-Guard: ✓ fixierte Anruf-Möglichkeit vorhanden (oder keine Nummer).');
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Öffnungszeiten-Guard: LocalBusiness im JSON-LD ohne Öffnungszeiten
+        // -------------------------------------------------------------------
+        // Auslöser 2026-09-26 (Lead-Rakete-Audit): baeckereizink Bakery-Hauptobjekt mit
+        // seo.openingHours: []. Entdoppelt pro @id — das Hauptobjekt steht auf jeder Seite.
+        if (options.checkOpeningHours !== false) {
+          const proKnoten = new Map<string, { details: string; seiten: number }>();
+          for (const file of walkHtml(distDir)) {
+            const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+            for (const oi of checkOpeningHours(readFileSync(file, 'utf-8'), rel)) {
+              const bisher = proKnoten.get(oi.id);
+              if (bisher) bisher.seiten++;
+              else proKnoten.set(oi.id, { details: oi.details, seiten: 1 });
+            }
+          }
+          if (proKnoten.size > 0) {
+            logger.warn(`Öffnungszeiten-Guard: ${proKnoten.size} LocalBusiness-Knoten ohne Öffnungszeiten:`);
+            for (const [, k] of [...proKnoten].slice(0, 8)) {
+              logger.warn(`  [missing_opening_hours] ${k.details}${k.seiten > 1 ? ` (auf ${k.seiten} Seiten)` : ''}`);
+            }
+            if (proKnoten.size > 8) logger.warn(`  … und ${proKnoten.size - 8} weitere.`);
+            if (options.strictOpeningHours === true) {
+              throw new Error(
+                `[ai-discovery] strictOpeningHours=true: Build abgebrochen — ${proKnoten.size} LocalBusiness-Knoten ohne Öffnungszeiten.`,
+              );
+            }
+          } else {
+            logger.info('Öffnungszeiten-Guard: ✓ jeder LocalBusiness-Knoten trägt Öffnungszeiten.');
           }
         }
 

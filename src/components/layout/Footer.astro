@@ -1,6 +1,7 @@
 ---
 import cwCorePkg from '../../../package.json';
 import { phoneToTelHref } from '../../utils/text/tel-href';
+import { waHref } from '../../utils/text/wa-href.js';
 import { ctaAttrs } from '../../utils/analytics/cta-kind.js';
 const cwCoreVersion = cwCorePkg.version;
 
@@ -167,8 +168,8 @@ const {
 const year = new Date().getFullYear();
 const copyrightOwner = owner ?? siteName;
 
-const waDigits = whatsapp?.replace(/\D/g, '');
-const footerWaLink = waDigits ? `https://wa.me/${waDigits}` : null;
+// Normalisierung zentral in waHref (nationale „0151 …“ → 49151…, vorher kaputt).
+const footerWaLink = whatsapp && /\d/.test(whatsapp) ? waHref(whatsapp) : null;
 
 const explicitOptOut = statusBadge === null;
 const autoSlugRaw = (import.meta.env as Record<string, unknown>).CW_CUSTOMER_SLUG;

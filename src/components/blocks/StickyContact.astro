@@ -1,4 +1,6 @@
 ---
+import { waHref } from '../../utils/text/wa-href.js';
+
 /**
  * StickyContact — schwebender WhatsApp + Telefon Button (fixed, bottom-right).
  *
@@ -48,7 +50,10 @@ interface Props {
   calUrl?: string;
   /** aria-label für den Termin-Button. */
   calLabel?: string;
-  /** WhatsApp-Nummer inkl. Ländervorwahl, z.B. "+49151xxxxxxxx". */
+  /**
+   * WhatsApp-Nummer, z.B. "+49151xxxxxxxx". Nationale Schreibweise („0151 …“) wird
+   * zu 49… normalisiert (waHref). Weniger als 6 Ziffern bricht den Build ab.
+   */
   whatsapp?: string;
   /** Telefonnummer inkl. Ländervorwahl, z.B. "+498xxxxxxxxxxx". */
   phone?: string;
@@ -95,10 +100,9 @@ const {
   hideOnMobile = false,
 } = Astro.props;
 
-const waNumber = whatsapp?.replace(/\D/g, '');
-const waLink = waNumber
-  ? `https://wa.me/${waNumber}?text=${encodeURIComponent(prefilledMessage)}`
-  : null;
+// Ohne Ziffern kein Button (wie bisher). Die Normalisierung macht waHref — auch die
+// nationale Schreibweise „0151 …“, die vorher zu einem kaputten wa.me/0151… wurde.
+const waLink = whatsapp && /\d/.test(whatsapp) ? waHref(whatsapp, prefilledMessage) : null;
 const telLink = phone ? `tel:${phone.replace(/\s/g, '')}` : null;
 const mailLink = email
   ? `mailto:${email}${emailSubject ? `?subject=${encodeURIComponent(emailSubject)}` : ''}`

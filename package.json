@@ -59,6 +59,10 @@
       "types": "./src/utils/pruefhinweis.d.ts",
       "default": "./src/utils/pruefhinweis.js"
     },
+    "./utils/text/wa-href": {
+      "types": "./src/utils/text/wa-href.d.ts",
+      "default": "./src/utils/text/wa-href.js"
+    },
     "./utils/*": "./src/utils/*.ts",
     "./types/*": "./src/types/*",
     "./scripts/*": "./scripts/*",
