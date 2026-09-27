@@ -104,8 +104,9 @@ test('rueckruf: ohne callbackSlots greifen die drei Standard-Zeitfenster, erste 
     { value: '', text: 'egal' },
     { value: 'vormittags (8–12 Uhr)', text: 'vormittags (8–12 Uhr)' },
     { value: 'nachmittags (12–17 Uhr)', text: 'nachmittags (12–17 Uhr)' },
-    { value: 'abends (17–19 Uhr)', text: 'abends (17–19 Uhr)' },
   ]);
+  // Kein Abend-Slot im Default (v0.162.1): er verspräche Erreichbarkeit im Namen des Kunden.
+  assert.ok(!optionen.some((o) => /abend/i.test(o.value)), 'kein Abend-Slot im Default');
 });
 
 test('rueckruf: callbackSlots-Prop ersetzt die Standard-Zeitfenster im select', async () => {
@@ -135,10 +136,14 @@ test('rueckruf: Consent-Checkbox erscheint mit adsConsent wie bei contact', asyn
   assert.match(f, /name="marketing_consent_version" value="ads-consent-v1"/);
 });
 
-test('rueckruf: Erfolgsblock nennt das Zeitfenster', async () => {
+test('rueckruf: Erfolgsblock ohne Frist im Default, eigene Zusage nur per Prop', async () => {
   const s = successBlock(await form({ formType: 'rueckruf' }));
-  assert.match(s, /<p>Wir rufen Sie im gewünschten Zeitfenster zurück, spätestens am nächsten Werktag\.<\/p>/);
+  assert.match(s, /<p>Wir haben Ihren Rückrufwunsch erhalten und melden uns telefonisch bei Ihnen\.<\/p>/);
+  // Der Default darf keine Frist im Namen des Kunden versprechen (Befund Rollout 27.09.).
+  assert.doesNotMatch(s, /Werktag|spätestens|innerhalb von|Stunden/, 'keine Frist im Default');
   assert.doesNotMatch(s, /<ol\b/, 'ohne nextSteps keine Liste');
+  const eigen = successBlock(await form({ formType: 'rueckruf', callbackSuccessText: 'Wir rufen innerhalb von 2 Stunden zurück.' }));
+  assert.match(eigen, /<p>Wir rufen innerhalb von 2 Stunden zurück\.<\/p>/, 'Zusage nur, wenn der Kunde sie per Prop gibt');
 });
 
 // ---------------------------------------------------------------------------

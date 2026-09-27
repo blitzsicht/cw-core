@@ -93,9 +93,11 @@ const CLAIM_NACH_RE = new RegExp(
  * Aggregat und löst nichts aus.
  */
 const GOOGLE_AGGREGAT_RE =
-  /\d[\d.]*[ \t ]+Google[ \t -]*(?:Bewertungen|Rezensionen)|(?:Bewertungen|Rezensionen)[ \t ]+(?:auf|bei|von)[ \t ]+Google/gi;
+  /\d[\d.]*[ \t ]+Google[ \t -]*(?:Bewertungen|Rezensionen)|(?:Bewertungen|Rezensionen|Sterne|Sternen)[ \t ]+(?:auf|bei|von)[ \t ]+Google/gi;
 /** Sternezahl im deutschen Format: 1,0–5,9 — nicht Teil einer längeren Zahl wie 4,50 €. */
-const STERNEZAHL_RE = /(?<![\d,.])[1-5],\d(?![\d])/;
+// Auch mit Punkt („4.8 Sternen auf Google“, digital-direkt 27.09.) — nur zusammen mit
+// einem Aggregat daneben relevant, eine Versionsnummer allein löst nichts aus.
+const STERNEZAHL_RE = /(?<![\d,.])[1-5][,.]\d(?![\d.])/;
 /** Wie weit Sternezahl und Aggregat auseinander stehen dürfen (Zeichen, im selben Block). */
 const NAEHE = 80;
 
