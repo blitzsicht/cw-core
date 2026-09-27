@@ -79,5 +79,9 @@ export function normalize(html) {
   return html
     .replace(/\s+data-astro-source-(?:file|loc)="[^"]*"/g, '')
     .replace(/\s+data-astro-cid-[a-z0-9]+/g, '')
+    // Footer gibt die cw-core-Version aus. Ohne Normalisierung bricht jeder
+    // Versions-Bump die Schnappschüsse (v0.162.0: release/cw-core war rot, weil
+    // die Fixture 0.160.0 enthielt und der Kopf schon auf 0.161.0 stand).
+    .replace(/(cwCoreVersion = )"\d+\.\d+\.\d+[^"]*"/g, '$1"<VERSION>"')
     .split(ROOT).join('<ROOT>');
 }

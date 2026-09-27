@@ -22,6 +22,41 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.162.0 (2026-09-27)
+
+- [kunde] Kundenstimmen werden rechtssicherer dargestellt: kein Google-Logo mehr, ein Hinweis zur Herkunft der Bewertungen, und keine technische Auszeichnung mehr, die Google für selbst veröffentlichte Bewertungen ohnehin nicht anzeigt.
+- [kunde] WhatsApp-Links funktionieren jetzt auch, wenn die Nummer in nationaler Schreibweise hinterlegt ist.
+
+**Feature + Guards:** Lead-Rakete-Ausbau, Welle 1 (Audit customer-websites #79, 26.09.2026).
+
+*Nachtrag.* Drei Bausteine dieser Welle wurden ohne eigenen CHANGELOG-Eintrag in v0.160.0/v0.161.0 mitgenommen. Sie stehen hier, damit Train und Monatsreport sie finden:
+
+| Baustein | PR | enthalten seit |
+| --- | --- | --- |
+| Rückruf-Formular (`ContactForm formType="rueckruf"`, `nextSteps`, DankePage `nextSteps`/`callbackNote`, Handler-Opt-in `allowRueckruf`) | #151 | v0.160.0 |
+| `GoogleBewertungen` (Zahlen mit Stichtag, blendet nach 45 Tagen aus), Testimonials-Markup nur mit `productName`, Guard `checkReviewClaims` | #153 | v0.161.0 |
+| `EmpfehlungSection`, `ContactForm formType="empfehlung"` + Opt-in `allowEmpfehlung`, Goal `Referral Share`, Share-Guard in cta-double-fire | #154 | v0.161.0 |
+
+*Neu in v0.162.0 (#156).*
+
+- Guard `sticky-tel-check` (soft-warn, `strictStickyTel` opt-in, `stickyTel: false` je Site): Site mit Telefonnummer, aber kein `tel:` in einem fixierten Element.
+- Guard `opening-hours-check` (soft-warn, `strictOpeningHours` opt-in): LocalBusiness ohne Öffnungszeiten.
+- `@cw/core/utils/text/wa-href` (`waHref`): normalisiert `0151…` → `49151…`; StickyContact und Footer nutzen es (vorher `wa.me/0151…`, latent kaputt).
+- Hero ohne Default-Badge (vorher „Fertig in 7 Tagen – garantiert“, ein Blitzsicht-Versprechen).
+
+**Migrations-Hinweis:**
+
+- Rückruf- bzw. Empfehlungsformular brauchen in `api/contact.ts` `allowRueckruf: true` bzw. `allowEmpfehlung: true` – sonst landen die Anfragen nur als Alarm in Telegram.
+- Neue Build-Warnungen (soft) beim Pin-Bump, laut Probelauf: Sticky-Anruf bei GRG, SCH, ZNK, ASG, BLZ (gewollt → `stickyTel: false`); Öffnungszeiten bei ZNK, ASG, BLZ, HAL, HAM sowie den Produktseiten falzmarke, mazterplan, platzfrei, preshot (`SchemaOrg.astro` setzt dort immer LocalBusiness – eigenes Issue).
+- digital-direkt, donau-profi, weinkontor: Bewertungs-Microdata der Testimonials fällt weg (gewollt).
+- Sichtbar ändert sich nichts: alle 18 Hero-Aufrufe setzen `badge`, alle sieben WhatsApp-Werte rendern bytegleich.
+
+*Test-Fix.* Die WhatsApp-Schnappschüsse aus #156 enthielten die cw-core-Version (Footer gibt sie aus) – `release/cw-core` war nach dem Merge rot, weil der Kopf schon auf 0.161.0 stand. `normalize()` ersetzt die Version jetzt durch einen Platzhalter; Gegenprobe: Version 9.9.9 → grün, geänderte Nummer in der Fixture → 3 rot.
+
+*Belege.* Tests 1165 (1164 pass, 1 skip vorbestehend); je Baustein Sabotage-Proben rot; Guard-Probeläufe über 526 gebaute Seiten aus 25 Repos, jeder Treffer erklärt.
+
+---
+
 ## v0.161.0 (2026-09-27)
 
 - [kunde] Bilder der Website werden jetzt zuverlässig einen Tag im Browser zwischengespeichert —
