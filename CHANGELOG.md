@@ -22,6 +22,22 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.162.1 (2026-09-27)
+
+- [kunde] Nach einer Rückruf-Anfrage verspricht die Website keine Frist mehr, die nicht abgesprochen ist.
+
+**Fix:** Rückruf-Formular und Bewertungs-Guard (#157), gefunden beim Rollout der Welle 2 in 10 Kunden-Repos.
+
+- Erfolgstext `formType="rueckruf"`: vorher fest „… spätestens am nächsten Werktag“ – eine Zusage im Namen jedes Kunden. Neuer Default ohne Frist; eigene Zusage nur per Prop `callbackSuccessText`.
+- Default `callbackSlots` ohne „abends (17–19 Uhr)“.
+- `checkReviewClaims`: erkennt „4.8 Sternen auf Google“ (Sternezahl mit Punkt, Aggregat „Sterne(n) auf Google“). Anlass: digital-direkt.
+
+**Migrations-Hinweis:** Keiner. Wer eine Frist zusagt, setzt `callbackSuccessText`. digital-direkt bekommt beim Pin-Bump eine neue Soft-Warnung (fester Text „4.8 Sternen auf Google“ ohne Prüfhinweis – echter Befund).
+
+*Belege.* Tests grün plus 2 neu; Sabotage: Frist im Default → rot, altes Guard-Muster → rot. Flotten-Probelauf 526 Seiten: einziger neuer Treffer digital-direkt, blitzsicht 0.
+
+---
+
 ## v0.162.0 (2026-09-27)
 
 - [kunde] Kundenstimmen werden rechtssicherer dargestellt: kein Google-Logo mehr, ein Hinweis zur Herkunft der Bewertungen, und keine technische Auszeichnung mehr, die Google für selbst veröffentlichte Bewertungen ohnehin nicht anzeigt.
