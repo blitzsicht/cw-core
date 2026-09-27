@@ -48,8 +48,14 @@ interface Props {
    * der contact-handler Telefon statt E-Mail verlangt — nur, wenn der Endpoint
    * `createContactHandler({ allowRueckruf: true, … })` setzt, sonst antwortet er 400. Anlass: 9 von 12 Kundenseiten
    * boten weder Online-Termin noch Rückruf-Zeitfenster (Audit 26.09.2026).
+   * `empfehlung`: Empfehlung abgeben (Pflicht: Name; dazu E-Mail ODER Telefon, das
+   * prüft das Skript beim Absenden und der Server). Über die empfohlene Person gibt es
+   * nur EIN freiwilliges Feld `empfohlen` (Vorname oder Firma, max. 80 Zeichen) —
+   * keine Pflichtfelder zu Dritten. Sendet `formType=empfehlung`; der Endpoint braucht
+   * `createContactHandler({ allowEmpfehlung: true, … })`. Anlass: 11 von 12
+   * Kundenseiten ohne Empfehlungsseite (Audit 26.09.2026, Check C8).
    */
-  formType?: 'contact' | 'audit' | 'bewerbung' | 'waitlist' | 'updates' | 'rueckruf';
+  formType?: 'contact' | 'audit' | 'bewerbung' | 'waitlist' | 'updates' | 'rueckruf' | 'empfehlung';
   /**
    * Nur `formType="rueckruf"`: Auswahl im Feld „Zeitfenster“. Die erste Option
    * („egal“, leerer Wert) steht immer davor. Werte max. 60 Zeichen (Server-Grenze).
@@ -150,6 +156,7 @@ const TOOLS: Record<NonNullable<Props['formType']>, { name: string; tut: string 
   waitlist: { name: 'warteliste_eintragen', tut: 'Eintrag in die Warteliste' },
   updates: { name: 'updates_abonnieren', tut: 'Anmeldung für Benachrichtigungen über neue Versionen' },
   rueckruf: { name: 'rueckruf_anfordern', tut: 'Rückruf-Wunsch' },
+  empfehlung: { name: 'empfehlung_abgeben', tut: 'Empfehlung' },
 };
 const tool = TOOLS[formType];
 // Ohne agentMode sind alle Werte `undefined` — Astro lässt das Attribut dann weg.
@@ -344,6 +351,39 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         </>
       )}
 
+      {/* Empfehlung: Pflicht ist nur der eigene Name. E-Mail ODER Telefon — keins von
+          beiden ist `required`, das Skript unten prüft „mindestens eins“, der Server
+          (contact-handler, `allowEmpfehlung`) ebenso. Über die empfohlene Person gibt es
+          genau ein freiwilliges Feld, begrenzt auf 80 Zeichen: Datenschutz, keine
+          Pflichtangaben zu Dritten. Test: tests/blocks/contactform-empfehlung.test.js */}
+      {formType === 'empfehlung' && (
+        <>
+          <input type="hidden" name="formType" value="empfehlung" />
+          <div class="form-row">
+            <label for="cf-name">Ihr Name <span aria-hidden="true">*</span></label>
+            <input type="text" id="cf-name" name="name" required autocomplete="name" toolparamdescription={param('Vor- und Nachname der Person, die die Empfehlung abgibt')} />
+          </div>
+          <p class="form-hint" id="cf-kontaktweg-hinweis">Bitte E-Mail oder Telefon angeben, damit wir uns bei Ihnen melden können.</p>
+          <div class="form-row">
+            <label for="cf-email">E-Mail</label>
+            <input type="email" id="cf-email" name="email" autocomplete="email" aria-describedby="cf-kontaktweg-hinweis" toolparamdescription={param('E-Mail-Adresse der Person, die empfiehlt (E-Mail oder Telefon angeben)')} />
+          </div>
+          <div class="form-row">
+            <label for="cf-telefon">Telefon</label>
+            <input type="tel" id="cf-telefon" name="telefon" autocomplete="tel" aria-describedby="cf-kontaktweg-hinweis" toolparamdescription={param('Telefonnummer der Person, die empfiehlt (E-Mail oder Telefon angeben)')} />
+          </div>
+          <div class="form-row">
+            <label for="cf-empfohlen">Wen möchten Sie empfehlen? <span class="optional">(optional, nur Vorname oder Firma)</span></label>
+            <input type="text" id="cf-empfohlen" name="empfohlen" maxlength="80" autocomplete="off" aria-describedby="cf-empfohlen-hinweis" toolparamdescription={param('Vorname oder Firma der empfohlenen Person, nur mit deren Einverständnis (optional)')} />
+            <p class="form-hint" id="cf-empfohlen-hinweis">Bitte nur mit Einverständnis der Person.</p>
+          </div>
+          <div class="form-row">
+            <label for="cf-message">Nachricht <span class="optional">(optional)</span></label>
+            <textarea id="cf-message" name="message" rows="3" toolparamdescription={param('Zusätzliche Nachricht (optional)')}></textarea>
+          </div>
+        </>
+      )}
+
       {adsConsent && (
         <div class:list={['form-consent', adsConsentDetails && 'has-details']}>
           <input type="checkbox" id="cf-ads-consent" name="marketing_consent" value="true" />
@@ -388,13 +428,14 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
          dringend, dass er laufende Ausgabe unterbrechen müsste. -->
     <div class="form-success" hidden role="status" aria-live="polite">
       <div class="success-icon" aria-hidden="true">✓</div>
-      <h3>{formType === 'waitlist' || formType === 'updates' ? 'Eingetragen.' : 'Vielen Dank!'}</h3>
+      <h3>{formType === 'waitlist' || formType === 'updates' ? 'Eingetragen.' : formType === 'empfehlung' ? 'Danke für Ihre Empfehlung!' : 'Vielen Dank!'}</h3>
       {formType === 'audit' && <p>Wir analysieren Ihre Website und melden uns innerhalb von 48 Stunden.</p>}
       {formType === 'bewerbung' && <p>Wir haben Ihre Bewerbung erhalten und melden uns innerhalb von 48 Stunden.</p>}
       {formType === 'contact' && <p>Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>}
       {formType === 'waitlist' && <p>Wir melden uns, sobald es für dein Studio losgehen kann.</p>}
       {formType === 'updates' && <p>Du bekommst eine Nachricht, wenn eine neue Version erscheint. Sonst nichts.</p>}
       {formType === 'rueckruf' && <p>Wir rufen Sie im gewünschten Zeitfenster zurück, spätestens am nächsten Werktag.</p>}
+      {formType === 'empfehlung' && <p>Wir melden uns bei Ihnen.</p>}
       {nextSteps && nextSteps.length > 0 && (
         <ol class="form-next-steps">
           {nextSteps.map((schritt) => <li>{schritt}</li>)}
@@ -483,6 +524,23 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
     }
   } catch { /* sessionStorage/URL nicht verfügbar */ }
 
+  /**
+   * Meldet am E-Mail-Feld, wenn weder E-Mail noch Telefon ausgefüllt ist (Browser-
+   * eigene Fehlerblase, liest der Screenreader vor). Die Meldung verschwindet mit der
+   * nächsten Eingabe in einem der beiden Felder.
+   */
+  function kontaktwegFehlt(form: HTMLFormElement): boolean {
+    const mail = form.elements.namedItem('email') as HTMLInputElement | null;
+    const tel = form.elements.namedItem('telefon') as HTMLInputElement | null;
+    if (!mail || !tel || mail.value.trim() || tel.value.trim()) return false;
+    mail.setCustomValidity('Bitte E-Mail-Adresse oder Telefonnummer angeben.');
+    mail.reportValidity();
+    const zuruecksetzen = () => mail.setCustomValidity('');
+    mail.addEventListener('input', zuruecksetzen, { once: true });
+    tel.addEventListener('input', zuruecksetzen, { once: true });
+    return true;
+  }
+
   document.querySelectorAll('form[data-web3form]').forEach((formEl) => {
     const form = formEl as HTMLFormElement;
     const wrap = form.closest('.contact-form-wrap') as HTMLElement | null;
@@ -519,6 +577,9 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
+      // Empfehlung: E-Mail ODER Telefon. Keins der beiden Felder ist `required` — die
+      // Regel „mindestens eins“ kann HTML nicht ausdrücken. Der Server prüft dasselbe.
+      if (formType === 'empfehlung' && kontaktwegFehlt(form)) return;
       if (btn) btn.disabled = true;
       if (btnLabel) btnLabel.hidden = true;
       if (btnLoading) btnLoading.hidden = false;
@@ -614,6 +675,13 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
   }
 
   .contact-form textarea { resize: vertical; }
+
+  /* Hinweiszeile unter/zwischen Feldern (formType="empfehlung"). */
+  .contact-form .form-hint {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--color-muted);
+  }
 
   /* Marketing-Consent-Checkbox (nur Ads-Sites, opt-in) — überschreibt die
      Text-Input-Defaults, damit die native Checkbox nicht als Textfeld gestylt wird. */

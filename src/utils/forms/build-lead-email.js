@@ -31,6 +31,7 @@ const FOOTER_LINK = 'https://blitzsicht.com';
  * @property {string} [leadWebsite]
  * @property {string} [leadMessage]
  * @property {string} [leadCallbackSlot] – gewünschtes Rückruf-Zeitfenster (formType="rueckruf")
+ * @property {string} [leadEmpfohlen] – Vorname oder Firma der empfohlenen Person (formType="empfehlung")
  * @property {Record<string, string>} [leadAttribution] – gclid + utm_* (Ad-Herkunft)
  * @property {string}  subject       – Betreff der Lead-Mail (intern)
  */
@@ -98,6 +99,7 @@ export function buildLeadEmail(input) {
     leadWebsite = '',
     leadMessage = '',
     leadCallbackSlot = '',
+    leadEmpfohlen = '',
     leadAttribution = undefined,
     subject,
   } = input;
@@ -138,6 +140,7 @@ export function buildLeadEmail(input) {
   if (leadCompany) textLines.push(`Firma:   ${leadCompany}`);
   if (leadStudio) textLines.push(`Studio:  ${leadStudio}`);
   if (leadWebsite) textLines.push(`Website: ${leadWebsite}`);
+  if (leadEmpfohlen) textLines.push(`Empfohlen: ${leadEmpfohlen}`);
   if (leadMessage) {
     textLines.push('');
     textLines.push('Nachricht:');
@@ -183,6 +186,7 @@ export function buildLeadEmail(input) {
   if (safeLeadCompany) rows.push(detailRow('Firma', safeLeadCompany));
   if (safeLeadStudio) rows.push(detailRow('Studio', safeLeadStudio));
   if (safeLeadWebsite) rows.push(detailRow('Website', safeLeadWebsite));
+  if (leadEmpfohlen) rows.push(detailRow('Empfohlen', escapeHtml(leadEmpfohlen)));
 
   const messageBlock = safeLeadMessage
     ? `

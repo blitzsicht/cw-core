@@ -53,7 +53,7 @@ export const PAID_GOALS = [
 
 /**
  * Optionale Goals — nur relevant, wenn die Site die jeweilige Funktion nutzt
- * (Buchungs-Widget, Sticky-Contact-Bar, FAQ-Akkordeon, GoogleBewertungen-Block).
+ * (Buchungs-Widget, Sticky-Contact-Bar, FAQ-Akkordeon, GoogleBewertungen-Block, Empfehlungsseite).
  * @type {PlausibleGoal[]}
  */
 export const OPTIONAL_GOALS = [
@@ -62,6 +62,7 @@ export const OPTIONAL_GOALS = [
   { type: 'event', value: 'Sticky Contact Click', note: 'Sticky-Mobile-CTA' },
   { type: 'event', value: 'FAQ Open',            note: 'FAQ-Eintrag aufgeklappt' },
   { type: 'event', value: 'Google Reviews Click', note: 'GoogleBewertungen-Block: Profil ansehen / Bewertung schreiben (Prop `ziel`: profil | schreiben)' },
+  { type: 'event', value: 'Referral Share',      note: 'Empfehlungsseite: Link geteilt (Prop `kanal`: whatsapp | mail | link) — kein Kontakt, zählt deshalb nicht als WhatsApp/Email Click' },
 ];
 
 /**
