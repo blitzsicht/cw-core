@@ -55,6 +55,10 @@
       "types": "./src/utils/og-alt.d.ts",
       "default": "./src/utils/og-alt.js"
     },
+    "./utils/pruefhinweis": {
+      "types": "./src/utils/pruefhinweis.d.ts",
+      "default": "./src/utils/pruefhinweis.js"
+    },
     "./utils/*": "./src/utils/*.ts",
     "./types/*": "./src/types/*",
     "./scripts/*": "./scripts/*",

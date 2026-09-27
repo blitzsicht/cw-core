@@ -167,3 +167,11 @@ test('LEGACY_ALIASES zeigen auf Namen, die es wirklich gibt', async () => {
     assert.ok(alle.includes(gueltig), `Alias ${alt} zeigt auf ${gueltig}, das in keiner Gruppe steht`);
   }
 });
+
+// GoogleBewertungen.astro feuert `Google Reviews Click` mit Prop `ziel`.
+// Optional, weil nur Seiten mit dem Block es auslösen — clusterweit wäre es eine tote Zeile.
+test('OPTIONAL_GOALS führt „Google Reviews Click“ (GoogleBewertungen-Block)', async () => {
+  const m = await import('./plausible-goals.mjs');
+  assert.ok(m.OPTIONAL_GOALS.some((g) => g.value === 'Google Reviews Click'));
+  assert.ok(!m.CORE_GOALS.some((g) => g.value === 'Google Reviews Click'), 'nicht clusterweit');
+});

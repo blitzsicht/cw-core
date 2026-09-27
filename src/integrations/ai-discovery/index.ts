@@ -52,6 +52,7 @@ import {
   extractInlineStyles,
 } from './perf-check.js';
 import { checkEmbedConsent } from './embed-consent-check.js';
+import { checkReviewClaims } from './review-claims-check.js';
 import {
   buildMarkerOwners,
   checkMotionConsent,
@@ -461,6 +462,27 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * einem Fleet-Lauf ohne False-Positives.
    */
   strictEmbedConsent?: boolean;
+
+  /**
+   * Default true. Bewertungs-Aussagen-Guard: meldet im dist-HTML
+   *   (a) „echte/verifizierte/geprüfte Bewertungen“ ohne Prüfbeschreibung im selben
+   *       Abschnitt (UWG Anhang Nr. 23b),
+   *   (b) Google-Bewertungen mit Sternezahl ohne Prüfhinweis (§ 5b Abs. 3 UWG),
+   *   (c) selbst erteiltes AggregateRating für LocalBusiness/Organization.
+   * Opt-out pro Site: `false`.
+   *
+   * Auslöser (26.09.2026): donau-profi zeigte „★ 4,8 · 24 Google-Bewertungen“ und
+   * „Echte Google-Rezensionen …“ ohne Prüfhinweis; Testimonials.astro gab auf jeder
+   * Kundenseite Product-AggregateRating-Microdata aus. Grenzen der Heuristik:
+   * review-claims-check.js (Kopf).
+   */
+  checkReviewClaims?: boolean;
+  /**
+   * Default FALSE (Soft-Warn-Start, opt-IN — wie strictEmbedConsent): `true` setzen
+   * → Build-Fail (throw) bei einem Befund. Strict-Flip erst nach einem Fleet-Lauf
+   * ohne False-Positives.
+   */
+  strictReviewClaims?: boolean;
 
   /**
    * Default TRUE seit v0.75.0 (strict-Flip, Fleet clean nach v0.74.0-a11y-Fix) → Build-Fail
@@ -3591,6 +3613,36 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             }
           } else {
             logger.info('Embed-Consent-Guard: ✓ kein eager geladenes Buchungs-Embed.');
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Bewertungs-Aussagen-Guard: UWG § 5b Abs. 3 / Anh. Nr. 23b, self-serving Rating
+        // -------------------------------------------------------------------
+        // Auslöser 2026-09-26: donau-profi „Echte Google-Rezensionen“ + „4,8 · 24
+        // Google-Bewertungen“ ohne Prüfhinweis; Testimonials-Microdata auf Kundenseiten.
+        if (options.checkReviewClaims !== false) {
+          const reviewIssues: { type: string; details: string }[] = [];
+          for (const file of walkHtml(distDir)) {
+            const html = readFileSync(file, 'utf-8');
+            const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+            reviewIssues.push(...checkReviewClaims(html, rel));
+          }
+          if (reviewIssues.length > 0) {
+            logger.warn(`Bewertungs-Guard: ${reviewIssues.length} Befund(e) zu Bewertungs-Aussagen oder -Markup:`);
+            for (const ri of reviewIssues.slice(0, 8)) {
+              logger.warn(`  [${ri.type}] ${ri.details}`);
+            }
+            if (reviewIssues.length > 8) {
+              logger.warn(`  … und ${reviewIssues.length - 8} weitere.`);
+            }
+            if (options.strictReviewClaims === true) {
+              throw new Error(
+                `[ai-discovery] strictReviewClaims=true: Build abgebrochen — ${reviewIssues.length} Befund(e) zu Bewertungs-Aussagen oder -Markup.`,
+              );
+            }
+          } else {
+            logger.info('Bewertungs-Guard: ✓ keine unzulässigen Bewertungs-Aussagen, kein selbst erteiltes AggregateRating.');
           }
         }
 
