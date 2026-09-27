@@ -141,3 +141,39 @@ test('9. isAssetSource-Heuristik', () => {
   assert.equal(isAssetSource('/(.*)'), false);
   assert.equal(isAssetSource('/api/(.*)'), false);
 });
+
+// ── Images-Verzeichnis (Anlass customer-zink-baeckerei, 27.09.2026) ─────────────────
+
+/** Realer Zink-Stand: Security-Header + nur /og/ und Logo gecacht. */
+const NUR_OG_VERCEL_JSON = JSON.stringify({
+  headers: [
+    { source: '/(.*)', headers: [{ key: 'X-Content-Type-Options', value: 'nosniff' }] },
+    { source: '/og/(.*)', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }] },
+    { source: '/(favicon|logo)\\.(svg|png|ico|webp)', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }] },
+  ],
+});
+
+test('10. NEGATIV (Zink 27.09.): images-dir, aber nur /og/-Regel → missing_images_cache_control', () => {
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(NUR_OG_VERCEL_JSON), { hasImagesDir: true });
+  assert.ok(types(issues).includes('missing_images_cache_control'));
+  // Prüfung 1 allein war erfüllt — genau deshalb blieb es unbemerkt.
+  assert.ok(!types(issues).includes('missing_asset_cache_control'));
+});
+
+test('11. Gegenprobe: ohne images-dir meldet dieselbe vercel.json nichts zu images', () => {
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(NUR_OG_VERCEL_JSON), { hasImagesDir: false });
+  assert.ok(!types(issues).includes('missing_images_cache_control'));
+});
+
+test('12. /images/(.*)-Regel (Template) deckt images-dir ab', () => {
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(GOOD_VERCEL_JSON), { hasImagesDir: true, hasFontsDir: true });
+  assert.deepEqual(types(issues), []);
+});
+
+test('13. Endungs-Regel (.*)\\.(webp|png) deckt images-dir ebenfalls ab', () => {
+  const raw = JSON.stringify({
+    headers: [{ source: '/(.*)\\.(webp|png|jpg)', headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }] }],
+  });
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(raw), { hasImagesDir: true });
+  assert.ok(!types(issues).includes('missing_images_cache_control'));
+});

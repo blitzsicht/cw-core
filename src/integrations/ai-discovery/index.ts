@@ -3566,7 +3566,8 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           } else {
             const rules = extractHeaderRulesFromVercelJson(readFileSync(vercelPath, 'utf-8'));
             const hasFontsDir = existsSync(join(distDir, 'fonts'));
-            const cacheIssues = checkCacheHeaders(rules, { hasFontsDir });
+            const hasImagesDir = existsSync(join(distDir, 'images'));
+            const cacheIssues = checkCacheHeaders(rules, { hasFontsDir, hasImagesDir });
             if (cacheIssues.length === 0) {
               logger.info('Cache-Header-Linter: ✓ vercel.json Cache-Politik ok.');
             } else {
