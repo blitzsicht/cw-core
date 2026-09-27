@@ -66,7 +66,14 @@ export interface HeroMotionConfig {
 }
 
 interface Props {
-  /** Small badge above the headline. Defaults to "Fertig in 7 Tagen – garantiert". */
+  /**
+   * Kleines Badge über der Headline. Ohne Angabe (oder leer) wird KEIN Badge gerendert.
+   *
+   * Bis v0.160.0 war der Default „Fertig in 7 Tagen – garantiert“ — ein
+   * Blitzsicht-Versprechen, das jede Kundenseite ohne eigenes Badge als EIGENE Garantie
+   * ausgespielt hätte (irreführende Werbung, § 5 UWG). Flotten-Scan 27.09.2026: kein
+   * Aufruf nutzte den Default.
+   */
   badge?: string;
   /** Main headline. Supports HTML (e.g. `<br/>`) via set:html. */
   headline: string;
@@ -177,7 +184,7 @@ interface Props {
 }
 
 const {
-  badge = 'Fertig in 7 Tagen – garantiert',
+  badge,
   headline,
   subtext,
   image,
@@ -224,12 +231,14 @@ const collagenLabel = hasImages
   {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}
   <div class="container">
     <div class="hero-content">
-      <div class="hero-badge">
-        <svg width="14" height="14" viewBox="0 0 512 512" aria-hidden="true">
-          <polygon points="296,80 176,288 248,288 216,432 336,224 264,224" fill="currentColor"/>
-        </svg>
-        {badge}
-      </div>
+      {badge && (
+        <div class="hero-badge">
+          <svg width="14" height="14" viewBox="0 0 512 512" aria-hidden="true">
+            <polygon points="296,80 176,288 248,288 216,432 336,224 264,224" fill="currentColor"/>
+          </svg>
+          {badge}
+        </div>
+      )}
 
       {/* `hero-title` in BEIDEN Zweigen — die Ueberschrift wird im textReveal-Zweig von
           TextReveal gerendert und traegt dann DEREN Astro-Scope, nicht den des Hero. Ein

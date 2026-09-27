@@ -1,0 +1,157 @@
+{
+  "_quelle": "customer-zink-baeckerei origin/main 0e87a15 (25.09.2026), dist/index.html vom 25.09.2026 12:28. Hauptobjekt gekürzt (areaServed, knowsAbout, sameAs gekappt; employee, hasOfferCatalog, founder entfernt), Filial-@graph auf zwei Knoten gekappt. Unverändert: @type, @id, openingHours-Felder.",
+  "_siteData": "src/data/site-data.ts:91 → seo.openingHours: [] as string[]; page-config.ts:50 reicht es an SchemaOrg.astro durch, das leere Listen weglässt — im HTML fehlt der Schlüssel ganz.",
+  "hauptobjekt": {
+    "@context": "https://schema.org",
+    "@type": [
+      "LocalBusiness",
+      "ProfessionalService",
+      "Bakery"
+    ],
+    "@id": "https://baeckereizink.de/#organization",
+    "name": "Zink Bäckerei & Konditorei",
+    "description": "über 125 Jahre Bäckerhandwerk: Die Zink GmbH Bäckerei und Konditorei aus Pfakofen wird seit 1898 in Familienhand geführt — heute in dritter Generation. Eine zentrale Backstube in Pfakofen beliefert elf Filialen rund um Regensburg täglich ab 6 Uhr morgens. Schwerpunkte: handwerklich gebackenes Brot aus Hausrezepten, Konditormeister-Anlasstorten für Hochzeiten und Familienfeiern, Café-Erlebnis im Donau-Einkaufszentrum Regensburg seit 1998.",
+    "url": "https://baeckereizink.de",
+    "logo": "/logo.svg",
+    "image": {
+      "@type": "ImageObject",
+      "url": "https://baeckereizink.de/og/default.png",
+      "contentUrl": "https://baeckereizink.de/og/default.png",
+      "@id": "https://baeckereizink.de/#primaryimage",
+      "caption": "Zink Bäckerei & Konditorei",
+      "creditText": "Zink Bäckerei & Konditorei",
+      "copyrightNotice": "© Zink GmbH Bäckerei und Konditorei",
+      "creator": {
+        "@id": "https://baeckereizink.de/#organization"
+      }
+    },
+    "telephone": "+49 9451 3066",
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Ortsstraße 31",
+      "postalCode": "93101",
+      "addressLocality": "Pfakofen",
+      "addressCountry": "DE"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": 48.997,
+      "longitude": 12.218
+    },
+    "foundingDate": "1898",
+    "areaServed": [
+      {
+        "@type": "Place",
+        "name": "Pfakofen"
+      },
+      {
+        "@type": "Place",
+        "name": "Langquaid"
+      }
+    ],
+    "priceRange": "€€",
+    "sameAs": [
+      "https://www.facebook.com/p/B%C3%A4ckerei-und-Konditorei-Zink-100057160433380/"
+    ],
+    "knowsAbout": [
+      "Bäckerei",
+      "Konditorei",
+      "Hochzeitstorten"
+    ]
+  },
+  "website": {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": "https://baeckereizink.de/#website",
+    "name": "Zink Bäckerei & Konditorei",
+    "description": "über 125 Jahre Bäckerhandwerk: Die Zink GmbH Bäckerei und Konditorei aus Pfakofen wird seit 1898 in Familienhand geführt — heute in dritter Generation. Eine zentrale Backstube in Pfakofen beliefert elf Filialen rund um Regensburg täglich ab 6 Uhr morgens. Schwerpunkte: handwerklich gebackenes Brot aus Hausrezepten, Konditormeister-Anlasstorten für Hochzeiten und Familienfeiern, Café-Erlebnis im Donau-Einkaufszentrum Regensburg seit 1998.",
+    "url": "https://baeckereizink.de",
+    "publisher": {
+      "@id": "https://baeckereizink.de/#organization"
+    }
+  },
+  "filialen": {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Bakery",
+        "@id": "https://baeckereizink.de/#location-pfakofen-zentrale",
+        "name": "Zink Bäckerei & Konditorei — Pfakofen (Hauptgeschäft)",
+        "url": "https://baeckereizink.de/filialen/pfakofen-zentrale",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Ortsstraße 31",
+          "postalCode": "93101",
+          "addressLocality": "Pfakofen",
+          "addressCountry": "DE"
+        },
+        "telephone": "+49 9451 3068",
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": [
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday",
+              "Saturday"
+            ],
+            "opens": "06:00",
+            "closes": "12:00"
+          }
+        ],
+        "parentOrganization": {
+          "@id": "https://baeckereizink.de/#organization"
+        }
+      },
+      {
+        "@type": "Bakery",
+        "@id": "https://baeckereizink.de/#location-langquaid",
+        "name": "Zink Bäckerei & Konditorei — Langquaid",
+        "url": "https://baeckereizink.de/filialen/langquaid",
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Marktplatz 5",
+          "postalCode": "84085",
+          "addressLocality": "Langquaid",
+          "addressCountry": "DE"
+        },
+        "telephone": "+49 9452 757",
+        "openingHoursSpecification": [
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": [
+              "Monday",
+              "Tuesday",
+              "Wednesday",
+              "Thursday",
+              "Friday"
+            ],
+            "opens": "06:00",
+            "closes": "17:00"
+          },
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": [
+              "Saturday"
+            ],
+            "opens": "06:00",
+            "closes": "12:00"
+          },
+          {
+            "@type": "OpeningHoursSpecification",
+            "dayOfWeek": [
+              "Sunday"
+            ],
+            "opens": "07:00",
+            "closes": "16:00"
+          }
+        ],
+        "parentOrganization": {
+          "@id": "https://baeckereizink.de/#organization"
+        }
+      }
+    ]
+  }
+}
