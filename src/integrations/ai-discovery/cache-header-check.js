@@ -23,7 +23,7 @@
  * @typedef {'vercel_json_unparseable'|'missing_asset_cache_control'|'missing_font_cache_control'|'immutable_on_mutable_path'|'no_store_on_assets'} CacheIssueType
  * @typedef {{ type: CacheIssueType, details: string }} CacheIssue
  * @typedef {{ source: string, cacheControl: string|null }} HeaderRule
- * @typedef {{ hasFontsDir?: boolean }} CacheCheckOptions
+ * @typedef {{ hasFontsDir?: boolean, hasImagesDir?: boolean }} CacheCheckOptions
  */
 
 /**
@@ -86,7 +86,7 @@ export function isAssetSource(source) {
  * @returns {CacheIssue[]}
  */
 export function checkCacheHeaders(rules, opts = {}) {
-  const { hasFontsDir = false } = opts;
+  const { hasFontsDir = false, hasImagesDir = false } = opts;
   /** @type {CacheIssue[]} */
   const issues = [];
 
@@ -119,6 +119,32 @@ export function checkCacheHeaders(rules, opts = {}) {
         details:
           'dist/fonts/ existiert (self-hosted Fonts), aber keine Cache-Control-Regel für "/fonts/(.*)" — ' +
           'Empfehlung: "public, max-age=2592000" (Fonts ändern sich praktisch nie).',
+      });
+    }
+  }
+
+  // 2b. public/images/ wird ausgeliefert, aber keine Regel deckt es ab.
+  //    Anlass 27.09.2026: customer-zink-baeckerei hatte nur eine /og/-Regel — Prüfung 1 war
+  //    damit erfüllt. Mit dem Blog-Standard kamen 15 Fotos nach public/images/blog/, live mit
+  //    max-age=0 ausgeliefert, ohne jede Meldung. Cluster-Scan am selben Tag: 13 von 15 Repos
+  //    mit public/images/ hatten die Regel, 2 nicht. Eine Regel „für irgendein Asset“ sagt
+  //    nichts darüber, ob gerade DIESES Verzeichnis gedeckt ist.
+  if (hasImagesDir) {
+    const imgRule = rules.find(
+      // Gedeckt ist es durch eine /images/-Regel oder eine Endungsregel für ALLE Pfade
+      // („/(.*)\\.(webp|png)“). Eine Endungsregel für benannte Dateien (Logo, Favicon) zählt
+      // nicht — sie trifft public/images/ gerade nicht.
+      (r) => {
+        const src = r.source.toLowerCase();
+        return !!r.cacheControl && (/\/images\//.test(src) || (src.startsWith('/(.*)') && /(webp|png|jpe?g|avif)/.test(src)));
+      },
+    );
+    if (!imgRule) {
+      issues.push({
+        type: 'missing_images_cache_control',
+        details:
+          'dist/images/ existiert (Bilder aus public/images/), aber keine Cache-Control-Regel deckt "/images/(.*)" ab — ' +
+          'Vercel liefert sie mit max-age=0 aus. Empfehlung: { "source": "/images/(.*)", Cache-Control "public, max-age=86400" }.',
       });
     }
   }

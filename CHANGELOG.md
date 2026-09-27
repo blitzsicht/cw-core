@@ -22,6 +22,32 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.161.0 (2026-09-27)
+
+- [kunde] Bilder der Website werden jetzt zuverlässig einen Tag im Browser zwischengespeichert —
+  wiederholte Besuche laden schneller.
+
+**Guard:** Cache-Header-Linter verlangt eine Regel für `/images/`, sobald `dist/images/` existiert.
+
+*Anlass.* Nach dem Blog-Standard (v0.160.0) lagen bei customer-zink-baeckerei 15 Fotos in
+`public/images/blog/`, live ausgeliefert mit `max-age=0`. `vercel.json` hatte nur Regeln für
+`/og/` und das Logo — die bisherige Prüfung „mindestens eine Asset-Regel“ war damit erfüllt
+und meldete nichts. Cluster-Scan 27.09.: 13 von 15 Repos mit `public/images/` hatten die Regel,
+Zink (Fix: customer-zink-baeckerei #56) und preshot (nutzt ai-discovery nicht) nicht.
+
+*Änderung.* `checkCacheHeaders(rules, { hasImagesDir })` → `missing_images_cache_control`.
+Gedeckt durch eine `/images/`-Regel oder eine Endungsregel auf alle Pfade (`/(.*)\.(webp|png)`),
+nicht durch Endungsregeln für benannte Dateien (Logo/Favicon). Streng wie der übrige Linter
+(`strictCacheHeaders`).
+
+*Wirkung beim Pin-Bump.* Alle Kunden-Repos mit ai-discovery und `public/images/` haben die Regel
+(Scan 27.09.), Zink nach #56. Kein weiterer Bruch erwartet.
+
+*Belege.* 4 neue Tests (10–13), Sabotage (Prüfung aus) → Test 10 rot. Zink-Gegenprobe: alte
+vercel.json → Build rot, neue → grün.
+
+---
+
 ## v0.160.0 (2026-09-26)
 
 - [kunde:sichtbar] Jeder Blogbeitrag beginnt jetzt mit einem Kasten „Kurz gesagt“, der den
