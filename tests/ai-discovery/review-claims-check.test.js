@@ -198,3 +198,14 @@ test('index.ts: Guard verdrahtet, Default an, strict nur bei ausdrücklichem tru
   assert.match(src, /options\.checkReviewClaims !== false/);
   assert.match(src, /options\.strictReviewClaims === true/);
 });
+
+test('17. digital-direkt 27.09.: „mit 4.8 Sternen auf Google“ ohne Prüfhinweis meldet (b)', () => {
+  const html = '<main><section><p>Über 25 zufriedene Kunden mit 4.8 Sternen auf Google.</p></section></main>';
+  const r = checkReviewClaims(html, '/');
+  assert.ok(r.some((f) => f.type === 'missing_review_disclaimer'), JSON.stringify(r));
+});
+
+test('18. Gegenprobe: Versionsnummer 1.5 ohne Google-Aggregat meldet nicht', () => {
+  const html = '<main><section><p>Seit Version 1.5 läuft alles schneller. Mehr bei Google suchen.</p></section></main>';
+  assert.deepEqual(checkReviewClaims(html, '/'), []);
+});

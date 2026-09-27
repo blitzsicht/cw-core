@@ -62,6 +62,13 @@ interface Props {
    */
   callbackSlots?: string[];
   /**
+   * Nur `formType="rueckruf"`: Satz im Erfolgsblock nach dem Absenden. Der Default
+   * nennt bewusst KEINE Frist — eine Zusage wie „spätestens am nächsten Werktag“
+   * spricht im Namen des Kunden und gehört nur hierher, wenn er sie gegeben hat
+   * (v0.162.1, Befund beim Rollout: der feste Text versprach sie auf jeder Site).
+   */
+  callbackSuccessText?: string;
+  /**
    * Nächste Schritte im Erfolgsblock, als nummerierte Liste unter dem Text. Gilt für
    * alle formTypes. Ohne den Prop (oder mit leerem Array) bleibt das Markup unverändert.
    */
@@ -135,7 +142,9 @@ const {
   adsConsentText = 'Ich willige ein, dass zur Messung des Werbeerfolgs meine Google-Klick-Kennung an Google (Google Ireland Ltd. / Google LLC, USA) übermittelt wird. Freiwillig und jederzeit mit Wirkung für die Zukunft widerrufbar.',
   adsConsentDetails,
   agentTool = false,
-  callbackSlots = ['vormittags (8–12 Uhr)', 'nachmittags (12–17 Uhr)', 'abends (17–19 Uhr)'],
+  // Kein Abend-Slot als Default: er verspräche Erreichbarkeit, die kein Kunde zugesagt hat.
+  callbackSlots = ['vormittags (8–12 Uhr)', 'nachmittags (12–17 Uhr)'],
+  callbackSuccessText = 'Wir haben Ihren Rückrufwunsch erhalten und melden uns telefonisch bei Ihnen.',
   nextSteps,
 } = Astro.props;
 
@@ -434,7 +443,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       {formType === 'contact' && <p>Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>}
       {formType === 'waitlist' && <p>Wir melden uns, sobald es für dein Studio losgehen kann.</p>}
       {formType === 'updates' && <p>Du bekommst eine Nachricht, wenn eine neue Version erscheint. Sonst nichts.</p>}
-      {formType === 'rueckruf' && <p>Wir rufen Sie im gewünschten Zeitfenster zurück, spätestens am nächsten Werktag.</p>}
+      {formType === 'rueckruf' && <p>{callbackSuccessText}</p>}
       {formType === 'empfehlung' && <p>Wir melden uns bei Ihnen.</p>}
       {nextSteps && nextSteps.length > 0 && (
         <ol class="form-next-steps">
