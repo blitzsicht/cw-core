@@ -126,3 +126,52 @@ jobs:
             echo "::error::Projekt desktop enthaelt $FREMD Tests ausserhalb von layout-audit"
             exit 1
           fi
+
+  # Formulare im Browser wirklich absenden (blitzsicht-ops#900): Klick →
+  # Client-Skript in ContactForm.astro → echter createContactHandler → Erfolgs-
+  # oder Fehlerblock. examples/ wird statisch gebaut, der POST im Browser
+  # abgefangen, nach außen geht nichts (fetch im Test-Prozess ist ersetzt).
+  # Eigenes Paket e2e/ statt checks/, weil checks/ in jedem Kundenrepo läuft.
+  e2e:
+    name: e2e Formulare absenden
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          # Alle drei Lockfiles (Wurzel, examples, e2e) stammen aus pnpm 9, wie im Job test.
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: |
+            e2e/pnpm-lock.yaml
+            examples/pnpm-lock.yaml
+            pnpm-lock.yaml
+
+      # Wurzel zuerst: examples verlinkt @cw/core per link:.. und braucht dessen Abhängigkeiten.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+        working-directory: examples
+      - run: pnpm install --frozen-lockfile
+        working-directory: e2e
+
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: e2e
+
+      - run: pnpm --dir examples build
+
+      - name: Formulare absenden (5 Tests erwartet)
+        working-directory: e2e
+        run: |
+          set -euo pipefail
+          pnpm exec playwright test | tee ausgabe.txt
+          ANZAHL=$(grep -oE '[0-9]+ passed' ausgabe.txt | grep -oE '[0-9]+' || echo 0)
+          if [ "${ANZAHL:-0}" -ne 5 ]; then
+            echo "::error::Erwartet waren 5 bestandene Tests, gezaehlt: $ANZAHL"
+            exit 1
+          fi
