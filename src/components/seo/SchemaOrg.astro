@@ -3,7 +3,8 @@
  * @cw/core – SchemaOrg.astro
  *
  * Emits JSON-LD scripts into the `<head>`:
- *   1. LocalBusiness + ProfessionalService (+ optional additionalTypes)
+ *   1. LocalBusiness + ProfessionalService (+ optional additionalTypes) —
+ *      oder Organization, wenn `schemaType: 'Organization'` (Produkt-/SaaS-Seiten)
  *   2. WebSite
  *   3. Service (if `service` provided — for individual service pages)
  *
@@ -141,6 +142,19 @@ interface Props {
   // --- New props ---
 
   /**
+   * Grundtyp des Firmenknotens. Default `'LocalBusiness'` → `['LocalBusiness',
+   * 'ProfessionalService', ...additionalTypes]`, unverändert wie vor v0.163.0.
+   *
+   * `'Organization'` für Produkt-/SaaS-Seiten ohne Ladenbetrieb (falzmarke, platzfrei …):
+   * `@type` wird `['Organization', ...additionalTypes]`, und die Felder, die nur
+   * LocalBusiness kennt — `openingHours`, `priceRange`, `geo` —, entfallen. Sonst meldet
+   * der opening-hours-check dort dauerhaft Öffnungszeiten, die es nicht gibt (#895).
+   * Das Produkt selbst gehört in einen eigenen Knoten (SoftwareApplication/Product),
+   * nicht per `additionalTypes` an die Firma.
+   */
+  schemaType?: 'LocalBusiness' | 'Organization';
+
+  /**
    * Additional schema.org @type values merged into the LocalBusiness node.
    * Example: `['RealEstateAgent']` → `@type: ['LocalBusiness', 'ProfessionalService', 'RealEstateAgent']`
    */
@@ -202,6 +216,7 @@ const {
   slogan,
   numberOfEmployees,
   additionalTypes = [],
+  schemaType = 'LocalBusiness',
   employees,
   services,
   service,
@@ -251,8 +266,11 @@ const areaServedValue = areaServedArr
 const resolvedLogo = logoUrl ?? null;
 const resolvedImage = new URL(ogImage, url).toString();
 
-// Build @type array: always LocalBusiness + ProfessionalService, plus any extras
-const typeArray = ['LocalBusiness', 'ProfessionalService', ...(additionalTypes as string[])];
+// Build @type array: LocalBusiness + ProfessionalService (Default) oder Organization, plus any extras
+const isOrganization = schemaType === 'Organization';
+const typeArray = isOrganization
+  ? ['Organization', ...(additionalTypes as string[])]
+  : ['LocalBusiness', 'ProfessionalService', ...(additionalTypes as string[])];
 
 // schema-dts enforces a single `@type` literal per object; we emit an array
 // because JSON-LD allows multiple types per node. Cast the composite object.
@@ -295,7 +313,7 @@ const localBusinessSchema = {
         },
       }
     : {}),
-  ...(geo
+  ...(geo && !isOrganization
     ? {
         geo: {
           '@type': 'GeoCoordinates',
@@ -304,7 +322,7 @@ const localBusinessSchema = {
         },
       }
     : {}),
-  ...(openingHours && openingHours.length
+  ...(openingHours && openingHours.length && !isOrganization
     ? { openingHours: [...openingHours] }
     : {}),
   ...(foundingDate ? { foundingDate } : {}),
@@ -324,7 +342,7 @@ const localBusinessSchema = {
       }
     : {}),
   areaServed: areaServedValue,
-  priceRange,
+  ...(isOrganization ? {} : { priceRange }),
   sameAs: [...sameAs],
   // --- New fields ---
   ...(employees && employees.length

@@ -33,7 +33,7 @@
  *  11. Seite ohne JSON-LD → keine Issues
  *  12. Page-Pfad wird aus dem dist-Pfad korrekt abgeleitet
  */
-import { test } from 'node:test';
+import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -176,4 +176,36 @@ test('12. Page-Pfad wird aus dem dist-Pfad abgeleitet', () => {
   const block = ld({ '@type': 'JobPosting' }); // ohne @context → erzeugt ein Issue
   const issues = lintBlocks([block], 'karriere/index.html');
   assert.equal(issues[0].page, '/karriere/');
+});
+
+// ---------------------------------------------------------------------------
+// #895: Produkt-Typ am Firmenknoten
+// ---------------------------------------------------------------------------
+
+describe('Schema-Linter: product_on_organization (#895)', () => {
+  const firma = (type, id = 'https://example.test/#organization') =>
+    ld({ '@context': 'https://schema.org', '@type': type, '@id': id, name: 'X' });
+
+  test('mazterplan-Muster: SoftwareApplication am #organization → 1 Issue', () => {
+    const issues = lintBlocks([firma(['LocalBusiness', 'ProfessionalService', 'SoftwareApplication'])]);
+    assert.deepEqual(types(issues), ['product_on_organization']);
+    assert.match(issues[0].detail, /SoftwareApplication/);
+  });
+
+  test('preshot-Muster: Product am #organization → 1 Issue', () => {
+    assert.deepEqual(types(lintBlocks([firma(['LocalBusiness', 'ProfessionalService', 'Product'])])), ['product_on_organization']);
+  });
+
+  test('schema.org-URL-Form wird erkannt', () => {
+    assert.deepEqual(types(lintBlocks([firma(['Organization', 'https://schema.org/Product'])])), ['product_on_organization']);
+  });
+
+  test('Gegenprobe: Organization ohne Produkt-Typ → 0', () => {
+    assert.deepEqual(lintBlocks([firma(['Organization'])]), []);
+  });
+
+  test('Gegenprobe: eigener Produktknoten (falzmarke ProduktSchema) → 0', () => {
+    const produkt = ld({ '@context': 'https://schema.org', '@type': 'SoftwareApplication', '@id': 'https://example.test/#software', name: 'P' });
+    assert.deepEqual(lintBlocks([firma(['Organization']), produkt]), []);
+  });
 });
