@@ -1,0 +1,17 @@
+{
+  "name": "@cw/core-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "E2E-Tests für cw-core-Bausteine im Browser (blitzsicht-ops#900). Läuft nur in cw-core, nicht in Kundenrepos.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "serve": "14.2.4"
+  }
+}

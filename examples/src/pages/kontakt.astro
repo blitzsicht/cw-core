@@ -1,0 +1,21 @@
+---
+/**
+ * Kontaktformular (formType="contact") mit eigenem Endpoint.
+ *
+ * Zweck: Showcase und Prüfstand für den E2E-Test `e2e/formulare.spec.ts`. Der Test
+ * fängt den POST an /api/contact ab und reicht ihn an den echten
+ * createContactHandler weiter. examples ist statisch und hat selbst keine API-Route.
+ * Turnstile bleibt aus (leerer Site-Key), sonst bräuchte der Test Cloudflare.
+ */
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import ContactForm from '@cw/core/components/forms/ContactForm.astro';
+---
+<ExampleLayout
+  title="ContactForm"
+  description="Kontaktformular mit eigenem Endpoint: Name, E-Mail, Nachricht."
+>
+  <div class="example-section">
+    <h2>Formular formType="contact"</h2>
+    <ContactForm formType="contact" actionUrl="/api/contact" siteName="Beispiel" fallbackEmail="info@example.org" turnstileSiteKey="" />
+  </div>
+</ExampleLayout>
