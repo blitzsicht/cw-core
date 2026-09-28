@@ -45,6 +45,9 @@ export const schemaConfig: SchemaProps = {
   country: siteData.legal.country,
   email: siteData.contact.email,
   phone: siteData.contact.phone || undefined,
+  // Produkt-/SaaS-Seite ohne Ladenbetrieb? Dann 'Organization' — entfernt
+  // openingHours/priceRange/geo und den LocalBusiness-Typ (#895).
+  // schemaType: 'Organization',
   // --- AI-SEO Felder — aus site-data.ts befüllen ---
   sameAs: siteData.seo.sameAs,
   areaServed: siteData.seo.areaServed.length ? siteData.seo.areaServed : 'DE',

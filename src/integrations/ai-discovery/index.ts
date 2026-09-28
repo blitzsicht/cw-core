@@ -966,7 +966,7 @@ function extractJsonLd(html: string): string[] {
 
 export interface SchemaIssue {
   page: string;
-  type: 'duplicate_id' | 'missing_context' | 'missing_type' | 'invalid_json';
+  type: 'duplicate_id' | 'missing_context' | 'missing_type' | 'invalid_json' | 'product_on_organization';
   detail: string;
 }
 
@@ -1844,6 +1844,9 @@ export function lintPageStrayBraces(htmlPath: string, distDir: string): StrayBra
 }
 
 /** Prüft eine einzelne dist-HTML auf Schema-Probleme. */
+/** Produkt-Typen, die am `#organization`-Knoten nichts verloren haben (#895). */
+const PRODUKT_TYPEN = new Set(['Product', 'SoftwareApplication', 'WebApplication', 'MobileApplication']);
+
 export function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[] {
   const issues: SchemaIssue[] = [];
   const pagePath = htmlPath.slice(distDir.length).replace(/\/index\.html$/, '/');
@@ -1883,6 +1886,20 @@ export function lintPageSchema(htmlPath: string, distDir: string): SchemaIssue[]
       }
       if (!n['@type'] && !Array.isArray(n['@graph'])) {
         issues.push({ page, type: 'missing_type', detail: `JSON-LD-Block ${where} hat kein @type.` });
+      }
+      // #895: Produkt-Typ am Firmenknoten (SchemaOrg `additionalTypes: ['Product']`).
+      // Eine Firma ist kein Produkt — Auslöser mazterplan (SoftwareApplication) und
+      // preshot (Product). Richtig: `schemaType: 'Organization'` + eigener Produktknoten.
+      const id = typeof n['@id'] === 'string' ? n['@id'] : '';
+      const produktTypen = (Array.isArray(n['@type']) ? n['@type'] : [n['@type']]).filter(
+        (t): t is string => typeof t === 'string' && PRODUKT_TYPEN.has(t.replace(/^https?:\/\/schema\.org\//i, '')),
+      );
+      if (id.endsWith('#organization') && produktTypen.length) {
+        issues.push({
+          page,
+          type: 'product_on_organization',
+          detail: `JSON-LD-Block ${where}: Firmenknoten ${id} trägt ${produktTypen.join('/')} im @type. Produkt als eigenen Knoten ausgeben, nicht per additionalTypes an die Firma.`,
+        });
       }
     }
     collectIds(parsed, allIds);
