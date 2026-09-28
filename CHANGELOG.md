@@ -22,6 +22,27 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.163.0 (2026-09-28)
+
+- [kunde] Websites, die ein Produkt statt eines Ladengeschäfts vorstellen, geben sich gegenüber Google nicht mehr als Laden mit Öffnungszeiten aus.
+
+**Feature + Guard:** `schemaType` für den Firmenknoten (#158, blitzsicht-ops #895).
+
+- `SchemaOrg.astro` / `BaseLayout` (`SchemaProps`): neue Prop `schemaType?: 'LocalBusiness' | 'Organization'`, Default `'LocalBusiness'` (bytegleich zu v0.162.1).
+  `'Organization'` → `@type: ['Organization', ...additionalTypes]`, ohne `openingHours`, `priceRange`, `geo`. Anlass: falzmarke, platzfrei, mazterplan und preshot waren hart LocalBusiness, der opening-hours-check (v0.162.0) meldete dort dauerhaft.
+- Schema-Linter: Soft-Warn `product_on_organization`, wenn der `#organization`-Knoten `Product`/`SoftwareApplication`/`WebApplication`/`MobileApplication` trägt. Eine Firma ist kein Produkt; das Produkt gehört in einen eigenen Knoten.
+
+```ts
+// src/data/page-config.ts, Produkt-/SaaS-Seite
+export const schemaConfig: SchemaProps = { ...,  schemaType: 'Organization' };
+```
+
+**Migrations-Hinweis:** Keiner für LocalBusiness-Kunden. Produktseiten setzen `schemaType: 'Organization'`. mazterplan und preshot (Pins v0.110/v0.44.1) bekommen beim Bump die neue Linter-Warnung, echter Befund, Folge-Issue blitzsicht-ops #903.
+
+*Belege.* Golden vor der Änderung gerendert, Default bytegleich (2 Prop-Sätze); `checkOpeningHours` bei gleichem Input 1 → 0; Sabotage → 6 Tests rot. `pnpm test` 1178/0 (1 skip vorbestehend), `astro check` 0 Fehler. Flotten-Scan `additionalTypes` mit Produkt-Typ: genau mazterplan, preshot; kein Kunde setzt `strictSchema`.
+
+---
+
 ## v0.162.1 (2026-09-27)
 
 - [kunde] Nach einer Rückruf-Anfrage verspricht die Website keine Frist mehr, die nicht abgesprochen ist.
