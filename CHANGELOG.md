@@ -37,7 +37,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 export const schemaConfig: SchemaProps = { ...,  schemaType: 'Organization' };
 ```
 
-**Migrations-Hinweis:** Keiner für LocalBusiness-Kunden. Produktseiten setzen `schemaType: 'Organization'`. mazterplan und preshot (Pins v0.110/v0.44.1) bekommen beim Bump die neue Linter-Warnung, echter Befund, Folge-Issue blitzsicht-ops #903.
+**Migrations-Hinweis:** Keiner für LocalBusiness-Kunden. Produktseiten setzen `schemaType: 'Organization'`. mazterplan und preshot (Pin v0.159.0 auf origin; die hier früher genannten Pins v0.110/v0.44.1 stammten aus veralteten lokalen Checkouts) bekommen beim Bump die neue Linter-Warnung, echter Befund, Folge-Issue blitzsicht-ops #903.
 
 *Belege.* Golden vor der Änderung gerendert, Default bytegleich (2 Prop-Sätze); `checkOpeningHours` bei gleichem Input 1 → 0; Sabotage → 6 Tests rot. `pnpm test` 1178/0 (1 skip vorbestehend), `astro check` 0 Fehler. Flotten-Scan `additionalTypes` mit Produkt-Typ: genau mazterplan, preshot; kein Kunde setzt `strictSchema`.
 
