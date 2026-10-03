@@ -8,6 +8,16 @@
 import { siteData } from './site-data';
 import type { SchemaProps } from '@cw/core/layouts/BaseLayout.astro';
 
+// Optionale Felder, die site-data.template.ts bewusst NICHT setzt (titleTemplate,
+// trackingMode) oder als Literal führt (karriere.enabled: true). `as const` kennt
+// sie sonst nicht bzw. nur als `true` — astro check meldete im frisch
+// gescaffoldeten Repo 4 Fehler (Review cw-site #2, 03.10.2026). Die Sichten unten
+// sind typgeprüft, ohne Cast; Guard: tests/templates-typen.test.js.
+const seo: typeof siteData.seo & { titleTemplate?: string } = siteData.seo;
+const analytics: typeof siteData.analytics & { trackingMode?: 'inline' | 'full' | 'none' } =
+  siteData.analytics;
+const karriere: { enabled?: boolean } | undefined = siteData.karriere;
+
 export const footerConfig = {
   siteName: siteData.name,
   tagline: siteData.tagline,
@@ -20,12 +30,12 @@ export const footerConfig = {
   city: siteData.legal.city,
   leistungenLinks: siteData.nav.footer.leistungen,
   rechtlichesLinks: siteData.nav.footer.rechtliches,
-  showKarriereLink: siteData.karriere?.enabled !== false,
+  showKarriereLink: karriere?.enabled !== false,
 } as const;
 
 export const headerConfig = {
   navItems: siteData.nav.main,
-  showKarriereLink: siteData.karriere?.enabled !== false,
+  showKarriereLink: karriere?.enabled !== false,
   logoSrcDark: '/logo-inverted.svg',
 } as const;
 
@@ -70,13 +80,13 @@ export const landingBaseProps = {
   defaultTitle: siteData.seo.defaultTitle,
   defaultDescription: siteData.seo.defaultDescription,
   defaultOgImage: siteData.seo.ogImage,
-  titleTemplate: siteData.seo.titleTemplate,
+  titleTemplate: seo.titleTemplate,
   plausibleScript: siteData.analytics?.plausibleScript,
   plausibleEndpoint: siteData.analytics?.plausibleEndpoint,
   // undefined → BaseLayout-Default 'inline'. Nur setzen, wenn die Site zusätzlich
   // <PlausibleEvents> mountet (dann 'full', sonst Doppelfeuer). Ohne dieses
   // Passthrough erbten frisch gescaffoldete Sites hart 'inline'.
-  trackingMode: siteData.analytics?.trackingMode,
+  trackingMode: analytics?.trackingMode,
   header: headerConfig,
   footer: footerConfig,
   schema: schemaConfig,
