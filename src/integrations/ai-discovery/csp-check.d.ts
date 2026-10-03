@@ -10,7 +10,8 @@ export type CspIssueType =
   | 'unsafe_eval'
   | 'script_src_wildcard'
   | 'missing_object_src'
-  | 'missing_base_uri';
+  | 'missing_base_uri'
+  | 'vorlagen_platzhalter';
 
 export interface CspIssue {
   type: CspIssueType;
@@ -28,3 +29,5 @@ export function parseCsp(csp: string): Map<string, string[]>;
 export function extractCspValuesFromVercelJson(vercelJsonRaw: string): string[];
 export function tokenHost(token: string): string;
 export function checkCspCompleteness(csp: string, opts?: CspCheckOptions): CspIssue[];
+export const VORLAGEN_HOSTS: string[];
+export function istVorlagenPlatzhalter(token: string): boolean;

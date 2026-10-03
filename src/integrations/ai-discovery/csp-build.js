@@ -15,7 +15,7 @@
  * @typedef {{ plausible?: boolean, turnstile?: boolean, cal?: boolean, tally?: boolean, youtube?: boolean, osm?: boolean, vercelToolbar?: boolean, googleMaps?: boolean, inlineStyles?: boolean, inlineScripts?: boolean }} BuildCspOptions
  */
 
-import { parseCsp, tokenHost } from './csp-check.js';
+import { parseCsp, tokenHost, istVorlagenPlatzhalter } from './csp-check.js';
 
 /** Normalisiert einen Origin auf `https://host` (Schema ergänzen, trailing slash weg). @param {string} o @returns {string} */
 export function normOrigin(o) {
@@ -125,6 +125,11 @@ export function fixCsp(existing, siteOrigin) {
   const O = normOrigin(siteOrigin);
   const host = tokenHost(O);
   const map = parseCsp(existing);
+
+  // 0. Vorlagen-Platzhalter raus (`https://{{DOMAIN}}`, `https://firma.de`): der
+  //    echte Origin kommt in Schritt 2 dazu. Vorher blieben die Reste neben ihm
+  //    stehen (Review cw-site #6, 03.10.2026).
+  for (const [d, sources] of map) map.set(d, sources.filter((s) => !istVorlagenPlatzhalter(s)));
 
   // 1. Security-Sanitisierung: gefährliche Quellen aus Script-Direktiven entfernen
   //    (NICHT nur melden — defense-in-depth, falls der Validator-Gate mal nicht läuft).

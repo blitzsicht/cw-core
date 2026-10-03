@@ -55,6 +55,7 @@ import { checkEmbedConsent } from './embed-consent-check.js';
 import { checkReviewClaims } from './review-claims-check.js';
 import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
+import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
 import {
   buildMarkerOwners,
   checkMotionConsent,
@@ -3494,6 +3495,28 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           logger.info(
             'Robots-KI-Guard: übersprungen (checkRobotsAiPolicy: false) — robots.txt NICHT geprüft.',
           );
+        }
+
+        // -------------------------------------------------------------------
+        // Vorlagen-Platzhalter in api/ ({{DOMAIN}}, {{LEGAL_NAME}}) — Soft-Warn
+        // -------------------------------------------------------------------
+        // Review cw-site #6 (03.10.2026): api/contact.ts aus der Vorlage behielt
+        // {{DOMAIN}} in allowedOrigins, der Build blieb grün. Die CSP-Seite fängt
+        // checkCspCompleteness ('vorlagen_platzhalter').
+        {
+          const apiDir = join(process.cwd(), 'api');
+          if (existsSync(apiDir)) {
+            const dateien = readdirSync(apiDir)
+              .filter((f) => /\.(ts|js|mjs)$/.test(f))
+              .map((f) => ({ pfad: `api/${f}`, inhalt: readFileSync(join(apiDir, f), 'utf-8') }));
+            const befunde = findeVorlagenPlatzhalter(dateien);
+            if (befunde.length === 0) {
+              logger.info(`Vorlagen-Platzhalter: ✓ keine in api/ (${dateien.length} Datei(en) geprüft).`);
+            } else {
+              logger.warn(`Vorlagen-Platzhalter: ${befunde.length} nicht ersetzt in api/ — Formular lehnt sonst echte Anfragen ab:`);
+              for (const b of befunde) logger.warn(`  ${b.pfad}:${b.zeile} ${b.platzhalter}`);
+            }
+          }
         }
 
         // -------------------------------------------------------------------
