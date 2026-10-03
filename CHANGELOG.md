@@ -22,6 +22,33 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.164.0 (2026-10-03)
+
+**Fix:** Vorlagen ergeben ein Kundenrepo, das `pnpm build` und `pnpm check` besteht
+
+Kontext: Review der cw-site-Skills (customer-websites `docs/reviews/2026-10-03-review-cw-site.md`,
+Befunde #1/#2). Ein frisch aus `src/templates/` gescaffoldetes Repo war doppelt rot:
+`pnpm build` brach ab, weil `llms.txt.ts` `@/data/site-data` importiert, es aber keine
+tsconfig-Vorlage mit dem Alias gab; `pnpm check` meldete im Vorlagen-Paar 4 Fehler
+(`seo.titleTemplate` und `analytics.trackingMode` setzt site-data bewusst nicht,
+`karriere.enabled` ist durch `as const` das Literal `true`).
+
+- Neu: `src/templates/tsconfig.template.json` (`astro/tsconfigs/strict`, `@/*` → `src/*`).
+- `page-config.template.ts` liest die drei Felder über typisierte Sichten, ohne Cast;
+  `site-data.template.ts` bleibt unverändert. Ein ungültiger Wert (`trackingMode: 'bogus'`)
+  ist weiterhin ein Typfehler.
+- Guard: `tests/templates-typen.test.js` typprüft site-data + page-config im Speicher wie im
+  Zielrepo. BELEGT: auf v0.163.0 rot mit genau den 4 Fehlern, jetzt grün; Sabotage-Test im
+  selben Lauf.
+- Tests (#160): neuer CI-Job `e2e`, der Kontakt-, Rückruf- und Empfehlungsformular im
+  Browser wirklich absendet (5 Fälle, nach außen geht nichts).
+
+**Migrations-Hinweis:** Keiner. Bestehende Kundenrepos haben ihre eigene `tsconfig.json`
+und `page-config.ts`; die Vorlagen wirken nur beim nächsten Scaffold (`cw-site-scaffold`
+holt sie per `git show "$TAG:…"` und bricht auf Tags ohne tsconfig-Vorlage ab).
+
+---
+
 ## v0.163.0 (2026-09-28)
 
 - [kunde] Websites, die ein Produkt statt eines Ladengeschäfts vorstellen, geben sich gegenüber Google nicht mehr als Laden mit Öffnungszeiten aus.
