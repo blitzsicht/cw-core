@@ -22,6 +22,33 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.165.0 (2026-10-03)
+
+**Fix:** Vorlagen-Platzhalter in CSP und `api/` werden erkannt und entfernt
+
+Kontext: Review der cw-site-Skills, Befund #6. Nach dem Scaffold standen in der CSP 9×
+`https://{{DOMAIN}}` und 9× `https://firma.de` neben der echten Domain, und der Build
+meldete „✓ vercel.json CSP vollständig“: `fixCsp` ergänzte den Origin nur,
+`checkCspCompleteness` kannte Platzhalter nicht. In `api/contact.ts` blieben
+`{{DOMAIN}}`/`{{LEGAL_NAME}}` ebenso unbemerkt; das Formular hätte damit echte
+Herkünfte abgelehnt.
+
+- `checkCspCompleteness`: neuer Befund `vorlagen_platzhalter` (`{{…}}` oder Host `firma.de`,
+  host-genau). Wirkt im Build-Linter und in `gen-vercel-csp`.
+- `fixCsp` entfernt Platzhalter-Hosts, bevor der echte Origin gesetzt wird.
+- `gen-vercel-csp` bricht ab, solange `site:` noch `firma.de` ist, und schreibt dann nichts.
+- Neuer Soft-Warn im Build: Vorlagen-Platzhalter in `api/*.ts`.
+- Neue Exporte: `VORLAGEN_HOSTS`, `istVorlagenPlatzhalter` (csp-check),
+  `findeVorlagenPlatzhalter` (vorlagen-platzhalter-check).
+
+Cluster-Scan: 26 Kundenrepos (origin/main), 0 betroffen; dieselbe Suche trifft die
+Vorlagen (Gegenprobe).
+
+**Migrations-Hinweis:** Keiner. Bestehende Kundenrepos tragen keine Platzhalter, der neue
+Befund feuert dort nicht.
+
+---
+
 ## v0.164.0 (2026-10-03)
 
 **Fix:** Vorlagen ergeben ein Kundenrepo, das `pnpm build` und `pnpm check` besteht
