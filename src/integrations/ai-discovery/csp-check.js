@@ -13,7 +13,7 @@
  * Assets in Chrome/Edge/Safari auf Astro/Vercel-Sites nicht zuverlässig.
  * Siehe docs/CSP-rationale.md.
  *
- * @typedef {'csp_non_ascii'|'missing_style_src_elem'|'missing_script_src_elem'|'missing_media_src'|'elem_narrower_than_base'|'plausible_missing_script_elem'|'plausible_missing_connect'|'self_without_origin'|'unsafe_eval'|'script_src_wildcard'|'missing_object_src'|'missing_base_uri'} CspIssueType
+ * @typedef {'csp_non_ascii'|'missing_style_src_elem'|'missing_script_src_elem'|'missing_media_src'|'elem_narrower_than_base'|'plausible_missing_script_elem'|'plausible_missing_connect'|'self_without_origin'|'unsafe_eval'|'script_src_wildcard'|'missing_object_src'|'missing_base_uri'|'vorlagen_platzhalter'} CspIssueType
  * @typedef {{ type: CspIssueType, details: string }} CspIssue
  * @typedef {{ analyticsHost?: string|null, siteOrigin?: string|null }} CspCheckOptions
  */
@@ -84,6 +84,23 @@ export function tokenHost(token) {
     .replace(/\/.*$/, '')
     .replace(/^www\./, '')
     .toLowerCase();
+}
+
+/**
+ * Hosts, die nur in den cw-core-Vorlagen stehen und in keiner echten CSP vorkommen
+ * dürfen: `site: 'https://firma.de'` im astro.config-Template. Host-genau
+ * (`meinefirma.de` ist keiner).
+ */
+export const VORLAGEN_HOSTS = ['firma.de'];
+
+/**
+ * Ist der Token ein nicht ersetzter Vorlagen-Platzhalter (`https://{{DOMAIN}}`)
+ * oder ein Vorlagen-Host? Review cw-site #6, 03.10.2026.
+ * @param {string} token
+ * @returns {boolean}
+ */
+export function istVorlagenPlatzhalter(token) {
+  return /\{\{[^}]*\}\}/.test(token) || VORLAGEN_HOSTS.includes(tokenHost(token));
 }
 
 /** Host-genauer Match (kein Substring → kein `profi.de`⊂`donau-profi.de`-Bug). @param {string[]|undefined} sources @param {string} needle @returns {boolean} */
@@ -193,6 +210,17 @@ export function checkCspCompleteness(csp, opts = {}) {
     if (sources.includes('*') || sources.includes('https:') || sources.includes('http:')) {
       issues.push({ type: 'script_src_wildcard', details: `${d} enthält eine Wildcard-Quelle (*, https: oder http:) — erlaubt beliebige Scripts. Auf konkrete Hosts einschränken.` });
     }
+  }
+
+  // 9a. Vorlagen-Platzhalter: `https://{{DOMAIN}}` / `https://firma.de` aus den
+  //     Templates. Ohne diese Prüfung meldete der Build „CSP vollständig“, obwohl
+  //     die CSP Vorlagenreste neben der echten Domain trug (Review cw-site #6).
+  const platzhalter = [...new Set([...map.values()].flat().filter(istVorlagenPlatzhalter))];
+  if (platzhalter.length) {
+    issues.push({
+      type: 'vorlagen_platzhalter',
+      details: `Vorlagen-Platzhalter in der CSP: ${platzhalter.join(', ')}. In astro.config \`site:\` die echte Domain eintragen, dann \`node node_modules/@cw/core/scripts/gen-vercel-csp.mjs\` — der Generator entfernt die Reste.`,
+    });
   }
 
   // 9. Härtung: object-src 'none' + base-uri 'self' (base-uri hat keinen Fallback).

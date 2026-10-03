@@ -56,6 +56,7 @@ function addServices(csp, services) {
 import {
   checkCspCompleteness,
   extractCspValuesFromVercelJson,
+  istVorlagenPlatzhalter,
 } from '../src/integrations/ai-discovery/csp-check.js';
 
 const args = process.argv.slice(2);
@@ -99,6 +100,14 @@ function resolveOrigin(dir) {
 const origin = resolveOrigin(root);
 if (!origin) {
   console.error('gen-vercel-csp: Site-Origin nicht ermittelbar (astro.config site / site-data url) — Abbruch.');
+  process.exit(1);
+}
+
+// Origin aus der Vorlage (`site: 'https://firma.de'`) → nichts schreiben: der
+// Generator würde die Vorlagen-Domain als Pragma-Origin in jede Direktive setzen
+// und die CSP sähe danach „konform“ aus (Review cw-site #6, 03.10.2026).
+if (istVorlagenPlatzhalter(origin)) {
+  console.error(`gen-vercel-csp: Origin ${origin} stammt aus der Vorlage — erst in astro.config \`site:\` die echte Domain eintragen. Nichts geschrieben.`);
   process.exit(1);
 }
 
