@@ -24,6 +24,13 @@
  *   node scripts/bild-einbauen.mjs bild.webp --repo /pfad/zum/repo --ziel images/ \
  *        --herkunft ki-erzeugt --deepfake ja --begruendung "Szene ohne reale Vorlage"
  *   node scripts/bild-einbauen.mjs *.webp --repo customer-soleno --ziel images/ --probelauf
+ *   node scripts/bild-einbauen.mjs foto.jpg --repo customer-haarwerk-neutraubling --ziel images/ --assets
+ *
+ * `--assets`: Ablage unter `src/assets/<ziel>` statt `public/<ziel>`, Regel als `stem`
+ * (Dateiname ohne Endung) statt `pathPrefix`. Bilder in src/assets laufen durch
+ * astro:assets (Formate, Größen) und heißen im Build `/_astro/<name>.<hash>.webp` — ein
+ * Pfad-Präfix träfe sie nie, der Stamm schon. So legt haarwerk seine Bilder ab; der
+ * Skill cw-site-bilder verlangt diesen Weg (Review cw-site #52, 03.10.2026).
  */
 
 import { readFileSync, writeFileSync, existsSync, copyFileSync, mkdirSync } from 'node:fs';
@@ -159,6 +166,25 @@ export function einfuegen(inhalt, zeile) {
   return inhalt.slice(0, idx + 1) + zeile + '\n' + inhalt.slice(idx + 1);
 }
 
+/**
+ * Wohin kommt die Datei, und unter welchem Schlüssel wird sie deklariert?
+ *
+ * @param {{ ziel: string, name: string, assets: boolean }} a
+ * @returns {{ relPfad: string, zielRel: string, schluessel: 'pathPrefix'|'stem', wert: string }}
+ *   relPfad: Pfad unter dem Wurzelordner (Anzeige, Deny-Liste) ·
+ *   zielRel: Pfad relativ zum Repo · schluessel/wert: für regelZeile()
+ */
+export function ablage({ ziel, name, assets }) {
+  const relPfad = (ziel.replace(/^\/+|\/+$/g, '') + '/' + name).replace(/^\/+/, '');
+  if (assets) {
+    // bis zum ERSTEN Punkt — dieselbe Regel wie resolveBildHerkunft (src/utils/bildherkunft.js),
+    // sonst trifft die Regel `foto.v2.jpg` → `/_astro/foto.v2.<hash>.webp` nicht.
+    const stamm = name.split('.')[0];
+    return { relPfad, zielRel: join('src', 'assets', relPfad), schluessel: 'stem', wert: stamm };
+  }
+  return { relPfad, zielRel: join('public', relPfad), schluessel: 'pathPrefix', wert: relPfad };
+}
+
 // ---------------------------------------------------------------------------
 // Ab hier: I/O, Fragen, Ablegen.
 // ---------------------------------------------------------------------------
@@ -199,11 +225,12 @@ async function main() {
   const repo = repoAufloesen(argWert('--repo'));
   const ziel = argWert('--ziel', 'images/');
   const probelauf = hatFlag('--probelauf');
+  const assets = hatFlag('--assets');
 
   if (!dateien.length || !repo) {
     console.error('Aufruf: bild-einbauen.mjs <datei…> --repo <slug|pfad> [--ziel images/unterordner/]');
     console.error('        [--herkunft mensch|ki-erzeugt|ki-veraendert] [--deepfake ja|nein] [--begruendung "…"]');
-    console.error('        [--probelauf]');
+    console.error('        [--assets]  (Ablage src/assets/<ziel>, Regel per stem)  [--probelauf]');
     process.exit(1);
   }
 
@@ -223,7 +250,7 @@ async function main() {
       if (!existsSync(quelle)) { console.error(`  ! ${quelle}: existiert nicht`); continue; }
 
       const name = basename(quelle);
-      const relPfad = (ziel.replace(/^\/+|\/+$/g, '') + '/' + name).replace(/^\/+/, '');
+      const { relPfad, zielRel, schluessel, wert } = ablage({ ziel, name, assets });
 
       if (TAG_DENY_RE.test(relPfad)) {
         console.log(`  – ${name}: og-/Icon-/Newsletter-Pfad — kein Inhaltsbild, keine Deklaration nötig.`);
@@ -272,7 +299,7 @@ async function main() {
       }
 
       const e = { h: herkunft, d: istKi ? deepfake : undefined, b: istKi ? begruendung : undefined };
-      const zeile = regelZeile('pathPrefix', relPfad, e);
+      const zeile = regelZeile(schluessel, wert, e);
 
       // Gegenprobe vor dem Schreiben: der eigene Regelprüfer muss die Zeile durchwinken.
       const probe = new Function('return [' + zeile + '];')();
@@ -290,7 +317,7 @@ async function main() {
         console.error(`  ! ${e.message}`);
         continue;
       }
-      getan.push({ quelle, relPfad, herkunft, deepfake, name });
+      getan.push({ quelle, relPfad, zielRel, herkunft, deepfake, name });
       console.log(`  ✓ deklariert als ${herkunft}${istKi ? ` / deepfake=${deepfake}` : ''}`);
     }
   } finally {
@@ -301,12 +328,12 @@ async function main() {
 
   if (probelauf) {
     console.log('\nProbelauf — nichts geschrieben. Es entstuenden:');
-    for (const g of getan) console.log(`  ${g.relPfad}`);
+    for (const g of getan) console.log(`  ${g.zielRel}`);
     return;
   }
 
   for (const g of getan) {
-    const zielDatei = join(repo, 'public', g.relPfad);
+    const zielDatei = join(repo, g.zielRel);
     mkdirSync(dirname(zielDatei), { recursive: true });
     copyFileSync(g.quelle, zielDatei);
 

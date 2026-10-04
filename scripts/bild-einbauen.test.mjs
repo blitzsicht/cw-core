@@ -115,3 +115,52 @@ test('7. ein bereits vorhandener Eintrag wird erkannt, nicht verdoppelt', () => 
   const einmal = einfuegen(NEUE_DATEI('testsite'), zeile);
   assert.throws(() => einfuegen(einmal, zeile), /bereits deklariert|schon/i);
 });
+
+// --- --assets (Review cw-site #52) -------------------------------------------------------
+import { ablage } from './bild-einbauen.mjs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join as pjoin, dirname as pdirname } from 'node:path';
+import { fileURLToPath as f2p } from 'node:url';
+import { execFileSync } from 'node:child_process';
+
+test('8. ohne --assets bleibt alles wie bisher: public/ + pathPrefix', () => {
+  assert.deepEqual(ablage({ ziel: 'images/team/', name: 'anna.webp', assets: false }), {
+    relPfad: 'images/team/anna.webp', zielRel: pjoin('public', 'images/team/anna.webp'),
+    schluessel: 'pathPrefix', wert: 'images/team/anna.webp',
+  });
+});
+
+test('9. --assets: src/assets/ + stem, und die Regel trifft das gehashte Build-Bild', () => {
+  const a = ablage({ ziel: 'images/', name: 'salon.v2.jpg', assets: true });
+  assert.equal(a.zielRel, pjoin('src', 'assets', 'images/salon.v2.jpg'));
+  assert.equal(a.schluessel, 'stem');
+  assert.equal(a.wert, 'salon');
+  const regeln = { bildHerkunft: [{ stem: a.wert, herkunft: 'mensch' }] };
+  // so heißt die Datei nach astro:assets
+  assert.equal(resolveBildHerkunft(regeln, '/_astro/salon.v2.Bng-bGX1.webp')?.herkunft, 'mensch');
+  // Gegenprobe: ein pathPrefix auf den Quellpfad trifft das Build-Bild NICHT — darum stem
+  const alt = { bildHerkunft: [{ pathPrefix: 'images/salon.v2.jpg', herkunft: 'mensch' }] };
+  assert.notEqual(resolveBildHerkunft(alt, '/_astro/salon.v2.Bng-bGX1.webp')?.herkunft, 'mensch');
+});
+
+test('10. Ende zu Ende: --assets legt unter src/assets ab und deklariert per stem', () => {
+  const root = mkdtempSync(pjoin(tmpdir(), 'bild-einbauen-'));
+  try {
+    const repo = pjoin(root, 'customer-probe');
+    mkdirSync(pjoin(repo, 'src', 'data'), { recursive: true });
+    writeFileSync(pjoin(repo, 'src', 'data', 'site-data.ts'), "import { bildHerkunft } from './bild-herkunft';\n");
+    const quelle = pjoin(root, 'empfang.jpg');
+    writeFileSync(quelle, 'kein echtes jpg');
+    const skript = pjoin(pdirname(f2p(import.meta.url)), 'bild-einbauen.mjs');
+    execFileSync(process.execPath, [skript, quelle, '--repo', repo, '--ziel', 'images/', '--assets', '--herkunft', 'mensch'],
+      { stdio: 'pipe', input: '' });
+    assert.ok(existsSync(pjoin(repo, 'src', 'assets', 'images', 'empfang.jpg')), 'Datei nicht unter src/assets');
+    assert.ok(!existsSync(pjoin(repo, 'public', 'images', 'empfang.jpg')), 'Datei trotzdem in public/');
+    const dekl = readFileSync(pjoin(repo, 'src', 'data', 'bild-herkunft.ts'), 'utf8');
+    assert.match(dekl, /stem: 'empfang'/);
+    assert.doesNotMatch(dekl, /pathPrefix: 'images\/empfang/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
