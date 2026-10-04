@@ -22,6 +22,31 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.166.0 (2026-10-04)
+
+**Feature + Fix:** `kennzeichnung-live --url` und ehrliche Exit-Codes; `bild-einbauen --assets`
+
+Kontext: Review der cw-site-Skills, Befunde #52/#53, dazu cw-core #132.
+
+- `kennzeichnung-live`: gemessen wurde immer `production_url`, vor dem Go-Live also die
+  Altseite des Kunden. Neu `--url <basis>` (nur mit `--site`): Sitemap und Seiten kommen
+  von dort, die `<loc>` werden auf diesen Origin umgeschrieben, die Positivkontrolle bleibt
+  beim Produktions-Host. `VERCEL_PROTECTION_BYPASS` geht als Header mit.
+- `kennzeichnung-live`: eine leere Sitemap bei vorhandener Deklaration ergab „Seiten 0/0,
+  FEHLEND 0“ und sah grün aus (cw-core #132). Jetzt „NICHT GEPRÜFT“ mit Grund.
+  Exit: 0 sauber · 1 Label fehlt · 2 ungeprüft (vorher immer 0).
+- `bild-einbauen --assets`: Ablage unter `src/assets/<ziel>`, Regel per `stem` (Name bis zum
+  ersten Punkt). Diese Regel trifft das gehashte Build-Bild `/_astro/<name>.<hash>.webp`,
+  ein `pathPrefix` nicht. Ohne Option unverändert.
+
+Belege: haarwerk-Vorschau 8/8 Seiten, pflichtig 10, FEHLEND 0, Exit 0; Altseite Exit 2;
+bild-einbauen Tests 8–10 plus Sabotage.
+
+**Migrations-Hinweis:** Keiner. Wer `kennzeichnung-live` per Skript aufruft, bekommt jetzt
+Exit 1/2 statt 0; einen automatischen Aufrufer gibt es nicht (geprüft 04.10.2026).
+
+---
+
 ## v0.165.0 (2026-10-03)
 
 **Fix:** Vorlagen-Platzhalter in CSP und `api/` werden erkannt und entfernt
