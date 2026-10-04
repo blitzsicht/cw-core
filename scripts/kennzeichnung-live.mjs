@@ -31,6 +31,18 @@
  *   node scripts/kennzeichnung-live.mjs --site donau-profi  # eine
  *   node scripts/kennzeichnung-live.mjs --out bericht.json
  *   node scripts/kennzeichnung-live.mjs --max-seiten 20     # Kurzlauf zum Ausprobieren
+ *   node scripts/kennzeichnung-live.mjs --site haarwerk-neutraubling \
+ *        --url https://customer-haarwerk-neutraubling.vercel.app   # Vorschau statt production_url
+ *
+ * `--url` (nur mit `--site`): Sitemap und Seiten kommen von dort; die <loc> der Sitemap
+ * (spätere Kundendomain) werden auf diesen Origin umgeschrieben. Die Positivkontrolle
+ * bleibt beim Host aus production_url — canonical/og:url der Vorschau zeigen dorthin.
+ * Vor dem Go-Live ist production_url die Altseite des Kunden; ohne `--url` misst man sie
+ * (Review cw-site #53). Deployment Protection: VERCEL_PROTECTION_BYPASS=<secret>.
+ *
+ * Exit: 0 alles gemessen, nichts fehlt · 1 mindestens ein Label fehlt ·
+ *       2 nichts fehlt, aber etwas blieb ungeprüft (leere Sitemap, Checkpoint, --site
+ *       nicht gefunden). Bis 03.10.2026 endete der Lauf immer mit 0 (cw-core #132).
  *
  * Keine Rechtsberatung. Rechtstext: cw-recht → texte/eu/ai-act/ai-act.md.
  */
@@ -43,6 +55,7 @@ import {
   leseHerkunftRegeln,
   unbekannteLabelFormen,
 } from '../src/integrations/ai-discovery/ai-label-check.js';
+import { seitenAusSitemap, zeilenZustand, exitCode } from './lib/kennzeichnung-urteil.mjs';
 
 const argWert = (/** @type {string} */ n, /** @type {string|null} */ f = null) => {
   const i = process.argv.indexOf(n);
@@ -52,6 +65,12 @@ const argWert = (/** @type {string} */ n, /** @type {string|null} */ f = null) =
 const NUR_SITE = argWert('--site');
 const AUSGABE = argWert('--out');
 const MAX_SEITEN = Number(argWert('--max-seiten', '0')) || Infinity;
+const BASIS_URL = argWert('--url');
+if (BASIS_URL && !NUR_SITE) {
+  console.error('kennzeichnung-live: --url nur zusammen mit --site.');
+  process.exit(64);
+}
+const BYPASS = process.env.VERCEL_PROTECTION_BYPASS;
 const PARALLEL = 4;
 
 /**
@@ -99,7 +118,10 @@ async function hole(url) {
   try {
     const r = await fetch(url, {
       redirect: 'follow',
-      headers: { 'user-agent': 'cw-core/kennzeichnung-live (+https://blitzsicht.com)' },
+      headers: {
+        'user-agent': 'cw-core/kennzeichnung-live (+https://blitzsicht.com)',
+        ...(BYPASS ? { 'x-vercel-protection-bypass': BYPASS } : {}),
+      },
       signal: AbortSignal.timeout(25000),
     });
     if (!r.ok) return null;
@@ -145,8 +167,9 @@ for (const k of kunden) {
   }
 
   const host = new URL(k.production_url).host;
-  const sitemap = (await hole(`${k.production_url}/sitemap-0.xml`)) ?? '';
-  const seiten = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]).slice(0, MAX_SEITEN);
+  const quelle = (BASIS_URL ?? k.production_url).replace(/\/$/, '');
+  const sitemap = (await hole(`${quelle}/sitemap-0.xml`)) ?? '';
+  const seiten = seitenAusSitemap(sitemap, { basis: BASIS_URL, max: MAX_SEITEN });
 
   const zahl = { seiten: seiten.length, geprueft: 0, nichtGeprueft: 0, pflichtig: 0, fehlend: 0, ungeklaert: 0 };
   /** @type {Set<string>} */
@@ -173,7 +196,8 @@ for (const k of kunden) {
     if (b.ungeklaert.length) unklar.push({ seite: pfad, bilder: b.ungeklaert });
   });
 
-  ergebnis.push({ slug: k.slug, lifecycle: k.lifecycle, url: k.production_url, pflichtRegeln, ...zahl, luecken, unklar, unbekannteFormen: [...unbekannteFormen].sort() });
+  const zustand = zeilenZustand({ regeln: regeln.length, ...zahl });
+  ergebnis.push({ slug: k.slug, lifecycle: k.lifecycle, url: quelle, zustand, pflichtRegeln, ...zahl, luecken, unklar, unbekannteFormen: [...unbekannteFormen].sort() });
   console.log(
     `${k.slug.padEnd(24)} Seiten ${String(zahl.geprueft).padStart(3)}/${String(zahl.seiten).padEnd(3)}` +
       `  pflichtig ${String(zahl.pflichtig).padStart(3)}  FEHLEND ${String(zahl.fehlend).padStart(3)}` +
@@ -181,7 +205,9 @@ for (const k of kunden) {
       (zahl.nichtGeprueft ? `  nicht geprüft ${zahl.nichtGeprueft}` : '') +
       // Eine unbekannte Form macht die Zahlen der Zeile fragwürdig — sie gehört daneben,
       // nicht in eine Fußnote.
-      (unbekannteFormen.size ? `  UNBEKANNTE FORM: ${[...unbekannteFormen].join(', ')}` : ''),
+      (unbekannteFormen.size ? `  UNBEKANNTE FORM: ${[...unbekannteFormen].join(', ')}` : '') +
+      (zustand === 'nicht-geprueft' && zahl.seiten === 0 ? `  NICHT GEPRÜFT: Sitemap leer oder nicht abrufbar (${quelle})` : '') +
+      (zustand === 'nicht-geprueft' && zahl.seiten > 0 ? '  NICHT GEPRÜFT' : ''),
   );
 }
 
@@ -193,4 +219,11 @@ if (AUSGABE) {
 
 const fehlendGesamt = ergebnis.reduce((s, e) => s + (e.fehlend || 0), 0);
 const nichtGeprueft = ergebnis.reduce((s, e) => s + (e.nichtGeprueft || 0), 0);
-console.log(`\nFEHLENDE KENNZEICHNUNGEN: ${fehlendGesamt}   nicht geprüft: ${nichtGeprueft}`);
+const zustaende = ergebnis.map((e) => e.zustand ?? (e.parserProblem ? 'nicht-geprueft' : 'ohne-deklaration'));
+if (NUR_SITE && ergebnis.length === 0) {
+  console.log(`${NUR_SITE.padEnd(24)} NICHT GEPRÜFT: nicht in der Registry oder ohne production_url/repo_path`);
+  zustaende.push('nicht-geprueft');
+}
+const ungeprueftZeilen = zustaende.filter((z) => z === 'nicht-geprueft').length;
+console.log(`\nFEHLENDE KENNZEICHNUNGEN: ${fehlendGesamt}   nicht geprüfte Seiten: ${nichtGeprueft}   nicht geprüfte Sites: ${ungeprueftZeilen}`);
+process.exit(exitCode(zustaende));
