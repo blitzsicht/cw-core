@@ -22,6 +22,24 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.166.1 (2026-10-05)
+
+**Docs:** Standard-Abläufe und Standard-Datenfluss der Kundenseiten; `customer-CLAUDE.md` verweist auf `PROJEKT.md`
+
+Kontext: Statt sechs Projektdokumenten je Kunde gibt es eine `PROJEKT.md` im Kundenrepo,
+erzeugt aus dem Intake-Block `projekt` (cw-onboarding#21, customer-websites#91). Was bei
+allen Kunden gleich ist, steht einmal hier:
+
+- `docs/standard-ablaeufe.md`: was der Besucher bei Erfolg, Ablehnung, Versandfehler,
+  Rate-Limit, Spam-Verdacht und ohne JS sieht; Ist-Zustand v0.166.0 mit zwei offenen
+  Lücken (blitzsicht-ops#915 Servermeldung, #916 role=alert)
+- `docs/standard-datenfluss.md`: Weg einer Anfrage, was wo liegt, Zustellfehler
+- `templates/customer-CLAUDE.md`: Abschnitt „Projekt — zuerst lesen"
+
+**Migrations-Hinweis:** Keiner. Neue Kundenrepos bekommen den Verweis über den Scaffold.
+
+---
+
 ## v0.166.0 (2026-10-04)
 
 **Feature + Fix:** `kennzeichnung-live --url` und ehrliche Exit-Codes; `bild-einbauen --assets`
