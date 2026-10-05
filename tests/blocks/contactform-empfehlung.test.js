@@ -19,6 +19,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderer, schliessen, normalize } from './_render-astro.js';
+import { mitFehlerblockV0167 } from './_fehlerblock-v0167.js';
 
 after(schliessen);
 
@@ -168,6 +169,6 @@ test('Vorbedingung: sechs Schnappschüsse vorhanden und nicht leer', () => {
 
 for (const formType of ['contact', 'audit', 'bewerbung', 'waitlist', 'updates', 'rueckruf']) {
   test(`Gegenprobe ${formType}: Markup identisch zum Schnappschuss vor der Änderung`, async () => {
-    assert.equal(await form({ formType }), SNAP[formType]);
+    assert.equal(await form({ formType }), mitFehlerblockV0167(SNAP[formType]));
   });
 }

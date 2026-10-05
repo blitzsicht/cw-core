@@ -29,6 +29,8 @@ export const ENDPOINTS = {
   freigeschaltet: createContactHandler({ ...basis, allowRueckruf: true, allowEmpfehlung: true }),
   /** Wie ein Kunden-Endpoint, bei dem das Opt-in vergessen wurde. */
   ohneOptIn: createContactHandler({ ...basis }),
+  /** Rate-Limit sofort erreicht → 429 mit deutscher Meldung. */
+  gedrosselt: createContactHandler({ ...basis, rateLimitMax: 0 }),
 };
 
 export type Aufzeichnung = {
@@ -46,7 +48,11 @@ const ENV = {
 };
 
 /** Hängt den Handler an /api/contact und liefert die Aufzeichnung zurück. */
-export async function verbinde(page: Page, handler: (req: any, res: any) => Promise<void>): Promise<Aufzeichnung> {
+export async function verbinde(
+  page: Page,
+  handler: (req: any, res: any) => Promise<void>,
+  opts: { resendFaellt?: boolean } = {},
+): Promise<Aufzeichnung> {
   const auf: Aufzeichnung = { requests: [], resend: [], telegram: [] };
 
   await page.route('**/api/contact', async (route) => {
@@ -63,7 +69,11 @@ export async function verbinde(page: Page, handler: (req: any, res: any) => Prom
     globalThis.fetch = (async (url: unknown, init?: { body?: unknown }) => {
       const u = String(url);
       const payload = init?.body ? safeJson(String(init.body)) : null;
-      if (u.includes('resend.com')) auf.resend.push(payload);
+      if (u.includes('resend.com')) {
+        auf.resend.push(payload);
+        // Resend nicht erreichbar → Handler antwortet 500 (Zustellfehler-Pfad).
+        if (opts.resendFaellt) throw new Error('Resend nicht erreichbar (E2E)');
+      }
       if (u.includes('telegram.org')) auf.telegram.push(payload);
       return { ok: true, status: 200, text: async () => 'OK', json: async () => ({ success: true, id: 'e2e' }) };
     }) as typeof fetch;

@@ -165,13 +165,13 @@ jobs:
 
       - run: pnpm --dir examples build
 
-      - name: Formulare absenden (5 Tests erwartet)
+      - name: Formulare absenden (7 Tests erwartet)
         working-directory: e2e
         run: |
           set -euo pipefail
           pnpm exec playwright test | tee ausgabe.txt
           ANZAHL=$(grep -oE '[0-9]+ passed' ausgabe.txt | grep -oE '[0-9]+' || echo 0)
-          if [ "${ANZAHL:-0}" -ne 5 ]; then
-            echo "::error::Erwartet waren 5 bestandene Tests, gezaehlt: $ANZAHL"
+          if [ "${ANZAHL:-0}" -ne 7 ]; then
+            echo "::error::Erwartet waren 7 bestandene Tests, gezaehlt: $ANZAHL"
             exit 1
           fi

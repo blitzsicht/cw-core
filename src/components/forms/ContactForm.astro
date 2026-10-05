@@ -452,7 +452,12 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       )}
     </div>
 
-    <div class="form-error" hidden>
+    {/* role="alert": ohne das sagt ein Screenreader beim Fehlschlag nichts an (ops#916).
+        .form-error-detail trägt die Meldung des eigenen Endpoints (ops#915), per textContent.
+        Astro-Kommentar statt HTML: ein gerenderter Kommentar zwischen Erfolgs- und
+        Fehlerblock bräche die Render-Tests, die beide Blöcke als Nachbarn erwarten. */}
+    <div class="form-error" hidden role="alert">
+      <p class="form-error-detail" hidden></p>
       <p>
         Etwas ist schiefgelaufen.{fallbackEmail && (
           formType === 'waitlist' || formType === 'updates'
@@ -565,6 +570,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
 
     const success = wrap.querySelector('.form-success') as HTMLElement | null;
     const error = wrap.querySelector('.form-error') as HTMLElement | null;
+    const errorDetail = wrap.querySelector('.form-error-detail') as HTMLElement | null;
     const btnLabel = form.querySelector('.btn-label') as HTMLElement | null;
     const btnLoading = form.querySelector('.btn-loading') as HTMLElement | null;
     const btn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
@@ -593,6 +599,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       if (btnLabel) btnLabel.hidden = true;
       if (btnLoading) btnLoading.hidden = false;
       if (error) error.hidden = true;
+      if (errorDetail) { errorDetail.textContent = ''; errorDetail.hidden = true; }
       form.dataset.submitting = 'true';
 
       try {
@@ -614,16 +621,24 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
           res = await fetch(submitUrl, { method: 'POST', body: data });
         }
 
-        const json = await res.json() as { success?: boolean; ok?: boolean; message?: string };
+        const json = await res.json() as { success?: boolean; ok?: boolean; message?: string; error?: string };
         if (json.success || json.ok) {
           (form as HTMLElement).hidden = true;
           if (success) success.hidden = false;
           formSubmitted = true;
           track('Form Submit', { type: formType, status: 'success' });
         } else {
-          throw new Error(json.message ?? 'Unknown error');
+          // Meldung des eigenen Endpoints (contact-handler: deutsch, für Besucher formuliert)
+          // nur bei 400/429 zeigen — dort hilft sie („Telefonnummer ist ungültig.“, „Zu viele
+          // Anfragen …“). 403 und 5xx sind Konfigurations- oder Serverfehler, und Web3Forms
+          // meldet englisch über `message`: dafür bleibt der allgemeine Text mit Mail-Ausweg.
+          const zeigen = isCustomEndpoint && (res.status === 400 || res.status === 429)
+            && typeof json.error === 'string' && json.error.trim() !== '';
+          throw Object.assign(new Error('submit'), { detail: zeigen ? json.error!.trim().slice(0, 200) : '' });
         }
-      } catch {
+      } catch (err) {
+        const detail = (err as { detail?: string } | null)?.detail ?? '';
+        if (errorDetail) { errorDetail.textContent = detail; errorDetail.hidden = detail === ''; }
         if (btn) { btn.disabled = false; }
         if (btnLabel) btnLabel.hidden = false;
         if (btnLoading) btnLoading.hidden = true;
@@ -853,6 +868,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
     color: #991b1b;
   }
   .form-error p { margin: 0; }
+  .form-error .form-error-detail { font-weight: 600; margin-bottom: 0.25rem; }
   .form-error a { color: #991b1b; font-weight: 600; }
 
   /* Kein-Key-Fallback */
