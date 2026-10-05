@@ -68,7 +68,10 @@ test('Rückruf ohne Opt-in: 400, Fehlerblock mit Mail-Fallback, Lead als Alarm',
 
   const fehler = page.locator('.form-error');
   await expect(fehler).toBeVisible();
+  await expect(fehler).toHaveAttribute('role', 'alert');
   await expect(fehler.locator('a[href="mailto:info@example.org"]')).toBeVisible();
+  // Die Meldung des Handlers erreicht den Besucher (ops#915), nicht nur „Etwas ist schiefgelaufen“.
+  await expect(fehler.locator('.form-error-detail')).toHaveText('Rückruf-Formular ist hier nicht freigeschaltet.');
   await expect(page.locator('.form-success')).toBeHidden();
   expect(auf.requests).toHaveLength(1);
   expect(auf.requests[0].status).toBe(400);
@@ -87,4 +90,45 @@ test('Empfehlung ohne E-Mail und Telefon: Browser schickt nichts ab', async ({ p
   await expect.poll(() => page.$eval('#cf-email', (el) => (el as HTMLInputElement).validationMessage)).not.toBe('');
   await expect(page.locator('form[data-form-type="empfehlung"]')).toBeVisible();
   expect(auf.requests).toHaveLength(0);
+});
+
+test('Zu viele Anfragen: 429, Meldung sichtbar, Eingaben bleiben', async ({ page }) => {
+  const auf = await verbinde(page, ENDPOINTS.gedrosselt);
+  await page.goto('/kontakt/');
+  await page.fill('#cf-name', 'Rita Rate');
+  await page.fill('#cf-email', 'rita@example.org');
+  await page.fill('#cf-message', 'E2E-Nachricht Drossel');
+  await page.click('button[type="submit"]');
+
+  const fehler = page.locator('.form-error');
+  await expect(fehler).toBeVisible();
+  await expect(fehler.locator('.form-error-detail')).toHaveText('Zu viele Anfragen. Bitte später erneut versuchen.');
+  await expect(page.locator('#cf-message')).toHaveValue('E2E-Nachricht Drossel');
+  await expect(page.locator('button[type="submit"]')).toBeEnabled();
+  expect(auf.requests).toHaveLength(1);
+  expect(auf.requests[0].status).toBe(429);
+  expect(auf.resend).toHaveLength(0);
+});
+
+test('Versand scheitert: 500, nur allgemeiner Text mit Mail-Ausweg, keine Servermeldung', async ({ page }) => {
+  const auf = await verbinde(page, ENDPOINTS.freigeschaltet, { resendFaellt: true });
+  await page.goto('/kontakt/');
+  await page.fill('#cf-name', 'Sven Server');
+  await page.fill('#cf-email', 'sven@example.org');
+  await page.fill('#cf-message', 'E2E-Nachricht Ausfall');
+  await page.click('button[type="submit"]');
+
+  const fehler = page.locator('.form-error');
+  await expect(fehler).toBeVisible();
+  await expect(fehler.locator('.form-error-detail')).toBeHidden();
+  await expect(fehler).toContainText('Etwas ist schiefgelaufen');
+  await expect(fehler.locator('a[href="mailto:info@example.org"]')).toBeVisible();
+  await expect(page.locator('#cf-message')).toHaveValue('E2E-Nachricht Ausfall');
+  expect(auf.requests).toHaveLength(1);
+  expect(auf.requests[0].status).toBe(500);
+  // Nicht verloren: Lead mit Zustellfehler im Telegram-Alarm.
+  // Telegram (MarkdownV2) maskiert '-', deshalb Name und Kennzeichnung statt Nachrichtentext.
+  const alarm = JSON.stringify(auf.telegram);
+  expect(alarm).toContain('ZUSTELLUNG FEHLGESCHLAGEN');
+  expect(alarm).toContain('Sven Server');
 });

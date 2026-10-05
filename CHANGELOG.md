@@ -22,6 +22,28 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.167.0 (2026-10-05)
+
+- [kunde:sichtbar] Schlägt eine Anfrage über das Kontaktformular fehl, steht jetzt der genaue Grund da (zum Beispiel eine ungültige Telefonnummer), und Bildschirmleser lesen die Meldung vor.
+
+**Fix:** ContactForm zeigt die Meldung des eigenen Endpoints und meldet Fehler an Screenreader
+
+Kontext: `contact-handler.js` antwortete mit `{ ok: false, error: '…' }`, das Formular las
+`message` — Besucher sahen immer nur „Etwas ist schiefgelaufen“ (blitzsicht-ops#915). Die
+Fehlerbox hatte kein `role="alert"`, Screenreader sagten nichts an (#916).
+
+- `.form-error` trägt `role="alert"`; neuer Absatz `.form-error-detail` (per `textContent`)
+- Meldung nur bei 400/429 des eigenen Endpoints; 403, 5xx und Web3Forms bleiben beim
+  allgemeinen Text mit Mail-Ausweg
+- e2e: 7 statt 5 Tests (429 mit Meldung, 500 ohne Meldung, 400 mit Meldung + `role`);
+  Gegenprobe mit altem Feldnamen `message` → 2 rot
+- Schnappschuss-Gegenproben wenden die eine gewollte Änderung an
+  (`tests/blocks/_fehlerblock-v0167.js`), statt die Schnappschüsse neu zu erzeugen
+
+**Migrations-Hinweis:** Keiner. Pin-Bump genügt.
+
+---
+
 ## v0.166.1 (2026-10-05)
 
 **Docs:** Standard-Abläufe und Standard-Datenfluss der Kundenseiten; `customer-CLAUDE.md` verweist auf `PROJEKT.md`
