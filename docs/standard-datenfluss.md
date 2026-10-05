@@ -17,7 +17,7 @@ Browser (ContactForm)
        ├─ Resend → CONTACT_EMAIL (Postfach des Kunden), bcc LEAD_BCC_EMAIL*
        │            reply_to = Adresse des Besuchers
        ├─ Telegram* (Lead-Benachrichtigung; bei Zustellfehler mit Hinweis „manuell bearbeiten")
-       ├─ GlitchTip* (nur Fehler und Spam-Gründe, keine Inhalte)
+       ├─ GlitchTip* (Zustellfehler; Spam-Gründe nur mit Turnstile-Secret; keine Inhalte)
        └─ conversion_queue* (Neon) — nur Ads-Sites, nur mit Marketing-Einwilligung und Klick-ID
 ```
 
@@ -32,7 +32,7 @@ still; der Mailversand bleibt davon unberührt.
 | bcc `LEAD_BCC_EMAIL` | Komplette Anfrage | Blitzsicht | Postfach-Aufbewahrung Blitzsicht |
 | Resend | Mail-Metadaten und -Inhalt | Blitzsicht (Konto) | Resend-Log-Aufbewahrung |
 | Telegram | Name, Kontaktdaten, Nachricht | Chat aus `TELEGRAM_CHAT_ID` | Chat-Verlauf |
-| GlitchTip | Fehler, Spam-Grund, Formularart — **kein** Anfrageinhalt | Blitzsicht | GlitchTip-Aufbewahrung |
+| GlitchTip | Zustellfehler, nicht freigeschaltete Formulare; Spam-Grund nur mit `TURNSTILE_SECRET_KEY` — **kein** Anfrageinhalt | Blitzsicht | GlitchTip-Aufbewahrung |
 | Upstash Redis* | IP-Zähler fürs Rate-Limit | — | Fensterlänge (Standard 10 min) |
 | `conversion_queue`* | Klick-ID, Zeitpunkt, utm_*, Einwilligungs-Version | Blitzsicht (cw-ads) | bis zum Upload |
 | Plausible | Ereignisse `Form Start`/`Form Submit`/`Form Abandoned` mit Formularart und Status, **keine** Feldinhalte | Blitzsicht, ggf. Kunde | Plausible-Aufbewahrung |
@@ -48,6 +48,10 @@ Lehnt Resend ab oder ist nicht erreichbar, bekommt der Besucher die Fehlerbox, u
 Lead geht mit Hinweis „per Mail nicht zugestellt, bitte manuell bearbeiten" an Telegram
 und als Fehler an GlitchTip. Ohne Telegram-Env ist er dann nur noch in GlitchTip als
 Fehler sichtbar, **ohne Inhalt** — und damit für den Kunden verloren.
+
+Rückruf- oder Empfehlungsformular ohne Freischaltung im Endpoint (`allowRueckruf`/
+`allowEmpfehlung`): Der Besucher bekommt 400, die Anfrage geht als Zustellfehler an Telegram
+und als Fehler (ohne Inhalt) an GlitchTip — ohne Telegram-Env ist der Inhalt verloren.
 
 ## Für die PROJEKT.md
 
