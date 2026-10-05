@@ -5,6 +5,18 @@ Dieses Template in `cw-core/templates/customer-CLAUDE.md` wird in jedes neue Cus
 
 ---
 
+## Projekt — zuerst lesen
+
+`PROJEKT.md` in diesem Repo: Ziel, Umfang, Ausschlüsse, Seiten, Abweichungen vom
+Standard und die Abnahmekriterien. Die markierten Blöcke darin werden aus dem Intake
+erzeugt (`customer-websites/scripts/cw-site-projekt.mjs`) — dort ändern, nicht hier.
+Was bei allen Kunden gleich ist, steht in cw-core: `docs/standard-ablaeufe.md`
+(Formular-Erfolg/-Fehler) und `docs/standard-datenfluss.md` (wohin Anfragen gehen).
+Ein Wunsch außerhalb des Umfangs ist ein Änderungswunsch
+(`customer-websites/docs/aenderungswuensche.md`), kein stiller Umbau.
+
+---
+
 ## Brand
 
 - **Name:** [CUSTOMER_NAME]
