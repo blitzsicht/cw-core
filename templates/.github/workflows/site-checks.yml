@@ -284,6 +284,18 @@ jobs:
             --project=mobile --project=tablet --project=desktop
         working-directory: cw-core/checks
 
+      # Harter Gate. Prüft og:image und twitter:image jeder gebauten Seite: Datei
+      # vorhanden, Rasterbild (kein SVG), Maße wie og:image:width/height der Seite,
+      # höchstens 300 KB. Anlass: gowohnen, 07.10.2026 — og:image war /logo.svg,
+      # kein Messenger zeigte eine Link-Vorschau, und kein Check hat es gemeldet.
+      # Dieselbe Messung fand drei Repos mit falschen Maßen (1280×640, 1600×840,
+      # 1200×675). Einen solchen Fehler sieht man der Seite nicht an, erst dem
+      # geteilten Link.
+      # Braucht nur Node, kein Chromium und keine Guard-Abhängigkeiten. 0 geprüfte
+      # Seiten sind rot — ein Lauf über ein leeres Verzeichnis darf nicht grün sein.
+      - name: Vorschaubild-Prüfung (blockierend)
+        run: node cw-core/scripts/og-audit.mjs '${{ steps.webroot.outputs.dir }}'
+
       # Per Default meldend, nicht blockierend. Grundlage ist eine Messung, keine
       # Vermutung: am 28.08.2026 wurden alle 23 Kundenrepos gebaut und geprueft —
       # a11y war in 19 von 22 rot, mit color-contrast als dominierender Ursache

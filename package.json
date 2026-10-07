@@ -43,6 +43,10 @@
       "default": "./src/blog-standard/rehype-blog-bilder.js"
     },
     "./utils/image-format": "./src/utils/image-format.js",
+    "./utils/bild-masse": {
+      "types": "./src/utils/bild-masse.d.ts",
+      "default": "./src/utils/bild-masse.js"
+    },
     "./utils/bildlabel": {
       "types": "./src/utils/bildlabel.d.ts",
       "default": "./src/utils/bildlabel.js"

@@ -230,6 +230,18 @@ Erwartete Ausgabe in `<head>`:
 <meta property="og:image:height" content="630" />
 ```
 
+Die Angabe allein beweist nichts: BaseLayout schreibt 1200×630 immer, egal welches Bild
+dahinter liegt. Das Bild selbst prüft `scripts/og-audit.mjs` im gebauten dist/:
+
+```bash
+node node_modules/@cw/core/scripts/og-audit.mjs dist
+```
+
+Rot bei fehlender Datei, SVG oder anderem Nicht-Raster, Maßen ungleich
+`og:image:width/height` und über 300 KB; ebenso, wenn keine einzige Seite geprüft wurde.
+Im Site-Checks-Workflow läuft das als „Vorschaubild-Prüfung (blockierend)". Anlass:
+gowohnen zeigte am 07.10.2026 `/logo.svg` als og:image — kein Messenger zeigt SVG.
+
 ## Technische Details
 
 - **Format:** PNG (1200x630px) — optimal fuer alle Social-Media-Plattformen
