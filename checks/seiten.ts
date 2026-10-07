@@ -15,6 +15,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { seitenAusDist } from './seiten-dist.mjs';
 
 /** Fällt die Sitemap aus, bleibt wenigstens dieser Kern geprüft. */
 const KERN = ['/', '/kontakt/'];
@@ -26,9 +27,15 @@ const KERN = ['/', '/kontakt/'];
 export function seitenAusBuild(distDir = process.env.DIST_DIR || 'dist'): string[] {
   const datei = join(distDir, 'sitemap-0.xml');
   if (!existsSync(datei)) {
-    // Bewusst laut: ein stiller Rückfall auf zwei Seiten wäre genau der Fehler,
-    // den diese Datei behebt.
-    console.warn(`[seiten] ${datei} fehlt — prüfe nur ${KERN.join(', ')}. Läuft der Build?`);
+    // Ohne Sitemap: alle gebauten Seiten (seiten-dist.mjs, Anlass gowohnen 07.10.2026). Erst wenn
+    // auch dort nichts liegt, der Kern — bewusst laut, ein stiller Rückfall auf zwei Seiten wäre
+    // genau der Fehler, den diese Datei behebt.
+    const ausDist = seitenAusDist(distDir);
+    if (ausDist.length > 0) {
+      console.warn(`[seiten] ${datei} fehlt — prüfe die ${ausDist.length} gebauten Seiten aus ${distDir}.`);
+      return ausDist;
+    }
+    console.warn(`[seiten] ${datei} fehlt und ${distDir} enthält keine Seite — prüfe nur ${KERN.join(', ')}. Läuft der Build?`);
     return KERN;
   }
   const xml = readFileSync(datei, 'utf8');
