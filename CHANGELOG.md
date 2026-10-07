@@ -22,6 +22,50 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.169.0 (2026-10-07)
+
+- [kunde:sichtbar] Knöpfe zum Anrufen oben auf der Seite zeigen jetzt ein Telefon-Symbol statt eines Briefumschlags.
+
+**Fix:** Hero-Primär-CTA wählt das Symbol nach dem Link-Ziel — neuer Helfer `@cw/core/utils/cta-icon`
+
+Kontext: `Hero.astro` zeichnete vor `ctaPrimary` immer einen Briefumschlag, auch bei
+`href="tel:…"` („Anrufen: 09405 / 95 74 38" mit Brief-Symbol). Aufgefallen beim Scaffold von
+levia-therapiezentrum (07.10.2026); betroffen ist außerdem haarwerk-neutraubling (index,
+haarwerk-salon, kontakt). Jetzt: `tel:` → Telefon-Symbol (derselbe Pfad wie
+`FloatingCallButton`, der ihn jetzt aus dem Helfer bezieht), alles andere → Briefumschlag wie
+bisher, Markup Byte für Byte unverändert (hero-badge-Schnappschuss v0.160.0 bleibt grün).
+
+**Fix:** `src/templates/vercel.template.json` ohne `_comment_*`-Schlüssel
+
+Kontext: Der erste Vercel-Deploy eines frisch gescaffoldeten Kunden scheiterte mit
+„`headers[0].headers[6]` should NOT have additional property `_comment_csp`" (readyState ERROR,
+levia-therapiezentrum 07.10.2026). Vercels Schema setzt in `headers[]` und `headers[].headers[]`
+`additionalProperties: false`; die Vorlage trug vier Kommentar-Schlüssel (`_comment_csp`,
+`_comment_cache`, `_comment_fonts`, `_comment_rewrite_cache`). Die Begründungen stehen in
+`docs/CSP-rationale.md` und `docs/caching-rationale.md`. Bestandskunden hatten die Kommentare nie.
+
+**Fix:** Vorlage `src/templates/llms-endpoint.ts.template` entfernt
+
+Kontext: Der Scaffold kopierte sie nach `src/pages/llms.txt.ts`, und der erste Build warnte, genau
+diese Route sei seit der ai-discovery-Integration überflüssig (blitzsicht-ops#648).
+`templates/customer-CLAUDE.md` sagt jetzt: nichts anlegen, `llms.txt` entsteht aus `siteData`.
+
+Guards (Regel #1):
+
+- `tests/templates-vercel-schema.test.js` — Vorlage gegen die erlaubten Schlüssel aus Vercels
+  Schema (`tests/fixtures/vercel-json-schema-auszug.json`, aus openapi.vercel.sh/vercel.json),
+  mit Gegenproben für Header-, Routen- und Wurzel-Ebene.
+- `tests/templates-obsolet.test.js` — keine Vorlage legt eine llms.txt-Route an; Anker auf die
+  Liste in ai-discovery; Gegenprobe mit dem alten Vorlagen- und Doku-Text.
+- `tests/utils/cta-icon.test.js` (6) und `tests/blocks/hero-cta-icon.test.js` (5, beide
+  Render-Zweige). Gegenprobe: mit dem Hero von v0.168.0 werden die zwei tel:-Fälle rot.
+
+**Migrations-Hinweis:** Keiner für Bestandskunden. Neukunden: kein `src/pages/llms.txt.ts`
+anlegen (Scaffold-Skill angepasst). Wer aus v0.168.0 gescaffoldet hat: `_comment_*`-Schlüssel aus
+`vercel.json` entfernen, sonst scheitert der Vercel-Deploy.
+
+---
+
 ## v0.168.0 (2026-10-07)
 
 - [kunde] Bei jeder Änderung an der Website wird jetzt automatisch geprüft, ob beim Teilen eines Links in WhatsApp, iMessage oder anderen Diensten ein passendes Vorschaubild erscheint.

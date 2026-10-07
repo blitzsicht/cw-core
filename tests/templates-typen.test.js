@@ -75,8 +75,7 @@ test('site-data.template.ts + page-config.template.ts typprüfen im Zielrepo', (
 });
 
 test('tsconfig.template.json liefert den Pfad-Alias @/*, den die Vorlagen importieren', () => {
-  // llms-endpoint importiert '@/data/site-data'. Ohne Alias: Build rot (Review cw-site #1).
-  assert.match(lies('llms-endpoint.ts.template'), /from ['"]@\/data\/site-data['"]/);
+  // Die Kundenseiten importieren '@/data/site-data'. Ohne Alias: Build rot (Review cw-site #1).
   const cfg = JSON.parse(lies('tsconfig.template.json'));
   assert.deepEqual(cfg.compilerOptions?.paths?.['@/*'], ['src/*']);
   assert.equal(cfg.extends, 'astro/tsconfigs/strict');

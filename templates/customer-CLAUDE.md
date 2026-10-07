@@ -90,14 +90,11 @@ import Hero from '@/components/blocks/Hero.astro';
 
 ## llms.txt für AI-Crawler (Pflicht ab 2026)
 
-Jeder Customer-Repo MUSS `public/llms.txt` ODER einen Astro-Endpoint
-`src/pages/llms.txt.ts` haben. Endpoint-Pattern (Recommended) generiert die
-Datei zur Build-Time aus `src/data/site-data.ts` — bleibt automatisch synchron
-mit dem Site-Manifest.
-
-Template: `cw-core/src/templates/llms-endpoint.ts.template` → kopieren nach
-`src/pages/llms.txt.ts`. Custom-Inhalt durch `public/llms.txt` (überschreibt
-den Endpoint).
+`llms.txt` und `llms-full.txt` erzeugt die `ai-discovery`-Integration beim Build aus
+`src/data/site-data.ts` — dafür ist nichts anzulegen. **Keine** `public/llms.txt` und
+**keine** Route `src/pages/llms.txt.ts`: beide überschreibt der Hook, der Build warnt
+(blitzsicht-ops#648), und per postbuild-cp kopiert driften sie dauerhaft von siteData weg.
+Inhalte gehören nach `siteData`.
 
 ---
 

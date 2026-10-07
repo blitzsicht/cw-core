@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.168.0",
+  "version": "0.169.0",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -25,6 +25,10 @@
     "./utils/copyright": {
       "types": "./src/utils/copyright.d.ts",
       "default": "./src/utils/copyright.js"
+    },
+    "./utils/cta-icon": {
+      "types": "./src/utils/cta-icon.d.ts",
+      "default": "./src/utils/cta-icon.js"
     },
     "./utils/analytics/cta-kind": {
       "types": "./src/utils/analytics/cta-kind.d.ts",

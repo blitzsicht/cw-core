@@ -1,0 +1,106 @@
+{
+  "_quelle": "https://openapi.vercel.sh/vercel.json (abgerufen 07.10.2026), Auszug: erlaubte Schlüssel je Ebene, additionalProperties=false auf allen hier gelisteten Ebenen",
+  "wurzel": [
+    "$schema",
+    "alias",
+    "build",
+    "buildCommand",
+    "builds",
+    "bulkRedirectsPath",
+    "bunVersion",
+    "cleanUrls",
+    "crons",
+    "daemons",
+    "devCommand",
+    "env",
+    "experimentalAtproto",
+    "experimentalBYOC",
+    "experimentalEnvironmentVariables",
+    "experimentalServiceGroups",
+    "experimentalServices",
+    "experimentalServicesV2",
+    "fluid",
+    "framework",
+    "functionFailoverRegions",
+    "functions",
+    "git",
+    "github",
+    "headers",
+    "ignoreCommand",
+    "images",
+    "installCommand",
+    "name",
+    "outputDirectory",
+    "passiveRegions",
+    "proxy",
+    "redirects",
+    "regions",
+    "relatedProjects",
+    "rewrites",
+    "routes",
+    "schedules",
+    "scope",
+    "services",
+    "skipMiddlewareRequestBody",
+    "trailingSlash",
+    "version",
+    "wildcard"
+  ],
+  "headers": {
+    "erlaubt": [
+      "has",
+      "headers",
+      "missing",
+      "source"
+    ],
+    "pflicht": [
+      "headers",
+      "source"
+    ],
+    "additionalProperties": false
+  },
+  "redirects": {
+    "erlaubt": [
+      "destination",
+      "env",
+      "has",
+      "missing",
+      "permanent",
+      "source",
+      "statusCode"
+    ],
+    "pflicht": [
+      "destination",
+      "source"
+    ],
+    "additionalProperties": false
+  },
+  "rewrites": {
+    "erlaubt": [
+      "destination",
+      "env",
+      "has",
+      "missing",
+      "respectOriginCacheControl",
+      "source",
+      "statusCode",
+      "transforms"
+    ],
+    "pflicht": [
+      "destination",
+      "source"
+    ],
+    "additionalProperties": false
+  },
+  "headers.headers": {
+    "erlaubt": [
+      "key",
+      "value"
+    ],
+    "pflicht": [
+      "key",
+      "value"
+    ],
+    "additionalProperties": false
+  }
+}
