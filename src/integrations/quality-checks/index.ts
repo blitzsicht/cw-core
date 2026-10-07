@@ -34,6 +34,11 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import type { AstroIntegration } from 'astro';
 
+// Maße und Format kommen aus dem gemeinsamen Helfer, den auch scripts/og-audit.mjs
+// nutzt. Bis 07.10.2026 stand hier eine eigene `imageDimensions` für PNG und JPEG —
+// SVG und WEBP ergaben `null`, und die og:image-Prüfung übersprang das Bild still.
+import { bildMasse } from '../../utils/bild-masse.js';
+
 export interface QualityChecksOptions {
   /**
    * Regex-Patterns für Pages die als "Service-Page" gelten (für AnswerBlock-Pflicht).
@@ -58,7 +63,7 @@ export interface QualityChecksOptions {
 type Issue = {
   page: string;
   type: 'h1_missing' | 'h1_multiple' | 'answer_block_missing'
-    | 'og_image_missing' | 'og_image_oversize' | 'og_image_wrong_dims';
+    | 'og_image_missing' | 'og_image_oversize' | 'og_image_wrong_dims' | 'og_image_not_raster';
   details: string;
 };
 
@@ -67,30 +72,6 @@ function extractOgImage(html: string): string | null {
   const m = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
     ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
   return m ? m[1] : null;
-}
-
-/**
- * Bild-Dimensionen aus dem Datei-Header lesen — ohne sharp.
- * Unterstützt PNG (IHDR) und JPEG (SOF-Marker). null bei Unbekannt.
- */
-function imageDimensions(buf: Buffer): { width: number; height: number; format: 'png' | 'jpg' } | null {
-  // PNG: Signatur 89 50 4E 47, IHDR width@16 height@20 (big-endian)
-  if (buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
-    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20), format: 'png' };
-  }
-  // JPEG: FF D8 ... SOF0/1/2 (FF C0/C1/C2) → height@+5, width@+7
-  if (buf.length > 4 && buf[0] === 0xff && buf[1] === 0xd8) {
-    let off = 2;
-    while (off + 9 < buf.length) {
-      if (buf[off] !== 0xff) { off++; continue; }
-      const marker = buf[off + 1];
-      if (marker >= 0xc0 && marker <= 0xc3) {
-        return { height: buf.readUInt16BE(off + 5), width: buf.readUInt16BE(off + 7), format: 'jpg' };
-      }
-      off += 2 + buf.readUInt16BE(off + 2);
-    }
-  }
-  return null;
 }
 
 function walkHtml(dir: string, baseDir: string, results: string[] = []): string[] {
@@ -193,7 +174,7 @@ export default function qualityChecks(opts: QualityChecksOptions = {}): AstroInt
             }
           }
 
-          // og:image-Validität (SISTRIX-Specs: 1200×630, < 300 KB, png/jpg)
+          // og:image-Validität (SISTRIX-Specs: 1200×630, < 300 KB, Rasterformat)
           if (requireValidOgImage) {
             const ogUrl = extractOgImage(html);
             if (ogUrl) {
@@ -213,8 +194,13 @@ export default function qualityChecks(opts: QualityChecksOptions = {}): AstroInt
                   if (buf.length > maxOgBytes) {
                     issues.push({ page: pagePath, type: 'og_image_oversize', details: `${ogPath} ist ${Math.round(buf.length / 1024)} KB (> ${Math.round(maxOgBytes / 1024)} KB).` });
                   }
-                  const dim = imageDimensions(buf);
-                  if (dim && (dim.width !== 1200 || dim.height !== 630)) {
+                  const dim = bildMasse(buf);
+                  if (!dim.raster) {
+                    // Eigener Typ statt „Maße unbekannt → überspringen": ein SVG ist kein
+                    // Messfehler, sondern ein Bild, das kein Messenger zeigt (gowohnen,
+                    // 07.10.2026 — /logo.svg als og:image, keine Link-Vorschau).
+                    issues.push({ page: pagePath, type: 'og_image_not_raster', details: `${ogPath} ist kein Rasterbild (${dim.format.toUpperCase()}) — Messenger zeigen keine Vorschau.` });
+                  } else if (dim.width !== null && (dim.width !== 1200 || dim.height !== 630)) {
                     issues.push({ page: pagePath, type: 'og_image_wrong_dims', details: `${ogPath} ist ${dim.width}×${dim.height} (Soll 1200×630).` });
                   }
                 }
