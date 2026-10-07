@@ -22,6 +22,28 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.170.0 (2026-10-07)
+
+**Fix:** Mobil-, Layout- und a11y-Audit prüfen ohne Sitemap alle gebauten Seiten (#168)
+
+Kontext: `checks/seiten.ts` holt die Seitenliste aus `dist/sitemap-0.xml`. Fehlte sie, fielen
+die drei Audits auf `/` und `/kontakt/` zurück. gowohnen.com hat bewusst keine Sitemap (sie
+würde die Geheimlinks der Exposés veröffentlichen), und `/kontakt/` gibt es dort nicht: geprüft
+wurden die Startseite und die 404-Seite, das Exposé nie. Belegt im CI-Log von
+customer-gowohnen#15 („prüfe nur /, /kontakt/"). Ein Sonderlauf über alle fünf Seiten fand
+10 von 10 a11y-Befunden (`color-contrast`), behoben in customer-gowohnen#15.
+
+- neu `checks/seiten-dist.mjs`: eine Route je `index.html` im Build, ohne `_astro`,
+  Punkt-Verzeichnisse und `404`
+- Reihenfolge in `seitenAusBuild`: Sitemap → gebaute Seiten → Kern (laut gewarnt)
+- Tests: `tests/checks-seiten-dist.test.js` (4); Gegenprobe mit kaputter Funktion: 3 von 4 rot.
+  Am echten gowohnen-Build ohne Sitemap: alt 2 Routen, neu 5
+
+**Migrations-Hinweis:** Keiner im Code. Kundenrepos ohne Sitemap prüfen nach dem Rollout der
+site-checks-Vorlage mehr Seiten und können dadurch erstmals rot werden — das ist der Zweck.
+
+---
+
 ## v0.169.0 (2026-10-07)
 
 - [kunde:sichtbar] Knöpfe zum Anrufen oben auf der Seite zeigen jetzt ein Telefon-Symbol statt eines Briefumschlags.
