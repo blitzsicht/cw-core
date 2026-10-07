@@ -22,6 +22,36 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.168.0 (2026-10-07)
+
+- [kunde] Bei jeder Änderung an der Website wird jetzt automatisch geprüft, ob beim Teilen eines Links in WhatsApp, iMessage oder anderen Diensten ein passendes Vorschaubild erscheint.
+
+**Feature:** Vorschaubild-Prüfung `scripts/og-audit.mjs` und Bildmaß-Helfer `@cw/core/utils/bild-masse`
+
+Kontext: Auf gowohnen.com zeigte `og:image` auf `/logo.svg` (SVG, 206 Byte). Kein Messenger
+zeigt SVG an, die Link-Vorschau blieb ohne Bild. `BaseLayout` gibt `og:image:width/height`
+fest mit 1200×630 aus, und der vorhandene Check in `quality-checks` las nur PNG und JPEG: bei
+SVG und WEBP lieferte `imageDimensions` `null`, die Prüfung fiel still durch. Eingebunden war
+er in keinem Kundenrepo. Eine Flottenmessung (28 Repos) fand dazu drei Standardbilder mit
+falschen Maßen, behoben in den Kundenrepos selbst: falzmarke 1280×640 (#63), platzfrei
+1600×840 durch `density: 96` in `generate-og.mjs` (#39), soleno 1200×675 (#65); gowohnen
+#11/#12.
+
+- `scripts/og-audit.mjs <dist>`: prüft `og:image` und `twitter:image` jeder Seite gegen
+  `dist/` — rot bei fehlender Datei, Nicht-Raster (SVG), Maßen ≠ den angegebenen
+  `og:image:width/height` oder > 300 KB. 0 geprüfte Seiten = rot. Exit 0/1/2.
+- `src/utils/bild-masse.js`: Maße für PNG, JPEG (alle SOF-Marker), WEBP (VP8/VP8L/VP8X), GIF;
+  `quality-checks` nutzt ihn, neuer Befund `og_image_not_raster`.
+- `site-checks.yml`-Vorlage: blockierender Schritt „Vorschaubild-Prüfung" nach der
+  Layout-Prüfung. Gegenproben an echten Builds: gowohnen vor dem Fix und falzmarke rot,
+  alle vier korrigierten Builds grün (6/23/18/77 Seiten geprüft).
+- Tests: 1248 (vorher 1204).
+
+**Migrations-Hinweis:** Keiner im Code. Nach dem Rollout der Vorlage wird ein Kunden-PR rot,
+wenn ein Vorschaubild SVG ist oder nicht die angegebenen Maße hat.
+
+---
+
 ## v0.167.0 (2026-10-05)
 
 - [kunde:sichtbar] Schlägt eine Anfrage über das Kontaktformular fehl, steht jetzt der genaue Grund da (zum Beispiel eine ungültige Telefonnummer), und Bildschirmleser lesen die Meldung vor.
