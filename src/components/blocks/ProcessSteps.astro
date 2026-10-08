@@ -53,8 +53,12 @@ interface Props {
    * Darstellung der grossen Schritt-Ziffer, opt-in seit v0.171.0. `outline` (Default)
    * ist die bisherige Kontur per `-webkit-text-stroke`. `solid` malt sie gefuellt in
    * der Akzentfarbe mit geringer Deckkraft — fuer Schriften mit ueberlappenden
-   * Konturen (variable Serifen wie Fraunces), bei denen der Strich die inneren
-   * Ueberlappungen als Linien sichtbar macht.
+   * Konturen, bei denen der Strich die inneren Ueberlappungen als Linien sichtbar macht.
+   *
+   * Gemessen 08.10.2026 auf haarwerk (system-ui, unter macOS SF Pro, Gewicht 800):
+   * die Kontur-„2“ zeigt dort, wo Diagonale und Fuss sich ueberlappen, ein
+   * Sternchen-Artefakt; 1, 3 und 4 nicht. Mit `solid` ist es weg. Belege:
+   * `reports/2026-10-08-ziffer-2/`.
    */
   numberStyle?: 'outline' | 'solid';
 }
