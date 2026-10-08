@@ -22,6 +22,52 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.171.0 (2026-10-08)
+
+- [kunde:sichtbar] Websites können Fotos jetzt großflächig hinter der Startüberschrift zeigen, Bilder statt Symbole in Ablauf- und Hinweiskarten verwenden, Partnerlogos an Siegeln führen, Galeriebilder per Klick vergrößern und eine vollständige Preisliste mit Spalten (etwa kurz, mittel, lang) darstellen.
+
+**Feature:** Opt-in-Bilder, Hero-Hintergrund, Logo-Badges, Lightbox, Nav-Trenner, CTA-Symbol, neuer Block PriceList
+
+Anlass: haarwerk-neutraubling, Kundengespräch 08.10.2026 („Farbverlauf bzw. Bild im
+Page-Hero-Hintergrund, auf der ganzen Website“, „die Icons sind hässlich, mit Bildern
+ersetzen“, „Hairdreams-Badge mit dem Logo“, „die Cards sind alle nicht klickbar“, „im Menü
+eine Trennung einbringen“, komplette Preisliste). Alle Erweiterungen sind **ab Werk aus**.
+
+- `Hero`: `layout?: 'split' | 'backdrop'` (Default `split`). `backdrop` legt `image`/`imageSrc`
+  vollflächig hinter den Text, darüber ein Verlauf in der Primärfarbe (Tokens
+  `--hero-backdrop-overlay`, `--hero-backdrop-overlay-mobile`). KI-Kennzeichnung bleibt am Bild,
+  die Farbmessung rechnet den Verlauf als Überlagerung ein. Nur mit genau einem Bild.
+- `Hero`: `usps[].iconSvg?` (SVG als Maske in Textfarbe), `icon` dafür optional.
+- `Hero`: `ctaPrimary.icon?: 'auto' | 'phone' | 'mail' | 'arrow' | 'pin' | 'none'`; `auto` =
+  bisher (`tel:` → Telefon, sonst Brief). `cta-icon.js`: zweiter Parameter `wahl`.
+- `ProcessSteps`: `items[].image?`/`imageAlt?`, Prop `bildHerkunft?`, `numberStyle?: 'outline' | 'solid'`.
+  `solid` behebt das Sternchen-Artefakt der Kontur-„2“ (system-ui/SF Pro, Gewicht 800,
+  überlappende Glyphenkonturen unter `-webkit-text-stroke`); Belege `reports/2026-10-08-ziffer-2/`.
+- `USPSection`: `items[].image?`/`imageAlt?`, Prop `bildHerkunft?`.
+- `TrustBadges`: `badges[].logoSrc?`/`logoAlt?`, `variant: 'logo'` (Logo-Reihe ohne Kartenrahmen).
+- `LeistungenSection`: `lightbox?: boolean` — Bildkarten ohne `href` öffnen ihr Bild (1600 px)
+  in einem nativen `<dialog>`; Esc/Klick daneben/Schließen, Fokus zurück zur Karte, Label auch am
+  großen Bild, kein Inline-Skript. Platzhalter im statischen HTML `aria-hidden` (strictAltText).
+- `Header`: `NavItem.separatorBefore?` — feiner Trenner, `aria-hidden`, im Hamburger ausgeblendet.
+- **Neu** `PriceList`: Gruppen mit Sprungleiste (ab zwei), Kategorien als Karten, optionale
+  Spalten mit sr-only-Spaltenlabel je Preis, Spannzeilen, Punktführer ohne Spalten, Fußnoten.
+  Kein Schema im Block (Preis-JSON-LD hängt der Aufrufer an seine Organisation).
+- Bild-Alt ohne Angabe ist dekorativ markiert (`role="presentation"`), damit `strictAltText` hält.
+
+Belege:
+- Golden-Schnappschüsse aus v0.170.0 **vor** der Änderung (`tests/blocks/fixtures/opt-in-bilder-v0.170.0.json`,
+  11 Fälle): ohne die neuen Props Byte für Byte gleich. Gegenproben je Prop (mit Prop anders).
+- Tests: `hero-backdrop.test.js` (9), `opt-in-bilder.test.js` (20, inkl. echtem `lintPageImgAlt`
+  und Sabotageprobe), `pricelist.test.js` (7), `hero-cta-icon.test.js` (+4).
+- Flotte: customer-levia-therapiezentrum gegen v0.170.0 und v0.171.0 gebaut (gleicher Pfad):
+  nach Ausblenden der Scope-Hashes 0 entfernte/geänderte Zeilen, 51 hinzugefügte CSS-Regeln,
+  gleiche Asset-Liste. Gegenprobe mit `layout="backdrop"`: Markup wechselt, KI-Labels gleich (8/8).
+
+**Migrations-Hinweis:** Keiner. Scope-Hashes (`data-astro-cid-…`) der geänderten Komponenten
+wandern wie bei jeder Quelltextänderung.
+
+---
+
 ## v0.170.0 (2026-10-07)
 
 **Fix:** Mobil-, Layout- und a11y-Audit prüfen ohne Sitemap alle gebauten Seiten (#168)
