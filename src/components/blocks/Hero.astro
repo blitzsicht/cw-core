@@ -5,6 +5,8 @@
  * Reusable hero section with two layout variants:
  *   • `image` prop set  → Split-Layout (Text 55%, Image 45%)
  *   • `image` not set   → Gradient-Only (Text left-aligned, full-width)
+ *   • `image` + `layout="backdrop"` (opt-in, v0.171.0) → Bild vollflaechig hinter dem
+ *     Text, darueber ein Verlauf in der Primaerfarbe (links dicht, rechts offen).
  *
  * Prop-driven: no imports from customer data modules. The consuming page
  * (or a higher-level page component) is responsible for passing site data
@@ -49,7 +51,14 @@ export interface HeroCTA {
 }
 
 export interface HeroUSP {
-  icon: string;
+  /** Emoji oder kurzes Zeichen. Entfaellt, wenn `iconSvg` gesetzt ist. */
+  icon?: string;
+  /**
+   * Pfad zu einem SVG-Symbol (z. B. `/icons/schere.svg`), opt-in seit v0.171.0. Gewinnt
+   * ueber `icon`. Das Symbol wird als CSS-Maske in der Textfarbe gemalt — eine dunkle
+   * Linienzeichnung erscheint auf dem Hero also weiss, ohne eigene Farbfassung.
+   */
+  iconSvg?: string;
   title: string;
 }
 
@@ -182,6 +191,25 @@ interface Props {
    *   <Hero image={heroImage} bildHerkunft={siteData.bildHerkunft} ... />
    */
   bildHerkunft?: unknown[];
+  /**
+   * Bildanordnung, opt-in seit v0.171.0. `split` (Default) ist das bisherige
+   * Text-neben-Bild. `backdrop` legt das Bild (`image` oder `imageSrc`) vollflaechig
+   * hinter den Text, mit einem Verlauf in der Primaerfarbe darueber: links dicht, damit
+   * der weisse Text lesbar bleibt, rechts offen, damit das Motiv sichtbar ist.
+   *
+   * Den Verlauf steuert der Token `--hero-backdrop-overlay` (ab 901 px) bzw.
+   * `--hero-backdrop-overlay-mobile` (darunter, dort steht der Text ueber der ganzen
+   * Breite und der Verlauf laeuft von oben nach unten).
+   *
+   * Wirkt nur mit genau einem Bild. Mit `images` (Collage) oder befuelltem `visual`-Slot
+   * bleibt es beim Split. `motion.parallax` hat im Backdrop keine Wirkung.
+   * Die KI-Kennzeichnung bleibt am Bild (unten links), die Farbmessung rechnet den
+   * Verlauf als Ueberlagerung ein.
+   *
+   * Anlass: haarwerk-neutraubling, Kundengespraech 08.10.2026 („Farbverlauf bzw.
+   * Bild im Page-Hero-Hintergrund, auf der ganzen Website“).
+   */
+  layout?: 'split' | 'backdrop';
 }
 
 const {
@@ -204,6 +232,7 @@ const {
   usps = [],
   motion,
   bildHerkunft,
+  layout = 'split',
 } = Astro.props;
 
 // Symbol am Primär-CTA nach Link-Ziel: tel: → Telefon, sonst Briefumschlag wie bisher.
@@ -217,6 +246,9 @@ const hasMedia = hasImages || hasImage;
    `shouldFlush` in ContentPage.astro. */
 const hatVisual = Astro.slots.has('visual');
 const tauscheVisual = visualSwap && hatVisual;
+/* Backdrop nur mit genau einem Bild und ohne visual-Slot — sonst gaebe es nichts bzw.
+   zwei Dinge fuer die Flaeche hinter dem Text. */
+const istBackdrop = layout === 'backdrop' && hasImage && !hatVisual;
 const motionCfg: HeroMotionConfig =
   motion === true
     ? { blob: true, textReveal: true, stagger: true, parallax: true, magnetic: true }
@@ -226,13 +258,49 @@ const motionCfg: HeroMotionConfig =
    asynchron (es misst bei Pflicht die Helligkeit der Badge-Ecke), und in einem `.map()`
    im Template gibt es kein `await`. */
 const bildDaten = { bildHerkunft };
-const heroLabel = hasImage ? await bildLabel(bildDaten, image ?? imageSrc) : null;
+/* Im Backdrop liegt der Verlauf zwischen Bild und Label (unten links ist er am
+   dichtesten, ~0.85 Deckkraft) — die Farbmessung muss das wissen, sonst waehlt sie die
+   Fassung fuer das helle Rohbild. */
+const heroLabel = hasImage
+  ? await bildLabel(bildDaten, image ?? imageSrc, istBackdrop ? { ueberlagerung: 0.85 } : undefined)
+  : null;
 const collagenLabel = hasImages
   ? await Promise.all(images!.slice(0, 3).map((img) => bildLabel(bildDaten, img.src)))
   : [];
 ---
-<section class:list={['hero', (hasMedia || hatVisual) && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image', tauscheVisual && 'hero--visual-swap']}>
-  {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}
+<section class:list={['hero', (hasMedia || hatVisual) && !istBackdrop && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image', tauscheVisual && 'hero--visual-swap', istBackdrop && 'hero--backdrop']}>
+  {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}{istBackdrop && (
+    <div class="hero-backdrop">
+      {image ? (
+        <Picture
+          src={image}
+          alt={imageAlt ?? siteName ?? ''}
+          widths={[640, 960, 1280, 1600, 1920]}
+          sizes="100vw"
+          loading="eager"
+          fetchpriority="high"
+          formats={['avif', 'webp']}
+          fallbackFormat="webp"
+          class="hero-backdrop-img"
+        />
+      ) : (
+        <img
+          src={imageSrc!}
+          srcset={imageSrcset}
+          sizes={imageSizes ?? '100vw'}
+          width={imageWidth}
+          height={imageHeight}
+          alt={imageAlt ?? siteName ?? ''}
+          loading="eager"
+          fetchpriority="high"
+          decoding="async"
+          class="hero-backdrop-img"
+        />
+      )}
+      <div class="hero-backdrop-overlay" aria-hidden="true"></div>
+      {heroLabel && <AiLabelAmBild ergebnis={heroLabel.ergebnis} theme={heroLabel.theme} />}
+    </div>
+  )}
   <div class="container">
     <div class="hero-content">
       {badge && (
@@ -290,7 +358,9 @@ const collagenLabel = hasImages
           <StaggerGroup class="hero-usps" direction="up" gap={0.08} delay={0.2}>
             {usps.map((usp: HeroUSP) => (
               <div class="hero-usp-item">
-                <span class="usp-icon" aria-hidden="true">{usp.icon}</span>
+                {usp.iconSvg
+                  ? <span class="usp-icon usp-icon-svg" style={`--usp-icon:url('${usp.iconSvg}')`} aria-hidden="true"></span>
+                  : <span class="usp-icon" aria-hidden="true">{usp.icon}</span>}
                 <span>{usp.title}</span>
               </div>
             ))}
@@ -299,7 +369,9 @@ const collagenLabel = hasImages
           <div class="hero-usps">
             {usps.map((usp: HeroUSP) => (
               <div class="hero-usp-item">
-                <span class="usp-icon" aria-hidden="true">{usp.icon}</span>
+                {usp.iconSvg
+                  ? <span class="usp-icon usp-icon-svg" style={`--usp-icon:url('${usp.iconSvg}')`} aria-hidden="true"></span>
+                  : <span class="usp-icon" aria-hidden="true">{usp.icon}</span>}
                 <span>{usp.title}</span>
               </div>
             ))}
@@ -316,7 +388,7 @@ const collagenLabel = hasImages
       Moderne Browser laden es nie, aber es zaehlt gegen das Perf-Budget und hielt
       fuenf Kunden dauerhaft rot. Siehe blitzsicht-ops#641.
     */}
-    {hasImage && (
+    {hasImage && !istBackdrop && (
       motionCfg.parallax ? (
         <ParallaxImage class="hero-image-wrap" speed={0.2}>
           {image ? (
@@ -675,6 +747,59 @@ const collagenLabel = hasImages
     color: #ffffff;
   }
   .usp-icon { font-size: 1.125rem; }
+  /* SVG-Symbol als Maske in der Textfarbe (opt-in `usps[].iconSvg`, v0.171.0). */
+  .usp-icon-svg {
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    background: currentColor;
+    -webkit-mask: var(--usp-icon) center / contain no-repeat;
+    mask: var(--usp-icon) center / contain no-repeat;
+  }
+
+  /* --- Backdrop (opt-in `layout="backdrop"`, v0.171.0) -------------------
+   * Das Bild liegt als eigene Ebene hinter dem Container, nicht als CSS-
+   * Hintergrund: nur so bleibt es ein <img> mit srcset, alt und KI-Kennzeichnung.
+   * Der Verlauf ist ein Token, damit Kunden ihn an die CI anpassen koennen,
+   * ohne Komponenten-CSS zu ueberschreiben. Der Section-Verlauf aus `.hero`
+   * bleibt darunter stehen — er ist sichtbar, solange das Bild laedt. */
+  .hero--backdrop {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    padding: 6.5rem 0 5.5rem;
+  }
+  .hero--backdrop .container { position: relative; z-index: 1; }
+  .hero--backdrop .hero-content { max-width: 40rem; }
+  .hero-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    /* Bezugsbreite fuer die Badge-Groesse in AiLabelAmBild. */
+    container-type: inline-size;
+  }
+  .hero-backdrop picture { display: contents; }
+  .hero-backdrop-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hero-backdrop-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(
+      --hero-backdrop-overlay,
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-primary) 94%, transparent) 0%,
+        color-mix(in srgb, var(--color-primary) 84%, transparent) 38%,
+        color-mix(in srgb, var(--color-primary) 40%, transparent) 72%,
+        color-mix(in srgb, var(--color-primary) 12%, transparent) 100%
+      )
+    );
+  }
 
   /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
   @media (max-width: 900px) {
@@ -690,6 +815,21 @@ const collagenLabel = hasImages
        Dokumentreihenfolge (.hero-content vor .hero-image-wrap) erfüllt das bereits. */
     .hero-image-wrap { max-height: 280px; }
     .hero-img { height: 280px; }
+
+    /* Backdrop schmal: der Text steht ueber der ganzen Breite, also kein
+       Links-rechts-Verlauf mehr, sondern oben etwas Motiv, darunter dicht. */
+    .hero--backdrop { padding: 5rem 0 4.5rem; }
+    .hero-backdrop-overlay {
+      background: var(
+        --hero-backdrop-overlay-mobile,
+        linear-gradient(
+          180deg,
+          color-mix(in srgb, var(--color-primary) 72%, transparent) 0%,
+          color-mix(in srgb, var(--color-primary) 90%, transparent) 55%,
+          var(--color-primary) 100%
+        )
+      );
+    }
 
     /* Transparent motives: don't crop on mobile — let the silhouette breathe.
        max-height keeps the hero from dominating short viewports. */
