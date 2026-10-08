@@ -158,3 +158,33 @@ test('Header: separatorBefore setzt genau einen Trenner vor den Punkt', async ()
   assert.ok(vorExtern.lastIndexOf('nav-sep') > vorExtern.lastIndexOf('>Haarwerkstatt<'), 'Trenner steht zwischen Haarwerkstatt und Extern');
   assert.equal(html.replace(/<span class="nav-sep" aria-hidden="true"><\/span>/, ''), GOLDEN.header, 'sonst unverändert');
 });
+
+// --- Alt-Text-Guard (strictAltText) ---------------------------------------
+// Kundenbuilds mit strictAltText=true brechen bei jedem <img> ohne verwertbaren Alt-Text
+// ab, der keinen Deko-Marker trägt. Geprüft mit dem echten Guard (`lintPageImgAlt`),
+// nicht mit einer Nachbildung — gemeldet vom haarwerk-Build am 08.10.2026: der leere
+// Platzhalter im Lightbox-Dialog.
+test('Alt-Text-Guard: Lightbox, Schritt- und USP-Bilder ohne imageAlt bestehen', async () => {
+  const { mkdtempSync, writeFileSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const r = await renderer();
+  const { lintPageImgAlt } = await r.laden('src/integrations/ai-discovery/index.ts');
+  const img = await bild();
+  // Roh gerendert, nicht `normalize()`: dessen Platzhalter `<ROOT>` im src der
+  // Label-Symbole enthielte ein `>` und zerschnitte die img-Tags für den Guard.
+  const teile = [
+    await r.render(LS, { cardStyle: 'image', lightbox: true, bildHerkunft: KI, items: [{ title: 'Empfang', imageSrc: img, imageAlt: 'Empfangstresen' }] }),
+    await r.render(PS.datei, { ...PS.props, items: [{ nr: 1, image: img, title: 'A', desc: 'b' }] }),
+    await r.render('src/components/blocks/USPSection.astro', { items: [{ image: img, title: 'A', description: 'b' }] }),
+  ];
+  const dir = mkdtempSync(join(tmpdir(), 'alt-guard-'));
+  writeFileSync(join(dir, 'index.html'), teile.join('\n'));
+  assert.deepEqual(lintPageImgAlt(join(dir, 'index.html'), dir), []);
+  // Der Dialog-Platzhalter ist im statischen HTML ausdrücklich dekorativ.
+  assert.match(normalize(teile[0]), /<img class="leistung-lightbox-img" alt(="")? aria-hidden="true"/);
+
+  // Gegenprobe: derselbe Guard meldet ein leeres alt ohne Marker.
+  writeFileSync(join(dir, 'index.html'), '<img src="/x.webp" alt="">');
+  assert.equal(lintPageImgAlt(join(dir, 'index.html'), dir).length, 1);
+});

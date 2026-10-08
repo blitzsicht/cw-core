@@ -27,7 +27,7 @@ export interface ProcessStep {
    * v0.171.0. Steht oben in der Karte, 4:3, randlos.
    */
   image?: ImageMetadata;
-  /** Alt-Text fuer `image`: das Motiv, nicht der Schritt-Titel. Ohne Angabe leer (dekorativ). */
+  /** Alt-Text fuer `image`: das Motiv, nicht der Schritt-Titel. Ohne Angabe leer und als dekorativ markiert (`role="presentation"`). */
   imageAlt?: string;
   /** Step title. */
   title: string;
@@ -108,7 +108,7 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
         <div class="step" data-step-nr={step.nr}>
           <div class="step-body">
             {step.image
-              ? <div class="step-image"><Image src={step.image} alt={step.imageAlt ?? ''} widths={[320, 480, 640]} sizes="(max-width: 559px) 100vw, (max-width: 919px) 50vw, 25vw" loading="lazy" format="webp" class="step-img" />{schrittLabel[idx] && <AiLabelAmBild ergebnis={schrittLabel[idx]!.ergebnis} theme={schrittLabel[idx]!.theme} />}</div>
+              ? <div class="step-image"><Image src={step.image} alt={step.imageAlt ?? ''} role={step.imageAlt ? undefined : 'presentation'} widths={[320, 480, 640]} sizes="(max-width: 559px) 100vw, (max-width: 919px) 50vw, 25vw" loading="lazy" format="webp" class="step-img" />{schrittLabel[idx] && <AiLabelAmBild ergebnis={schrittLabel[idx]!.ergebnis} theme={schrittLabel[idx]!.theme} />}</div>
               : <div class="step-icon" aria-hidden="true">{step.icon}</div>}
             <h3>{step.title}</h3>
             <p>{step.desc}</p>

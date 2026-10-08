@@ -25,7 +25,7 @@ export interface USPItem {
    * `iconSvg` und `icon`. Steht randlos oben in der Karte, 16:9.
    */
   image?: ImageMetadata;
-  /** Alt-Text fuer `image`: das Motiv. Ohne Angabe leer (dekorativ). */
+  /** Alt-Text fuer `image`: das Motiv. Ohne Angabe leer und als dekorativ markiert (`role="presentation"`). */
   imageAlt?: string;
   /** Card heading. */
   title: string;
@@ -72,7 +72,7 @@ const TitleTag = heading ? 'h3' : 'p';
       {items.map((usp, idx) => (
         <div class="usp-card">
           {usp.image
-            ? <div class="usp-image"><Image src={usp.image} alt={usp.imageAlt ?? ''} widths={[320, 480, 640]} sizes="(max-width: 640px) 100vw, 33vw" loading="lazy" format="webp" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
+            ? <div class="usp-image"><Image src={usp.image} alt={usp.imageAlt ?? ''} role={usp.imageAlt ? undefined : 'presentation'} widths={[320, 480, 640]} sizes="(max-width: 640px) 100vw, 33vw" loading="lazy" format="webp" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
             : usp.iconSvg
             ? <div class:list={["usp-icon usp-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={usp.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
             : usp.icon && <div class="usp-icon" aria-hidden="true">{usp.icon}</div>

@@ -199,7 +199,7 @@ const hatLightbox = lightboxGross.some(Boolean);
           </button>
         </form>
         <div class="leistung-lightbox-figur">
-          <img class="leistung-lightbox-img" alt="" decoding="async" />
+          <img class="leistung-lightbox-img" alt="" aria-hidden="true" decoding="async" />
           {items.map((_, idx) => lightboxGross[idx] && kartenLabel[idx] && (
             <span class="leistung-lightbox-label" data-lightbox-label={idx} hidden><AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} /></span>
           ))}
@@ -470,8 +470,12 @@ const hatLightbox = lightboxGross.some(Boolean);
       btn.addEventListener('click', () => {
         ausloeser = btn;
         if (img) {
+          // Im statischen HTML ist der Platzhalter dekorativ markiert (leeres alt,
+          // aria-hidden) — sonst meldet der Alt-Text-Guard ein <img alt=""> ohne Marker.
+          // Beim Oeffnen bekommt er Bild, Alt-Text und Sichtbarkeit fuer Screenreader.
           img.src = btn.dataset.lightboxSrc ?? '';
           img.alt = btn.dataset.lightboxAlt ?? '';
+          img.removeAttribute('aria-hidden');
         }
         if (titel) titel.textContent = btn.dataset.lightboxTitel ?? '';
         dialog.querySelectorAll<HTMLElement>('[data-lightbox-label]').forEach((l) => {
