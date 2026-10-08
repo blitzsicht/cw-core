@@ -1,0 +1,358 @@
+---
+/**
+ * @cw/core – PriceList.astro (v0.171.0)
+ *
+ * Vollständige Preisliste wie ein Aushang: Gruppen (z. B. Damen / Herren) mit
+ * Sprungleiste, darin Kategorien als Karten. Eine Kategorie kann Spalten haben
+ * (z. B. kurz / mittel / lang); Posten ohne Spaltenzuordnung laufen dann über alle
+ * Spalten. Kategorien ohne Spalten zeigen Name … Punktführer … Preis.
+ *
+ * Anlass: haarwerk-neutraubling, Kundengespräch 08.10.2026 („komplette Preisliste
+ * auf die Website“). PriceTransparency kennt nur Spannen, keine Spalten.
+ *
+ * Beträge kommen fertig formatiert (z. B. „ab 80,00 €“), damit „ab“/„je“ und
+ * Schreibweise exakt dem Aushang des Kunden folgen. Kein Schema hier: Preis-JSON-LD
+ * hängt der Aufrufer an seine Organisation (@id), sonst entstehen zwei Anbieter.
+ *
+ * @example
+ *   <PriceList
+ *     groups={[{ id: 'damen', title: 'Damen', eyebrow: 'Salon Haarwerk',
+ *       categories: [{ title: 'Schnitt', columns: ['kurz', 'mittel', 'lang'],
+ *         items: [{ name: 'Schnitt, Waschen, Föhnen', prices: [
+ *           { amount: '53,50 €', column: 'kurz' }, { amount: '57,50 €', column: 'mittel' },
+ *           { amount: '60,50 €', column: 'lang' }] }] }] }]}
+ *     footnotes={['Alle Preise in Euro, inkl. 19 % MwSt.']}
+ *   />
+ */
+
+export interface PriceListPrice {
+  /** Fertig formatierter Betrag, z. B. „ab 25,50 €“. */
+  amount: string;
+  /** Spaltenname aus `PriceListCategory.columns`; fehlt er, läuft der Preis über alle Spalten. */
+  column?: string;
+}
+
+export interface PriceListItem {
+  name: string;
+  note?: string;
+  prices: readonly PriceListPrice[];
+}
+
+export interface PriceListCategory {
+  title: string;
+  columns?: readonly string[];
+  items: readonly PriceListItem[];
+}
+
+export interface PriceListGroup {
+  /** Wird zum Anker (#id) und zum Ziel der Sprungleiste. */
+  id: string;
+  title: string;
+  eyebrow?: string;
+  note?: string;
+  categories: readonly PriceListCategory[];
+}
+
+interface Props {
+  groups: readonly PriceListGroup[];
+  /** Sprungleiste über den Gruppen (ab zwei Gruppen sinnvoll). Default: true bei ≥ 2 Gruppen. */
+  switcher?: boolean;
+  /** Hinweise unter der Liste: Stand, MwSt., „ab“-Preise … */
+  footnotes?: readonly string[];
+  footnoteLink?: { label: string; href: string };
+  ariaLabel?: string;
+}
+
+const { groups, switcher = groups.length >= 2, footnotes = [], footnoteLink, ariaLabel = 'Preisliste' } = Astro.props;
+---
+<div class="pricelist">
+  {switcher && (
+    <nav class="pl-switch" aria-label={`${ariaLabel}: Bereiche`}>
+      {groups.map((g) => <a href={`#${g.id}`}>{g.title}</a>)}
+    </nav>
+  )}
+
+  {groups.map((g) => (
+    <section id={g.id} class="pl-group" aria-labelledby={`${g.id}-title`}>
+      <header class="pl-group-head">
+        {g.eyebrow && <p class="pl-eyebrow">{g.eyebrow}</p>}
+        <h2 id={`${g.id}-title`}>{g.title}</h2>
+        {g.note && <p class="pl-note">{g.note}</p>}
+      </header>
+      <div class="pl-grid">
+        {g.categories.map((c) => {
+          const cols = c.columns ?? [];
+          return (
+            <article class="pl-card" style={cols.length ? `--pl-cols:${cols.length}` : undefined}>
+              <header class="pl-card-head">
+                <h3>{c.title}</h3>
+                {cols.length > 0 && (
+                  <div class="pl-colhead" aria-hidden="true">
+                    {cols.map((col) => <span>{col}</span>)}
+                  </div>
+                )}
+              </header>
+              <ul class={cols.length ? 'pl-rows pl-rows--cols' : 'pl-rows'}>
+                {c.items.map((it) => {
+                  const spalten = cols.length > 0 && it.prices.some((p) => p.column);
+                  return (
+                    <li class="pl-row">
+                      <span class="pl-name">
+                        {it.name}
+                        {it.note && <small>{it.note}</small>}
+                      </span>
+                      {spalten ? (
+                        cols.map((col) => {
+                          const p = it.prices.find((x) => x.column === col);
+                          return (
+                            <span class="pl-price" data-col={col}>
+                              <span class="sr-only">{col}: </span>
+                              {p ? p.amount : <span class="pl-none"><span aria-hidden="true">–</span><span class="sr-only">kein Preis</span></span>}
+                            </span>
+                          );
+                        })
+                      ) : (
+                        <>
+                          <span class="pl-leader" aria-hidden="true" />
+                          <span class="pl-price pl-price--span">{it.prices.map((p) => p.amount).join(' / ')}</span>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  ))}
+
+  {(footnotes.length > 0 || footnoteLink) && (
+    <aside class="pl-foot">
+      {footnotes.map((f) => <p>{f}</p>)}
+      {footnoteLink && <p><a href={footnoteLink.href}>{footnoteLink.label}</a></p>}
+    </aside>
+  )}
+</div>
+
+<style>
+  .pricelist {
+    max-width: 72rem;
+    margin: 0 auto;
+    padding: 0 1.5rem 4rem;
+  }
+
+  .pl-switch {
+    position: sticky;
+    top: 4.5rem;
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    width: fit-content;
+    margin: 0 auto 3rem;
+    padding: 0.375rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-surface, #f7f5f4), transparent 8%);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 6px 24px color-mix(in srgb, var(--color-primary), transparent 88%);
+  }
+  .pl-switch a {
+    padding: 0.625rem 1.375rem;
+    border-radius: 999px;
+    font-weight: 600;
+    color: var(--color-text, var(--color-primary));
+    text-decoration: none;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .pl-switch a:hover,
+  .pl-switch a:focus-visible {
+    background: var(--color-primary);
+    color: #fff;
+  }
+
+  .pl-group {
+    margin: 0 0 4.5rem;
+    scroll-margin-top: 9rem;
+  }
+  .pl-group-head {
+    margin: 0 0 2rem;
+    text-align: center;
+  }
+  .pl-eyebrow {
+    margin: 0 0 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent-text, var(--color-accent));
+  }
+  .pl-group-head h2 {
+    margin: 0;
+    font-family: var(--font-heading, inherit);
+    font-size: clamp(2.25rem, 5vw, 3.25rem);
+    line-height: 1.05;
+  }
+  .pl-note {
+    margin: 0.75rem auto 0;
+    max-width: 40rem;
+    color: var(--color-muted, #5a5350);
+  }
+
+  .pl-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 30rem), 1fr));
+    gap: 1.5rem;
+    align-items: start;
+  }
+
+  .pl-card {
+    --pl-col-w: 6.5rem;
+    background: var(--color-surface, #f7f5f4);
+    border-radius: 1rem;
+    padding: 1.25rem 1.125rem 1rem;
+    border-top: 3px solid var(--color-accent);
+  }
+  .pl-card-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin: 0 0 0.75rem;
+  }
+  .pl-card-head h3 {
+    margin: 0;
+    font-family: var(--font-heading, inherit);
+    font-size: 1.375rem;
+  }
+  .pl-colhead {
+    display: none;
+    grid-template-columns: repeat(var(--pl-cols, 3), var(--pl-col-w));
+    text-align: right;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted, #5a5350);
+  }
+
+  .pl-rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .pl-row {
+    display: grid;
+    /* Name darf umbrechen (minmax 0), Preis nie; Punktführer füllt den Rest. */
+    grid-template-columns: minmax(0, max-content) minmax(1rem, 1fr) auto;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.625rem 0;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-primary), transparent 88%);
+  }
+  .pl-row:last-child {
+    border-bottom: 0;
+  }
+  .pl-rows--cols .pl-row {
+    grid-template-columns: repeat(var(--pl-cols, 3), 1fr);
+    gap: 0.25rem 0;
+  }
+  .pl-rows--cols .pl-name {
+    grid-column: 1 / -1;
+  }
+  .pl-rows--cols .pl-price {
+    text-align: left;
+  }
+  .pl-rows--cols .pl-price[data-col]::before {
+    /* Sichtbare Spaltenbeschriftung nur fürs Auge; Screenreader lesen das sr-only-Label. */
+    content: attr(data-col) / '';
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-muted, #5a5350);
+  }
+  .pl-rows--cols .pl-leader {
+    display: none;
+  }
+  .pl-rows--cols .pl-price--span {
+    grid-column: 1 / -1;
+  }
+
+  .pl-name {
+    font-weight: 500;
+  }
+  .pl-name small {
+    display: block;
+    margin-top: 0.125rem;
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--color-muted, #5a5350);
+  }
+  .pl-leader {
+    align-self: end;
+    margin-bottom: 0.35em;
+    border-bottom: 2px dotted color-mix(in srgb, var(--color-primary), transparent 70%);
+    min-width: 1.5rem;
+  }
+  .pl-price {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .pl-none {
+    color: var(--color-muted, #5a5350);
+    font-weight: 400;
+  }
+
+  .pl-foot {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 1.5rem 1.75rem;
+    border-radius: 1rem;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 0.9375rem;
+  }
+  .pl-foot p {
+    margin: 0 0 0.5rem;
+  }
+  .pl-foot p:last-child {
+    margin: 0;
+  }
+  .pl-foot a {
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  @media (min-width: 40.0625rem) {
+    .pl-card {
+      padding: 1.75rem 1.75rem 1.25rem;
+    }
+    .pl-colhead {
+      display: grid;
+    }
+    .pl-rows--cols .pl-row {
+      grid-template-columns: minmax(0, 1fr) repeat(var(--pl-cols, 3), var(--pl-col-w));
+      gap: 0;
+    }
+    .pl-rows--cols .pl-name {
+      grid-column: auto;
+    }
+    .pl-rows--cols .pl-price {
+      text-align: right;
+    }
+    .pl-rows--cols .pl-price[data-col]::before {
+      content: none;
+    }
+    .pl-rows--cols .pl-price--span {
+      grid-column: 2 / -1;
+    }
+  }
+</style>
