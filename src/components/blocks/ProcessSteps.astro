@@ -7,12 +7,28 @@
  *
  * @example
  *   <ProcessSteps items={siteData.processSteps} />
+ *
+ * Opt-in seit v0.171.0: `items[].image` zeigt statt des Symbols ein Bild oben in der
+ * Karte, `bildHerkunft` setzt daran die KI-Kennzeichnung, `numberStyle="solid"` malt
+ * die grosse Ziffer gefuellt statt als Kontur.
  */
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
+
 export interface ProcessStep {
   /** Step number (rendered as large faded background number). */
   nr: string | number;
-  /** Emoji or short string used as visual icon. */
-  icon: string;
+  /** Emoji or short string used as visual icon. Entfaellt, wenn `image` gesetzt ist. */
+  icon?: string;
+  /**
+   * Bild statt Symbol (Astro-Import aus astro:assets, kein String-Pfad), opt-in seit
+   * v0.171.0. Steht oben in der Karte, 4:3, randlos.
+   */
+  image?: ImageMetadata;
+  /** Alt-Text fuer `image`: das Motiv, nicht der Schritt-Titel. Ohne Angabe leer (dekorativ). */
+  imageAlt?: string;
   /** Step title. */
   title: string;
   /** Step description. */
@@ -28,6 +44,19 @@ interface Props {
   subheadingTemplate?: string;
   /** Fixed column count. Default: auto (smart calcCols). */
   columns?: 2 | 3 | 4 | 5;
+  /**
+   * `siteData.bildHerkunft` — setzt an Schritt-Bildern die Kennzeichnung nach Art. 50
+   * AI Act, wie Hero und LeistungenSection. Ohne diese Prop aendert sich nichts.
+   */
+  bildHerkunft?: unknown[];
+  /**
+   * Darstellung der grossen Schritt-Ziffer, opt-in seit v0.171.0. `outline` (Default)
+   * ist die bisherige Kontur per `-webkit-text-stroke`. `solid` malt sie gefuellt in
+   * der Akzentfarbe mit geringer Deckkraft — fuer Schriften mit ueberlappenden
+   * Konturen (variable Serifen wie Fraunces), bei denen der Strich die inneren
+   * Ueberlappungen als Linien sichtbar macht.
+   */
+  numberStyle?: 'outline' | 'solid';
 }
 
 const {
@@ -35,7 +64,15 @@ const {
   heading = "So funktioniert's",
   subheadingTemplate = 'Von Erstgespräch bis Live-Gang in {count} einfachen Schritten.',
   columns,
+  bildHerkunft,
+  numberStyle = 'outline',
 } = Astro.props;
+
+/* Je Schritt einmal im Frontmatter aufgeloest — `bildLabel` ist asynchron. */
+const bildDaten = { bildHerkunft };
+const schrittLabel = await Promise.all(
+  items.map((step) => (step.image ? bildLabel(bildDaten, step.image) : null)),
+);
 
 // Symmetrisches Grid ohne Orphan-Zeilen.
 // Formel: cols = min(5, ceil(n/2)) — erzeugt immer ≥ 2 Zeilen mit gleichmäßiger Füllung.
@@ -62,11 +99,13 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
       <p class="section-subheading">{subheading}</p>
     </div>
 
-    <div class={`steps${smartColumns ? ` cols-${smartColumns}` : ''}`}>
-      {items.map((step) => (
+    <div class={`steps${smartColumns ? ` cols-${smartColumns}` : ''}${numberStyle === 'solid' ? ' nr-solid' : ''}`}>
+      {items.map((step, idx) => (
         <div class="step" data-step-nr={step.nr}>
           <div class="step-body">
-            <div class="step-icon" aria-hidden="true">{step.icon}</div>
+            {step.image
+              ? <div class="step-image"><Image src={step.image} alt={step.imageAlt ?? ''} widths={[320, 480, 640]} sizes="(max-width: 559px) 100vw, (max-width: 919px) 50vw, 25vw" loading="lazy" format="webp" class="step-img" />{schrittLabel[idx] && <AiLabelAmBild ergebnis={schrittLabel[idx]!.ergebnis} theme={schrittLabel[idx]!.theme} />}</div>
+              : <div class="step-icon" aria-hidden="true">{step.icon}</div>}
             <h3>{step.title}</h3>
             <p>{step.desc}</p>
           </div>
@@ -118,6 +157,29 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
     height: 100%;
   }
   .step-icon { font-size: 1.75rem; margin-bottom: 0.75rem; display: block; }
+  /* Opt-in v0.171.0: gefuellte Ziffer statt Kontur. */
+  .nr-solid .step::before {
+    color: var(--color-accent);
+    -webkit-text-stroke: 0;
+    opacity: 0.3;
+  }
+  /* Opt-in v0.171.0: Bild statt Symbol, randlos oben in der Karte. */
+  .step-image {
+    /* Anker und Bezugsbreite fuer die KI-Kennzeichnung. */
+    position: relative;
+    container-type: inline-size;
+    margin: -1.5rem -1.5rem 1rem;
+    border-radius: 0.75rem 0.75rem 0 0;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    background: var(--color-surface);
+  }
+  .step-image :global(img) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
   .step-body h3 { font-size: 1.0625rem; margin-bottom: 0.5rem; }
   .step-body p { font-size: 0.9rem; color: var(--color-muted); line-height: 1.65; margin: 0; }
 

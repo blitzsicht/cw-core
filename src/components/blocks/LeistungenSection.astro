@@ -13,10 +13,14 @@
  *     subheading={siteData.tagline}
  *     items={siteData.leistungen}
  *   />
+ *
+ * Opt-in seit v0.171.0: `lightbox` macht Bildkarten ohne `href` klickbar — ein Klick
+ * oeffnet das Bild gross in einem nativen <dialog> (Esc, Klick daneben oder Schliessen-
+ * Knopf beenden ihn, der Fokus kehrt zur Karte zurueck). Kein Inline-Skript.
  */
 import { linkifyPhones } from '../../utils/text/linkify-phones';
 import { phoneToTelHref } from '../../utils/text/tel-href';
-import { Image } from 'astro:assets';
+import { Image, getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 import AiLabelAmBild from './AiLabelAmBild.astro';
 import { bildLabel } from '../../utils/bildlabel.js';
@@ -80,6 +84,12 @@ interface Props {
   bildHerkunft?: unknown[];
   /** Label des Anruf-Buttons bei Items mit `ctaPhone`. Default "Anrufen". */
   ctaCallLabel?: string;
+  /**
+   * Opt-in seit v0.171.0. Bildkarten (`cardStyle='image'` mit `imageSrc`) ohne `href`
+   * und ohne `ctaPhone` werden klickbar und zeigen ihr Bild gross in einem Dialog.
+   * Die KI-Kennzeichnung steht auch am grossen Bild. Ohne diese Prop aendert sich nichts.
+   */
+  lightbox?: boolean;
 }
 
 const {
@@ -93,6 +103,7 @@ const {
   cardStyle = 'icon',
   ctaCallLabel = 'Anrufen',
   bildHerkunft,
+  lightbox = false,
 } = Astro.props;
 
 const containerStyle = iconContainerColor ? `--icon-container-color:${iconContainerColor}` : undefined;
@@ -105,6 +116,16 @@ const kartenLabel = await Promise.all(
     cardStyle === 'image' && item.imageSrc ? bildLabel(bildDaten, item.imageSrc) : null,
   ),
 );
+
+/* Lightbox (opt-in): je berechtigter Karte eine grosse Fassung (1600 px, WebP). */
+const istLightboxKarte = (item: LeistungItem) =>
+  lightbox && cardStyle === 'image' && !!item.imageSrc && !item.href && !item.ctaPhone;
+const lightboxGross = await Promise.all(
+  items.map((item) =>
+    istLightboxKarte(item) ? getImage({ src: item.imageSrc!, width: 1600, format: 'webp' }).then((g) => g.src) : null,
+  ),
+);
+const hatLightbox = lightboxGross.some(Boolean);
 ---
 
 {items.length > 0 && (
@@ -148,6 +169,13 @@ const kartenLabel = await Promise.all(
               {readMoreLabel}<span> →</span>
             </span>
           </a>
+        ) : lightboxGross[idx] ? (
+          <div class="leistung-card leistung-card-lightbox">
+            <div class="leistung-image"><Image src={item.imageSrc!} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
+            <h3>{item.title}</h3>
+            {item.description && <p set:html={linkifyPhones(item.description)} />}
+            <button type="button" class="leistung-lightbox-trigger" data-lightbox-src={lightboxGross[idx]} data-lightbox-alt={item.imageAlt ?? item.title} data-lightbox-titel={item.title} data-lightbox-idx={idx} aria-haspopup="dialog"><span class="leistung-link">Bild vergrößern<span class="sr-only">: {item.title}</span></span></button>
+          </div>
         ) : (
           <div class="leistung-card">
             {cardStyle === 'image' && item.imageSrc
@@ -162,6 +190,22 @@ const kartenLabel = await Promise.all(
         ))}
       </div>
     </div>
+    {hatLightbox && (
+      <dialog class="leistung-lightbox" aria-label={`Bild vergrößert: ${heading}`}>
+        <form method="dialog" class="leistung-lightbox-bar">
+          <p class="leistung-lightbox-titel"></p>
+          <button class="leistung-lightbox-close" aria-label="Schließen">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </form>
+        <div class="leistung-lightbox-figur">
+          <img class="leistung-lightbox-img" alt="" decoding="async" />
+          {items.map((_, idx) => lightboxGross[idx] && kartenLabel[idx] && (
+            <span class="leistung-lightbox-label" data-lightbox-label={idx} hidden><AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} /></span>
+          ))}
+        </div>
+      </dialog>
+    )}
   </section>
 )}
 
@@ -334,6 +378,69 @@ const kartenLabel = await Promise.all(
   }
   .leistung-call-btn:hover { filter: brightness(0.95); transform: translateY(-1px); }
   .leistung-call-btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+  /* --- Lightbox (opt-in, v0.171.0) --------------------------------------
+   * Die ganze Karte ist Klickflaeche: der Knopf spannt sein ::after ueber die
+   * Karte. Ein <button> um die ganze Karte waere ungueltig (h3 ist kein
+   * Phrasing Content). */
+  .leistung-card-lightbox { position: relative; cursor: zoom-in; }
+  .leistung-card-lightbox:hover { border-color: var(--color-accent); }
+  .leistung-lightbox-trigger {
+    align-self: flex-start;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: zoom-in;
+  }
+  .leistung-lightbox-trigger::after { content: ''; position: absolute; inset: 0; border-radius: 0.75rem; }
+  .leistung-lightbox-trigger:focus-visible { outline: none; }
+  .leistung-lightbox-trigger:focus-visible::after { outline: 2px solid var(--color-accent); outline-offset: 4px; }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .leistung-lightbox {
+    width: min(92vw, 72rem);
+    max-height: 92vh;
+    padding: 0;
+    border: 0;
+    border-radius: 0.75rem;
+    background: #111;
+    color: #fff;
+    overflow: hidden;
+  }
+  .leistung-lightbox::backdrop { background: rgba(0, 0, 0, 0.78); }
+  .leistung-lightbox-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0.5rem 0.5rem 1.25rem;
+    margin: 0;
+  }
+  .leistung-lightbox-titel { margin: 0; font-weight: 600; font-size: 0.95rem; }
+  .leistung-lightbox-close {
+    display: grid;
+    place-items: center;
+    min-width: 44px;
+    min-height: 44px;
+    background: transparent;
+    color: #fff;
+    border: 0;
+    border-radius: 0.5rem;
+    cursor: pointer;
+  }
+  .leistung-lightbox-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .leistung-lightbox-figur { position: relative; container-type: inline-size; }
+  .leistung-lightbox-img { display: block; width: 100%; max-height: calc(92vh - 60px); object-fit: contain; background: #111; }
 </style>
 
 <script>
@@ -349,5 +456,32 @@ const kartenLabel = await Promise.all(
       const service = link.closest('.leistung-card')?.querySelector('h3')?.textContent?.trim() ?? '';
       track('Service Click', { service });
     });
+  });
+
+  // Lightbox (opt-in `lightbox`, v0.171.0). Der Dialog ist nativ: Esc schliesst ihn,
+  // der Fokus wird beim Schliessen ausdruecklich an den Ausloeser zurueckgegeben.
+  document.querySelectorAll<HTMLElement>('.leistungen-section').forEach((section) => {
+    const dialog = section.querySelector<HTMLDialogElement>('dialog.leistung-lightbox');
+    if (!dialog) return;
+    const img = dialog.querySelector<HTMLImageElement>('.leistung-lightbox-img');
+    const titel = dialog.querySelector<HTMLElement>('.leistung-lightbox-titel');
+    let ausloeser: HTMLElement | null = null;
+    section.querySelectorAll<HTMLButtonElement>('.leistung-lightbox-trigger').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        ausloeser = btn;
+        if (img) {
+          img.src = btn.dataset.lightboxSrc ?? '';
+          img.alt = btn.dataset.lightboxAlt ?? '';
+        }
+        if (titel) titel.textContent = btn.dataset.lightboxTitel ?? '';
+        dialog.querySelectorAll<HTMLElement>('[data-lightbox-label]').forEach((l) => {
+          l.hidden = l.dataset.lightboxLabel !== btn.dataset.lightboxIdx;
+        });
+        dialog.showModal();
+      });
+    });
+    // Klick auf den abgedunkelten Rand (das Dialog-Element selbst) schliesst.
+    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+    dialog.addEventListener('close', () => { ausloeser?.focus(); ausloeser = null; });
   });
 </script>

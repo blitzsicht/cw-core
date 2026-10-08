@@ -24,6 +24,12 @@ export interface NavItem {
   target?: string;
   /** Optional rel attribute. Set "noopener noreferrer" when target="_blank". */
   rel?: string;
+  /**
+   * Opt-in seit v0.171.0: ein feiner senkrechter Trenner VOR diesem Punkt — etwa
+   * zwischen Standorten und Leistungen. Rein optisch (`aria-hidden`), in der
+   * Kompakt-Darstellung (Hamburger) ausgeblendet.
+   */
+  separatorBefore?: boolean;
 }
 
 interface Props {
@@ -77,11 +83,12 @@ const {
     </a>
 
     <nav id="main-nav" aria-label="Hauptnavigation">
-      {navItems.map((item: NavItem) =>
+      {navItems.map((item: NavItem) => [
+        item.separatorBefore && <span class="nav-sep" aria-hidden="true"></span>,
         item.highlight
           ? <a href={item.href} target={item.target} rel={item.rel} class="btn-accent" {...ctaAttrs(item.href, `nav-highlight:${item.label}`)}>{item.label}</a>
-          : <a href={item.href} target={item.target} rel={item.rel} {...ctaAttrs(item.href, `nav:${item.label}`)}>{item.label}</a>
-      )}
+          : <a href={item.href} target={item.target} rel={item.rel} {...ctaAttrs(item.href, `nav:${item.label}`)}>{item.label}</a>,
+      ])}
       {showKarriereLink && <a href={karriereHref}>{karriereLabel}</a>}
     </nav>
 
@@ -180,6 +187,14 @@ const {
     border-radius: 2px;
   }
   #main-nav .btn-accent { padding: 0.5rem 1.125rem; font-size: 0.9375rem; }
+  /* Opt-in `separatorBefore` (v0.171.0). */
+  #main-nav .nav-sep {
+    display: block;
+    width: 1px;
+    height: 1.25rem;
+    background: rgba(255,255,255,0.35);
+  }
+  #site-header[data-nav="compact"] #main-nav .nav-sep { display: none; }
 
   /* Hamburger */
   #nav-toggle {

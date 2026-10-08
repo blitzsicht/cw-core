@@ -6,6 +6,11 @@
  *   • variant 'cards' (default) — bordered badge cards (label + description),
  *     optional banner image above (e.g. a certificate collage). [gottl "trust"]
  *   • variant 'bar' — compact inline credential strip. [the recurring "trust-bar"]
+ *   • variant 'logo' (opt-in, v0.171.0) — ruhige Reihe ohne Kartenrahmen: Logo oben,
+ *     darunter Label und Beschreibung, getrennt durch feine Linien. Fuer Partner- und
+ *     Herstellerstatus mit offiziellem Logo (Anlass haarwerk: Hairdreams SILVER-Salon).
+ *
+ * `badges[].logoSrc` (opt-in, v0.171.0) zeigt in jeder Variante ein Logo am Badge.
  *
  * Every field except a badge `label` is optional.
  *
@@ -20,8 +25,15 @@
 export interface TrustBadge {
   /** Short label, e.g. "RICS". Required. */
   label: string;
-  /** Optional explanatory line (shown in 'cards' variant). */
+  /** Optional explanatory line (shown in 'cards' and 'logo' variant). */
   description?: string;
+  /**
+   * Logo als public-Pfad (z. B. `/logos/hairdreams-silver.svg`), opt-in seit v0.171.0.
+   * Nur offizielle Dateien des Rechteinhabers — kein Nachzeichnen, keine KI-Neuerstellung.
+   */
+  logoSrc?: string;
+  /** Alt-Text des Logos. Ohne Angabe leer, weil das Label daneben dasselbe sagt. */
+  logoAlt?: string;
 }
 
 interface Props {
@@ -32,8 +44,8 @@ interface Props {
   bannerAlt?: string;
   /** Badges. Section is omitted entirely if empty. */
   badges?: readonly TrustBadge[];
-  /** Layout. 'cards' = bordered cards (default), 'bar' = compact inline strip. */
-  variant?: 'cards' | 'bar';
+  /** Layout. 'cards' = bordered cards (default), 'bar' = compact inline strip, 'logo' = Logo-Reihe (v0.171.0). */
+  variant?: 'cards' | 'bar' | 'logo';
   /** Background variant. Default 'default'. */
   background?: 'surface' | 'default';
 }
@@ -58,11 +70,12 @@ const {
       </div>
     )}
 
-    <div class:list={['trust-badges', variant === 'bar' ? 'badge-bar' : 'badge-row']}>
+    <div class:list={['trust-badges', variant === 'bar' ? 'badge-bar' : variant === 'logo' ? 'badge-logos' : 'badge-row']}>
       {badges.map((b) => (
         <div class="badge">
+          {b.logoSrc && <img class="badge-logo" src={b.logoSrc} alt={b.logoAlt ?? ''} loading="lazy" decoding="async" />}
           <strong>{b.label}</strong>
-          {variant === 'cards' && b.description && <span>{b.description}</span>}
+          {variant !== 'bar' && b.description && <span>{b.description}</span>}
         </div>
       ))}
     </div>
@@ -119,4 +132,38 @@ const {
     background: var(--color-surface, #f8fafc);
   }
   .is-surface .badge-bar .badge strong { background: #fff; }
+  /* Nur mit Logo: ohne Logo bleibt die Leiste exakt wie vor v0.171.0. */
+  .badge-bar .badge:has(.badge-logo) { display: inline-flex; align-items: center; gap: 0.5rem; }
+  .badge-bar .badge-logo { height: 1.5rem; width: auto; }
+
+  /* Logo in 'cards' (opt-in per logoSrc). */
+  .badge-row .badge-logo { display: block; height: 3rem; width: auto; max-width: 100%; margin: 0 auto 0.75rem; object-fit: contain; }
+
+  /* variant 'logo' (opt-in, v0.171.0) */
+  .badge-logos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+    gap: 2rem 0;
+  }
+  .badge-logos .badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1.75rem;
+  }
+  .badge-logos .badge + .badge { border-left: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent); }
+  .badge-logos .badge-logo { height: 3.5rem; width: auto; max-width: 100%; object-fit: contain; margin-bottom: 0.5rem; }
+  .badge-logos .badge strong {
+    font-family: var(--font-heading, inherit);
+    color: var(--color-primary);
+    font-size: 1.125rem;
+    letter-spacing: 0.01em;
+  }
+  .badge-logos .badge span { color: var(--color-muted, #4b5563); font-size: 0.875rem; line-height: 1.5; }
+  /* stylelint-disable-next-line plugin/no-max-width-media -- Trennlinien nur nebeneinander sinnvoll */
+  @media (max-width: 640px) {
+    .badge-logos .badge + .badge { border-left: 0; border-top: 1px solid color-mix(in srgb, var(--color-primary) 14%, transparent); padding-top: 1.5rem; }
+  }
 </style>
