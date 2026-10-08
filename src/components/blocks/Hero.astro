@@ -48,6 +48,12 @@ export interface HeroCTA {
   target?: string;
   /** Optional rel attribute. Set "noopener noreferrer" when target="_blank". */
   rel?: string;
+  /**
+   * Symbol vor dem Label, nur am Primaer-CTA ausgewertet. Opt-in seit v0.171.0.
+   * `auto` (Default, Verhalten wie bisher): `tel:` → Telefon, sonst Briefumschlag.
+   * `phone`, `mail`, `arrow` (Pfeil rechts), `pin` (Standort), `none` (kein Symbol).
+   */
+  icon?: 'auto' | 'phone' | 'mail' | 'arrow' | 'pin' | 'none';
 }
 
 export interface HeroUSP {
@@ -236,7 +242,7 @@ const {
 } = Astro.props;
 
 // Symbol am Primär-CTA nach Link-Ziel: tel: → Telefon, sonst Briefumschlag wie bisher.
-const primaerIcon = ctaIcon(ctaPrimary.href);
+const primaerIcon = ctaIcon(ctaPrimary.href, ctaPrimary.icon);
 
 const hasImages = Array.isArray(images) && images.length >= 2;
 const hasImage = !hasImages && (!!image || !!imageSrc);
@@ -330,19 +336,23 @@ const collagenLabel = hasImages
         {motionCfg.magnetic ? (
           <MagneticButton>
             <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" {...ctaAttrs(ctaPrimary.href, `hero-primary:${ctaPrimary.label}`)}>
+              {primaerIcon.art !== 'keins' && (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                 {primaerIcon.pfade.map((d) => <path d={d} />)}
                 {primaerIcon.linien.map((pts) => <polyline points={pts} />)}
               </svg>
+              )}
               {ctaPrimary.label}
             </a>
           </MagneticButton>
         ) : (
           <a href={ctaPrimary.href} target={ctaPrimary.target} rel={ctaPrimary.rel} class="btn-accent" {...ctaAttrs(ctaPrimary.href, `hero-primary:${ctaPrimary.label}`)}>
+            {primaerIcon.art !== 'keins' && (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
               {primaerIcon.pfade.map((d) => <path d={d} />)}
               {primaerIcon.linien.map((pts) => <polyline points={pts} />)}
             </svg>
+            )}
             {ctaPrimary.label}
           </a>
         )}

@@ -19,11 +19,32 @@ export const TELEFON_PFAD =
 export const BRIEF_PFAD = 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z';
 export const BRIEF_LINIE = '22,6 12,13 2,6';
 
+/** Feather „arrow-right“: Stiel und Spitze. */
+export const PFEIL_LINIEN = ['5,12 19,12', '12,5 19,12 12,19'];
+
+/** Feather „map-pin“: Tropfen und Punkt (der Kreis als Pfad, damit er ins Schema passt). */
+export const PIN_PFADE = [
+  'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z',
+  'M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+];
+
 /**
+ * Symbol eines CTA-Knopfs.
+ *
+ * `wahl` (opt-in seit v0.171.0) legt es ausdruecklich fest. Ohne Angabe oder mit `'auto'`
+ * gilt das Verhalten von v0.169.0: `tel:` → Telefon, sonst Briefumschlag. Anlass:
+ * haarwerk 08.10.2026, „Route planen“ (OpenStreetMap-Link) trug einen Brief.
+ *
  * @param {string | undefined | null} href
- * @returns {{ art: 'telefon' | 'brief', pfade: string[], linien: string[] }}
+ * @param {'auto' | 'phone' | 'mail' | 'arrow' | 'pin' | 'none'} [wahl]
+ * @returns {{ art: 'telefon' | 'brief' | 'pfeil' | 'pin' | 'keins', pfade: string[], linien: string[] }}
  */
-export function ctaIcon(href) {
+export function ctaIcon(href, wahl = 'auto') {
+  if (wahl === 'phone') return { art: 'telefon', pfade: [TELEFON_PFAD], linien: [] };
+  if (wahl === 'mail') return { art: 'brief', pfade: [BRIEF_PFAD], linien: [BRIEF_LINIE] };
+  if (wahl === 'arrow') return { art: 'pfeil', pfade: [], linien: [...PFEIL_LINIEN] };
+  if (wahl === 'pin') return { art: 'pin', pfade: [...PIN_PFADE], linien: [] };
+  if (wahl === 'none') return { art: 'keins', pfade: [], linien: [] };
   if (typeof href === 'string' && /^\s*tel:/i.test(href)) {
     return { art: 'telefon', pfade: [TELEFON_PFAD], linien: [] };
   }
