@@ -1,6 +1,6 @@
 /**
  * plausible-box.mjs — geteilte Primitive für den Zugriff auf die self-hosted
- * Plausible-CE-Box (blitzsicht-analytics, Hetzner hel1, via Coolify).
+ * Plausible-CE-Box (blitzsicht-analytics, Hetzner fsn1 seit 28.09.2026, via Coolify).
  *
  * Single Source of Truth für Box-Konstanten + SSH/psql-Zugriff. Vorher trugen
  * plausible-add-site.mjs und plausible-add-goals.mjs je eine WÖRTLICHE Kopie
@@ -19,7 +19,16 @@ import { execFileSync } from 'node:child_process';
 import { homedir } from 'node:os';
 
 // ─── Box-Konstanten (self-hosted Plausible auf blitzsicht-analytics) ─────────
-export const DEFAULT_HOST = 'root@100.96.26.82';
+//
+// 🔴 Über den Tailnet-NAMEN, nie über die Tailnet-IP (Vorfall 05.10.2026):
+// Am 28.09.2026 wurde die Box durch einen neuen Server ersetzt (CX33 Falkenstein,
+// 100.118.250.43), der alte (100.96.26.82, umbenannt in blitzsicht-analytics-alt)
+// am 29.09. gelöscht. Hier stand die IP — der Goal-Wächter lief am 05.10. in einen
+// SSH-Timeout, onboard-site konnte keine Site mehr anlegen. Der Name wandert beim
+// Serverwechsel mit (der neue übernimmt ihn, der alte bekommt -alt), die IP nicht.
+// Der MagicDNS-Kurzname löst auf dem Mac NICHT auf (09.10. gemessen), deshalb
+// der volle Name. plausible-box.test.mjs lässt keine IP mehr durch.
+export const DEFAULT_HOST = 'root@blitzsicht-analytics.tailddfa18.ts.net';
 export const DEFAULT_KEY = `${homedir()}/.ssh/id_ed25519`;
 export const PG_CONTAINER = 'plausible_db-x12kp2izcjwfau5vq90clcnn';
 export const PG_DB = 'plausible_db';
