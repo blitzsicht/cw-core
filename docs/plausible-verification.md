@@ -74,7 +74,7 @@ am Key, nicht an der neuen Site.
 ## Verifikations-Ablauf
 
 ```bash
-SSH="ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes root@100.96.26.82"
+SSH="ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes root@blitzsicht-analytics.tailddfa18.ts.net"
 PG=plausible_db-x12kp2izcjwfau5vq90clcnn
 CH=plausible_events_db-x12kp2izcjwfau5vq90clcnn
 ```
