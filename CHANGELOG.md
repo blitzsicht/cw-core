@@ -22,6 +22,67 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.172.0 (2026-10-13)
+
+- [kunde:sichtbar] Nach dem Absenden einer Anfrage verspricht die Website keine feste Antwortzeit mehr, sondern bestätigt den Eingang und kündigt eine Rückmeldung so bald wie möglich an. Eine Frist erscheint nur noch, wenn der Betrieb sie selbst festgelegt hat. Dasselbe gilt für die Bestätigungsmail zum Website-Fragebogen.
+
+**Fix:** Antwortfrist nur mit Angabe, neuer Antwortfrist-Guard (blitzsicht-ops#950)
+
+Kontext: ContactForm (formType `contact`), DankePage (Default `message`) und die
+Bestätigungsmail aus `buildBriefingEmail` versprachen fest „Wir melden uns innerhalb von
+24 Stunden bei Ihnen.“ Belegt war die Frist bei keinem Kunden. Messung 13.10.2026: 10 von 15
+Live-Seiten zeigten den Satz. Eine Frist spricht im Namen des Kunden; sie gehört nur dorthin,
+wo er sie gegeben hat.
+
+- Neutrale Vorgabe: „Ihre Anfrage ist angekommen. Wir melden uns so bald wie möglich bei
+  Ihnen.“ (ContactForm `contact`, DankePage). Mail: „… melden uns so bald wie möglich bei
+  Ihnen mit dem nächsten Schritt …“.
+- **Neu** `siteData.antwortfrist?: string` (Typ `AiDiscoverySiteData`), z. B. `'24 Stunden'` —
+  die Dauer, wie sie hinter „innerhalb von“ steht. Eine Quelle, an alle drei Stellen gereicht:
+
+  ```astro
+  <ContactForm antwortfrist={siteData.antwortfrist} … />
+  <DankePage antwortfrist={siteData.antwortfrist} />
+  ```
+
+  ```ts
+  createBriefingHandler({ …, antwortfrist: siteData.antwortfrist });
+  ```
+
+- Text und Erkennung an einer Stelle: `@cw/core/utils/antwortfrist` (`antwortSatz`,
+  `antwortBestaetigung`, `antwortZeitraum`, `findeAntwortfristen`).
+- **Neu** ai-discovery Antwortfrist-Guard (`checkAntwortfrist`, Default an, Soft-Warn;
+  `strictAntwortfrist: true` bricht ab): meldet im dist-HTML jede Antwortfrist („innerhalb
+  (von) N Stunden/Werktagen …“, „binnen …“ in einem Satz mit melden/antworten/zurückrufen und
+  wir/uns), die nicht zur Angabe passt (`frist_weicht_ab`) oder ohne Angabe dasteht
+  (`frist_ohne_angabe`). „24 h“, „24 Std.“ und „24 Stunden“ gelten als gleich.
+- `briefing-handler.d.ts`/`build-briefing-email.d.ts`: die schon vorhandenen
+  `photoUpload*`-Optionen stehen jetzt auch im Typ.
+
+Belege:
+
+- Tests: `tests/blocks/antwortfrist.test.js` (13, gerendertes HTML + Mail-Body, danach durch den
+  echten Guard), `antwortfrist-check.test.mjs` (12). Gesamt 1341 Tests, 0 rot.
+- Alte Schnappschüsse (v0.159.1) bleiben die Gegenprobe; nur der 24-h-Satz wird darin ersetzt
+  (`tests/blocks/_antwortfrist-v0172.js`). DankePage mit eigenem `message` bleibt Byte für Byte
+  gleich (bestehender Test „eigene Texte“ unverändert grün).
+- Sabotageproben (im PR dokumentiert): Guard meldet nie → 9 von 25 rot; Guard ignoriert die
+  Angabe → 4 rot; neutraler Text wieder „innerhalb von 24 Stunden“ → 5 rot; zurückgesetzt → 25 grün.
+- Guard über die lokalen `dist/`-Ordner von 29 Kundenrepos (Stand vor v0.172.0): Befunde auf
+  allen Seiten, die den alten Default zeigen; 0 auf allstargirls, falzmarke, hausamlago,
+  levia, platzfrei u. a.
+
+**Migrations-Hinweis:** Keiner Pflicht. Wer die Frist zugesagt hat, setzt `antwortfrist` in
+`site-data.ts` und reicht es an die drei Stellen. Kundeneigene 24-h-Texte (steller-sanierungen,
+soleno, mika-elektrotechnik, zink-baeckerei u. a.) bleiben, bis der Operator sie im
+Monatsgespräch bestätigt; sie lösen ab diesem Pin den Guard aus (Soft-Warn). Mika und Zink
+übergeben ihren Danke-Text per `message` — der bleibt. Steller und Soleno nutzen den
+DankePage-Default; ihre Danke-Seite wechselt mit dem Pin-Bump auf den neutralen Satz, während
+eigene Texte auf Kontakt- und Leistungsseiten weiter 24 Stunden nennen. Die Erfolgsmeldung im
+Kontaktformular wechselt bei allen vier (sie nutzen `formType` `contact` ohne eigenen Text).
+
+---
+
 ## v0.171.0 (2026-10-08)
 
 - [kunde:sichtbar] Websites können Fotos jetzt großflächig hinter der Startüberschrift zeigen, Bilder statt Symbole in Ablauf- und Hinweiskarten verwenden, Partnerlogos an Siegeln führen, Galeriebilder per Klick vergrößern und eine vollständige Preisliste mit Spalten (etwa kurz, mittel, lang) darstellen.
