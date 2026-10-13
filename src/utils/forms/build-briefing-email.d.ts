@@ -20,12 +20,23 @@ export interface BuildBriefingEmailInput {
   requiredFieldIds: string[];
   /** Optionale Brand-Color-Overrides — fuer customer-spezifische Akzente. */
   brand?: BriefingBrandColors;
+  /** Foto-Upload-Anleitung in der Confirmation-Mail, wenn gesetzt (z.B. 'servus@blitzsicht.com'). */
+  photoUploadDestination?: string;
+  /** Default: 'WeTransfer'. */
+  photoUploadServiceLabel?: string;
+  /** Default: 'https://wetransfer.com/'. */
+  photoUploadServiceUrl?: string;
+  /**
+   * Selbst zugesagte Antwortfrist (`siteData.antwortfrist`), z.B. '24 Stunden'. Ohne den
+   * Wert nennt die Confirmation-Mail keine Frist („so bald wie möglich“), blitzsicht-ops#950.
+   */
+  antwortfrist?: string;
 }
 
 export interface BuildBriefingEmailOutput {
   /** Interne Mail an Blitzsicht — Sektion-by-Sektion Tabellen-Layout. */
   internal: { html: string; text: string };
-  /** Customer-Confirmation-Mail — "Wir melden uns innerhalb 24 h". */
+  /** Customer-Confirmation-Mail — Frist nur mit `antwortfrist`, sonst „so bald wie möglich“. */
   confirmation: { html: string; text: string };
   /** Anzahl ausgefuellter Pflichtfelder. */
   filledRequired: number;

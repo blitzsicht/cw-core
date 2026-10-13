@@ -67,6 +67,7 @@ import { emitLead } from './lead-sink.js';
  * @property {string} [photoUploadDestination]      – Wenn gesetzt: Confirmation-Mail enthält Foto-Upload-Anleitung (WeTransfer-Pattern). Beispiel: 'servus@blitzsicht.com'.
  * @property {string} [photoUploadServiceLabel]     – Service-Name in der Anleitung. Default: 'WeTransfer'.
  * @property {string} [photoUploadServiceUrl]       – Upload-Service-URL. Default: 'https://wetransfer.com/'.
+ * @property {string} [antwortfrist]                 – Selbst zugesagte Antwortfrist (`siteData.antwortfrist`), z.B. '24 Stunden'. Ohne: keine Frist in der Bestätigungsmail (blitzsicht-ops#950).
  */
 
 const MAX_PAYLOAD_BYTES = 256 * 1024; // 256 KB (MAJ-10)
@@ -341,6 +342,7 @@ export function createBriefingHandler(config) {
       photoUploadDestination: config.photoUploadDestination,
       photoUploadServiceLabel: config.photoUploadServiceLabel,
       photoUploadServiceUrl: config.photoUploadServiceUrl,
+      antwortfrist: config.antwortfrist,
     });
 
     // ---- 10. Internal Mail — AWAITED (MAJ-7) ----

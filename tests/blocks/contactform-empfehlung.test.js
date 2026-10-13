@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderer, schliessen, normalize } from './_render-astro.js';
 import { mitFehlerblockV0167 } from './_fehlerblock-v0167.js';
+import { mitAntwortfristV0172 } from './_antwortfrist-v0172.js';
 
 after(schliessen);
 
@@ -169,6 +170,8 @@ test('Vorbedingung: sechs Schnappschüsse vorhanden und nicht leer', () => {
 
 for (const formType of ['contact', 'audit', 'bewerbung', 'waitlist', 'updates', 'rueckruf']) {
   test(`Gegenprobe ${formType}: Markup identisch zum Schnappschuss vor der Änderung`, async () => {
-    assert.equal(await form({ formType }), mitFehlerblockV0167(SNAP[formType]));
+    // v0.172.0: nur der 24-h-Satz bei 'contact' ändert sich (blitzsicht-ops#950).
+    const soll = mitFehlerblockV0167(SNAP[formType]);
+    assert.equal(await form({ formType }), formType === 'contact' ? mitAntwortfristV0172(soll) : soll);
   });
 }

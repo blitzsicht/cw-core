@@ -4,7 +4,9 @@
  *
  * Rendert zwei Mail-Bodies (HTML + Plain-Text) fuer einen Briefing-Submit:
  *   1. `internal`     — strukturiert nach Sektionen, Tabellen-Layout, Progress-Header.
- *   2. `confirmation` — kurze Danke-Mail an den Kunden ("innerhalb 24 h").
+ *   2. `confirmation` — kurze Danke-Mail an den Kunden. Eine Antwortfrist nennt sie nur,
+ *      wenn `antwortfrist` gesetzt ist (bis v0.171.0 fest „innerhalb von 24 Stunden“,
+ *      blitzsicht-ops#950); sonst „so bald wie möglich“. Text: `utils/antwortfrist.js`.
  *
  * Pattern uebernommen aus customer-mika-elektrotechnik/api/onboarding.ts (Lines 108-181).
  *
@@ -14,6 +16,8 @@
  *
  * Plain-Text wird parallel mitgerendert (Resend liefert beide).
  */
+
+import { antwortfristAngabe, antwortZeitraum } from '../antwortfrist.js';
 
 const DEFAULT_BRAND_PRIMARY = '#1D1E3B'; // Blitzsicht Nachtblau
 const DEFAULT_BRAND_ACCENT = '#EF7612';  // Blitzsicht Orange
@@ -72,6 +76,7 @@ function nl2br(s) {
  * @property {string} [photoUploadDestination]  – Wenn gesetzt: Confirmation-Mail enthaelt Foto-Upload-Anleitung. Beispiel: 'servus@blitzsicht.com'.
  * @property {string} [photoUploadServiceLabel] – Service-Name fuer Foto-Upload-Anleitung. Default: 'WeTransfer'.
  * @property {string} [photoUploadServiceUrl]   – Upload-Service-URL. Default: 'https://wetransfer.com/'.
+ * @property {string} [antwortfrist]            – Selbst zugesagte Antwortfrist (`siteData.antwortfrist`), z.B. '24 Stunden'. Ohne: keine Frist in der Mail.
  */
 
 /**
@@ -97,7 +102,14 @@ export function buildBriefingEmail(input) {
     photoUploadDestination,
     photoUploadServiceLabel = 'WeTransfer',
     photoUploadServiceUrl = 'https://wetransfer.com/',
+    antwortfrist,
   } = input;
+
+  // Antwortfrist nur, wenn der Kunde sie gesetzt hat (blitzsicht-ops#950).
+  const zeitraumText = antwortZeitraum(antwortfrist);
+  const zeitraumHtml = antwortfristAngabe(antwortfrist)
+    ? `<strong>${escapeHtml(zeitraumText)}</strong>`
+    : escapeHtml(zeitraumText);
 
   const brandPrimary = brand.primary || DEFAULT_BRAND_PRIMARY;
   const brandAccent = brand.accent || DEFAULT_BRAND_ACCENT;
@@ -217,7 +229,7 @@ export function buildBriefingEmail(input) {
     <h1 style="color:${brandPrimary};font-size:1.25rem;margin:0 0 1rem;">Vielen Dank${greeting}!</h1>
     <p>Wir haben Ihr ausgefülltes Onboarding-Briefing für die neue ${safeCustomer}-Website erhalten.</p>
     <p>
-      Wir schauen uns alles in Ruhe an und melden uns <strong>innerhalb von 24 Stunden</strong> bei Ihnen
+      Wir schauen uns alles in Ruhe an und melden uns ${zeitraumHtml} bei Ihnen
       mit dem nächsten Schritt — meistens mit ein paar Rückfragen und einem aktualisierten Designvorschau-Link.
     </p>${photoUploadBlockHtml}
     <p>
@@ -246,7 +258,7 @@ export function buildBriefingEmail(input) {
   const confirmationText =
     `Vielen Dank${greetingText}!\n\n` +
     `Wir haben Ihr ausgefülltes Onboarding-Briefing für die neue ${customerName}-Website erhalten.\n\n` +
-    `Wir schauen uns alles in Ruhe an und melden uns innerhalb von 24 Stunden bei Ihnen.\n` +
+    `Wir schauen uns alles in Ruhe an und melden uns ${zeitraumText} bei Ihnen.\n` +
     photoUploadBlockText +
     `Bei Fragen: servus@blitzsicht.com\n\n` +
     `Herzliche Grüße\n` +

@@ -53,6 +53,7 @@ import {
 } from './perf-check.js';
 import { checkEmbedConsent } from './embed-consent-check.js';
 import { checkReviewClaims } from './review-claims-check.js';
+import { checkAntwortfrist } from './antwortfrist-check.js';
 import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
@@ -162,6 +163,14 @@ export interface AiDiscoverySiteData {
    * mit dem Rechtsproblem nichts zu tun hat.
    */
   bildHerkunft?: readonly unknown[];
+  /**
+   * Antwortfrist, die der Kunde SELBST zugesagt hat, z. B. `'24 Stunden'` — die Dauer,
+   * wie sie hinter „innerhalb von“ steht. Die eine Quelle für ContactForm, DankePage und
+   * die Bestätigungsmail (jeweils Prop/Config `antwortfrist`). Ohne das Feld nennt keiner
+   * der drei eine Frist. Der Antwortfrist-Guard meldet jede Frist im HTML, die nicht
+   * hieraus stammt (blitzsicht-ops#950).
+   */
+  antwortfrist?: string;
   faqs?: ReadonlyArray<FAQItem>;
   leistungen?: ReadonlyArray<ServiceItem>;
 }
@@ -486,6 +495,21 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * ohne False-Positives.
    */
   strictReviewClaims?: boolean;
+
+  /**
+   * Default true. Antwortfrist-Guard: meldet im dist-HTML jede Zusage wie „Wir melden uns
+   * innerhalb von 24 Stunden bei Ihnen“, die nicht zu `siteData.antwortfrist` passt —
+   * oder die dasteht, obwohl das Feld fehlt. Opt-out pro Site: `false`.
+   *
+   * Auslöser (blitzsicht-ops#950, 13.10.2026): 10 von 15 Live-Seiten versprachen die
+   * 24-h-Frist, belegt bei keinem Kunden; drei cw-core-Defaults schrieben sie. Grenzen der
+   * Heuristik: antwortfrist-check.js (Kopf).
+   */
+  checkAntwortfrist?: boolean;
+  /**
+   * Default FALSE (Soft-Warn, opt-IN): `true` → Build-Fail bei einem Befund.
+   */
+  strictAntwortfrist?: boolean;
 
   /**
    * Default true. Sticky-Anruf-Guard: hat die Site einen `tel:`-Link, aber auf der
@@ -3722,6 +3746,39 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             }
           } else {
             logger.info('Bewertungs-Guard: ✓ keine unzulässigen Bewertungs-Aussagen, kein selbst erteiltes AggregateRating.');
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Antwortfrist-Guard: keine Frist, die der Kunde nicht gesetzt hat
+        // -------------------------------------------------------------------
+        // Auslöser blitzsicht-ops#950 (13.10.2026): „innerhalb von 24 Stunden“ auf 10 von 15
+        // Live-Seiten, aus drei cw-core-Defaults, bei keinem Kunden belegt.
+        if (options.checkAntwortfrist !== false) {
+          const fristIssues: { type: string; details: string }[] = [];
+          for (const file of walkHtml(distDir)) {
+            const html = readFileSync(file, 'utf-8');
+            const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+            fristIssues.push(...checkAntwortfrist(html, rel, data.antwortfrist));
+          }
+          if (fristIssues.length > 0) {
+            logger.warn(
+              `Antwortfrist-Guard: ${fristIssues.length} Antwortfrist(en) im HTML, die nicht aus siteData.antwortfrist stammen` +
+                (data.antwortfrist ? ` („${data.antwortfrist}“):` : ' (Feld nicht gesetzt):'),
+            );
+            for (const fi of fristIssues.slice(0, 8)) {
+              logger.warn(`  [${fi.type}] ${fi.details}`);
+            }
+            if (fristIssues.length > 8) {
+              logger.warn(`  … und ${fristIssues.length - 8} weitere.`);
+            }
+            if (options.strictAntwortfrist === true) {
+              throw new Error(
+                `[ai-discovery] strictAntwortfrist=true: Build abgebrochen — ${fristIssues.length} Antwortfrist(en) ohne passende siteData.antwortfrist.`,
+              );
+            }
+          } else {
+            logger.info('Antwortfrist-Guard: ✓ keine Antwortfrist außer der gesetzten Angabe.');
           }
         }
 

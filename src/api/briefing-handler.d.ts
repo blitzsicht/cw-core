@@ -27,6 +27,17 @@ export interface BriefingHandlerConfig {
   brand?: { primary?: string; accent?: string };
   /** Default: true — *.vercel.app Origins werden zugelassen (Preview-Deploys). */
   allowVercelPreviewOrigins?: boolean;
+  /** Foto-Upload-Anleitung in der Confirmation-Mail, wenn gesetzt (siehe buildBriefingEmail). */
+  photoUploadDestination?: string;
+  /** Default: 'WeTransfer'. */
+  photoUploadServiceLabel?: string;
+  /** Default: 'https://wetransfer.com/'. */
+  photoUploadServiceUrl?: string;
+  /**
+   * Selbst zugesagte Antwortfrist (`siteData.antwortfrist`), z.B. '24 Stunden'. Ohne den
+   * Wert nennt die Bestätigungsmail keine Frist (blitzsicht-ops#950).
+   */
+  antwortfrist?: string;
 }
 
 export type BriefingHandler = (req: any, res: any) => Promise<void>;

@@ -27,6 +27,8 @@
  *     fallbackEmail={siteData.contact.email}
  *   />
  */
+import { antwortBestaetigung } from '../../utils/antwortfrist.js';
+
 interface Props {
   /** Web3Forms access key. Ignored if `actionUrl` is set. */
   formKey?: string;
@@ -68,6 +70,15 @@ interface Props {
    * (v0.162.1, Befund beim Rollout: der feste Text versprach sie auf jeder Site).
    */
   callbackSuccessText?: string;
+  /**
+   * Antwortfrist, die der Kunde SELBST zugesagt hat — `siteData.antwortfrist`, z. B.
+   * `'24 Stunden'` (die Dauer, wie sie hinter „innerhalb von“ steht). Nur formType
+   * 'contact'. Ohne den Prop nennt die Erfolgsmeldung keine Frist: „Ihre Anfrage ist
+   * angekommen. Wir melden uns so bald wie möglich bei Ihnen.“ Bis v0.171.0 stand hier
+   * fest „innerhalb von 24 Stunden“ — eine Zusage im Namen jedes Kunden, belegt bei
+   * keinem (blitzsicht-ops#950). Text: `utils/antwortfrist.js`, Guard: `checkAntwortfrist`.
+   */
+  antwortfrist?: string;
   /**
    * Nächste Schritte im Erfolgsblock, als nummerierte Liste unter dem Text. Gilt für
    * alle formTypes. Ohne den Prop (oder mit leerem Array) bleibt das Markup unverändert.
@@ -146,6 +157,7 @@ const {
   callbackSlots = ['vormittags (8–12 Uhr)', 'nachmittags (12–17 Uhr)'],
   callbackSuccessText = 'Wir haben Ihren Rückrufwunsch erhalten und melden uns telefonisch bei Ihnen.',
   nextSteps,
+  antwortfrist,
 } = Astro.props;
 
 if (agentTool && adsConsent) {
@@ -440,7 +452,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       <h3>{formType === 'waitlist' || formType === 'updates' ? 'Eingetragen.' : formType === 'empfehlung' ? 'Danke für Ihre Empfehlung!' : 'Vielen Dank!'}</h3>
       {formType === 'audit' && <p>Wir analysieren Ihre Website und melden uns innerhalb von 48 Stunden.</p>}
       {formType === 'bewerbung' && <p>Wir haben Ihre Bewerbung erhalten und melden uns innerhalb von 48 Stunden.</p>}
-      {formType === 'contact' && <p>Wir melden uns innerhalb von 24 Stunden bei Ihnen.</p>}
+      {formType === 'contact' && <p>{antwortBestaetigung(antwortfrist)}</p>}
       {formType === 'waitlist' && <p>Wir melden uns, sobald es für dein Studio losgehen kann.</p>}
       {formType === 'updates' && <p>Du bekommst eine Nachricht, wenn eine neue Version erscheint. Sonst nichts.</p>}
       {formType === 'rueckruf' && <p>{callbackSuccessText}</p>}

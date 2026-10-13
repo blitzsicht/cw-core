@@ -252,6 +252,14 @@ export const siteData = {
     },
   ],
 
+  // ─── Antwortfrist (nur mit Zusage des Kunden) ─────────────────────────────
+  // Ohne das Feld nennen Kontaktformular, Danke-Seite und Bestätigungsmail KEINE Frist
+  // („Wir melden uns so bald wie möglich bei Ihnen.“). Nur setzen, wenn der Kunde die Frist
+  // selbst zugesagt hat; dann an ContactForm/DankePage (`antwortfrist={siteData.antwortfrist}`)
+  // und createBriefingHandler (`antwortfrist`) reichen. Der Build warnt bei jeder anderen
+  // Frist im HTML (ai-discovery, Antwortfrist-Guard).
+  // antwortfrist: '24 Stunden',
+
   // ─── FAQs (6-10 Stück) ────────────────────────────────────────────────────
   faqs: [
     { q: 'TODO: Frage 1?', a: 'TODO: Antwort 1.' },

@@ -13,10 +13,21 @@ import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 import AiLabelAmBild from './AiLabelAmBild.astro';
 import { bildLabel } from '../../utils/bildlabel.js';
+import { antwortBestaetigung } from '../../utils/antwortfrist.js';
 
 interface Props {
   heading?: string;
+  /**
+   * Eigener Text. Ohne ihn: „Ihre Anfrage ist angekommen. Wir melden uns so bald wie
+   * möglich bei Ihnen.“ — mit `antwortfrist` „… innerhalb von <Frist> bei Ihnen.“
+   */
   message?: string;
+  /**
+   * Antwortfrist, die der Kunde SELBST zugesagt hat — `siteData.antwortfrist`, z. B.
+   * `'24 Stunden'`. Wirkt nur auf den Default von `message`. Bis v0.171.0 stand im
+   * Default fest „innerhalb von 24 Stunden“, belegt bei keinem Kunden (blitzsicht-ops#950).
+   */
+  antwortfrist?: string;
   ctaLabel?: string;
   ctaHref?: string;
   /** Optional founder/team photo. Replaces the checkmark icon when set. */
@@ -42,7 +53,8 @@ interface Props {
 
 const {
   heading = 'Danke für Ihre Nachricht!',
-  message = 'Wir melden uns innerhalb von 24 Stunden bei Ihnen.',
+  antwortfrist,
+  message = antwortBestaetigung(antwortfrist),
   ctaLabel = 'Zur Startseite',
   ctaHref = '/',
   photo,

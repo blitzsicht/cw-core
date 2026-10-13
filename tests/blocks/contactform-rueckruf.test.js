@@ -20,6 +20,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { renderer, schliessen, normalize } from './_render-astro.js';
 import { mitFehlerblockV0167 } from './_fehlerblock-v0167.js';
+import { mitAntwortfristV0172 } from './_antwortfrist-v0172.js';
 
 after(schliessen);
 
@@ -153,7 +154,7 @@ test('rueckruf: Erfolgsblock ohne Frist im Default, eigene Zusage nur per Prop',
 
 test('nextSteps: erscheint als <ol> unter dem Text, auch bei contact', async () => {
   const s = successBlock(await form({ formType: 'contact', nextSteps: ['Wir lesen Ihre Nachricht.', 'Wir rufen an.'] }));
-  const p = s.indexOf('<p>Wir melden uns');
+  const p = s.indexOf('<p>Ihre Anfrage ist angekommen. Wir melden uns');
   const ol = s.indexOf('<ol');
   assert.ok(p > -1 && ol > p, 'die Liste steht unter dem Text');
   const punkte = [...s.matchAll(/<li>([^<]*)<\/li>/g)].map((m) => m[1]);
@@ -177,7 +178,9 @@ test('Gegenprobe contact: Name*, E-Mail*, Nachricht* bleiben Pflicht, kein Telef
 const SNAP = JSON.parse(readFileSync(resolve(FIXTURES, 'contactform-v0.159.1.json'), 'utf-8'));
 for (const formType of ['contact', 'audit', 'bewerbung', 'waitlist', 'updates']) {
   test(`Gegenprobe ${formType}: Markup ohne neue Props identisch zu v0.159.1`, async () => {
-    assert.equal(await form({ formType }), mitFehlerblockV0167(SNAP[formType]));
+    // v0.172.0: nur der 24-h-Satz bei 'contact' ändert sich (blitzsicht-ops#950).
+    const soll = mitFehlerblockV0167(SNAP[formType]);
+    assert.equal(await form({ formType }), formType === 'contact' ? mitAntwortfristV0172(soll) : soll);
   });
 }
 
@@ -196,7 +199,8 @@ async function danke(props) {
 }
 
 test('DankePage ohne neue Props: Markup identisch zu v0.159.1 (Default-Props)', async () => {
-  assert.equal(await danke({}), DANKE_SNAP[0]);
+  // v0.172.0: der Default-Text nennt keine 24-h-Frist mehr (blitzsicht-ops#950).
+  assert.equal(await danke({}), mitAntwortfristV0172(DANKE_SNAP[0]));
 });
 
 test('DankePage ohne neue Props: Markup identisch zu v0.159.1 (eigene Texte)', async () => {
