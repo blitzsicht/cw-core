@@ -22,6 +22,47 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.173.0 (2026-10-15)
+
+**Feature:** Blöcke `Vorbestellung` und `Kuechenliste` (Demo-Modus), Logik in `@cw/core/utils/vorbestellung`
+
+Kontext: customer-brotzeithaeusl, Imbiss mit bisher nur telefonischer Vorbestellung, wünscht
+„Website mit Automatisierung für Bestellung“. Modell nach Entscheidung des Betreibers
+(15.10.2026): Bestellung als fertige WhatsApp-Nachricht an den Laden, dazu eine Tagesliste für
+den Überblick in der Mittagsspitze. Bezahlt wird bei Abholung.
+
+Neue Konzepte/APIs:
+
+- `Vorbestellung.astro`: Abholtag (heute bzw. nächste offene Tage), Gerichte mit Plus/Minus aus
+  denselben `PriceListGroup[]`-Daten wie die PriceList, Tagesgericht je Datum (`tagesgerichte`),
+  Abholzeit ab „jetzt + Vorlauf“ im 15-Minuten-Raster bis Schluss minus ein Raster, Name, Hinweis.
+  Ergebnis: Bestelltext mit Tagesnummer (#1, #2 …).
+- `Kuechenliste.astro`: Bestellungen ab heute nach Abholtag und -zeit, Häkchen „fertig“,
+  aktualisiert sich bei Bestellungen in einem anderen Tab.
+- Nur `modus: 'demo'`: Text wird angezeigt statt gesendet, Liste im localStorage des Browsers,
+  kein `<form>`, keine Sendeadresse. Live-Betrieb (Server-Speicher, WhatsApp öffnen) folgt mit
+  Kundenzusage.
+- Guards eingebaut: ein Preis, den `preisCent` nicht lesen kann („ab 3,20 €“, „Preis folgt“),
+  bricht den Build; `storageKey` ist Pflicht.
+- Beispiele: `examples/src/pages/vorbestellung.astro`, `kuechenliste.astro`.
+
+```astro
+<Vorbestellung
+  gruppen={[...thaikarte, ...fruehstueckBrotzeit]}
+  tagesgerichte={[{ datum: '2026-10-15', name: 'Ente mit Gemüse süß-sauer und Reis', preis: '9,90' }]}
+  oeffnung={{ tage: [1, 2, 3, 4, 5], von: '08:00', bis: '15:00' }}
+  storageKey="kunde-vorbestellung-demo"
+  kuecheHref="/vorbestellen/kueche"
+/>
+```
+
+Bewusst ohne `[kunde]`-Zeile: neue Blöcke, die kein bestehender Kunde einbindet; der Pin-Bump
+ändert an keiner Website etwas.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.172.0 (2026-10-13)
 
 - [kunde:sichtbar] Nach dem Absenden einer Anfrage verspricht die Website keine feste Antwortzeit mehr, sondern bestätigt den Eingang und kündigt eine Rückmeldung so bald wie möglich an. Eine Frist erscheint nur noch, wenn der Betrieb sie selbst festgelegt hat. Dasselbe gilt für die Bestätigungsmail zum Website-Fragebogen.
