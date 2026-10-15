@@ -109,6 +109,12 @@ if (answerWordCount > 80) {
 <style>
   .answer-block {
     margin: 1.5rem 0 2.5rem;
+    /* Selbst zentrierend, wenn der Block breiter steht als der Container (direkt im
+       LandingPage-Slot, voller Viewport): dann rückt die Karte auf Containerbreite ein.
+       In einem Container oder Wrapper (fast alle Kunden, Stand 15.10.2026) ist 100 % höchstens
+       so breit wie --container-max → max(0px, …) = 0, dort ändert sich nichts.
+       Anlass: customer-brotzeithaeusl, Text klebte am Desktop am linken Rand (v0.174.0). */
+    padding-inline: max(0px, calc((100% - var(--container-max, 72rem)) / 2));
   }
   .answer-card {
     background: var(--color-surface, #f8fafc);

@@ -116,3 +116,13 @@ test('Vorbestellung: nur die schmale Leiste ist fixiert, das Formular nicht (Han
   assert.ok(!/sticky/.test(regel('.vb-abschluss')), '.vb-abschluss darf nicht sticky sein');
   assert.ok(/sticky/.test(regel('.vb-leiste')), '.vb-leiste ist sticky');
 });
+
+test('Vorbestellung mit anrufHref: Leiste von Anfang an sichtbar, Anruf-Knopf mit Telefon-Symbol (v0.174.0)', async () => {
+  const h = await html(VB, { ...BASIS, anrufHref: 'tel:+4994026834' });
+  const leiste = h.match(/<div class="vb-leiste"[^>]*>/)?.[0] ?? '';
+  assert.ok(leiste, 'Leiste fehlt');
+  assert.ok(!/\bhidden\b/.test(leiste), 'Leiste darf mit anrufHref nicht versteckt starten');
+  assert.ok(h.includes('href="tel:+4994026834"'), 'Anruf-Link fehlt');
+  assert.ok(/data-vb-anruf[\s\S]{0,400}<svg[^>]*class="vb-icon"/.test(h), 'Telefon-Symbol fehlt am Anruf-Knopf');
+  assert.ok(/data-vb-weiter[^>]*hidden|hidden[^>]*data-vb-weiter/.test(h), '„Weiter“ startet versteckt');
+});

@@ -1,6 +1,6 @@
 ---
 /**
- * @cw/core – Vorbestellung.astro (v0.173.0)
+ * @cw/core – Vorbestellung.astro (v0.173.0, Anruf-Knopf in der Leiste seit v0.174.0)
  *
  * Vorbestellung zum Abholen: Der Gast wählt Abholtag, Gerichte, Abholzeit und Namen; daraus
  * entsteht der fertige Bestelltext (WhatsApp) mit Tagesnummer, und die Bestellung landet in
@@ -32,6 +32,7 @@
  */
 import type { PriceListGroup } from './PriceList.astro';
 import { preisCent, euro } from '../../utils/vorbestellung.js';
+import { TELEFON_PFAD } from '../../utils/cta-icon.js';
 
 export interface Tagesgericht {
   /** 'YYYY-MM-DD' */
@@ -59,6 +60,13 @@ interface Props {
   modus?: 'demo';
   /** Link zur Küchenansicht (Kuechenliste). */
   kuecheHref?: string;
+  /**
+   * `tel:`-Link für den Anruf-Knopf in der fixierten Leiste (seit v0.174.0). Gesetzt → die Leiste
+   * ist immer sichtbar: ohne Auswahl „Anrufen“, mit Auswahl „Weiter zur Abholung“. Ohne → die
+   * Leiste erscheint erst mit der ersten Auswahl (Verhalten bis v0.173.2).
+   */
+  anrufHref?: string;
+  anrufLabel?: string;
   heading?: string;
   subheading?: string;
 }
@@ -74,6 +82,8 @@ const {
   storageKey,
   modus = 'demo',
   kuecheHref,
+  anrufHref,
+  anrufLabel = 'Anrufen',
   heading = 'Vorbestellen',
   subheading,
 } = Astro.props;
@@ -161,9 +171,15 @@ const id = `vb-${slug(storageKey)}`;
 
   <!-- Schmale Leiste, unten fixiert, solange etwas gewählt ist. Das Formular selbst ist NICHT
        fixiert: am Handy verdeckte es sonst rund 40 % des Bildschirms (Fund 15.10.2026, v0.173.2). -->
-  <div class="vb-leiste" data-vb-leiste hidden>
-    <span data-vb-leiste-summe></span>
-    <a class="vb-weiter" href={`#${id}-abschluss`}>Weiter zur Abholung</a>
+  <div class="vb-leiste" data-vb-leiste hidden={!anrufHref}>
+    <span data-vb-leiste-summe>{anrufHref ? 'Gerichte antippen oder direkt anrufen' : ''}</span>
+    {anrufHref && (
+      <a class="vb-weiter" href={anrufHref} data-vb-anruf>
+        <svg class="vb-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d={TELEFON_PFAD} /></svg>
+        {anrufLabel}
+      </a>
+    )}
+    <a class="vb-weiter" href={`#${id}-abschluss`} data-vb-weiter hidden>Weiter zur Abholung</a>
   </div>
 
   <div class="vb-ergebnis" data-vb-ergebnis hidden>
@@ -212,6 +228,8 @@ const id = `vb-${slug(storageKey)}`;
     const abschluss = $<HTMLElement>('[data-vb-abschluss]')!;
     const leiste = $<HTMLElement>('[data-vb-leiste]')!;
     const leisteSumme = $<HTMLElement>('[data-vb-leiste-summe]')!;
+    const weiter = $<HTMLElement>('[data-vb-weiter]')!;
+    const anruf = $<HTMLElement>('[data-vb-anruf]');
     const ergebnis = $<HTMLElement>('[data-vb-ergebnis]')!;
     const tagesListe = $<HTMLUListElement>('[data-vb-tagesgericht]');
     const tage = abholtage({ jetzt: new Date(), ...k.oeffnung, geschlossen: k.geschlossen,
@@ -250,8 +268,13 @@ const id = `vb-${slug(storageKey)}`;
       summe.textContent = stueck
         ? `${stueck} ${stueck === 1 ? 'Gericht' : 'Gerichte'} · ${euro(summeCent(pos))}`
         : 'Noch nichts ausgewählt.';
-      leisteSumme.textContent = summe.textContent;
-      leiste.hidden = stueck === 0 || !ergebnis.hidden;
+      // Geschütztes Leerzeichen vor €: „9,90 €“ bricht in der schmalen Leiste nicht um.
+      leisteSumme.textContent = stueck
+        ? (summe.textContent ?? '').replace(/ €/g, '\u00a0€')
+        : anruf ? 'Gerichte antippen oder direkt anrufen' : '';
+      weiter.hidden = stueck === 0;
+      if (anruf) anruf.hidden = stueck > 0;
+      leiste.hidden = !ergebnis.hidden || (stueck === 0 && !anruf);
       // Zugeklappte Kategorien zeigen, wie viel darin gewählt ist.
       box.querySelectorAll<HTMLElement>('[data-vb-kategorie]').forEach((kat) => {
         const n = [...kat.querySelectorAll('[data-vb-anzahl]')].reduce((s, o) => s + Number(o.textContent), 0);
@@ -394,6 +417,9 @@ const id = `vb-${slug(storageKey)}`;
     display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; border-radius: 0.5rem;
     background: #fff; color: var(--color-primary); font-weight: 700; text-decoration: none; white-space: nowrap;
   }
+  .vb-weiter { gap: 0.4rem; }
+  .vb-weiter[hidden] { display: none; }
+  .vb-icon { width: 1.1em; height: 1.1em; flex: none; }
   .vb-weiter:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
   .vb-summe { margin: 0 0 0.75rem; font-weight: 700; }
   .vb-felder { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
