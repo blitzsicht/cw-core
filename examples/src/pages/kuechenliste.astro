@@ -1,0 +1,8 @@
+---
+/** Küchenansicht (Demo) zur Vorbestellung: gleicher storageKey wie /vorbestellung. */
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import Kuechenliste from '@cw/core/components/blocks/Kuechenliste.astro';
+---
+<ExampleLayout title="Küchenliste (Demo)" description="Bestellungen ab heute nach Abholzeit, Häkchen für fertig.">
+  <Kuechenliste storageKey="example-vorbestellung-demo" bestellHref="/vorbestellung" heading="Bestellungen" />
+</ExampleLayout>

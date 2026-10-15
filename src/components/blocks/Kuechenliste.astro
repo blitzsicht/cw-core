@@ -1,0 +1,165 @@
+---
+/**
+ * @cw/core – Kuechenliste.astro (v0.173.0)
+ *
+ * Tagesliste der Küche zu `Vorbestellung.astro`: alle Vorbestellungen ab heute, nach
+ * Abholtag und Abholzeit sortiert, mit Tagesnummer (wie im WhatsApp-Text) und Häkchen
+ * „fertig“. Damit behält der Laden in der Mittagsspitze den Überblick, auch wenn die
+ * Absprache mit dem Gast über WhatsApp läuft.
+ *
+ * ANLASS (15.10.2026): customer-brotzeithaeusl, Frage des Betreibers „wie will er den
+ * Überblick behalten?“ zum Modell WhatsApp-Bestellung.
+ *
+ * MODUS: Nur `demo` ist gebaut — liest den localStorage DIESES Browsers (gleicher
+ * `storageKey` wie die Vorbestellung). Aktualisiert sich, wenn in einem anderen Tab bestellt
+ * wird. Der Live-Betrieb (Liste vom Server, Zugang nur für den Laden) kommt mit Kundenzusage.
+ *
+ * @example
+ *   <Kuechenliste storageKey="brotzeithaeusl-vorbestellung-demo" bestellHref="/vorbestellen" />
+ */
+interface Props {
+  /** Derselbe Schlüssel wie bei der Vorbestellung. PFLICHT. */
+  storageKey: string;
+  /** Nur 'demo' ist gebaut. */
+  modus?: 'demo';
+  /** Link zurück zur Bestellseite. */
+  bestellHref?: string;
+  heading?: string;
+}
+
+const { storageKey, modus = 'demo', bestellHref, heading = 'Bestellungen' } = Astro.props;
+if (!storageKey) throw new Error('Kuechenliste: storageKey fehlt.');
+if (modus !== 'demo') throw new Error(`Kuechenliste: Modus "${modus}" ist nicht gebaut, nur "demo".`);
+---
+<section class="kl" aria-labelledby="kl-titel" data-kl data-storage-key={storageKey}>
+  <div class="kl-kopf">
+    <h2 id="kl-titel">{heading}</h2>
+    <p class="kl-sub" data-kl-zaehler aria-live="polite"></p>
+  </div>
+  <noscript><p>Die Küchenansicht braucht JavaScript.</p></noscript>
+  <div data-kl-liste></div>
+  <p class="kl-leer" data-kl-leer hidden>
+    Noch keine Bestellungen.{bestellHref && <> <a href={bestellHref}>Jetzt eine Probebestellung aufgeben</a>.</>}
+  </p>
+  <p class="kl-demo">Demo: Die Liste liegt nur in diesem Browser. Im Betrieb sieht der Laden hier die echten Bestellungen.</p>
+  <button type="button" class="kl-leeren" data-kl-leeren>Demo-Bestellungen löschen</button>
+</section>
+
+<script>
+  import { sortiereBestellungen, summeCent, euro } from '../../utils/vorbestellung.js';
+
+  type Pos = { name: string; menge: number; preisCent: number };
+  type Bestellung = {
+    nummer: number; datum: string; tagLabel: string; zeit: string; name: string;
+    hinweis?: string; positionen: Pos[]; fertig?: boolean;
+  };
+
+  const heuteIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const tagName = (iso: string) => {
+    const [y, m, t] = iso.split('-').map(Number);
+    const d = new Date(y, m - 1, t);
+    const h = new Date(); h.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - h.getTime()) / 86400000);
+    if (diff === 0) return 'Heute';
+    if (diff === 1) return 'Morgen';
+    return `${['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][d.getDay()]} ${String(t).padStart(2, '0')}.${String(m).padStart(2, '0')}.`;
+  };
+  const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  };
+
+  document.querySelectorAll<HTMLElement>('[data-kl]').forEach((box) => {
+    const key = box.dataset.storageKey ?? '';
+    const liste = box.querySelector<HTMLElement>('[data-kl-liste]')!;
+    const leer = box.querySelector<HTMLElement>('[data-kl-leer]')!;
+    const zaehler = box.querySelector<HTMLElement>('[data-kl-zaehler]')!;
+
+    const laden = (): { roh: Record<string, unknown>; bestellungen: Bestellung[] } => {
+      try {
+        const roh = JSON.parse(localStorage.getItem(key) ?? '{}');
+        return { roh, bestellungen: Array.isArray(roh.bestellungen) ? roh.bestellungen : [] };
+      } catch {
+        return { roh: {}, bestellungen: [] };
+      }
+    };
+    const speichern = (roh: Record<string, unknown>, bestellungen: Bestellung[]) => {
+      try { localStorage.setItem(key, JSON.stringify({ ...roh, bestellungen })); } catch { /* privater Modus */ }
+    };
+
+    const zeichnen = () => {
+      const { bestellungen } = laden();
+      const heute = heuteIso();
+      const aktuell = sortiereBestellungen(bestellungen.filter((b) => b.datum >= heute));
+      const offen = aktuell.filter((b) => !b.fertig).length;
+      zaehler.textContent = aktuell.length ? `${aktuell.length} Bestellungen, davon ${offen} offen` : '';
+      leer.hidden = aktuell.length > 0;
+      liste.replaceChildren();
+      let tag = '';
+      for (const b of aktuell) {
+        if (b.datum !== tag) {
+          tag = b.datum;
+          liste.append(el('h3', 'kl-tag', tagName(b.datum)));
+        }
+        const karte = el('article', `kl-karte${b.fertig ? ' kl-fertig' : ''}`);
+        const kopf = el('div', 'kl-karte-kopf');
+        kopf.append(el('span', 'kl-zeit', `${b.zeit} Uhr`), el('span', 'kl-nr', `#${b.nummer}`), el('span', 'kl-name', b.name));
+        const ul = el('ul', 'kl-pos');
+        for (const p of b.positionen) ul.append(el('li', '', `${p.menge}× ${p.name}`));
+        karte.append(kopf, ul);
+        if (b.hinweis) karte.append(el('p', 'kl-hinweis', `Hinweis: ${b.hinweis}`));
+        const fuss = el('div', 'kl-karte-fuss');
+        fuss.append(el('span', 'kl-summe', euro(summeCent(b.positionen))));
+        const label = el('label', 'kl-check');
+        const cb = el('input');
+        cb.type = 'checkbox';
+        cb.checked = Boolean(b.fertig);
+        cb.addEventListener('change', () => {
+          const s = laden();
+          const ziel = s.bestellungen.find((x) => x.datum === b.datum && x.nummer === b.nummer);
+          if (ziel) ziel.fertig = cb.checked;
+          speichern(s.roh, s.bestellungen);
+          zeichnen();
+        });
+        label.append(cb, ' fertig');
+        fuss.append(label);
+        karte.append(fuss);
+        liste.append(karte);
+      }
+    };
+
+    box.querySelector<HTMLButtonElement>('[data-kl-leeren]')!.addEventListener('click', () => {
+      try { localStorage.removeItem(key); } catch { /* egal */ }
+      zeichnen();
+    });
+    window.addEventListener('storage', (e) => { if (e.key === key) zeichnen(); });
+    zeichnen();
+  });
+</script>
+
+<style>
+  .kl { max-width: 48rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  .kl-kopf h2 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.5rem); color: var(--color-primary); }
+  .kl-sub { margin: 0.25rem 0 0; color: var(--color-muted); min-height: 1.5rem; }
+  .kl-tag { margin: 1.75rem 0 0.5rem; font-size: 1.1rem; color: var(--color-primary); }
+  .kl-karte { padding: 1rem; margin-bottom: 0.75rem; background: #fff; border: 1px solid #e7e5e4; border-left: 6px solid var(--color-accent); border-radius: 0.5rem; }
+  .kl-fertig { opacity: 0.55; border-left-color: #16a34a; }
+  .kl-karte-kopf { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: baseline; }
+  .kl-zeit { font-size: 1.35rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .kl-nr { font-weight: 700; color: var(--color-accent-text, var(--color-accent)); }
+  .kl-name { font-weight: 600; }
+  .kl-pos { margin: 0.5rem 0 0; padding-left: 1.1rem; }
+  .kl-hinweis { margin: 0.5rem 0 0; font-weight: 600; }
+  .kl-karte-fuss { display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; }
+  .kl-summe { font-variant-numeric: tabular-nums; color: var(--color-muted); }
+  .kl-check { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; font-weight: 700; cursor: pointer; }
+  .kl-check input { width: 24px; height: 24px; accent-color: #16a34a; }
+  .kl-leer { padding: 1.5rem; background: var(--color-surface); border-radius: 0.75rem; }
+  .kl-demo { margin-top: 2rem; color: var(--color-muted); font-size: 0.9rem; }
+  .kl-leeren { min-height: 44px; padding: 0 1rem; border: 1px solid #d6d3d1; border-radius: 0.5rem; background: #fff; cursor: pointer; }
+</style>

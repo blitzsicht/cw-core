@@ -1,0 +1,41 @@
+---
+/**
+ * Vorbestellung (Demo): Gast wählt Abholtag, Gerichte, Zeit, Namen → Bestelltext mit
+ * Tagesnummer, Eintrag in der Küchenansicht (/kuechenliste, gleicher storageKey).
+ *
+ * Zweck: im Browser zeigen, was die Render-Tests nicht erreichen — Plus/Minus, Summe,
+ * Abholzeiten ab „jetzt + Vorlauf“, Pflichtfelder, localStorage-Übergabe an die Küche.
+ * Daten: Auszug aus customer-brotzeithaeusl (Anlass, 15.10.2026).
+ */
+import ExampleLayout from '../layouts/ExampleLayout.astro';
+import Vorbestellung from '@cw/core/components/blocks/Vorbestellung.astro';
+
+const gruppen = [
+  { id: 'thaikarte', title: 'Thaikarte', categories: [
+    { title: 'Suppen', items: [
+      { name: 'Nudelsuppe mit Hähnchenfleisch und Gemüse', note: 'Kennzeichnung: a', prices: [{ amount: '11,90 €' }] },
+      { name: 'Thai-Suppe mit Kokosmilch, Hähnchenfleisch und Reis', prices: [{ amount: '13,10 €' }] },
+    ] },
+    { title: 'Kleinigkeiten und Beilagen', items: [
+      { name: '5 Mini-Frühlingsrollen mit süß-saurer Soße', prices: [{ amount: '3,20 €' }] },
+      { name: 'Portion Reis', prices: [{ amount: '3,20 €' }] },
+    ] },
+  ] },
+];
+const tagesgerichte = [
+  { datum: '2026-10-15', name: 'Ente mit Gemüse süß-sauer und Reis', preis: '9,90' },
+  { datum: '2026-10-19', name: 'Geschnetzeltes mit Nudeln', preis: '9,90' },
+  { datum: '2026-10-20', name: 'Hähnchenspieße in Nusssoße mit Reis und gemischtem Salat', preis: '10,90' },
+];
+---
+<ExampleLayout title="Vorbestellung (Demo)" description="WhatsApp-Bestelltext plus Tagesliste der Küche, ohne Server.">
+  <Vorbestellung
+    gruppen={gruppen}
+    tagesgerichte={tagesgerichte}
+    oeffnung={{ tage: [1, 2, 3, 4, 5], von: '08:00', bis: '15:00' }}
+    geschlossen={['2026-10-16']}
+    storageKey="example-vorbestellung-demo"
+    kuecheHref="/kuechenliste"
+    subheading="Bestellen Sie vor, dann steht Ihr Essen bereit. Bezahlt wird bei Abholung."
+  />
+</ExampleLayout>

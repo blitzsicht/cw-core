@@ -71,6 +71,10 @@
       "types": "./src/utils/antwortfrist.d.ts",
       "default": "./src/utils/antwortfrist.js"
     },
+    "./utils/vorbestellung": {
+      "types": "./src/utils/vorbestellung.d.ts",
+      "default": "./src/utils/vorbestellung.js"
+    },
     "./utils/text/wa-href": {
       "types": "./src/utils/text/wa-href.d.ts",
       "default": "./src/utils/text/wa-href.js"

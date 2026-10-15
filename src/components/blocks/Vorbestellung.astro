@@ -1,0 +1,381 @@
+---
+/**
+ * @cw/core – Vorbestellung.astro (v0.173.0)
+ *
+ * Vorbestellung zum Abholen: Der Gast wählt Abholtag, Gerichte, Abholzeit und Namen; daraus
+ * entsteht der fertige Bestelltext (WhatsApp) mit Tagesnummer, und die Bestellung landet in
+ * der Tagesliste der Küche (`Kuechenliste.astro`). Bezahlt wird bei Abholung.
+ *
+ * ANLASS (15.10.2026): customer-brotzeithaeusl, Imbiss mit bisher nur telefonischer
+ * Vorbestellung. Modell „WhatsApp + Tagesliste“ (Entscheidung Betreiber): WhatsApp für die
+ * Absprache mit dem Gast, die Liste für den Überblick in der Mittagsspitze.
+ *
+ * MODUS: Nur `demo` ist gebaut. Der Bestelltext wird angezeigt statt gesendet, die Tagesliste
+ * liegt im localStorage DIESES Browsers — keine Daten verlassen das Gerät. Der Live-Betrieb
+ * (Speicher auf dem Server, WhatsApp öffnen) kommt erst, wenn ein Kunde zusagt.
+ *
+ * Bewusst KEIN <form>: Die Demo sendet nichts. Ein <form> ohne Backend würde
+ * validate-form-backend im Kunden-Gate eine Route verlangen lassen.
+ *
+ * Preise kommen aus denselben Daten wie die PriceList (`PriceListGroup[]`). Ein Preis, den
+ * `preisCent` nicht lesen kann („ab 3,20 €“, „Preis folgt“), bricht den Build: Bestellbar ist
+ * nur, was einen festen Preis hat.
+ *
+ * @example
+ *   <Vorbestellung
+ *     gruppen={[...thaikarte, ...fruehstueckBrotzeit]}
+ *     tagesgerichte={[{ datum: '2026-10-15', name: 'Ente mit Gemüse süß-sauer und Reis', preis: '9,90' }]}
+ *     oeffnung={{ tage: [1, 2, 3, 4, 5], von: '08:00', bis: '15:00' }}
+ *     storageKey="brotzeithaeusl-vorbestellung-demo"
+ *     kuecheHref="/vorbestellen/kueche"
+ *   />
+ */
+import type { PriceListGroup } from './PriceList.astro';
+import { preisCent, euro } from '../../utils/vorbestellung.js';
+
+export interface Tagesgericht {
+  /** 'YYYY-MM-DD' */
+  datum: string;
+  name: string;
+  /** Wie auf der Karte: „9,90“ oder „9,90 €“. */
+  preis: string;
+}
+
+interface Props {
+  /** Feste Karten (Thaikarte, Brotzeiten …), dieselben Daten wie für PriceList. */
+  gruppen: readonly PriceListGroup[];
+  /** Wechselnde Gerichte mit Datum (Monatskarte). Gezeigt wird das des gewählten Abholtags. */
+  tagesgerichte?: readonly Tagesgericht[];
+  tagesgerichtTitel?: string;
+  /** Öffnungszeiten für die Abholzeiten. `tage` wie Date.getDay() (0 = Sonntag). */
+  oeffnung: { tage: readonly number[]; von: string; bis: string };
+  /** Geschlossene Tage 'YYYY-MM-DD' (Urlaub, „Imbiss geschlossen“). */
+  geschlossen?: readonly string[];
+  vorlaufMinuten?: number;
+  rasterMinuten?: number;
+  /** localStorage-Schlüssel, PFLICHT und kundenspezifisch (wie BriefingForm). */
+  storageKey: string;
+  /** Nur 'demo' ist gebaut. */
+  modus?: 'demo';
+  /** Link zur Küchenansicht (Kuechenliste). */
+  kuecheHref?: string;
+  heading?: string;
+  subheading?: string;
+}
+
+const {
+  gruppen,
+  tagesgerichte = [],
+  tagesgerichtTitel = 'Tagesgericht',
+  oeffnung,
+  geschlossen = [],
+  vorlaufMinuten = 20,
+  rasterMinuten = 15,
+  storageKey,
+  modus = 'demo',
+  kuecheHref,
+  heading = 'Vorbestellen',
+  subheading,
+} = Astro.props;
+
+if (!storageKey) throw new Error('Vorbestellung: storageKey fehlt (kundenspezifisch, z. B. "kunde-vorbestellung-demo").');
+if (modus !== 'demo') throw new Error(`Vorbestellung: Modus "${modus}" ist nicht gebaut, nur "demo".`);
+
+const slug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const kategorien = gruppen.flatMap((g) =>
+  g.categories.map((c) => ({
+    titel: c.title,
+    gruppe: g.title,
+    posten: c.items
+      .filter((i) => i.prices.length > 0)
+      .map((i, n) => ({
+        id: `${g.id}-${slug(c.title)}-${n}`,
+        name: i.name,
+        note: i.note,
+        cent: preisCent(i.prices[0].amount),
+      })),
+  })),
+).filter((k) => k.posten.length > 0);
+// Tagesgerichte werfen beim Bauen, wenn ein Preis nicht lesbar ist.
+const tages = tagesgerichte.map((t) => ({ datum: t.datum, name: t.name, cent: preisCent(t.preis) }));
+const konfig = JSON.stringify({ oeffnung, geschlossen, vorlaufMinuten, rasterMinuten, tages });
+const id = `vb-${slug(storageKey)}`;
+---
+<section class="vb" aria-labelledby={`${id}-titel`} data-vb data-storage-key={storageKey} data-konfig={konfig}>
+  <div class="vb-kopf">
+    <h2 id={`${id}-titel`}>{heading}</h2>
+    {subheading && <p class="vb-sub">{subheading}</p>}
+  </div>
+
+  <noscript><p class="vb-hinweis">Die Vorbestellung braucht JavaScript. Bitte bestellen Sie telefonisch vor.</p></noscript>
+
+  <fieldset class="vb-tage">
+    <legend>Abholtag</legend>
+    <div class="vb-tage-liste" data-vb-tage></div>
+  </fieldset>
+
+  <div class="vb-karte">
+    {tages.length > 0 && (
+      <div class="vb-kategorie">
+        <h3>{tagesgerichtTitel}</h3>
+        <ul class="vb-posten" data-vb-tagesgericht></ul>
+      </div>
+    )}
+    {kategorien.map((k) => (
+      <div class="vb-kategorie">
+        <h3>{k.titel}</h3>
+        <ul class="vb-posten">
+          {k.posten.map((p) => (
+            <li class="vb-zeile" data-vb-item data-id={p.id} data-name={p.name} data-cent={p.cent}>
+              <span class="vb-name">{p.name}{p.note && <small>{p.note}</small>}</span>
+              <span class="vb-preis">{euro(p.cent)}</span>
+              <span class="vb-menge">
+                <button type="button" data-vb-minus aria-label={`${p.name}: eins weniger`}>−</button>
+                <output data-vb-anzahl aria-live="polite">0</output>
+                <button type="button" data-vb-plus aria-label={`${p.name}: eins mehr`}>+</button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </div>
+
+  <div class="vb-abschluss" data-vb-abschluss>
+    <p class="vb-summe" aria-live="polite" data-vb-summe>Noch nichts ausgewählt.</p>
+    <div class="vb-felder">
+      <label>Abholzeit
+        <select data-vb-zeit></select>
+      </label>
+      <label>Ihr Name
+        <input type="text" data-vb-name autocomplete="name" maxlength="60" />
+      </label>
+      <label class="vb-breit">Hinweis (optional)
+        <input type="text" data-vb-hinweis maxlength="140" placeholder="z. B. ohne Zwiebeln" />
+      </label>
+    </div>
+    <p class="vb-fehler" role="alert" data-vb-fehler></p>
+    <button type="button" class="vb-senden" data-vb-senden>Bestellung absenden (Demo)</button>
+  </div>
+
+  <div class="vb-ergebnis" data-vb-ergebnis hidden>
+    <h3 tabindex="-1">Diese Nachricht ginge per WhatsApp an den Laden</h3>
+    <pre data-vb-text></pre>
+    <p class="vb-demo">Demo: Es wurde nichts gesendet. Die Bestellung steht nur in diesem Browser in der Küchenansicht.</p>
+    <div class="vb-aktionen">
+      {kuecheHref && <a class="vb-link" href={kuecheHref}>Küchenansicht öffnen</a>}
+      <button type="button" class="vb-neu" data-vb-neu>Neue Bestellung</button>
+    </div>
+  </div>
+</section>
+
+<script>
+  import { abholtage, bestellText, naechsteNummer, summeCent, euro } from '../../utils/vorbestellung.js';
+
+  type Konfig = {
+    oeffnung: { tage: number[]; von: string; bis: string };
+    geschlossen: string[];
+    vorlaufMinuten: number;
+    rasterMinuten: number;
+    tages: { datum: string; name: string; cent: number }[];
+  };
+  type Speicher = {
+    nummernStand?: { datum: string; zaehler: number };
+    bestellungen: Record<string, unknown>[];
+  };
+
+  const lesen = (key: string): Speicher => {
+    try {
+      const s = JSON.parse(localStorage.getItem(key) ?? '{}');
+      return { nummernStand: s.nummernStand, bestellungen: Array.isArray(s.bestellungen) ? s.bestellungen : [] };
+    } catch {
+      return { bestellungen: [] };
+    }
+  };
+
+  document.querySelectorAll<HTMLElement>('[data-vb]').forEach((box) => {
+    const key = box.dataset.storageKey ?? '';
+    const k: Konfig = JSON.parse(box.dataset.konfig ?? '{}');
+    const $ = <T extends Element>(s: string) => box.querySelector<T>(s);
+    const tageBox = $<HTMLElement>('[data-vb-tage]')!;
+    const zeitSel = $<HTMLSelectElement>('[data-vb-zeit]')!;
+    const summe = $<HTMLElement>('[data-vb-summe]')!;
+    const fehler = $<HTMLElement>('[data-vb-fehler]')!;
+    const abschluss = $<HTMLElement>('[data-vb-abschluss]')!;
+    const ergebnis = $<HTMLElement>('[data-vb-ergebnis]')!;
+    const tagesListe = $<HTMLUListElement>('[data-vb-tagesgericht]');
+    const tage = abholtage({ jetzt: new Date(), ...k.oeffnung, geschlossen: k.geschlossen,
+      vorlaufMinuten: k.vorlaufMinuten, rasterMinuten: k.rasterMinuten, anzahl: 2 });
+    let gewaehlt = 0;
+
+    const zeile = (id: string, name: string, cent: number) => {
+      const li = document.createElement('li');
+      li.className = 'vb-zeile';
+      Object.assign(li.dataset, { vbItem: '', id, name, cent: String(cent) });
+      const n = document.createElement('span'); n.className = 'vb-name'; n.textContent = name;
+      const p = document.createElement('span'); p.className = 'vb-preis'; p.textContent = euro(cent);
+      const m = document.createElement('span'); m.className = 'vb-menge';
+      const minus = document.createElement('button'); minus.type = 'button'; minus.dataset.vbMinus = '';
+      minus.textContent = '−'; minus.setAttribute('aria-label', `${name}: eins weniger`);
+      const out = document.createElement('output'); out.dataset.vbAnzahl = ''; out.textContent = '0';
+      out.setAttribute('aria-live', 'polite');
+      const plus = document.createElement('button'); plus.type = 'button'; plus.dataset.vbPlus = '';
+      plus.textContent = '+'; plus.setAttribute('aria-label', `${name}: eins mehr`);
+      m.append(minus, out, plus); li.append(n, p, m);
+      return li;
+    };
+
+    const positionen = () =>
+      [...box.querySelectorAll<HTMLElement>('[data-vb-item]')]
+        .map((li) => ({
+          name: li.dataset.name ?? '',
+          preisCent: Number(li.dataset.cent),
+          menge: Number(li.querySelector('[data-vb-anzahl]')?.textContent ?? 0),
+        }))
+        .filter((p) => p.menge > 0);
+
+    const aktualisieren = () => {
+      const pos = positionen();
+      const stueck = pos.reduce((s, p) => s + p.menge, 0);
+      summe.textContent = stueck
+        ? `${stueck} ${stueck === 1 ? 'Gericht' : 'Gerichte'} · ${euro(summeCent(pos))}`
+        : 'Noch nichts ausgewählt.';
+    };
+
+    const tagSetzen = (i: number) => {
+      gewaehlt = i;
+      zeitSel.replaceChildren(...tage[i].zeiten.map((z) => new Option(`${z} Uhr`, z)));
+      if (tagesListe) {
+        const t = k.tages.find((x) => x.datum === tage[i].datum);
+        tagesListe.replaceChildren(t ? zeile(`tag-${t.datum}`, t.name, t.cent) : Object.assign(
+          document.createElement('li'), { className: 'vb-leer', textContent: 'An diesem Tag gibt es kein Tagesgericht.' }));
+      }
+      aktualisieren();
+    };
+
+    if (!tage.length) {
+      tageBox.textContent = 'In den nächsten Tagen ist keine Abholung möglich. Bitte rufen Sie an.';
+      abschluss.hidden = true;
+    } else {
+      tage.forEach((t, i) => {
+        const l = document.createElement('label');
+        const r = document.createElement('input');
+        r.type = 'radio'; r.name = `${key}-tag`; r.value = String(i); r.checked = i === 0;
+        r.addEventListener('change', () => tagSetzen(i));
+        l.append(r, ` ${t.label}`);
+        tageBox.append(l);
+      });
+      tagSetzen(0);
+    }
+
+    box.addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button');
+      if (!btn) return;
+      const out = btn.parentElement?.querySelector('[data-vb-anzahl]');
+      if (out && (btn.hasAttribute('data-vb-plus') || btn.hasAttribute('data-vb-minus'))) {
+        const n = Number(out.textContent) + (btn.hasAttribute('data-vb-plus') ? 1 : -1);
+        out.textContent = String(Math.min(20, Math.max(0, n)));
+        aktualisieren();
+      }
+    });
+
+    $<HTMLButtonElement>('[data-vb-senden]')!.addEventListener('click', () => {
+      fehler.textContent = '';
+      const tag = tage[gewaehlt];
+      const name = $<HTMLInputElement>('[data-vb-name]')!.value;
+      const hinweis = $<HTMLInputElement>('[data-vb-hinweis]')!.value;
+      const pos = positionen();
+      if (!pos.length) { fehler.textContent = 'Bitte wählen Sie mindestens ein Gericht.'; return; }
+      if (!name.trim()) { fehler.textContent = 'Bitte geben Sie Ihren Namen an.'; return; }
+      const sp = lesen(key);
+      const { nummer, stand } = naechsteNummer(sp.nummernStand, tag.datum);
+      const text = bestellText({ nummer, tagLabel: tag.label, datum: tag.datum, zeit: zeitSel.value,
+        positionen: pos, name, hinweis });
+      // Vergangene Tage fallen aus der Demo-Liste (lokales Datum, nicht UTC).
+      const d = new Date();
+      const heute = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const bestellungen = sp.bestellungen.filter((b) => String(b.datum ?? '') >= heute);
+      bestellungen.push({ nummer, datum: tag.datum, tagLabel: tag.label, zeit: zeitSel.value, name: name.trim(),
+        hinweis: hinweis.trim(), positionen: pos, text, fertig: false, erstellt: new Date().toISOString() });
+      try {
+        localStorage.setItem(key, JSON.stringify({ nummernStand: stand, bestellungen }));
+      } catch { /* privater Modus: die Demo zeigt den Text trotzdem */ }
+      $<HTMLElement>('[data-vb-text]')!.textContent = text;
+      abschluss.hidden = true;
+      ergebnis.hidden = false;
+      ergebnis.querySelector<HTMLElement>('h3')?.focus();
+    });
+
+    $<HTMLButtonElement>('[data-vb-neu]')!.addEventListener('click', () => {
+      box.querySelectorAll('[data-vb-anzahl]').forEach((o) => (o.textContent = '0'));
+      $<HTMLInputElement>('[data-vb-hinweis]')!.value = '';
+      ergebnis.hidden = true;
+      abschluss.hidden = false;
+      aktualisieren();
+    });
+  });
+</script>
+
+<style>
+  .vb { max-width: 48rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+  .vb-kopf h2 { margin: 0; font-size: clamp(1.75rem, 4vw, 2.5rem); color: var(--color-primary); }
+  .vb-sub { margin: 0.5rem 0 0; color: var(--color-muted); }
+  .vb-hinweis { padding: 1rem; background: var(--color-surface); border-radius: 0.5rem; }
+
+  .vb-tage { margin: 1.5rem 0 0; padding: 0; border: 0; }
+  .vb-tage legend { font-weight: 700; margin-bottom: 0.5rem; }
+  .vb-tage-liste { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .vb-tage-liste label {
+    display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 1rem;
+    border: 1px solid #d6d3d1; border-radius: 999px; background: #fff; cursor: pointer;
+  }
+  .vb-tage-liste label:has(input:checked) { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
+
+  .vb-karte { margin-top: 1.5rem; display: grid; gap: 1.25rem; }
+  .vb-kategorie { background: var(--color-surface); border-radius: 0.75rem; padding: 1rem 1rem 0.5rem; }
+  .vb-kategorie h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--color-primary); }
+  .vb-posten { list-style: none; margin: 0; padding: 0; }
+  .vb-zeile {
+    display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name preis' 'name menge';
+    gap: 0.25rem 0.75rem; align-items: center; padding: 0.75rem 0; border-top: 1px solid rgb(0 0 0 / 0.07);
+  }
+  .vb-zeile:first-child { border-top: 0; }
+  .vb-name { grid-area: name; }
+  .vb-name small { display: block; color: var(--color-muted); font-size: 0.8rem; }
+  .vb-preis { grid-area: preis; justify-self: end; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .vb-menge { grid-area: menge; display: inline-flex; align-items: center; gap: 0.25rem; justify-self: end; }
+  .vb-menge button {
+    width: 44px; height: 44px; border-radius: 999px; border: 1px solid #d6d3d1; background: #fff;
+    font-size: 1.25rem; line-height: 1; color: var(--color-text, #1f2937); cursor: pointer;
+  }
+  .vb-menge button:focus-visible, .vb-senden:focus-visible, .vb-neu:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+  .vb-menge output { min-width: 1.5rem; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .vb-leer { padding: 0.75rem 0; color: var(--color-muted); }
+
+  .vb-abschluss {
+    position: sticky; bottom: 0; margin-top: 1.5rem; padding: 1rem; background: #fff;
+    border: 1px solid #e7e5e4; border-radius: 0.75rem; box-shadow: 0 -6px 24px rgb(0 0 0 / 0.08);
+  }
+  .vb-summe { margin: 0 0 0.75rem; font-weight: 700; }
+  .vb-felder { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
+  .vb-felder label { display: grid; gap: 0.25rem; font-size: 0.9rem; font-weight: 600; }
+  .vb-felder .vb-breit { grid-column: 1 / -1; }
+  .vb-felder select, .vb-felder input {
+    min-height: 44px; padding: 0 0.75rem; border: 1px solid #d6d3d1; border-radius: 0.5rem; font: inherit; background: #fff;
+  }
+  .vb-fehler { min-height: 1.25rem; margin: 0.5rem 0 0; color: #b91c1c; font-weight: 600; }
+  .vb-senden, .vb-neu {
+    width: 100%; min-height: 48px; margin-top: 0.5rem; border: 0; border-radius: 0.5rem; cursor: pointer;
+    background: var(--color-accent); color: var(--color-accent-btn-text, white); font-weight: 700; font-size: 1rem;
+  }
+  .vb-ergebnis { margin-top: 1.5rem; padding: 1.25rem; border-radius: 0.75rem; background: var(--color-surface); }
+  .vb-ergebnis h3 { margin: 0 0 0.75rem; color: var(--color-primary); }
+  .vb-ergebnis pre {
+    margin: 0; padding: 1rem; white-space: pre-wrap; font: inherit; background: #e7f6e9; border-radius: 0.75rem 0.75rem 0 0.75rem;
+  }
+  .vb-demo { margin: 0.75rem 0 0; color: var(--color-muted); font-size: 0.9rem; }
+  .vb-aktionen { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 1rem; }
+  .vb-link { font-weight: 700; color: var(--color-accent-text, var(--color-accent)); }
+  .vb-neu { width: auto; padding: 0 1.25rem; margin: 0; }
+  @media (min-width: 30rem) { .vb-felder { grid-template-columns: 1fr 1fr; } }
+</style>
