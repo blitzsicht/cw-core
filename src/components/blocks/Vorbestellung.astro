@@ -141,7 +141,8 @@ const id = `vb-${slug(storageKey)}`;
     ))}
   </div>
 
-  <div class="vb-abschluss" data-vb-abschluss>
+  <div class="vb-abschluss" id={`${id}-abschluss`} data-vb-abschluss>
+    <h3 class="vb-abschluss-titel">Abholung</h3>
     <p class="vb-summe" aria-live="polite" data-vb-summe>Noch nichts ausgewählt.</p>
     <div class="vb-felder">
       <label>Abholzeit
@@ -156,6 +157,13 @@ const id = `vb-${slug(storageKey)}`;
     </div>
     <p class="vb-fehler" role="alert" data-vb-fehler></p>
     <button type="button" class="vb-senden" data-vb-senden>Bestellung absenden (Demo)</button>
+  </div>
+
+  <!-- Schmale Leiste, unten fixiert, solange etwas gewählt ist. Das Formular selbst ist NICHT
+       fixiert: am Handy verdeckte es sonst rund 40 % des Bildschirms (Fund 15.10.2026, v0.173.2). -->
+  <div class="vb-leiste" data-vb-leiste hidden>
+    <span data-vb-leiste-summe></span>
+    <a class="vb-weiter" href={`#${id}-abschluss`}>Weiter zur Abholung</a>
   </div>
 
   <div class="vb-ergebnis" data-vb-ergebnis hidden>
@@ -202,6 +210,8 @@ const id = `vb-${slug(storageKey)}`;
     const summe = $<HTMLElement>('[data-vb-summe]')!;
     const fehler = $<HTMLElement>('[data-vb-fehler]')!;
     const abschluss = $<HTMLElement>('[data-vb-abschluss]')!;
+    const leiste = $<HTMLElement>('[data-vb-leiste]')!;
+    const leisteSumme = $<HTMLElement>('[data-vb-leiste-summe]')!;
     const ergebnis = $<HTMLElement>('[data-vb-ergebnis]')!;
     const tagesListe = $<HTMLUListElement>('[data-vb-tagesgericht]');
     const tage = abholtage({ jetzt: new Date(), ...k.oeffnung, geschlossen: k.geschlossen,
@@ -240,6 +250,8 @@ const id = `vb-${slug(storageKey)}`;
       summe.textContent = stueck
         ? `${stueck} ${stueck === 1 ? 'Gericht' : 'Gerichte'} · ${euro(summeCent(pos))}`
         : 'Noch nichts ausgewählt.';
+      leisteSumme.textContent = summe.textContent;
+      leiste.hidden = stueck === 0 || !ergebnis.hidden;
       // Zugeklappte Kategorien zeigen, wie viel darin gewählt ist.
       box.querySelectorAll<HTMLElement>('[data-vb-kategorie]').forEach((kat) => {
         const n = [...kat.querySelectorAll('[data-vb-anzahl]')].reduce((s, o) => s + Number(o.textContent), 0);
@@ -309,6 +321,7 @@ const id = `vb-${slug(storageKey)}`;
       $<HTMLElement>('[data-vb-text]')!.textContent = text;
       abschluss.hidden = true;
       ergebnis.hidden = false;
+      leiste.hidden = true;
       ergebnis.querySelector<HTMLElement>('h3')?.focus();
     });
 
@@ -369,10 +382,19 @@ const id = `vb-${slug(storageKey)}`;
   .vb :global(.vb-menge output) { min-width: 1.5rem; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
   .vb :global(.vb-leer) { padding: 0.75rem 0; color: var(--color-muted); }
 
-  .vb-abschluss {
-    position: sticky; bottom: 0; margin-top: 1.5rem; padding: 1rem; background: #fff;
-    border: 1px solid #e7e5e4; border-radius: 0.75rem; box-shadow: 0 -6px 24px rgb(0 0 0 / 0.08);
+  .vb-abschluss { margin-top: 1.5rem; padding: 1rem; background: #fff; border: 1px solid #e7e5e4; border-radius: 0.75rem; }
+  .vb-abschluss-titel { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--color-primary); }
+  .vb-leiste {
+    position: sticky; bottom: 0; z-index: 5; display: flex; align-items: center; justify-content: space-between;
+    gap: 0.75rem; margin-top: 1rem; padding: 0.6rem 0.75rem 0.6rem 1rem; background: var(--color-primary); color: #fff;
+    border-radius: 0.75rem; box-shadow: 0 -6px 24px rgb(0 0 0 / 0.15); font-weight: 700;
   }
+  .vb-leiste[hidden] { display: none; }
+  .vb-weiter {
+    display: inline-flex; align-items: center; min-height: 44px; padding: 0 1rem; border-radius: 0.5rem;
+    background: #fff; color: var(--color-primary); font-weight: 700; text-decoration: none; white-space: nowrap;
+  }
+  .vb-weiter:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
   .vb-summe { margin: 0 0 0.75rem; font-weight: 700; }
   .vb-felder { display: grid; gap: 0.75rem; grid-template-columns: 1fr; }
   .vb-felder label { display: grid; gap: 0.25rem; font-size: 0.9rem; font-weight: 600; }

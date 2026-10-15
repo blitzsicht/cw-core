@@ -10,6 +10,8 @@
  */
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { renderer, schliessen, normalize } from './_render-astro.js';
 
 after(schliessen);
@@ -101,4 +103,16 @@ test('Kuechenliste (Demo): Container mit Schlüssel, Rückweg zur Bestellung, ke
 
 test('Kuechenliste: ohne storageKey bricht der Build', async () => {
   await assert.rejects(() => html(KL, { storageKey: '' }), /storageKey/);
+});
+
+test('Vorbestellung: nur die schmale Leiste ist fixiert, das Formular nicht (Handy, v0.173.2)', async () => {
+  const h = await html(VB, BASIS);
+  assert.ok(/data-vb-leiste[^>]*hidden/.test(h) || /hidden[^>]*data-vb-leiste/.test(h), 'Leiste startet versteckt');
+  const anker = h.match(/id="([^"]+-abschluss)"/);
+  assert.ok(anker, 'Formular hat einen Anker');
+  assert.ok(h.includes(`href="#${anker[1]}"`), 'Weiter springt zum Formular');
+  const quelle = readFileSync(resolve(import.meta.dirname, '../../', VB), 'utf8');
+  const regel = (sel) => (quelle.match(new RegExp(`\\n  \\${sel} \\{([^}]*)\\}`)) ?? [])[1] ?? '';
+  assert.ok(!/sticky/.test(regel('.vb-abschluss')), '.vb-abschluss darf nicht sticky sein');
+  assert.ok(/sticky/.test(regel('.vb-leiste')), '.vb-leiste ist sticky');
 });
