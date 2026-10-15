@@ -22,6 +22,31 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.174.0 (2026-10-15)
+
+**Feature:** `Vorbestellung` — fixierte Leiste mit Anruf-Knopf (`anrufHref`, `anrufLabel`)
+**Fix:** `AnswerBlock` lief ohne eigenen Wrapper am Desktop über die volle Breite
+
+Kontext: Rückmeldung des Betreibers zur Brotzeithäusl-Vorschau (15.10.2026): auf /vorbestellen
+fehlte ein fixierter Knopf, und der Antwortkasten hatte am Desktop „kein Padding“ (Text am Rand).
+
+- `Vorbestellung`: mit `anrufHref` ist die Leiste von Anfang an sichtbar, ohne Auswahl
+  „Anrufen“ mit Telefon-Symbol (`TELEFON_PFAD` aus `utils/cta-icon`), mit Auswahl Summe und
+  „Weiter zur Abholung“. Ohne `anrufHref` wie bisher (Leiste erst mit Auswahl). Betrag in der
+  Leiste mit geschütztem Leerzeichen vor €, damit „9,90 €“ nicht umbricht.
+- `AnswerBlock`: `padding-inline: max(0px, calc((100% - var(--container-max, 72rem)) / 2))`.
+  Steht der Block breiter als der Container, rückt die Karte auf Containerbreite ein; in
+  Wrappern ergibt die Regel 0 px. Gemessen 15.10.2026 (1400 px Viewport): examples/answer-block
+  0 px; Live-Kunden mit AnswerBlock (digital-direkt 1104 px, falzmarke 784/688 px, übrige mit
+  Container) unverändert; betroffen nur die Vorschauen brotzeithaeusl und haustechnik-pollinger
+  (je 1400 px, gleicher Fehler). Vorher bauten 20 Kundenrepos dafür eigene Wrapper.
+
+Bewusst ohne `[kunde]`-Zeile: an keiner Live-Website ändert sich etwas (gemessen, s. o.).
+
+**Migrations-Hinweis:** Keiner. Neue Seiten brauchen keinen Wrapper mehr um `AnswerBlock`.
+
+---
+
 ## v0.173.2 (2026-10-15)
 
 **Fix:** `Vorbestellung` — am Handy verdeckte das fixierte Bestellformular rund 40 % des Bildschirms
