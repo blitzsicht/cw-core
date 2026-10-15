@@ -22,6 +22,28 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.173.1 (2026-10-15)
+
+**Fix:** `Vorbestellung` und `Kuechenliste` sahen im Browser ungestylt aus; Kategorien der Vorbestellung aufklappbar
+
+Kontext: Beide Blöcke erzeugen Teile ihres Inhalts erst im Browser (Küchenkarten, Tag-Auswahl,
+Tagesgericht-Zeile). Astro schreibt scoped Styles auf `data-astro-cid-…` um, das solche
+Elemente nicht tragen. Die Render-Tests prüfen Server-HTML und sahen es nicht; gefunden im
+Screenshot der Brotzeithäusl-Vorschau. Am Handy war die Bestellseite außerdem sehr lang
+(44 Positionen untereinander).
+
+- Regeln für Laufzeit-Elemente über `.vb :global(…)` bzw. `.kl :global(…)`.
+- Neuer Wächter `tests/blocks/laufzeit-styles.test.js`: jede Klasse, die ein Block-Skript per
+  `className`/`el()` setzt, braucht eine `:global()`-Regel. Gegenprobe gegen v0.173.0: meldet
+  alle 12 Klassen der Küchenliste.
+- Kategorien als `<details>`: Tagesgericht offen, Rest zu, mit „n gewählt“ in der Kopfzeile.
+
+Bewusst ohne `[kunde]`-Zeile: betrifft nur die Demo-Vorschau eines Interessenten.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.173.0 (2026-10-15)
 
 **Feature:** Blöcke `Vorbestellung` und `Kuechenliste` (Demo-Modus), Logik in `@cw/core/utils/vorbestellung`
