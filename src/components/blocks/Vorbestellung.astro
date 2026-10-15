@@ -116,14 +116,14 @@ const id = `vb-${slug(storageKey)}`;
 
   <div class="vb-karte">
     {tages.length > 0 && (
-      <div class="vb-kategorie">
-        <h3>{tagesgerichtTitel}</h3>
+      <details class="vb-kategorie" open data-vb-kategorie>
+        <summary><h3>{tagesgerichtTitel}</h3><span class="vb-kat-anzahl" data-vb-kat-anzahl></span></summary>
         <ul class="vb-posten" data-vb-tagesgericht></ul>
-      </div>
+      </details>
     )}
-    {kategorien.map((k) => (
-      <div class="vb-kategorie">
-        <h3>{k.titel}</h3>
+    {kategorien.map((k, i) => (
+      <details class="vb-kategorie" open={tages.length === 0 && i === 0} data-vb-kategorie>
+        <summary><h3>{k.titel}</h3><span class="vb-kat-anzahl" data-vb-kat-anzahl></span></summary>
         <ul class="vb-posten">
           {k.posten.map((p) => (
             <li class="vb-zeile" data-vb-item data-id={p.id} data-name={p.name} data-cent={p.cent}>
@@ -137,7 +137,7 @@ const id = `vb-${slug(storageKey)}`;
             </li>
           ))}
         </ul>
-      </div>
+      </details>
     ))}
   </div>
 
@@ -240,6 +240,12 @@ const id = `vb-${slug(storageKey)}`;
       summe.textContent = stueck
         ? `${stueck} ${stueck === 1 ? 'Gericht' : 'Gerichte'} · ${euro(summeCent(pos))}`
         : 'Noch nichts ausgewählt.';
+      // Zugeklappte Kategorien zeigen, wie viel darin gewählt ist.
+      box.querySelectorAll<HTMLElement>('[data-vb-kategorie]').forEach((kat) => {
+        const n = [...kat.querySelectorAll('[data-vb-anzahl]')].reduce((s, o) => s + Number(o.textContent), 0);
+        const ziel = kat.querySelector<HTMLElement>('[data-vb-kat-anzahl]');
+        if (ziel) ziel.textContent = n ? `${n} gewählt` : '';
+      });
     };
 
     const tagSetzen = (i: number) => {
@@ -325,32 +331,43 @@ const id = `vb-${slug(storageKey)}`;
   .vb-tage { margin: 1.5rem 0 0; padding: 0; border: 0; }
   .vb-tage legend { font-weight: 700; margin-bottom: 0.5rem; }
   .vb-tage-liste { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-  .vb-tage-liste label {
+  /* Tag-Auswahl, Tagesgericht-Zeile und Leer-Hinweis erzeugt das Skript zur Laufzeit. Solche
+     Elemente tragen kein data-astro-cid, scoped Styles träfen sie nicht → :global() unter .vb
+     (Fund 15.10.2026, v0.173.1; Test: tests/blocks/laufzeit-styles.test.js). */
+  .vb-tage-liste :global(label) {
     display: inline-flex; align-items: center; gap: 0.4rem; min-height: 44px; padding: 0 1rem;
     border: 1px solid #d6d3d1; border-radius: 999px; background: #fff; cursor: pointer;
   }
-  .vb-tage-liste label:has(input:checked) { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
+  .vb-tage-liste :global(label:has(input:checked)) { border-color: var(--color-primary); box-shadow: 0 0 0 1px var(--color-primary); }
 
   .vb-karte { margin-top: 1.5rem; display: grid; gap: 1.25rem; }
-  .vb-kategorie { background: var(--color-surface); border-radius: 0.75rem; padding: 1rem 1rem 0.5rem; }
-  .vb-kategorie h3 { margin: 0 0 0.5rem; font-size: 1.1rem; color: var(--color-primary); }
+  .vb-kategorie { background: var(--color-surface); border-radius: 0.75rem; padding: 0 1rem; }
+  .vb-kategorie[open] { padding-bottom: 0.5rem; }
+  .vb-kategorie summary {
+    display: flex; align-items: center; gap: 0.75rem; min-height: 52px; cursor: pointer; list-style: none;
+  }
+  .vb-kategorie summary::-webkit-details-marker { display: none; }
+  .vb-kategorie summary::after { content: '+'; margin-left: auto; font-size: 1.4rem; line-height: 1; color: var(--color-primary); }
+  .vb-kategorie[open] summary::after { content: '−'; }
+  .vb-kategorie h3 { margin: 0; font-size: 1.1rem; color: var(--color-primary); }
+  .vb-kat-anzahl { white-space: nowrap; font-size: 0.85rem; font-weight: 700; color: var(--color-accent-text, var(--color-accent)); }
   .vb-posten { list-style: none; margin: 0; padding: 0; }
-  .vb-zeile {
+  .vb :global(.vb-zeile) {
     display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'name preis' 'name menge';
     gap: 0.25rem 0.75rem; align-items: center; padding: 0.75rem 0; border-top: 1px solid rgb(0 0 0 / 0.07);
   }
-  .vb-zeile:first-child { border-top: 0; }
-  .vb-name { grid-area: name; }
-  .vb-name small { display: block; color: var(--color-muted); font-size: 0.8rem; }
-  .vb-preis { grid-area: preis; justify-self: end; font-variant-numeric: tabular-nums; font-weight: 600; }
-  .vb-menge { grid-area: menge; display: inline-flex; align-items: center; gap: 0.25rem; justify-self: end; }
-  .vb-menge button {
+  .vb :global(.vb-zeile:first-child) { border-top: 0; }
+  .vb :global(.vb-name) { grid-area: name; }
+  .vb :global(.vb-name small) { display: block; color: var(--color-muted); font-size: 0.8rem; }
+  .vb :global(.vb-preis) { grid-area: preis; justify-self: end; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .vb :global(.vb-menge) { grid-area: menge; display: inline-flex; align-items: center; gap: 0.25rem; justify-self: end; }
+  .vb :global(.vb-menge button) {
     width: 44px; height: 44px; border-radius: 999px; border: 1px solid #d6d3d1; background: #fff;
     font-size: 1.25rem; line-height: 1; color: var(--color-text, #1f2937); cursor: pointer;
   }
-  .vb-menge button:focus-visible, .vb-senden:focus-visible, .vb-neu:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
-  .vb-menge output { min-width: 1.5rem; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
-  .vb-leer { padding: 0.75rem 0; color: var(--color-muted); }
+  .vb :global(.vb-menge button:focus-visible), .vb-senden:focus-visible, .vb-neu:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+  .vb :global(.vb-menge output) { min-width: 1.5rem; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .vb :global(.vb-leer) { padding: 0.75rem 0; color: var(--color-muted); }
 
   .vb-abschluss {
     position: sticky; bottom: 0; margin-top: 1.5rem; padding: 1rem; background: #fff;
