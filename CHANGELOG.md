@@ -22,6 +22,26 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.173.2 (2026-10-15)
+
+**Fix:** `Vorbestellung` — am Handy verdeckte das fixierte Bestellformular rund 40 % des Bildschirms
+
+Kontext: In v0.173.0/.1 war der ganze Abschluss (Summe, Abholzeit, Name, Hinweis, Knopf) per
+`position: sticky` unten fixiert. Beim Durchsehen der Karte am Handy (390 × 844) blieben damit
+gut 300 px dauerhaft verdeckt. Gefunden im Screenshot der Brotzeithäusl-Vorschau.
+
+- Fixiert ist nur noch eine schmale Leiste mit Summe und „Weiter zur Abholung“ (Anker aufs
+  Formular), sichtbar sobald etwas gewählt ist, ausgeblendet nach dem Absenden.
+- Das Formular steht normal am Ende, mit Überschrift „Abholung“.
+- Test: `.vb-abschluss` darf nicht sticky sein, `.vb-leiste` muss es sein (Gegenprobe: sticky
+  Formular macht den Test rot).
+
+Bewusst ohne `[kunde]`-Zeile: betrifft nur die Demo-Vorschau eines Interessenten.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.173.1 (2026-10-15)
 
 **Fix:** `Vorbestellung` und `Kuechenliste` sahen im Browser ungestylt aus; Kategorien der Vorbestellung aufklappbar
