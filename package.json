@@ -28,7 +28,7 @@
     "lint:css": "stylelint 'src/**/*.{astro,css}'",
     "sig:regenerate": "bash templates/email-signature/regenerate-all.sh",
     "sig:person": "bash templates/email-signature/onboard-person.sh",
-    "test": "node scripts/verify-form-health.test.mjs && node scripts/favicon-ico.test.mjs"
+    "test": "node scripts/verify-form-health.test.mjs && node scripts/favicon-ico.test.mjs && node scripts/contact-handler.test.mjs"
   },
   "peerDependencies": {
     "astro": ">=5.0.0",

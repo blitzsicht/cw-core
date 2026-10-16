@@ -48,6 +48,16 @@ import { emitLead } from './lead-sink.js';
  * @property {number} [rateLimitMax]
  * @property {number} [rateLimitWindowMs]
  * @property {string[]} [extraSpamKeywords]
+ * @property {string[]} [extraFields]      Whitelist zusaetzlicher Body-Felder (Strings, getrimmt, max. 2000 Zeichen)
+ * @property {boolean} [requireConsent]    true -> body.consent muss truthy sein, sonst 400
+ * @property {ConfirmationConfig} [confirmation]  Bestaetigungsmail (nur Text) an body.email
+ */
+
+/**
+ * @typedef {Object} ConfirmationConfig
+ * @property {string} subject
+ * @property {(fields: Record<string, string>) => string} text
+ * @property {string} [replyTo]   Default: CONTACT_EMAIL
  */
 
 /**
@@ -60,6 +70,7 @@ import { emitLead } from './lead-sink.js';
  * @property {string} [website]
  * @property {string|boolean} [botcheck]
  * @property {string} [url_honey]
+ * @property {string|boolean} [consent]
  * @property {string} [cf-turnstile-response]
  */
 
@@ -71,6 +82,8 @@ const DEFAULT_SPAM_KEYWORDS = [
   'сотрудничество', 'продвижение', 'предложение',
   'click here now', 'limited time offer', 'act now',
 ];
+
+const EXTRA_FIELD_MAX = 2000;
 
 const URL_PATTERN = /https?:\/\/[^\s<>"]+/gi;
 const BTC_PATTERN = /\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}\b/g;
@@ -161,6 +174,38 @@ function safeOrigin(url) {
 }
 
 /**
+ * Bestaetigungsmail an den Absender (nur Text). Wirft nie: ein Fehler wird geloggt
+ * (ohne Secrets), die Antwort an den Browser bleibt 200.
+ * @param {{ confirmation: ConfirmationConfig, apiKey: string, fromName: string, fromEmail: string, to: string, defaultReplyTo: string, fields: Record<string, string> }} p
+ * @returns {Promise<void>}
+ */
+async function sendConfirmation(p) {
+  try {
+    const text = p.confirmation.text(p.fields);
+    const displayName = p.fromName.replace(/[\r\n]+/g, ' ').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const r = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${p.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `"${displayName}" <${p.fromEmail}>`,
+        to: p.to,
+        reply_to: p.confirmation.replyTo || p.defaultReplyTo,
+        subject: p.confirmation.subject.replace(/[\r\n]+/g, ' '),
+        text,
+      }),
+    });
+    if (!r.ok) {
+      console.error('[contact-handler] confirmation mail failed, status=', r.status);
+    }
+  } catch (err) {
+    console.error('[contact-handler] confirmation mail error:', err instanceof Error ? err.message : 'unknown');
+  }
+}
+
+/**
  * @param {ContactHandlerConfig} config
  * @returns {(req: any, res: any) => Promise<void>}
  */
@@ -172,6 +217,9 @@ export function createContactHandler(config) {
   const rateLimitMax = config.rateLimitMax ?? 3;
   const rateLimitWindowMs = config.rateLimitWindowMs ?? 10 * 60 * 1000;
   const extraSpamKeywords = config.extraSpamKeywords || [];
+  const extraFieldNames = config.extraFields || [];
+  const requireConsent = config.requireConsent === true;
+  const confirmation = config.confirmation;
 
   return async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -252,14 +300,32 @@ export function createContactHandler(config) {
       return;
     }
 
+    // Einwilligung (nur wenn konfiguriert)
+    if (requireConsent) {
+      const c = /** @type {unknown} */ (body.consent);
+      const consentGiven = c === true || (typeof c === 'string' && ['on', 'true'].includes(c.trim().toLowerCase()));
+      if (!consentGiven) {
+        res.status(400).json({ ok: false, error: 'Einwilligung fehlt.' });
+        return;
+      }
+    }
+
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     const company = typeof body.company === 'string' ? body.company.trim() : '';
     const phone = typeof body.phone === 'string' ? body.phone.trim() : '';
     const message = typeof body.message === 'string' ? body.message.trim() : '';
     const website = typeof body.website === 'string' ? body.website.trim() : '';
 
+    /** @type {Array<[string, string]>} */
+    const extras = [];
+    for (const key of extraFieldNames) {
+      const raw = Object.hasOwn(body, key) ? /** @type {Record<string, unknown>} */ (body)[key] : undefined;
+      const value = typeof raw === 'string' ? raw.trim().slice(0, EXTRA_FIELD_MAX) : '';
+      extras.push([key, value]);
+    }
+
     // Content-Filter — silent drop
-    const haystack = [name, company, message, website].filter(Boolean).join(' ');
+    const haystack = [name, company, message, website, ...extras.map(([, v]) => v)].filter(Boolean).join(' ');
     if (isSpamContent(haystack, extraSpamKeywords)) {
       console.log('[contact-handler] spam pattern matched, ip=', ip, 'preview=', haystack.slice(0, 80));
       res.status(200).json({ ok: true });
@@ -290,6 +356,7 @@ export function createContactHandler(config) {
       leadWebsite: website,
       leadMessage: message,
       subject,
+      ...(extras.length ? { extraFields: extras.filter(([, v]) => v) } : {}),
     });
 
     try {
@@ -334,6 +401,12 @@ export function createContactHandler(config) {
           origin: sourceUrl,
         },
       );
+      if (confirmation) {
+        await sendConfirmation({
+          confirmation, apiKey, fromName, fromEmail, to: email, defaultReplyTo: recipient,
+          fields: { name, email, company, phone, message, website, ...Object.fromEntries(extras) },
+        });
+      }
       res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[contact-handler] Resend fetch error:', err);

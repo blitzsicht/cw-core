@@ -6,6 +6,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`createContactHandler`**: drei optionale Optionen, ohne sie verhält sich der Handler unverändert.
+  - `extraFields?: string[]` — Whitelist zusätzlicher Body-Felder (getrimmt, max. 2000 Zeichen), erscheinen als "Feld: Wert"-Block in der Mail ans Postfach und fließen in die Spamprüfung ein.
+  - `requireConsent?: boolean` — `body.consent` muss `true`/`"on"`/`"true"` sein, sonst 400.
+  - `confirmation?: { subject, text(fields), replyTo? }` — Text-Bestätigungsmail an `body.email` nach erfolgreicher Postfach-Mail; Fehler dabei lassen die Antwort bei 200.
+- `buildLeadEmail`: optionales `extraFields`.
+- Tests: `scripts/contact-handler.test.mjs` (12 Tests).
+
+---
+
 ## [0.14.0] — 2026-07-06
 
 ### Added

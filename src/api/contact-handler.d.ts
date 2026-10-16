@@ -13,6 +13,20 @@ export interface ContactHandlerConfig {
   rateLimitWindowMs?: number;
   /** Eigene Spam-Keywords zusätzlich zur Default-Liste */
   extraSpamKeywords?: string[];
+  /** Whitelist zusätzlicher Body-Felder (Strings, getrimmt, je max. 2000 Zeichen); erscheinen als "Feld: Wert"-Block in der Mail ans Postfach, in dieser Reihenfolge */
+  extraFields?: string[];
+  /** true → body.consent muss truthy sein ("on"/"true"/true), sonst 400 */
+  requireConsent?: boolean;
+  /** Nach erfolgreicher Postfach-Mail eine zweite Mail (nur Text) an body.email; Fehler hier ändern die 200-Antwort nicht */
+  confirmation?: ContactConfirmation;
+}
+
+export interface ContactConfirmation {
+  subject: string;
+  /** fields = name, email, company, phone, message, website + extraFields */
+  text: (fields: Record<string, string>) => string;
+  /** Default: CONTACT_EMAIL (bisheriger Postfach-Empfänger) */
+  replyTo?: string;
 }
 
 type ContactHandler = (req: any, res: any) => Promise<void>;

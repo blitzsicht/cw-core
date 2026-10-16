@@ -29,6 +29,7 @@ const FOOTER_LINK = 'https://blitzsicht.com';
  * @property {string} [leadWebsite]
  * @property {string} [leadMessage]
  * @property {string}  subject       – Betreff der Lead-Mail (intern)
+ * @property {Array<[string, string]>} [extraFields] – zusaetzliche "Label: Wert"-Paare (Reihenfolge bleibt)
  */
 
 /**
@@ -76,6 +77,7 @@ export function buildLeadEmail(input) {
     leadWebsite = '',
     leadMessage = '',
     subject,
+    extraFields = [],
   } = input;
 
   // FROM-Display-Name: "{Lead-Name} via {Customer-Site}" — wenn kein Lead-Name,
@@ -112,6 +114,10 @@ export function buildLeadEmail(input) {
     textLines.push('Nachricht:');
     textLines.push(leadMessage);
   }
+  if (extraFields.length) {
+    textLines.push('');
+    for (const [label, value] of extraFields) textLines.push(`${label}: ${value}`);
+  }
   textLines.push('');
   textLines.push('---');
   textLines.push(`Direkt antworten: ${mailtoHref}`);
@@ -139,6 +145,8 @@ export function buildLeadEmail(input) {
   if (safeLeadPhone) rows.push(detailRow('Telefon', `<a href="tel:${safeLeadPhone}" style="color:${BRAND_PRIMARY};text-decoration:underline;">${safeLeadPhone}</a>`));
   if (safeLeadCompany) rows.push(detailRow('Firma', safeLeadCompany));
   if (safeLeadWebsite) rows.push(detailRow('Website', safeLeadWebsite));
+
+  for (const [label, value] of extraFields) rows.push(detailRow(label, escapeHtml(value).replace(/\n/g, '<br>')));
 
   const messageBlock = safeLeadMessage
     ? `
