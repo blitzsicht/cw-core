@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## Unreleased
+## v0.175.0 (2026-10-16)
 
 **Feature:** `createContactHandler` — `extraFields`, `requireConsent`, `confirmation` (alle optional)
 
