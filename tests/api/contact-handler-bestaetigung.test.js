@@ -241,3 +241,86 @@ test('9: Spamprüfung bezieht extraFields ein; ohne extraFields nicht (Abwärtsk
   const b = await run({}, { paket: 'casino' });
   assert.equal(b.resend.length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// leadSink (Datenschutz: kein Personenbezug im Telegram-Push)
+// ---------------------------------------------------------------------------
+
+const PII = {
+  name: 'Erika Mustermann', email: 'erika.privat@example.org', phone: '+49 941 7654321',
+  company: 'Geheimfirma', message: 'Vertraulicher Nachrichtentext',
+};
+const pii = { ...PII, paket: 'Wachstum', adresse: 'Privatstrasse 7' };
+const tgText = (/** @type {any} */ r) => r.telegram.map((/** @type {any} */ c) => c.body.text).join('\n');
+
+test('10: leadSink minimal → 1 Telegram-Aufruf, keinerlei Personendaten, aber paket', async () => {
+  const r = await run({ leadSink: 'minimal', extraFields: ['paket', 'adresse'] }, pii);
+  assert.equal(r.res.statusCode, 200);
+  assert.equal(r.telegram.length, 1);
+  const t = tgText(r);
+  for (const [feld, wert] of Object.entries({ ...PII, adresse: pii.adresse })) {
+    assert.ok(!t.includes(wert), `${feld} darf nicht im Telegram-Text stehen`);
+    assert.ok(!t.includes(wert.replace(/[.+-]/g, '\\$&')), `${feld} (escaped) darf nicht im Text stehen`);
+  }
+  assert.ok(!t.includes('Erika') && !t.includes('Mustermann') && !t.includes('privat'));
+  assert.ok(!t.includes('10.98.'), 'keine IP');
+  assert.ok(!t.includes('node-test'), 'kein UA');
+  assert.ok(t.includes('Wachstum'), 'paket steht drin');
+  assert.ok(t.includes('Neue Anfrage'), 'Betreff steht drin');
+  assert.ok(t.includes('testkunde'), 'Projekt steht drin');
+  assert.ok(t.includes('https://example\\.com'), 'Origin steht drin');
+  assert.ok(t.trimEnd().endsWith('Details im Postfach'));
+  // Postfach-Mail bleibt vollständig
+  assert.ok(r.resend[0].text.includes(PII.email) && r.resend[0].text.includes('Privatstrasse 7'));
+});
+
+test('10b: leadSink minimal bei Zustellfehler → Alarm ohne Personendaten', async () => {
+  const r = await run({ leadSink: 'minimal' }, pii, { resendFail: () => true });
+  assert.equal(r.res.statusCode, 400);
+  assert.equal(r.telegram.length, 1);
+  const t = tgText(r);
+  assert.ok(t.includes('ZUSTELLUNG FEHLGESCHLAGEN'));
+  assert.ok(!t.includes(PII.name) && !t.includes('erika') && !t.includes('Geheimfirma') && !t.includes('Vertraulicher'));
+});
+
+test('11: leadSink false → 0 Telegram-Aufrufe, Mail und 200 unverändert', async () => {
+  const r = await run({ leadSink: false }, pii);
+  assert.equal(r.res.statusCode, 200);
+  assert.equal(r.telegram.length, 0);
+  assert.equal(r.resend.length, 1);
+});
+
+test('12: Default (und leadSink "full") → Telegram-Inhalt wie vorher (Snapshot)', async () => {
+  const erwartet = [
+    '🆕 *Lead* · testkunde', '',
+    '*Name:*  Erika Mustermann',
+    '*Email:* erika\\.privat@example\\.org',
+    '*Co\\.:*   Geheimfirma',
+    '*Tel:*   \\+49 941 7654321',
+    '', 'Vertraulicher Nachrichtentext',
+    '', '_STAMP UTC · https://example\\.com_',
+  ].join('\n');
+  for (const cfg of [{}, { leadSink: 'full' }]) {
+    const r = await run(cfg, { ...PII, paket: 'Wachstum' });
+    assert.equal(r.telegram.length, 1);
+    const t = tgText(r).replace(/\d{4}\\-\d\d\\-\d\d \d\d:\d\d/, "STAMP");
+    assert.equal(t, erwartet);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Header-Injection in der Bestätigung
+// ---------------------------------------------------------------------------
+
+test('13: CR/LF in confirmation.subject und fromName gelangen nicht in den Resend-Payload', async () => {
+  const bos = '\r\nBcc: x@y.z';
+  const r = await run(
+    { fromName: `Testkunde${bos}`, confirmation: { subject: `Danke${bos}`, text: () => 'ok' } }, {});
+  assert.equal(r.res.statusCode, 200);
+  const c = r.resend[1];
+  assert.equal(c.to, 'kunde@example.com');
+  assert.ok(!/[\r\n]/.test(c.subject), 'Betreff ohne Zeilenumbruch');
+  assert.ok(!/[\r\n]/.test(c.from), 'From ohne Zeilenumbruch');
+  assert.ok(c.subject.startsWith('Danke') && c.from.includes('Testkunde'));
+  assert.equal(c.bcc, undefined);
+});

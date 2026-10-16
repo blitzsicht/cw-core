@@ -92,6 +92,10 @@ import { captureError } from './error-sink.js';
  *   je max. 2000 Zeichen). Erscheinen als "Feld: Wert"-Block in der Mail ans Postfach (Reihenfolge
  *   der Whitelist) und fließen in den Spam-Haystack ein. Nicht in Telegram/Conversion-Store.
  * @property {boolean} [requireConsent] – true: `body.consent` muss true/"on"/"true" sein, sonst 400.
+ * @property {'full'|'minimal'|false} [leadSink] – Telegram-Push (emitLead). Default 'full' =
+ *   bisheriges Verhalten. 'minimal': nur Projekt, Art/Betreff, `paket` (falls in extraFields),
+ *   Zeitstempel, Origin + "Details im Postfach" — keine Personendaten, keine IP/UA.
+ *   false: kein Telegram-Aufruf. Conversion-Store und GlitchTip bleiben unberührt.
  * @property {ConfirmationConfig} [confirmation] – Text-Bestätigungsmail an `body.email` nach
  *   erfolgreicher Postfach-Mail (nur wenn eine E-Mail angegeben wurde). Kein Bcc, kein zweiter
  *   Lead-/Conversion-/GlitchTip-Eintrag; Fehler → console.error, Antwort bleibt 200.
@@ -372,6 +376,23 @@ export function createContactHandler(config) {
   const extraFieldNames = config.extraFields || [];
   const requireConsent = config.requireConsent === true;
   const confirmation = config.confirmation;
+  const leadSink = config.leadSink === 'minimal' || config.leadSink === false ? config.leadSink : 'full';
+
+  /**
+   * Telegram-Push je nach `leadSink`. 'full' ruft emitLead unverändert auf.
+   * @param {import('./lead-sink.js').Lead} lead
+   * @param {import('./lead-sink.js').LeadCtx} ctx
+   * @returns {Promise<void>}
+   */
+  const emit = async (lead, ctx) => {
+    if (leadSink === false) return;
+    if (leadSink === 'full') return emitLead(lead, ctx);
+    const paket = lead.paket;
+    return emitLead(
+      { project: lead.project, fromName: lead.fromName, email: '', kind: lead.kind, subject, ...(paket ? { paket } : {}) },
+      { origin: ctx.origin, ...(ctx.deliveryError ? { deliveryError: ctx.deliveryError } : {}), minimal: true },
+    );
+  };
 
   const inner = async function handleContact(req, res) {
     if (req.method !== 'POST') {
@@ -581,6 +602,9 @@ export function createContactHandler(config) {
       ...(zeitfenster ? { zeitfenster } : {}),
       ...(empfohlen ? { empfohlen } : {}),
       ...(attribution ? { attribution } : {}),
+      // Nur für den minimalen Telegram-Push (s. `emit`); im Default bleibt das Lead-Objekt unverändert.
+      ...(leadSink === 'minimal' && extras.some(([k, v]) => k === 'paket' && v)
+        ? { paket: (extras.find(([k]) => k === 'paket') || ['', ''])[1] } : {}),
     };
     const leadCtx = {
       ip,
@@ -591,7 +615,7 @@ export function createContactHandler(config) {
     // Rückruf ohne Opt-in (s. o.): kein Versand, aber Alarm mit dem Lead statt stillem Verlust.
     if (rueckrufNichtFreigeschaltet) {
       console.error('[contact-handler] formType=rueckruf ohne allowRueckruf — Lead nur per Telegram gemeldet');
-      await emitLead(leadData, {
+      await emit(leadData, {
         ...leadCtx,
         deliveryError: 'Rückruf-Formular an diesem Endpoint nicht freigeschaltet (allowRueckruf fehlt in api/contact)',
       });
@@ -607,7 +631,7 @@ export function createContactHandler(config) {
     // Empfehlung ohne Opt-in: wie beim Rückruf kein Versand, aber Alarm statt Verlust.
     if (empfehlungNichtFreigeschaltet) {
       console.error('[contact-handler] formType=empfehlung ohne allowEmpfehlung — Lead nur per Telegram gemeldet');
-      await emitLead(leadData, {
+      await emit(leadData, {
         ...leadCtx,
         deliveryError: 'Empfehlungs-Formular an diesem Endpoint nicht freigeschaltet (allowEmpfehlung fehlt in api/contact)',
       });
@@ -625,7 +649,7 @@ export function createContactHandler(config) {
     const recipients = parseAddressList(process.env.CONTACT_EMAIL);
     if (recipients.length === 0) {
       console.error('[contact-handler] CONTACT_EMAIL missing');
-      await emitLead(leadData, { ...leadCtx, deliveryError: 'CONTACT_EMAIL nicht in Vercel-Env gesetzt' });
+      await emit(leadData, { ...leadCtx, deliveryError: 'CONTACT_EMAIL nicht in Vercel-Env gesetzt' });
       res.status(500).json({ ok: false, error: 'Empfänger nicht konfiguriert.' });
       return;
     }
@@ -640,7 +664,7 @@ export function createContactHandler(config) {
     const apiKey = process.env.RESEND_API_KEY;
     if (!apiKey) {
       console.error('[contact-handler] RESEND_API_KEY missing');
-      await emitLead(leadData, { ...leadCtx, deliveryError: 'RESEND_API_KEY nicht in Vercel-Env gesetzt' });
+      await emit(leadData, { ...leadCtx, deliveryError: 'RESEND_API_KEY nicht in Vercel-Env gesetzt' });
       res.status(500).json({ ok: false, error: 'Email-Versand nicht konfiguriert.' });
       return;
     }
@@ -686,7 +710,7 @@ export function createContactHandler(config) {
         // Bis hierher ging der Lead an dieser Stelle komplett verloren: kein emitLead,
         // kein Alarm — nur eine Fehlermeldung im Browser des Interessenten. Resend lehnt
         // u.a. ungueltige Empfaenger ab, also genau die Faelle, die man mitbekommen muss.
-        await emitLead(leadData, {
+        await emit(leadData, {
           ...leadCtx,
           deliveryError: `Resend lehnte den Versand ab (HTTP ${r.status})`,
         });
@@ -705,7 +729,7 @@ export function createContactHandler(config) {
       // falsches 500 verwandeln; Worst-Case-Latenz bleibt ~5s statt 2×5s sequenziell.
       // recordConversion ist No-op ohne CW_CONVERSION_STORE_URL oder ohne Consent.
       await Promise.allSettled([
-        emitLead(leadData, leadCtx),
+        emit(leadData, leadCtx),
         recordConversion(leadData, { ...leadCtx, marketingConsent, consentVersion }),
       ]);
       // Bestätigung erst NACH erfolgreicher Postfach-Mail und nach den Side-Channels, nur mit
@@ -720,7 +744,7 @@ export function createContactHandler(config) {
       res.status(200).json({ ok: true });
     } catch (err) {
       console.error('[contact-handler] Resend fetch error:', err);
-      await emitLead(leadData, { ...leadCtx, deliveryError: 'Resend nicht erreichbar' });
+      await emit(leadData, { ...leadCtx, deliveryError: 'Resend nicht erreichbar' });
       await captureError(err, { project: leadData.project, where: 'contact-handler:resend-fetch' });
       res.status(500).json({ ok: false, error: 'Email konnte nicht gesendet werden.' });
     }

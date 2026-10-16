@@ -38,8 +38,13 @@ Ohne die neuen Optionen verhält sich der Handler unverändert.
   Postfach-Mail. Kein Bcc, kein zweiter Telegram-/Conversion-/GlitchTip-Eintrag, nur mit angegebener
   E-Mail (Rückruf ohne Adresse: keine Bestätigung). Fehler → `console.error` ohne Secrets, Antwort bleibt 200.
   Honeypot, Spam-Drop und fehlgeschlagene Turnstile-Prüfung erreichen sie nie.
+- `leadSink: 'full' | 'minimal' | false` — Datenschutz-Schalter für den Telegram-Push. Default `'full'` =
+  bisheriges Verhalten (Inhalt byte-gleich). `'minimal'`: nur Projekt, Art/Betreff, `paket` (falls in
+  `extraFields`), Zeitstempel, Origin und "Details im Postfach"; kein Name, keine E-Mail, kein Telefon,
+  keine Firma, keine Nachricht, keine anderen extraFields. `false`: kein Telegram-Aufruf.
+  Conversion-Store und GlitchTip unverändert.
 - `buildLeadEmail`: optionales `extraFields`.
-- Tests: `tests/api/contact-handler-bestaetigung.test.js` (16 Tests).
+- Tests: `tests/api/contact-handler-bestaetigung.test.js` (21 Tests).
 
 ---
 

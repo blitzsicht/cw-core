@@ -46,6 +46,13 @@ export interface ContactHandlerConfig {
    * Eintrag; ein Fehler hier ändert die 200-Antwort nicht.
    */
   confirmation?: ContactConfirmation;
+  /**
+   * Telegram-Push (emitLead). Default `'full'` = bisheriges Verhalten. `'minimal'`: nur
+   * Projekt, Art/Betreff, Wert von `paket` (falls in `extraFields`), Zeitstempel, Origin und
+   * "Details im Postfach" — keine Personendaten, keine anderen extraFields, keine IP/UA.
+   * `false`: kein Telegram-Aufruf. Conversion-Store und GlitchTip bleiben unberührt.
+   */
+  leadSink?: 'full' | 'minimal' | false;
 }
 
 export interface ContactConfirmation {
