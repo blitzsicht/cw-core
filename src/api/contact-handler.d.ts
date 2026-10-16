@@ -36,6 +36,31 @@ export interface ContactHandlerConfig {
    * GlitchTip.
    */
   allowEmpfehlung?: boolean;
+  /** Whitelist zusätzlicher Body-Felder (Strings, getrimmt, je max. 2000 Zeichen); erscheinen als "Feld: Wert"-Block in der Mail ans Postfach, in dieser Reihenfolge, und fließen in die Spamprüfung ein */
+  extraFields?: string[];
+  /** true → body.consent muss truthy sein ("on"/"true"/true), sonst 400 */
+  requireConsent?: boolean;
+  /**
+   * Nach erfolgreicher Postfach-Mail eine zweite Mail (nur Text) an body.email — nur wenn
+   * eine E-Mail angegeben wurde. Kein Bcc, kein zweiter Telegram-/Conversion-/GlitchTip-
+   * Eintrag; ein Fehler hier ändert die 200-Antwort nicht.
+   */
+  confirmation?: ContactConfirmation;
+  /**
+   * Telegram-Push (emitLead). Default `'full'` = bisheriges Verhalten. `'minimal'`: nur
+   * Projekt, Art/Betreff, Wert von `paket` (falls in `extraFields`), Zeitstempel, Origin und
+   * "Details im Postfach" — keine Personendaten, keine anderen extraFields, keine IP/UA.
+   * `false`: kein Telegram-Aufruf. Conversion-Store und GlitchTip bleiben unberührt.
+   */
+  leadSink?: 'full' | 'minimal' | false;
+}
+
+export interface ContactConfirmation {
+  subject: string;
+  /** fields = name, email, company, phone, message, website + extraFields */
+  text: (fields: Record<string, string>) => string;
+  /** Default: erster Empfänger aus CONTACT_EMAIL */
+  replyTo?: string;
 }
 
 type ContactHandler = (req: any, res: any) => Promise<void>;

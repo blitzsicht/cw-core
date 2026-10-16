@@ -29,6 +29,8 @@
  * @property {string} [message]
  * @property {string} [zeitfenster] – gewünschtes Rückruf-Zeitfenster (kind 'rueckruf')
  * @property {string} [empfohlen] – Vorname oder Firma der empfohlenen Person (kind 'empfehlung')
+ * @property {string} [subject] – nur `ctx.minimal`: Betreff der Anfrage
+ * @property {string} [paket]   – nur `ctx.minimal`: Wert des Feldes `paket`
  * @property {'contact-form'|'audit'|'bewerbung'|'briefing-form'|'waitlist'|'rueckruf'|'empfehlung'} [kind]
  * @property {Record<string,string>} [attribution] – gclid + utm_* (Ad-Herkunft), cookielos durchgereicht.
  * @property {string} [customerName]              – Briefing-only: Anzeigename des Kunden.
@@ -42,6 +44,8 @@
  * @property {string} [ip]
  * @property {string} [ua]
  * @property {string} [origin]
+ * @property {boolean} [minimal] – Datenschutz-Modus (contact-handler `leadSink: 'minimal'`):
+ *   die Telegram-Nachricht enthält nur Projekt, Art/Betreff, `lead.paket`, Zeitstempel, Origin.
  * @property {string} [deliveryError] – Wenn gesetzt: Mail-Zustellung schlug fehl (z.B.
  *   fehlende Env-Var). Lead wird trotzdem mit Warn-Header gesendet (Alarm + kein Lead-Verlust).
  */
@@ -91,6 +95,21 @@ function esc(s = '') {
 function formatTelegramMessage(lead, ctx) {
   const project = esc(lead.project || 'unknown');
   const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+
+  // Datenschutz-Modus: keine Personendaten, keine IP, kein UA, keine Freitextfelder.
+  if (ctx.minimal) {
+    const art = lead.kind === 'waitlist' ? '📋 *Warteliste*'
+      : lead.kind === 'rueckruf' ? '📞 *Rückruf*'
+        : lead.kind === 'empfehlung' ? '🤝 *Empfehlung*'
+          : '🆕 *Anfrage*';
+    const min = [ctx.deliveryError
+      ? `⚠️ *ZUSTELLUNG FEHLGESCHLAGEN* · ${project}\n_${esc(ctx.deliveryError)}_`
+      : `${art} · ${project}`];
+    if (lead.subject) min.push(`*Betreff:* ${esc(lead.subject)}`);
+    if (lead.paket) min.push(`*Paket:* ${esc(lead.paket.slice(0, 80))}`);
+    min.push('', `_${esc(stamp + ' UTC')} · ${esc(ctx.origin || '')}_`, 'Details im Postfach');
+    return min.join('\n').slice(0, 1024);
+  }
 
   // Briefing-Form bekommt eine kompakte eigene Darstellung (≤200 Zeichen Pflicht aus CRIT-2).
   if (lead.kind === 'briefing-form') {
