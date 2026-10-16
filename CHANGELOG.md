@@ -22,6 +22,27 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## Unreleased
+
+**Feature:** `createContactHandler` — `extraFields`, `requireConsent`, `confirmation` (alle optional)
+
+Kontext: Bestellseite `/pakete/bestellen` (blitzsicht.com) braucht eine Bestätigungsmail an den
+Absender, zusätzliche Formularfelder und eine Einwilligungsprüfung, ohne eigene Route (Entscheidung 16.10.2026).
+Ohne die neuen Optionen verhält sich der Handler unverändert.
+
+- `extraFields: string[]` — Whitelist zusätzlicher Body-Felder (Strings, getrimmt, je max. 2000 Zeichen);
+  "Feld: Wert"-Block in der Postfach-Mail in Whitelist-Reihenfolge, Teil des Spam-Haystacks.
+  Nicht in Telegram-Push und Conversion-Store.
+- `requireConsent: boolean` — `body.consent` muss `true`/`"on"`/`"true"` sein, sonst 400.
+- `confirmation: { subject, text(fields), replyTo? }` — Text-Mail an `body.email` nach erfolgreicher
+  Postfach-Mail. Kein Bcc, kein zweiter Telegram-/Conversion-/GlitchTip-Eintrag, nur mit angegebener
+  E-Mail (Rückruf ohne Adresse: keine Bestätigung). Fehler → `console.error` ohne Secrets, Antwort bleibt 200.
+  Honeypot, Spam-Drop und fehlgeschlagene Turnstile-Prüfung erreichen sie nie.
+- `buildLeadEmail`: optionales `extraFields`.
+- Tests: `tests/api/contact-handler-bestaetigung.test.js` (16 Tests).
+
+---
+
 ## v0.174.0 (2026-10-15)
 
 **Feature:** `Vorbestellung` — fixierte Leiste mit Anruf-Knopf (`anrufHref`, `anrufLabel`)

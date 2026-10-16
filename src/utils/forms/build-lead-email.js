@@ -33,6 +33,7 @@ const FOOTER_LINK = 'https://blitzsicht.com';
  * @property {string} [leadCallbackSlot] – gewünschtes Rückruf-Zeitfenster (formType="rueckruf")
  * @property {string} [leadEmpfohlen] – Vorname oder Firma der empfohlenen Person (formType="empfehlung")
  * @property {Record<string, string>} [leadAttribution] – gclid + utm_* (Ad-Herkunft)
+ * @property {Array<[string, string]>} [extraFields] – zusätzliche "Label: Wert"-Paare (Reihenfolge bleibt)
  * @property {string}  subject       – Betreff der Lead-Mail (intern)
  */
 
@@ -101,6 +102,7 @@ export function buildLeadEmail(input) {
     leadCallbackSlot = '',
     leadEmpfohlen = '',
     leadAttribution = undefined,
+    extraFields = [],
     subject,
   } = input;
 
@@ -146,6 +148,10 @@ export function buildLeadEmail(input) {
     textLines.push('Nachricht:');
     textLines.push(leadMessage);
   }
+  if (extraFields.length) {
+    textLines.push('');
+    for (const [label, value] of extraFields) textLines.push(`${label}: ${value}`);
+  }
   if (attributionRows.length) {
     textLines.push('');
     textLines.push('Herkunft (Kampagne):');
@@ -187,6 +193,7 @@ export function buildLeadEmail(input) {
   if (safeLeadStudio) rows.push(detailRow('Studio', safeLeadStudio));
   if (safeLeadWebsite) rows.push(detailRow('Website', safeLeadWebsite));
   if (leadEmpfohlen) rows.push(detailRow('Empfohlen', escapeHtml(leadEmpfohlen)));
+  for (const [label, value] of extraFields) rows.push(detailRow(label, escapeHtml(value).replace(/\n/g, '<br>')));
 
   const messageBlock = safeLeadMessage
     ? `
