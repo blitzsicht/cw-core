@@ -67,6 +67,7 @@ import {
 import { lintRenderEntropy } from './render-entropy-check.js';
 import { geotagDist } from './geotag.js';
 import { ogProSeite } from './og-pages.js';
+import { vorschauBasis, seitenMitFremdemOgHost } from '../../utils/vorschau-basis.js';
 import { resolveBildHerkunft, istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
 import { pruefeVerzeichnis as pruefeBlogStandard } from '../../blog-standard/blog-check.js';
 import { walkImages, BUDGET_EXT } from './geotag-core.js';
@@ -4064,6 +4065,34 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             if (options.strictOgPerPage === true) throw e;
             logger.warn(
               `og-pages: unerwarteter Fehler (${e instanceof Error ? e.message : String(e)}) — übersprungen.`,
+            );
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Link-Vorschau in der Pre-Sale-Phase: og:image auf dem Vorschau-Host?
+        // -------------------------------------------------------------------
+        // BaseLayout setzt die Tags seit cw-core#175 auf den Vorschau-Host. Diese Prüfung
+        // fängt, was daran vorbeiläuft: eigene Layouts (gympanzen `Layout.astro`) und
+        // jeden späteren Rückfall. Am 19.10.2026 zeigten 6 von 6 Vorschauen auf die
+        // Kundendomain, und niemand sah es, bis die Kundin eine Kachel ohne Bild bekam.
+        // Nur eine Warnung, weil der Build daran nichts kaputt macht; der harte Guard am
+        // echten Referenten (Tag lesen, URL abrufen) läuft nach dem Deploy in cw-site-vorschau.
+        const vorschau = vorschauBasis();
+        if (vorschau) {
+          try {
+            const fremd = await seitenMitFremdemOgHost(distDir, vorschau);
+            if (fremd.length > 0) {
+              const hosts = [...new Set(fremd.map((t) => t.host))].join(', ');
+              logger.warn(
+                `Link-Vorschau: ${fremd.length} Seite(n) zeigen mit og:image auf ${hosts} statt auf ` +
+                  `${vorschau} (z. B. ${fremd[0].seite}). In der Vorschau ist das ein Bild, das nicht ` +
+                  `lädt — die WhatsApp-Kachel bleibt leer. Siehe cw-core#175.`,
+              );
+            }
+          } catch (e) {
+            logger.warn(
+              `Link-Vorschau-Prüfung: unerwarteter Fehler (${e instanceof Error ? e.message : String(e)}) — übersprungen.`,
             );
           }
         }

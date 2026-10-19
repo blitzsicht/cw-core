@@ -38,6 +38,7 @@
  *   </BaseLayout>
  */
 import SchemaOrg from '../components/seo/SchemaOrg.astro';
+import { vorschauBasis } from '../utils/vorschau-basis.js';
 import '@/styles/tokens.css';
 
 export interface SchemaProps {
@@ -252,7 +253,17 @@ if (!resolvedOgImage) {
 const resolvedTitleTemplate = titleTemplate ?? (siteName ? `%s | ${siteName}` : '%s');
 const pageTitle = title ? resolvedTitleTemplate.replace('%s', title) : defaultTitle;
 const canonical = canonicalUrl ?? new URL(Astro.url.pathname, siteUrl).toString();
-const ogImageUrl = new URL(resolvedOgImage, siteUrl).toString();
+// Link-Vorschau-Tags (og:url, og:image, twitter:image) auf den Host, der die Seite gerade
+// ausliefert. In der Pre-Sale-Vorschau ist das `customer-<slug>.vercel.app`, nicht die
+// Kundendomain: dort lief bei LeVia und Haarwerk noch die alte Seite, og:image war 404 und
+// die WhatsApp-Kachel ohne Bild (6 von 6 Vorschauen, cw-core#175). canonical, hreflang und
+// Schema bleiben auf `siteUrl` — die Vorschau ist noindex, und Domain-Guard wie
+// Schema-Linter prüfen weiter gegen die spätere Domain. Ein explizites `canonicalUrl`
+// gewinnt auch hier, ausser in der Vorschau. og-pages.js baut das erzeugte Bild aus
+// og:url und folgt damit von selbst.
+const vorschau = vorschauBasis();
+const ogUrl = vorschau ? new URL(Astro.url.pathname, vorschau).toString() : canonical;
+const ogImageUrl = new URL(resolvedOgImage, vorschau ?? siteUrl).toString();
 
 // Build-Guard (Review 2026-07-02): first-party plausibleScript OHNE plausibleEndpoint
 // → das Tracker-Script postet an seinen absoluten Endpoint (cross-origin) statt first-party,
@@ -290,7 +301,7 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
         Abs. 5 AI Act). Die Offenlegung ergaenzt `og-pages.js` nach dem Build — siehe
         `utils/og-alt.js`; hier steht nur die Grundzeile. */}
     <meta property="og:image:alt" content={ogImageAlt ?? resolvedDescription} />
-    <meta property="og:url" content={canonical} />
+    <meta property="og:url" content={ogUrl} />
     <meta property="og:type" content={ogType} />
     <meta property="og:locale" content={ogLocale} />
     {/* og:site_name fehlte flottenweit — bei JEDEM Kunden, gemessen 27.08.2026 an
