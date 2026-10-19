@@ -43,10 +43,21 @@ dunklen Verlauf mit weißem Text, ProcessSteps nur das Kartenraster.
 - `ProcessSteps` — `layout: 'raster' | 'weg'` (Default `raster`). `weg` rendert eine `<ol>`: je Schritt
   eine Zeile mit großem Bild (4:3) und Text, Seiten im Wechsel, gepunktete Linie zum nächsten Schritt;
   unter 760 px einspaltig, Bild oben. `columns` wirkt dort nicht. KI-Kennzeichnung wie im Raster.
+- `Header` — heller Header über Token: `--color-header-text` (Logo-Text, Hover, Hamburger; Default
+  `white`), `--color-header-link` (Nav-Links; Default `rgba(255,255,255,0.85)`), `--color-header-line` /
+  `--color-header-line-strong` (Trennlinien) und `--header-shadow`. Bisher waren Schrift, Links und
+  Hamburger fest weiß; ein heller `--color-header-bg` ergab weiße Schrift auf hellem Grund. Kontrast der
+  Nav-Links auf dem eigenen Grund messen (AA 4,5 : 1). Für den Header das farbige Logo als
+  `logoSrcDark` übergeben. Der `<noscript>`-Stil bleibt unverändert (Markup, Byte-Vergleich).
+- `CTABlock` — `--cta-bg` (Fläche oder Verlauf; Default der bisherige Primärfarben-Verlauf) und
+  `--cta-text` (Default weiß). Der Outline-Button ist global weiß und wird auf hellem Grund von der
+  Site gestylt. Anlass: LeVia, Sprachnachricht 19.10. („die erste Seite in diesem ganz dunklen Grün
+  gefällt mir gar nicht … etwas Cremefarbenes“).
 
 Tests: `tests/blocks/hero-backdrop.test.js` (+6), `tests/blocks/process-steps-weg.test.js` (7, neu),
-`tests/labelfarbe.test.js` (+3). Sabotage-Gegenprobe: Klasse bzw. Aufhellung bzw. `istWeg` ausgeschaltet
-→ 2 bzw. 5 Tests rot.
+`tests/labelfarbe.test.js` (+3), `tests/blocks/header-cta-hell.test.js` (6, neu). Sabotage-Gegenprobe:
+Klasse bzw. Aufhellung bzw. `istWeg` ausgeschaltet → 2 bzw. 5 Tests rot; Hamburger fest weiß → 2 rot,
+CTA-Verlauf ohne Token → 1 rot.
 
 Bewusst ohne `[kunde]`-Zeile: reine Opt-ins, kein bestehender Kunde setzt sie; der Pin-Bump ändert an
 keiner Website etwas.
