@@ -177,6 +177,13 @@ export const GOAL_SEMANTICS_CHANGES = [
     version: 'v0.154.0',
     note: 'Der Karte-laden-Button trug zusaetzlich data-cta und feuerte doppelt (Map Load + CTA Click).',
   },
+  // Bewusst hinter dem v0.154.0-Eintrag: `ruleSinceVersion` nimmt den ersten Treffer je
+  // Event, Regel B bleibt so ab v0.154.0 scharf. Weniger Absendungen verletzen B nicht.
+  {
+    event: 'Form Submit',
+    version: 'v0.176.0',
+    note: 'Bots im Honeypot melden seitdem Form Bot statt Form Submit (blitzsicht-ops#968). Werte davor enthalten Bot-Absendungen — auf blitzsicht.com waren es 4 von 4.',
+  },
 ];
 
 export const ENGAGEMENT_IGNORE = [
@@ -191,6 +198,9 @@ export const ENGAGEMENT_IGNORE = [
   // eventsWithoutGoal() in plausible-reconcile.mjs meldete es bei jeder Site
   // mit Karte als Luecke. Bewusst kein Goal: eine Karte anzusehen ist kein Lead.
   'Map Load',
+  // Seit v0.176.0: Honeypot-Treffer im ContactForm (blitzsicht-ops#968). Bewusst kein
+  // Goal — ein Bot ist kein Lead; ohne Eintrag meldete eventsWithoutGoal() ihn als Lücke.
+  'Form Bot',
 ];
 
 /**

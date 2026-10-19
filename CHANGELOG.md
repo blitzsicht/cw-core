@@ -64,6 +64,33 @@ keiner Website etwas.
 
 **Migrations-Hinweis:** Keiner.
 
+## v0.176.0 (2026-10-19)
+
+- [kunde] Automatische Spam-Absendungen zählen in der Besucherstatistik nicht mehr als Kontaktanfrage.
+
+**Fix:** ContactForm meldet Honeypot-Treffer als `Form Bot` statt `Form Submit` (cw-core#173, blitzsicht-ops#968)
+
+Kontext: Der contact-handler antwortet bei einem Honeypot-Treffer bewusst `200 {ok:true}`, damit der
+Bot nichts merkt. ContactForm wertete das als Erfolg und meldete `Form Submit status=success`. Flotten-Scan
+der Vercel-Logs vom 06. bis 19.10.2026: 504 von 519 erfolgreichen Kontakt-POSTs waren Honeypot-Treffer
+(97 %), digital-direkt 196 von 201. Die echte Zahl (15) deckt sich mit den Lead-Mails im LEAD_BCC-Postfach.
+
+- `src/utils/forms/submit-meldung.js`: `honeypotGefuellt(formData)` (gleiche Bedingung wie der Server:
+  `botcheck || url_honey`) und `submitMeldung(antwortOk, honeypot)` → `{ event, status }`. Ein Bot meldet
+  immer `Form Bot`, auch wenn der Server ihn mit einem Fehler abweist.
+- Eigenes Event statt nur `status: 'bot'`, weil das Plausible-Ziel „Form Submit" jeden Status mitzählt.
+- Antwort an den Bot und Danke-Anzeige bleiben unverändert.
+- `scripts/onboard/plausible-goals.mjs`: GOAL_SEMANTICS-Eintrag `Form Submit` ab v0.176.0 (hinter dem
+  v0.154.0-Eintrag, Regel B bleibt scharf) und `Form Bot` in ENGAGEMENT_IGNORE (kein Goal, keine Lücke).
+- Bekannte Lücke: Absendungen, die erst der Inhaltsfilter (Spam-Wörter, Links) im Server verwirft, zählen
+  weiter als Erfolg, weil der Browser den Filter nicht kennt (`docs/standard-ablaeufe.md`).
+
+Guard-Pin `site-checks.yml` → v0.176.0.
+
+**Migrations-Hinweis:** Keiner. Werte von „Form Submit" vor dem Pin-Bump enthalten Bot-Absendungen.
+
+---
+
 ## v0.175.0 (2026-10-16)
 
 **Feature:** `createContactHandler` — `extraFields`, `requireConsent`, `confirmation` (alle optional)

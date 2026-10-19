@@ -536,6 +536,7 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
 
 <script>
   import { track } from '../../utils/analytics/track';
+  import { honeypotGefuellt, submitMeldung } from '../../utils/forms/submit-meldung.js';
 
   // Ad-Attribution: aktuelle URL-Parameter cookielos persistieren (Standalone-Fall:
   // Formular direkt auf einer ?gclid-Landing, ohne dass PlausibleEvents zuvor lief).
@@ -613,6 +614,9 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
       if (error) error.hidden = true;
       if (errorDetail) { errorDetail.textContent = ''; errorDetail.hidden = true; }
       form.dataset.submitting = 'true';
+      // Honeypot vor dem Absenden lesen: der Server antwortet einem Bot still mit ok,
+      // gemeldet wird er als `Form Bot`, nicht als Conversion (blitzsicht-ops#968).
+      const bot = honeypotGefuellt(new FormData(form));
 
       try {
         const data = new FormData(form);
@@ -638,7 +642,8 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
           (form as HTMLElement).hidden = true;
           if (success) success.hidden = false;
           formSubmitted = true;
-          track('Form Submit', { type: formType, status: 'success' });
+          const m = submitMeldung(true, bot);
+          track(m.event, { type: formType, status: m.status });
         } else {
           // Meldung des eigenen Endpoints (contact-handler: deutsch, für Besucher formuliert)
           // nur bei 400/429 zeigen — dort hilft sie („Telefonnummer ist ungültig.“, „Zu viele
@@ -656,7 +661,8 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
         if (btnLoading) btnLoading.hidden = true;
         if (error) error.hidden = false;
         delete form.dataset.submitting;
-        track('Form Submit', { type: formType, status: 'error' });
+        const m = submitMeldung(false, bot);
+        track(m.event, { type: formType, status: m.status });
       }
     });
   });
