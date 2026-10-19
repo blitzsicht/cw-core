@@ -17,7 +17,8 @@ Quellen: `src/components/forms/ContactForm.astro` (Browser), `src/api/contact-ha
 | Server lehnt ab (400, z. B. „Telefonnummer ist ungültig") | Fehlerbox mit **der Meldung des Servers**, darunter „Etwas ist schiefgelaufen. Bitte schreiben Sie uns direkt an …" mit `mailto:`; wird vorgelesen (`role="alert"`) | **bleiben**, Button wieder aktiv | `Form Submit` `status: error` |
 | Versand scheitert (Resend lehnt ab → 400 „Email konnte nicht gesendet werden.“; nicht erreichbar → 500 ohne Meldung) | Fehlerbox, bei 500 nur der allgemeine Text; der Lead geht mit Hinweis „manuell bearbeiten" an Telegram (falls konfiguriert) | **bleiben** | `Form Submit` `status: error` |
 | Zu viele Anfragen (429, Standard 3 je 10 min je IP) | Fehlerbox mit „Zu viele Anfragen. Bitte später erneut versuchen.“ | bleiben | `status: error` |
-| Spam-Verdacht (Honeypot, Inhaltsfilter) | **Erfolgsmeldung** — bewusst, Bots sollen nichts lernen | — | `status: success` |
+| Honeypot ausgefüllt (Bot) | **Erfolgsmeldung** — bewusst, Bots sollen nichts lernen | — | `Form Bot` statt `Form Submit` (der Browser prüft die Felder vor dem Absenden, blitzsicht-ops#968) |
+| Inhaltsfilter schlägt an (Spam-Wörter, Links) | **Erfolgsmeldung** — bewusst | — | `status: success` — Lücke: der Browser kennt den Filter nicht, solche Absendungen zählen weiter als Erfolg |
 | Kein JavaScript | Normales HTML-POST an den Endpoint; die Antwort ist die rohe JSON-Antwort des Servers (? ungeprüft im Browser) | — | — |
 | Kein Formular-Backend konfiguriert | Statt Formular: „Kontaktieren Sie uns direkt per E-Mail" + Adresse | — | — |
 | Besucher verlässt die Seite mitten im Ausfüllen | — | — | `Form Abandoned` |
