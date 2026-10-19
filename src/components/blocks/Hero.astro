@@ -225,7 +225,8 @@ interface Props {
    *
    * Der Verlauf bleibt ueber `--hero-backdrop-overlay` / `--hero-backdrop-overlay-mobile`
    * steuerbar; nur der Rueckfallwert ist im hellen Ton weiss statt primaerfarben. Die
-   * KI-Kennzeichnung misst den Schleier als weisse Ueberlagerung.
+   * KI-Kennzeichnung misst den Schleier als weisse Ueberlagerung. Unter 901 px steht das
+   * Bild oben als eigener Block (`--hero-hell-bild-hoehe`, Default 50vh), der Text darunter.
    * Ohne `layout="backdrop"` wirkungslos.
    *
    * Anlass: levia-therapiezentrum, Redesign 19.10.2026 („Hier wird es hell.“ auf dem
@@ -833,7 +834,9 @@ const collagenLabel = hasImages
    * Weisser Schleier, dunkler Text. Die Selektoren tragen `.hero--backdrop-hell`
    * zusaetzlich zur Grundregel, damit sie deren feste Weisstoene sicher schlagen. */
   .hero--backdrop-hell {
-    background: var(--color-surface, #ffffff);
+    /* Weiss, nicht --color-surface: auf dem Handy liegt der Text unter dem Bild auf
+       diesem Grund, und der Schleier blendet dorthin aus (levia: Surface ist Mint). */
+    background: #ffffff;
     color: var(--hero-hell-text, var(--color-text, #1a1a1a));
   }
   .hero--backdrop-hell .hero-backdrop-overlay {
@@ -900,14 +903,25 @@ const collagenLabel = hasImages
         )
       );
     }
+    /* Heller Ton schmal: Bild oben als eigener Block (Hoehe `--hero-hell-bild-hoehe`,
+       Default 50vh), Text darunter auf Weiss. Ein weisser Schleier ueber dem ganzen
+       Hero liess das Motiv verschwinden — gemessen an levia 19.10.2026 bei 390 px: im
+       hohen, schmalen Ausschnitt stand oben nur die Decke, das Motiv lag unter dem Text. */
+    .hero--backdrop.hero--backdrop-hell {
+      padding-top: calc(var(--hero-hell-bild-hoehe, 50vh) - 2.5rem);
+    }
+    .hero--backdrop-hell .hero-backdrop {
+      bottom: auto;
+      height: var(--hero-hell-bild-hoehe, 50vh);
+    }
     .hero--backdrop-hell .hero-backdrop-overlay {
       background: var(
         --hero-backdrop-overlay-mobile,
         linear-gradient(
           180deg,
-          rgba(255, 255, 255, 0.7) 0%,
-          rgba(255, 255, 255, 0.9) 50%,
-          rgba(255, 255, 255, 0.97) 100%
+          rgba(255, 255, 255, 0) 0%,
+          rgba(255, 255, 255, 0) 65%,
+          rgba(255, 255, 255, 1) 100%
         )
       );
     }

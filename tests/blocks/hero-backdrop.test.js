@@ -118,4 +118,7 @@ test('backdropTon="hell": dunkle Textfarben über Tokens im ausgelieferten CSS',
   assert.match(stil, /\.hero--backdrop-hell \.hero-sub,\s*\.hero--backdrop-hell \.hero-usp-item \{\s*color: var\(--hero-hell-text/);
   // Beide Verläufe (breit und schmal) haben im hellen Ton einen weissen Rückfallwert.
   assert.equal((stil.match(/\.hero--backdrop-hell \.hero-backdrop-overlay \{\s*background: var\(\s*--hero-backdrop-overlay(-mobile)?,\s*linear-gradient\(\s*\d+deg,\s*rgba\(255, 255, 255/g) || []).length, 2);
+  // Schmal: Bild oben als eigener Block, Text darunter (nicht Text auf weiss verschleiertem Bild).
+  assert.match(stil, /\.hero--backdrop-hell \.hero-backdrop \{\s*bottom: auto;\s*height: var\(--hero-hell-bild-hoehe, 50vh\);/);
+  assert.match(stil, /\.hero--backdrop\.hero--backdrop-hell \{\s*padding-top: calc\(var\(--hero-hell-bild-hoehe, 50vh\) - 2\.5rem\);/);
 });

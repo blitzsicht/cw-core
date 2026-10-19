@@ -34,6 +34,8 @@ dunklen Verlauf mit weißem Text, ProcessSteps nur das Kartenraster.
   das Bild und setzt den Text dunkel: Überschrift `--hero-hell-heading` (Default `--color-primary`),
   Text `--hero-hell-text` (Default `--color-text`), Badge, Trennlinie und Outline-Button passend. Der
   Verlauf bleibt über `--hero-backdrop-overlay` / `-mobile` steuerbar, nur der Rückfallwert ist weiß.
+  Unter 901 px steht das Bild oben als eigener Block (`--hero-hell-bild-hoehe`, Default 50vh), der
+  Text darunter auf Weiß — Text auf weiß verschleiertem Bild ließ das Motiv verschwinden.
   Ohne `layout="backdrop"` oder ohne Bild wirkungslos (Byte-Vergleich gegen v0.170.0).
 - `labelFarbeFuerBild` / `bildLabel` — `ueberlagerungFarbe: 'schwarz' | 'weiss'`. Ein weißer Schleier
   hellt den Grund auf (`L·(1−a)+a`) statt ihn abzudunkeln; der Hero übergibt es im hellen Ton.
