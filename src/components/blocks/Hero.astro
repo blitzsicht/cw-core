@@ -287,7 +287,7 @@ const bildDaten = { bildHerkunft };
    dichtesten, ~0.85 Deckkraft) — die Farbmessung muss das wissen, sonst waehlt sie die
    Fassung fuer das helle Rohbild. */
 const heroLabel = hasImage
-  ? await bildLabel(bildDaten, image ?? imageSrc, istBackdrop ? { ueberlagerung: 0.85, ueberlagerungFarbe: istHell ? 'weiss' : 'schwarz' } : undefined)
+  ? await bildLabel(bildDaten, image ?? imageSrc, istBackdrop ? { ueberlagerung: 0.85, ueberlagerungFarbe: istHell ? ('weiss' as const) : ('schwarz' as const) } : undefined)
   : null;
 const collagenLabel = hasImages
   ? await Promise.all(images!.slice(0, 3).map((img) => bildLabel(bildDaten, img.src)))

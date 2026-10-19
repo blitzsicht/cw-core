@@ -10,11 +10,13 @@ export interface LabelFarbeBereich {
   anteilBreite?: number;
   /** Höhe des Messfelds als Anteil der Bildhöhe. Standard 0.22. */
   anteilHoehe?: number;
-  /**
-   * Deckkraft der dunklen Schicht zwischen Bild und Label, 0 (keine) bis 1.
-   * Nur dunkle Überlagerungen — für helle Schleier ist die Rechnung eine andere.
-   */
+  /** Deckkraft der Schicht zwischen Bild und Label, 0 (keine) bis 1. */
   ueberlagerung?: number;
+  /**
+   * Farbe dieser Schicht (v0.177.0): `'schwarz'` (Standard) dunkelt ab, `'weiss'` hellt auf
+   * (Hero `backdropTon="hell"`). Farbige Schleier werden bewusst nicht unterstützt.
+   */
+  ueberlagerungFarbe?: 'schwarz' | 'weiss';
 }
 
 /** Entscheidungsregel über einer bereits gemessenen Luminanz (0..1). */
