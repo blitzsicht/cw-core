@@ -118,3 +118,46 @@ test('ueberlagerung: Unsinn wird zu 0, nicht zu einem Fehler oder einer Verzerru
   // Über 1 wird geklemmt: alles verdeckt → dunkel → weiss.
   assert.equal(await labelFarbeFuerBild(p, { ueberlagerung: 5 }), 'weiss');
 });
+
+// --- weiße Überlagerung (Hero backdropTon="hell", v0.177.0) ---------------------
+
+test('ueberlagerungFarbe weiss kippt die Entscheidung in die andere Richtung — dunkles Bild, schwarzes Badge', async (t) => {
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { unlink } = await import('node:fs/promises');
+  const p = join(tmpdir(), `cw-labelfarbe-weiss-${process.pid}.webp`);
+  await testbild(p, 10); // dunkel
+  t.after(() => unlink(p).catch(() => {}));
+
+  // Ohne Schleier und mit dunklem Schleier: weisses Badge.
+  assert.equal(await labelFarbeFuerBild(p), 'weiss');
+  assert.equal(await labelFarbeFuerBild(p, { ueberlagerung: 0.85 }), 'weiss');
+  // Mit weissem Schleier gleicher Deckkraft: der Grund ist hell → schwarzes Badge.
+  assert.equal(await labelFarbeFuerBild(p, { ueberlagerung: 0.85, ueberlagerungFarbe: 'weiss' }), 'schwarz');
+});
+
+test('ueberlagerungFarbe ohne Deckkraft aendert nichts', async (t) => {
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { unlink } = await import('node:fs/promises');
+  const p = join(tmpdir(), `cw-labelfarbe-weiss0-${process.pid}.webp`);
+  await testbild(p, 10);
+  t.after(() => unlink(p).catch(() => {}));
+  assert.equal(await labelFarbeFuerBild(p, { ueberlagerungFarbe: 'weiss' }), 'weiss');
+});
+
+test('ueberlagerungFarbe: unbekannter Wert rechnet wie Schwarz', async (t) => {
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { unlink } = await import('node:fs/promises');
+  const p = join(tmpdir(), `cw-labelfarbe-weissx-${process.pid}.webp`);
+  await testbild(p, 245);
+  t.after(() => unlink(p).catch(() => {}));
+  for (const farbe of ['rot', undefined, 42]) {
+    assert.equal(
+      await labelFarbeFuerBild(p, { ueberlagerung: 0.9, ueberlagerungFarbe: /** @type {any} */ (farbe) }),
+      'weiss',
+      `Farbe: ${String(farbe)}`,
+    );
+  }
+});

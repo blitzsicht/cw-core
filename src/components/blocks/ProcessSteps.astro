@@ -11,6 +11,10 @@
  * Opt-in seit v0.171.0: `items[].image` zeigt statt des Symbols ein Bild oben in der
  * Karte, `bildHerkunft` setzt daran die KI-Kennzeichnung, `numberStyle="solid"` malt
  * die grosse Ziffer gefuellt statt als Kontur.
+ *
+ * Opt-in seit v0.177.0: `layout="weg"` erzaehlt die Schritte als Weg — je Schritt eine
+ * Zeile mit grossem Bild, abwechselnd links und rechts, verbunden durch eine gepunktete
+ * Linie. Fuer echte Abfolgen mit Fotos (Anfahrt, erster Besuch), nicht fuer Feature-Listen.
  */
 import { Image } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
@@ -61,6 +65,17 @@ interface Props {
    * `reports/2026-10-08-ziffer-2/`.
    */
   numberStyle?: 'outline' | 'solid';
+  /**
+   * Anordnung, opt-in seit v0.177.0. `raster` (Default) ist das bisherige Kartenraster.
+   * `weg` setzt jeden Schritt in eine eigene Zeile: Bild (4:3, gross) und Text
+   * nebeneinander, die Seiten wechseln von Zeile zu Zeile, eine gepunktete Linie fuehrt
+   * zum naechsten Schritt. Unter 760 px einspaltig, Bild oben. `columns` wirkt hier nicht.
+   * Schritte ohne `image` zeigen ihr Symbol in einer Flaeche gleicher Groesse.
+   *
+   * Anlass: levia-therapiezentrum, Redesign 19.10.2026 („Der Weg zu uns“: Schild,
+   * Windfang, Eingang, Therapieraum — die Angst vor dem ersten Termin nehmen).
+   */
+  layout?: 'raster' | 'weg';
 }
 
 const {
@@ -70,7 +85,9 @@ const {
   columns,
   bildHerkunft,
   numberStyle = 'outline',
+  layout = 'raster',
 } = Astro.props;
+const istWeg = layout === 'weg';
 
 /* Je Schritt einmal im Frontmatter aufgeloest — `bildLabel` ist asynchron. */
 const bildDaten = { bildHerkunft };
@@ -103,6 +120,24 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
       <p class="section-subheading">{subheading}</p>
     </div>
 
+    {istWeg ? (
+    <ol class={`weg${numberStyle === 'solid' ? ' nr-solid' : ''}`}>
+      {items.map((step, idx) => (
+        <li class="weg-schritt">
+          <div class="weg-bild">
+            {step.image
+              ? <><Image src={step.image} alt={step.imageAlt ?? ''} role={step.imageAlt ? undefined : 'presentation'} widths={[480, 720, 960, 1200]} sizes="(max-width: 759px) 100vw, 55vw" loading="lazy" format="webp" class="weg-img" />{schrittLabel[idx] && <AiLabelAmBild ergebnis={schrittLabel[idx]!.ergebnis} theme={schrittLabel[idx]!.theme} />}</>
+              : <div class="weg-symbol" aria-hidden="true">{step.icon}</div>}
+          </div>
+          <div class="weg-text">
+            <span class="weg-nr" aria-hidden="true">{step.nr}</span>
+            <h3>{step.title}</h3>
+            <p>{step.desc}</p>
+          </div>
+        </li>
+      ))}
+    </ol>
+    ) : (
     <div class={`steps${smartColumns ? ` cols-${smartColumns}` : ''}${numberStyle === 'solid' ? ' nr-solid' : ''}`}>
       {items.map((step, idx) => (
         <div class="step" data-step-nr={step.nr}>
@@ -116,6 +151,7 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
         </div>
       ))}
     </div>
+    )}
   </div>
 </section>
 )}
@@ -210,5 +246,49 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
 
   @media (min-width: 1100px) {
     .steps.cols-5 { grid-template-columns: repeat(5, 1fr); }
+  }
+
+  /* --- Weg (opt-in `layout="weg"`, v0.177.0) ------------------------------
+   * Liste statt Raster: die Reihenfolge ist Inhalt, deshalb <ol>. Die Ziffer steht
+   * als eigenes Element (aria-hidden, die Liste zaehlt fuer Screenreader selbst). */
+  .weg { list-style: none; margin: 0; padding: 0; display: grid; gap: 3.5rem; }
+  .weg-schritt { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; position: relative; }
+  .weg-bild {
+    position: relative;
+    container-type: inline-size;
+    border-radius: 1.125rem;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    background: var(--color-surface);
+  }
+  .weg-img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .weg-symbol { display: grid; place-items: center; height: 100%; font-size: 4rem; }
+  .weg-nr {
+    display: block;
+    font-size: clamp(3.5rem, 7vw, 6rem);
+    font-weight: 900;
+    line-height: 0.85;
+    color: transparent;
+    -webkit-text-stroke: 2px var(--color-primary);
+    opacity: 0.55;
+  }
+  .weg.nr-solid .weg-nr { color: var(--color-primary); -webkit-text-stroke: 0; opacity: 0.25; }
+  .weg-text h3 { margin: 1rem 0 0.5rem; font-size: clamp(1.4rem, 2.6vw, 1.9rem); line-height: 1.15; }
+  .weg-text p { margin: 0; font-size: 1.1rem; line-height: 1.6; max-width: 36ch; }
+
+  @media (min-width: 760px) {
+    .weg { gap: 6rem; }
+    .weg-schritt { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 4rem; align-items: center; }
+    .weg-schritt:nth-child(even) { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+    .weg-schritt:nth-child(even) .weg-bild { order: 2; }
+    /* Gepunktete Linie zum naechsten Schritt, mittig in der Luecke. */
+    .weg-schritt:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 100%;
+      height: 6rem;
+      border-left: 3px dotted color-mix(in srgb, var(--color-primary) 35%, transparent);
+    }
   }
 </style>

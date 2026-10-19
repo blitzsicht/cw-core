@@ -79,3 +79,43 @@ test('usps[].iconSvg: Symbol als Maske statt Zeichen', async () => {
   assert.match(html, /<span class="usp-icon usp-icon-svg" style="--usp-icon:url\('\/icons\/schere\.svg'\)" aria-hidden="true"><\/span>/);
   assert.match(html, /<span class="usp-icon" aria-hidden="true">◷<\/span>/);
 });
+
+// --- backdropTon="hell" (v0.177.0, Anlass levia-therapiezentrum 19.10.2026) -----------
+
+test('backdropTon="hell": eigene Klasse zusätzlich zum Backdrop', async () => {
+  const html = await render({ ...FAELLE.heroSplitImageSrc.props, layout: 'backdrop', backdropTon: 'hell' });
+  assert.match(html, /class="hero hero--backdrop hero--backdrop-hell"/);
+  assert.match(html, /<div class="hero-backdrop-overlay" aria-hidden="true"><\/div>/);
+});
+
+test('Gegenprobe: backdropTon="dunkel" und ohne Angabe rendern identisch, ohne helle Klasse', async () => {
+  const ohne = await render({ ...FAELLE.heroSplitImageSrc.props, layout: 'backdrop' });
+  const dunkel = await render({ ...FAELLE.heroSplitImageSrc.props, layout: 'backdrop', backdropTon: 'dunkel' });
+  assert.equal(dunkel, ohne);
+  assert.doesNotMatch(ohne, /hero--backdrop-hell/);
+});
+
+test('backdropTon="hell" ohne layout="backdrop": wirkungslos, Split Byte für Byte wie v0.170.0', async () => {
+  const html = await render({ ...FAELLE.heroSplitImageSrc.props, backdropTon: 'hell' });
+  assert.equal(html, GOLDEN.heroSplitImageSrc);
+});
+
+test('backdropTon="hell" ohne Bild: bleibt der reine Verlauf', async () => {
+  const html = await render({ ...FAELLE.heroOhneBild.props, layout: 'backdrop', backdropTon: 'hell' });
+  assert.equal(html, GOLDEN.heroOhneBild);
+});
+
+test('backdropTon: unbekannter Wert fällt auf dunkel zurück', async () => {
+  const html = await render({ ...FAELLE.heroSplitImageSrc.props, layout: 'backdrop', backdropTon: 'pastell' });
+  assert.match(html, /class="hero hero--backdrop"/);
+  assert.doesNotMatch(html, /hero--backdrop-hell/);
+});
+
+test('backdropTon="hell": dunkle Textfarben über Tokens im ausgelieferten CSS', () => {
+  const quelle = readFileSync(resolve(import.meta.dirname, '../..', HERO), 'utf8');
+  const stil = quelle.slice(quelle.indexOf('<style>'));
+  assert.match(stil, /\.hero--backdrop-hell \.hero-content :global\(\.hero-title\) \{\s*color: var\(--hero-hell-heading, var\(--color-primary\)\);/);
+  assert.match(stil, /\.hero--backdrop-hell \.hero-sub,\s*\.hero--backdrop-hell \.hero-usp-item \{\s*color: var\(--hero-hell-text/);
+  // Beide Verläufe (breit und schmal) haben im hellen Ton einen weissen Rückfallwert.
+  assert.equal((stil.match(/\.hero--backdrop-hell \.hero-backdrop-overlay \{\s*background: var\(\s*--hero-backdrop-overlay(-mobile)?,\s*linear-gradient\(\s*\d+deg,\s*rgba\(255, 255, 255/g) || []).length, 2);
+});

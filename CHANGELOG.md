@@ -22,6 +22,35 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## Unreleased
+
+**Feature (opt-in):** heller Backdrop-Hero und Weg-Anordnung für Schritte
+
+Anlass: levia-therapiezentrum, Redesign 19.10.2026. Gewählte Richtung „Hier wird es hell.“ auf dem
+lichtdurchfluteten Therapieraum, darunter „Der Weg zu uns“ in vier Fotos. Der Backdrop kannte nur den
+dunklen Verlauf mit weißem Text, ProcessSteps nur das Kartenraster.
+
+- `Hero` — `backdropTon: 'dunkel' | 'hell'` (Default `dunkel`). `hell` legt einen weißen Schleier über
+  das Bild und setzt den Text dunkel: Überschrift `--hero-hell-heading` (Default `--color-primary`),
+  Text `--hero-hell-text` (Default `--color-text`), Badge, Trennlinie und Outline-Button passend. Der
+  Verlauf bleibt über `--hero-backdrop-overlay` / `-mobile` steuerbar, nur der Rückfallwert ist weiß.
+  Ohne `layout="backdrop"` oder ohne Bild wirkungslos (Byte-Vergleich gegen v0.170.0).
+- `labelFarbeFuerBild` / `bildLabel` — `ueberlagerungFarbe: 'schwarz' | 'weiss'`. Ein weißer Schleier
+  hellt den Grund auf (`L·(1−a)+a`) statt ihn abzudunkeln; der Hero übergibt es im hellen Ton.
+  Unbekannte Werte rechnen wie Schwarz.
+- `ProcessSteps` — `layout: 'raster' | 'weg'` (Default `raster`). `weg` rendert eine `<ol>`: je Schritt
+  eine Zeile mit großem Bild (4:3) und Text, Seiten im Wechsel, gepunktete Linie zum nächsten Schritt;
+  unter 760 px einspaltig, Bild oben. `columns` wirkt dort nicht. KI-Kennzeichnung wie im Raster.
+
+Tests: `tests/blocks/hero-backdrop.test.js` (+6), `tests/blocks/process-steps-weg.test.js` (7, neu),
+`tests/labelfarbe.test.js` (+3). Sabotage-Gegenprobe: Klasse bzw. Aufhellung bzw. `istWeg` ausgeschaltet
+→ 2 bzw. 5 Tests rot.
+
+Bewusst ohne `[kunde]`-Zeile: reine Opt-ins, kein bestehender Kunde setzt sie; der Pin-Bump ändert an
+keiner Website etwas.
+
+**Migrations-Hinweis:** Keiner.
+
 ## v0.175.0 (2026-10-16)
 
 **Feature:** `createContactHandler` — `extraFields`, `requireConsent`, `confirmation` (alle optional)
