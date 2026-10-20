@@ -1,6 +1,6 @@
 {
   "name": "@cw/core",
-  "version": "0.176.0",
+  "version": "0.178.0",
   "type": "module",
   "description": "Shared Astro components, layouts and styles for Blitzsicht customer websites",
   "main": "src/index.ts",
@@ -62,6 +62,10 @@
     "./utils/og-alt": {
       "types": "./src/utils/og-alt.d.ts",
       "default": "./src/utils/og-alt.js"
+    },
+    "./utils/vorschau-basis": {
+      "types": "./src/utils/vorschau-basis.d.ts",
+      "default": "./src/utils/vorschau-basis.js"
     },
     "./utils/pruefhinweis": {
       "types": "./src/utils/pruefhinweis.d.ts",

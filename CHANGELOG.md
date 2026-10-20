@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## Unreleased
+## v0.178.0 (2026-10-20)
 
 **Feature (opt-in):** heller Backdrop-Hero und Weg-Anordnung für Schritte
 
@@ -59,10 +59,40 @@ Tests: `tests/blocks/hero-backdrop.test.js` (+6), `tests/blocks/process-steps-we
 Klasse bzw. Aufhellung bzw. `istWeg` ausgeschaltet → 2 bzw. 5 Tests rot; Hamburger fest weiß → 2 rot,
 CTA-Verlauf ohne Token → 1 rot.
 
-Bewusst ohne `[kunde]`-Zeile: reine Opt-ins, kein bestehender Kunde setzt sie; der Pin-Bump ändert an
-keiner Website etwas.
+Keine `[kunde]`-Zeile: reine Opt-ins (`backdropTon`, `layout: 'weg'`, `ueberlagerungFarbe`, die neuen
+Header- und CTA-Token). Ihre Defaults entsprechen dem bisherigen Verhalten, und kein Live-Kunde setzt sie;
+der Pin-Bump ändert an keiner Live-Website etwas. Nutzer ist bisher nur die LeVia-Vorschau ohne Vertrag.
 
 **Migrations-Hinweis:** Keiner.
+
+---
+
+## v0.177.0 (2026-10-19)
+
+**Fix:** Link-Vorschau der Pre-Sale-Vorschauen zeigt auf den Vorschau-Host (cw-core#175, #176)
+
+Kontext: In der Vorschauphase standen `og:url`, `og:image` und `twitter:image` absolut auf
+`siteData.url`, der späteren Kundendomain. Dort lief noch die alte Seite oder gar nichts. Die
+WhatsApp-Kachel zur LeVia-Vorschau blieb deshalb leer. Gemessen am 19.10.2026: 6 von 6 Vorschauen
+kaputt (404, 301 oder Domain nicht erreichbar).
+
+- `src/utils/vorschau-basis.js` (Export `@cw/core/utils/vorschau-basis`): `vorschauBasis()` gibt
+  `https://<VERCEL_PROJECT_PRODUCTION_URL>` zurück, solange der Host auf `.vercel.app` endet, sonst
+  `null`. Das ist dieselbe Regel wie der Vercel-Abgleich im Domain-Guard.
+- `BaseLayout`: Nur die drei Link-Vorschau-Tags nehmen diese Basis. `canonical`, `hreflang` und Schema
+  bleiben auf `siteUrl`. `og-pages` folgt `og:url`.
+- Go-Live ohne Handgriff: Sobald die Domain am Vercel-Projekt hängt, liefert Vercel sie selbst, und der
+  nächste Build zeigt wieder auf die Kundendomain.
+- `ai-discovery`: In der Vorschauphase kommt eine Warnung, wenn ein `og:image` im dist auf einen
+  fremden Host zeigt. Das deckt auch eigene Layouts ab.
+
+Keine `[kunde]`-Zeile: Live-Kunden mit eigener Domain sehen keinen Unterschied, betroffen sind nur
+Vorschauen ohne Vertrag.
+
+**Migrations-Hinweis:** Keiner. Der Guard am echten Referenten (`customer-websites/scripts/check-og-erreichbar.mjs`)
+ist Pflichtschritt in `cw-site-vorschau`.
+
+---
 
 ## v0.176.0 (2026-10-19)
 
