@@ -35,7 +35,7 @@
 
 import { readFileSync, writeFileSync, existsSync, copyFileSync, mkdirSync } from 'node:fs';
 import { join, basename, dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { istDirektAufruf } from './lib/direkt-aufruf.mjs';
 import { execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
@@ -361,6 +361,6 @@ async function main() {
   }
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (istDirektAufruf(import.meta.url)) {
   await main();
 }

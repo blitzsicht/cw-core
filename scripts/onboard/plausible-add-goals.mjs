@@ -26,7 +26,7 @@
  * Prod-Schreibvorgang ohne Rückweg). Er entfernt exakt dieselben Goals, die derselbe
  * Aufruf ohne --remove angelegt hätte — nicht mehr.
  */
-import { fileURLToPath } from 'node:url';
+import { istDirektAufruf } from '../lib/direkt-aufruf.mjs';
 import { CORE_GOALS, OPTIONAL_GOALS, QUALITY_GOALS, FUNNEL_GOALS, SITE_GOALS } from './plausible-goals.mjs';
 import {
   DEFAULT_HOST, DEFAULT_KEY, PG_CONTAINER, sqlEscape, remoteQuery, remoteWrite,
@@ -221,6 +221,6 @@ function main() {
 }
 
 // Nur ausführen, wenn direkt aufgerufen — nicht beim Import aus dem Test.
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (istDirektAufruf(import.meta.url)) {
   main();
 }

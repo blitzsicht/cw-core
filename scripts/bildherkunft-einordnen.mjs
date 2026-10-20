@@ -49,7 +49,8 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join, resolve } from 'node:path';
+import { istDirektAufruf } from './lib/direkt-aufruf.mjs';
+import { dirname, join } from 'node:path';
 
 const HIER = dirname(fileURLToPath(import.meta.url));
 const ZIEL = join(HIER, 'bildherkunft-vorschlaege.json');
@@ -218,7 +219,7 @@ export function ordneEin(slug, bild) {
 }
 
 // --- Lauf -------------------------------------------------------------------
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (istDirektAufruf(import.meta.url)) {
   const argWert = (n, f = null) => {
     const i = process.argv.indexOf(n);
     return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : f;

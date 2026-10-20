@@ -23,7 +23,7 @@
  * (maschinenlesbar — der onboard-site-Skill reicht sie an wire-site-analytics weiter).
  */
 import { randomBytes } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { istDirektAufruf } from '../lib/direkt-aufruf.mjs';
 import {
   DEFAULT_HOST, DEFAULT_KEY, PG_CONTAINER, TIMEZONE, TEAM_ID,
   sshOpts, remoteQuery, remoteWrite,
@@ -130,6 +130,6 @@ function main() {
 }
 
 // Nur ausführen, wenn direkt aufgerufen — nicht beim Import (Reconcile/Test).
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (istDirektAufruf(import.meta.url)) {
   main();
 }
