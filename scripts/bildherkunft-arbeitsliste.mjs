@@ -23,8 +23,9 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
-import { join, relative, dirname, basename, sep, resolve } from 'node:path';
+import { join, relative, dirname, basename, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { istDirektAufruf } from './lib/direkt-aufruf.mjs';
 import { execFileSync } from 'node:child_process';
 import { TAG_DENY_RE } from '../src/integrations/ai-discovery/geotag-core.js';
 import { registryPfad } from './registry-pfad.mjs';
@@ -184,7 +185,7 @@ const esc = (s) =>
 
 // Nur beim direkten Aufruf laufen — damit die reinen Helfer (alsLiteral, regelZeile)
 // importiert und getestet werden können, ohne dass die Flotte gescannt wird.
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (istDirektAufruf(import.meta.url)) {
   const sites = ladeSites();
   if (!sites.length) {
     console.error('Keine Sites gefunden. --site/--lifecycle prüfen.');

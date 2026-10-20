@@ -27,8 +27,8 @@
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, statSync } from 'node:fs';
-import { join, relative, extname, basename, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, relative, extname, basename } from 'node:path';
+import { istDirektAufruf } from './lib/direkt-aufruf.mjs';
 import { registryPfad } from './registry-pfad.mjs';
 
 const REGISTRY = registryPfad();
@@ -202,8 +202,7 @@ function dynamischeFundstellen(inhalte, wert) {
 // --- Lauf -------------------------------------------------------------------
 // Nur beim direkten Aufruf scannen — damit `imBuild` importiert und geprüft werden kann,
 // ohne die ganze Flotte zu durchsuchen (Muster wie in bildherkunft-arbeitsliste.mjs).
-const direktAufgerufen =
-  process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+const direktAufgerufen = istDirektAufruf(import.meta.url);
 if (!direktAufgerufen) {
   // als Modul geladen: nichts weiter tun
 } else {
