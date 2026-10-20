@@ -212,6 +212,13 @@ export function extractResources(html, file = 'html') {
         break;
     }
 
+    // data-embed-src="…" → frame-src: Click-to-load-Embeds (MapEmbed) legen das iframe
+    // erst nach dem Klick per Skript an. Im ausgelieferten HTML steht nur das Ziel im
+    // data-Attribut — ohne diese Zeile sah der Output-Check das iframe nie, und eine CSP
+    // ohne www.openstreetmap.org baute grün, während „Karte laden“ live geblockt wurde
+    // (brotzeithaeusl, levia, arnold-lang, 20.10.2026).
+    if (attrs['data-embed-src']) push('frame-src', attrs['data-embed-src']);
+
     // style="…" → style-src-attr
     if (attrs.style) {
       out.push({ type: 'attr', directive: 'style-src-attr', where });

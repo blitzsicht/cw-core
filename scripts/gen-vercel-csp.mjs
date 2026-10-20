@@ -15,8 +15,13 @@
  * aber der empfohlene Generator-Lauf änderte nichts (Vorfall 23.07.2026).
  *
  *   node node_modules/@cw/core/scripts/gen-vercel-csp.mjs --service googleMaps
+ *
+ * Nutzt `src/` den Block MapEmbed (`<MapEmbed`), wird `osm` automatisch ergänzt —
+ * auch ohne `--service`. Anlass: brotzeithaeusl, levia und arnold-lang setzten
+ * MapEmbed ein, die CSP kannte www.openstreetmap.org nicht, „Karte laden“ blieb
+ * geblockt; der Generator meldete „bereits konform“ (Alte-Linde-Bau, 20.10.2026).
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fixCsp, HOSTS } from '../src/integrations/ai-discovery/csp-build.js';
 
@@ -28,7 +33,8 @@ const SERVICE_DIRECTIVE = {
   cal: 'frame-src',
   turnstile: 'frame-src',
   vercelToolbar: 'frame-src',
-  osm: 'img-src',
+  // Das MapEmbed-iframe (www.openstreetmap.org). Stand bis 20.10.2026 auf img-src.
+  osm: 'frame-src',
 };
 
 /** Fügt einen Dienst-Host in die passende Direktive ein (idempotent).
@@ -76,6 +82,32 @@ if (svcIdx !== -1) {
 
 const root = args[0] || process.cwd();
 const vj = join(root, 'vercel.json');
+
+/** Blöcke, deren Einsatz im Quelltext einen Dienst-Host zwingend macht. */
+const BLOCK_SERVICE = [{ re: /<MapEmbed\b/, service: 'osm', block: 'MapEmbed' }];
+const SRC_EXT = /\.(astro|mdx?|[cm]?[jt]sx?)$/;
+
+/** Sucht in `src/` nach Blöcken aus BLOCK_SERVICE. @param {string} dir @returns {Array<{ service: string, block: string, file: string }>} */
+function blockServices(dir) {
+  /** @type {Array<{ service: string, block: string, file: string }>} */
+  const hits = [];
+  const walk = (d) => {
+    for (const e of readdirSync(d, { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+      const p = join(d, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (SRC_EXT.test(e.name)) {
+        const text = readFileSync(p, 'utf-8');
+        for (const b of BLOCK_SERVICE) {
+          if (b.re.test(text) && !hits.some((h) => h.service === b.service)) hits.push({ ...b, file: p });
+        }
+      }
+    }
+  };
+  if (existsSync(join(dir, 'src'))) walk(join(dir, 'src'));
+  return hits;
+}
+
 if (!existsSync(vj)) {
   console.log('gen-vercel-csp: keine vercel.json — skip.');
   process.exit(0);
@@ -116,6 +148,12 @@ const cspValues = extractCspValuesFromVercelJson(raw);
 if (cspValues.length === 0) {
   console.log('gen-vercel-csp: keine CSP in vercel.json — skip.');
   process.exit(0);
+}
+
+for (const hit of blockServices(root)) {
+  if (services.includes(hit.service)) continue;
+  services.push(hit.service);
+  console.log(`gen-vercel-csp: ${hit.block} in ${hit.file.slice(root.length + 1)} → Dienst '${hit.service}' wird ergänzt.`);
 }
 
 let out = raw;
