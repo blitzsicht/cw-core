@@ -22,6 +22,38 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.179.0 (2026-10-20)
+
+- [kunde] Die Karte auf der Kontaktseite lädt nach dem Klick auf „Karte laden“ wieder zuverlässig; der Browser hatte sie bei einigen Seiten blockiert.
+
+**Fix:** MapEmbed-iframe in `frame-src`, Output-Check sieht Click-to-load-Embeds (#182, blitzsicht-ops#975)
+
+Kontext: „Karte laden“ wurde bei brotzeithaeusl, levia-therapiezentrum und arnold-lang vom Browser
+geblockt, weil `frame-src` www.openstreetmap.org nicht kannte. Der Build war trotzdem grün: der
+CSP-Output-Check sah das erst nach dem Klick erzeugte iframe nicht. Die drei Seiten sind per
+Repo-Fix bereits korrigiert (je PR „fix(csp): www.openstreetmap.org in frame-src“).
+
+- Dienst `osm` führt jetzt `frame-src https://www.openstreetmap.org` statt `img-src tile.openstreetmap.org`
+  (buildCsp, gen-vercel-csp, csp-drift-report). Die Kacheln lädt das iframe-Dokument selbst.
+- `html-resources` wertet `data-embed-src` als `frame-src`. Fehlt der Host in der CSP, bricht der Build
+  jetzt am bestehenden harten Output-Check ab.
+- `gen-vercel-csp` ergänzt `osm` automatisch, wenn `src/` `<MapEmbed` enthält.
+
+**Fix:** Direktaufruf symlink-fest (#183, blitzsicht-ops#983)
+
+Kontext: `node node_modules/@cw/core/scripts/bild-einbauen.mjs …` endete mit Exit 0 und leerem Log,
+ohne ein Bild abzulegen. Der Direktaufruf-Check verglich den realpath unter `.pnpm` mit dem
+Symlink-Pfad aus `process.argv[1]`, `main()` lief nie. Betroffen waren sechs Skripte
+(bild-einbauen, bildherkunft-einordnen, -arbeitsliste, -verwendung, onboard/plausible-add-goals,
+-add-site); alle nutzen jetzt `scripts/lib/direkt-aufruf.mjs`. Guard: `direkt-aufruf.test.mjs` scannt
+`scripts/` auf den unsicheren Vergleich.
+
+**Migrations-Hinweis:** Keiner für Seiten mit OSM in `frame-src`. Eine Seite mit `<MapEmbed>` ohne
+www.openstreetmap.org in `frame-src` baut ab dieser Version rot: `node node_modules/@cw/core/scripts/gen-vercel-csp.mjs`
+ausführen und `vercel.json` committen.
+
+---
+
 ## v0.178.0 (2026-10-20)
 
 **Feature (opt-in):** heller Backdrop-Hero und Weg-Anordnung für Schritte
