@@ -22,6 +22,51 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.178.0 (2026-10-20)
+
+**Feature (opt-in):** heller Backdrop-Hero und Weg-Anordnung für Schritte
+
+Anlass: levia-therapiezentrum, Redesign 19.10.2026. Gewählte Richtung „Hier wird es hell.“ auf dem
+lichtdurchfluteten Therapieraum, darunter „Der Weg zu uns“ in vier Fotos. Der Backdrop kannte nur den
+dunklen Verlauf mit weißem Text, ProcessSteps nur das Kartenraster.
+
+- `Hero` — `backdropTon: 'dunkel' | 'hell'` (Default `dunkel`). `hell` legt einen weißen Schleier über
+  das Bild und setzt den Text dunkel: Überschrift `--hero-hell-heading` (Default `--color-primary`),
+  Text `--hero-hell-text` (Default `--color-text`), Badge, Trennlinie und Outline-Button passend. Der
+  Verlauf bleibt über `--hero-backdrop-overlay` / `-mobile` steuerbar, nur der Rückfallwert ist weiß.
+  Unter 901 px steht das Bild oben als eigener Block (`--hero-hell-bild-hoehe`, Default 50vh), der
+  Text darunter auf Weiß — Text auf weiß verschleiertem Bild ließ das Motiv verschwinden.
+  Ohne `layout="backdrop"` oder ohne Bild wirkungslos (Byte-Vergleich gegen v0.170.0).
+- `labelFarbeFuerBild` / `bildLabel` — `ueberlagerungFarbe: 'schwarz' | 'weiss'`. Ein weißer Schleier
+  hellt den Grund auf (`L·(1−a)+a`) statt ihn abzudunkeln; der Hero übergibt es im hellen Ton.
+  Unbekannte Werte rechnen wie Schwarz.
+- `ProcessSteps` — `layout: 'raster' | 'weg'` (Default `raster`). `weg` rendert eine `<ol>`: je Schritt
+  eine Zeile mit großem Bild (4:3) und Text, Seiten im Wechsel, gepunktete Linie zum nächsten Schritt;
+  unter 760 px einspaltig, Bild oben. `columns` wirkt dort nicht. KI-Kennzeichnung wie im Raster.
+- `Header` — heller Header über Token: `--color-header-text` (Logo-Text, Hover, Hamburger; Default
+  `white`), `--color-header-link` (Nav-Links; Default `rgba(255,255,255,0.85)`), `--color-header-line` /
+  `--color-header-line-strong` (Trennlinien) und `--header-shadow`. Bisher waren Schrift, Links und
+  Hamburger fest weiß; ein heller `--color-header-bg` ergab weiße Schrift auf hellem Grund. Kontrast der
+  Nav-Links auf dem eigenen Grund messen (AA 4,5 : 1). Für den Header das farbige Logo als
+  `logoSrcDark` übergeben. Der `<noscript>`-Stil bleibt unverändert (Markup, Byte-Vergleich).
+- `CTABlock` — `--cta-bg` (Fläche oder Verlauf; Default der bisherige Primärfarben-Verlauf) und
+  `--cta-text` (Default weiß). Der Outline-Button ist global weiß und wird auf hellem Grund von der
+  Site gestylt. Anlass: LeVia, Sprachnachricht 19.10. („die erste Seite in diesem ganz dunklen Grün
+  gefällt mir gar nicht … etwas Cremefarbenes“).
+
+Tests: `tests/blocks/hero-backdrop.test.js` (+6), `tests/blocks/process-steps-weg.test.js` (7, neu),
+`tests/labelfarbe.test.js` (+3), `tests/blocks/header-cta-hell.test.js` (6, neu). Sabotage-Gegenprobe:
+Klasse bzw. Aufhellung bzw. `istWeg` ausgeschaltet → 2 bzw. 5 Tests rot; Hamburger fest weiß → 2 rot,
+CTA-Verlauf ohne Token → 1 rot.
+
+Keine `[kunde]`-Zeile: reine Opt-ins (`backdropTon`, `layout: 'weg'`, `ueberlagerungFarbe`, die neuen
+Header- und CTA-Token). Ihre Defaults entsprechen dem bisherigen Verhalten, und kein Live-Kunde setzt sie;
+der Pin-Bump ändert an keiner Live-Website etwas. Nutzer ist bisher nur die LeVia-Vorschau ohne Vertrag.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.177.0 (2026-10-19)
 
 **Fix:** Link-Vorschau der Pre-Sale-Vorschauen zeigt auf den Vorschau-Host (cw-core#175, #176)

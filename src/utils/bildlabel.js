@@ -65,8 +65,9 @@ export function publicFsPath(src) {
  * @param {string|{src?: string, fsPath?: string}|null|undefined} bild
  *   Astro-`ImageMetadata` (`fsPath` nutzt die Farbmessung, `src` die Auflösung) — oder
  *   ein public-URL-String, dessen Datei über {@link publicFsPath} gesucht wird.
- * @param {{ueberlagerung?: number}} [optionen]
+ * @param {{ueberlagerung?: number, ueberlagerungFarbe?: 'schwarz'|'weiss'}} [optionen]
  *   `ueberlagerung`: Deckkraft dessen, was zwischen Bild und Label liegt (0–1).
+ *   `ueberlagerungFarbe`: Farbe dieser Schicht, `'schwarz'` (Standard) oder `'weiss'`.
  *   Ohne diesen Wert wird das nackte Bild gemessen — also nicht das, worauf das
  *   Badge tatsächlich sitzt.
  * @returns {Promise<BildLabel|null>}  `null`, wenn kein Label zu setzen ist.

@@ -20,5 +20,5 @@ export function publicFsPath(src: unknown): string | null;
 export function bildLabel(
   daten: { bildHerkunft?: unknown[] } | null | undefined,
   bild: string | { src?: string; fsPath?: string } | null | undefined,
-  optionen?: { ueberlagerung?: number },
+  optionen?: { ueberlagerung?: number; ueberlagerungFarbe?: 'schwarz' | 'weiss' },
 ): Promise<BildLabel | null>;

@@ -71,19 +71,24 @@ export function farbeFuerLuminanz(luminanzDesBereichs) {
  * `rgba(0,0,0,.78)` → `.42`) kippt dadurch zwar keine der zehn Entscheidungen — die Werte
  * liegen weit von der Schwelle —, bei einem schwächeren Verlauf oder Grenzfällen aber sehr wohl.
  *
- * **Nur dunkle Überlagerungen.** Der Faktor rechnet `L × (1 − ueberlagerung)`, also den Fall
- * „Schwarz mit Deckkraft darüber". Für einen hellen Schleier wäre die Rechnung eine andere;
- * sie wird bewusst nicht unterstützt, statt still falsch zu rechnen.
+ * **Farbe der Überlagerung.** Standard ist Schwarz: `L × (1 − ueberlagerung)`. Für einen
+ * weißen Schleier (Hero `backdropTon="hell"`, v0.177.0) `ueberlagerungFarbe: 'weiss'`:
+ * `L × (1 − ueberlagerung) + ueberlagerung`. Farbige Schleier bleiben bewusst außen vor,
+ * statt still falsch zu rechnen. Ein unbekannter Wert fällt auf Schwarz zurück.
  *
  * @param {string} dateipfad  absoluter Pfad zur ausgelieferten Bilddatei
- * @param {{anteilBreite?: number, anteilHoehe?: number, ueberlagerung?: number}} [bereich]
+ * @param {{anteilBreite?: number, anteilHoehe?: number, ueberlagerung?: number, ueberlagerungFarbe?: 'schwarz'|'weiss'}} [bereich]
  *   `anteilBreite`/`anteilHoehe`: Ausschnitt — Standard linke untere Ecke, 34 % × 22 %.
- *   `ueberlagerung`: Deckkraft der dunklen Schicht zwischen Bild und Label, 0 (keine) bis 1.
+ *   `ueberlagerung`: Deckkraft der Schicht zwischen Bild und Label, 0 (keine) bis 1.
+ *   `ueberlagerungFarbe`: `'schwarz'` (Standard) oder `'weiss'`.
  * @returns {Promise<'schwarz'|'weiss'>}
  */
 export async function labelFarbeFuerBild(dateipfad, bereich = {}) {
-  const { anteilBreite = 0.34, anteilHoehe = 0.22, ueberlagerung = 0 } = bereich;
-  const daempfung = 1 - Math.min(1, Math.max(0, Number.isFinite(ueberlagerung) ? ueberlagerung : 0));
+  const { anteilBreite = 0.34, anteilHoehe = 0.22, ueberlagerung = 0, ueberlagerungFarbe = 'schwarz' } = bereich;
+  const deckkraft = Math.min(1, Math.max(0, Number.isFinite(ueberlagerung) ? ueberlagerung : 0));
+  const daempfung = 1 - deckkraft;
+  // Weißer Schleier: dieselbe Dämpfung des Bildes, plus der Anteil Weiß (Luminanz 1).
+  const aufhellung = ueberlagerungFarbe === 'weiss' ? deckkraft : 0;
   try {
     const { default: sharp } = await import('sharp');
     const bild = sharp(dateipfad);
@@ -108,7 +113,7 @@ export async function labelFarbeFuerBild(dateipfad, bereich = {}) {
     if (!n) return 'schwarz';
     // Die Dämpfung gehört vor die Entscheidungsregel, nicht hinein: `farbeFuerLuminanz`
     // bleibt damit eine reine Funktion über der Luminanz und für sich testbar.
-    return farbeFuerLuminanz((summe / n) * daempfung);
+    return farbeFuerLuminanz((summe / n) * daempfung + aufhellung);
   } catch {
     // Kein Werfen: siehe Kopfkommentar — der Build soll ein Label liefern, nicht scheitern.
     return 'schwarz';

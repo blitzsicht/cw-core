@@ -216,6 +216,23 @@ interface Props {
    * Bild im Page-Hero-Hintergrund, auf der ganzen Website“).
    */
   layout?: 'split' | 'backdrop';
+  /**
+   * Ton des Backdrops, opt-in seit v0.177.0. `dunkel` (Default) ist der Verlauf in der
+   * Primaerfarbe mit weissem Text. `hell` legt einen weissen Schleier ueber das Bild und
+   * setzt den Text dunkel: Ueberschrift in `--hero-hell-heading` (Default Primaerfarbe),
+   * Fliesstext in `--hero-hell-text` (Default `--color-text`). Fuer helle, lichte Motive,
+   * die unter einem farbigen Verlauf ihren Charakter verlieren.
+   *
+   * Der Verlauf bleibt ueber `--hero-backdrop-overlay` / `--hero-backdrop-overlay-mobile`
+   * steuerbar; nur der Rueckfallwert ist im hellen Ton weiss statt primaerfarben. Die
+   * KI-Kennzeichnung misst den Schleier als weisse Ueberlagerung. Unter 901 px steht das
+   * Bild oben als eigener Block (`--hero-hell-bild-hoehe`, Default 50vh), der Text darunter.
+   * Ohne `layout="backdrop"` wirkungslos.
+   *
+   * Anlass: levia-therapiezentrum, Redesign 19.10.2026 („Hier wird es hell.“ auf dem
+   * lichtdurchfluteten Therapieraum, Operator-Wahl Richtung 1).
+   */
+  backdropTon?: 'dunkel' | 'hell';
 }
 
 const {
@@ -239,6 +256,7 @@ const {
   motion,
   bildHerkunft,
   layout = 'split',
+  backdropTon = 'dunkel',
 } = Astro.props;
 
 // Symbol am Primär-CTA nach Link-Ziel: tel: → Telefon, sonst Briefumschlag wie bisher.
@@ -255,6 +273,7 @@ const tauscheVisual = visualSwap && hatVisual;
 /* Backdrop nur mit genau einem Bild und ohne visual-Slot — sonst gaebe es nichts bzw.
    zwei Dinge fuer die Flaeche hinter dem Text. */
 const istBackdrop = layout === 'backdrop' && hasImage && !hatVisual;
+const istHell = istBackdrop && backdropTon === 'hell';
 const motionCfg: HeroMotionConfig =
   motion === true
     ? { blob: true, textReveal: true, stagger: true, parallax: true, magnetic: true }
@@ -268,13 +287,13 @@ const bildDaten = { bildHerkunft };
    dichtesten, ~0.85 Deckkraft) — die Farbmessung muss das wissen, sonst waehlt sie die
    Fassung fuer das helle Rohbild. */
 const heroLabel = hasImage
-  ? await bildLabel(bildDaten, image ?? imageSrc, istBackdrop ? { ueberlagerung: 0.85 } : undefined)
+  ? await bildLabel(bildDaten, image ?? imageSrc, istBackdrop ? { ueberlagerung: 0.85, ueberlagerungFarbe: istHell ? ('weiss' as const) : ('schwarz' as const) } : undefined)
   : null;
 const collagenLabel = hasImages
   ? await Promise.all(images!.slice(0, 3).map((img) => bildLabel(bildDaten, img.src)))
   : [];
 ---
-<section class:list={['hero', (hasMedia || hatVisual) && !istBackdrop && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image', tauscheVisual && 'hero--visual-swap', istBackdrop && 'hero--backdrop']}>
+<section class:list={['hero', (hasMedia || hatVisual) && !istBackdrop && 'hero--split', hasImages && 'hero--collage', motionCfg.blob && 'hero--with-blob', hasImage && transparentImage && 'hero--transparent-image', tauscheVisual && 'hero--visual-swap', istBackdrop && 'hero--backdrop', istHell && 'hero--backdrop-hell']}>
   {motionCfg.blob && <AnimatedBlob opacity={0.85} blur="100px" />}{istBackdrop && (
     <div class="hero-backdrop">
       {image ? (
@@ -811,6 +830,50 @@ const collagenLabel = hasImages
     );
   }
 
+  /* --- Heller Backdrop (opt-in `backdropTon="hell"`, v0.177.0) -----------
+   * Weisser Schleier, dunkler Text. Die Selektoren tragen `.hero--backdrop-hell`
+   * zusaetzlich zur Grundregel, damit sie deren feste Weisstoene sicher schlagen. */
+  .hero--backdrop-hell {
+    /* Weiss, nicht --color-surface: auf dem Handy liegt der Text unter dem Bild auf
+       diesem Grund, und der Schleier blendet dorthin aus (levia: Surface ist Mint). */
+    background: #ffffff;
+    color: var(--hero-hell-text, var(--color-text, #1a1a1a));
+  }
+  .hero--backdrop-hell .hero-backdrop-overlay {
+    background: var(
+      --hero-backdrop-overlay,
+      linear-gradient(
+        100deg,
+        rgba(255, 255, 255, 0.95) 0%,
+        rgba(255, 255, 255, 0.88) 38%,
+        rgba(255, 255, 255, 0.4) 68%,
+        rgba(255, 255, 255, 0) 100%
+      )
+    );
+  }
+  .hero--backdrop-hell .hero-content :global(.hero-title) {
+    color: var(--hero-hell-heading, var(--color-primary));
+  }
+  .hero--backdrop-hell .hero-sub,
+  .hero--backdrop-hell .hero-usp-item {
+    color: var(--hero-hell-text, var(--color-text, #1a1a1a));
+  }
+  .hero--backdrop-hell .hero-badge {
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--hero-hell-heading, var(--color-primary));
+    border-color: color-mix(in srgb, var(--hero-hell-heading, var(--color-primary)) 35%, transparent);
+  }
+  .hero--backdrop-hell .hero-usps {
+    border-top-color: color-mix(in srgb, var(--hero-hell-text, var(--color-text, #1a1a1a)) 15%, transparent);
+  }
+  .hero--backdrop-hell .hero-cta .btn-outline {
+    color: var(--hero-hell-heading, var(--color-primary));
+    border-color: var(--hero-hell-heading, var(--color-primary));
+  }
+  .hero--backdrop-hell .hero-cta .btn-outline:hover {
+    background: color-mix(in srgb, var(--hero-hell-heading, var(--color-primary)) 8%, transparent);
+  }
+
   /* stylelint-disable-next-line plugin/no-max-width-media -- Legacy Desktop-First, TODO: refactor to Mobile-First */
   @media (max-width: 900px) {
     .hero--split .container {
@@ -837,6 +900,28 @@ const collagenLabel = hasImages
           color-mix(in srgb, var(--color-primary) 72%, transparent) 0%,
           color-mix(in srgb, var(--color-primary) 90%, transparent) 55%,
           var(--color-primary) 100%
+        )
+      );
+    }
+    /* Heller Ton schmal: Bild oben als eigener Block (Hoehe `--hero-hell-bild-hoehe`,
+       Default 50vh), Text darunter auf Weiss. Ein weisser Schleier ueber dem ganzen
+       Hero liess das Motiv verschwinden — gemessen an levia 19.10.2026 bei 390 px: im
+       hohen, schmalen Ausschnitt stand oben nur die Decke, das Motiv lag unter dem Text. */
+    .hero--backdrop.hero--backdrop-hell {
+      padding-top: calc(var(--hero-hell-bild-hoehe, 50vh) - 2.5rem);
+    }
+    .hero--backdrop-hell .hero-backdrop {
+      bottom: auto;
+      height: var(--hero-hell-bild-hoehe, 50vh);
+    }
+    .hero--backdrop-hell .hero-backdrop-overlay {
+      background: var(
+        --hero-backdrop-overlay-mobile,
+        linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0) 0%,
+          rgba(255, 255, 255, 0) 65%,
+          rgba(255, 255, 255, 1) 100%
         )
       );
     }
