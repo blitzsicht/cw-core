@@ -32,7 +32,7 @@ function inferFlags(map) {
     cal: has('app.cal.eu'),
     tally: has('tally.so'),
     youtube: has('www.youtube-nocookie.com'),
-    osm: has('tile.openstreetmap.org'),
+    osm: has('www.openstreetmap.org'),
     vercelToolbar: has('vercel.live'),
     inlineStyles: inlineIn('style-src-elem') || inlineIn('style-src'),
     inlineScripts: inlineIn('script-src-elem') || inlineIn('script-src'),

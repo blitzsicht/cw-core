@@ -107,6 +107,9 @@ test('buildCsp() neue Dienst-Flags landen in den richtigen Direktiven', () => {
   const csp = buildCsp(ORIGIN, { youtube: true, osm: true, vercelToolbar: true });
   const frame = csp.match(/frame-src ([^;]*)/)?.[1] ?? '';
   assert.ok(frame.includes('youtube-nocookie.com'), 'youtube gehört in frame-src');
-  assert.ok(csp.match(/img-src ([^;]*)/)?.[1].includes('openstreetmap.org'), 'osm gehört in img-src');
+  // osm = MapEmbed-iframe → frame-src. Bis 20.10.2026 stand hier „osm gehört in img-src“ —
+  // der Test schrieb den Fehler fest, der „Karte laden“ bei drei Kunden blockte.
+  assert.ok(frame.includes('https://www.openstreetmap.org'), 'osm gehört in frame-src');
+  assert.ok(!(csp.match(/img-src ([^;]*)/)?.[1] ?? '').includes('openstreetmap'), 'osm gehört nicht (mehr) in img-src');
   assert.ok(csp.match(/script-src-elem ([^;]*)/)?.[1].includes('vercel.live'), 'vercel.live gehört in script-src-elem');
 });

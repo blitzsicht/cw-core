@@ -33,7 +33,12 @@ export const HOSTS = {
   // Ergänzt 22.07.2026 aus dem Fleet-Ist-Stand — ohne diese Hosts kann buildCsp
   // die real gewachsenen CSPs nicht reproduzieren und taugt nicht als SSOT.
   youtube: 'https://www.youtube-nocookie.com',
-  osm: 'https://tile.openstreetmap.org',
+  // MapEmbed lädt nach Klick ein iframe von www.openstreetmap.org — der Host gehört in
+  // frame-src. Bis 20.10.2026 stand hier tile.openstreetmap.org (img-src): die Kacheln lädt
+  // aber das OSM-iframe-Dokument selbst, sie unterliegen nicht der Kunden-CSP. Folge:
+  // `--service osm` trug den falschen Host in die falsche Direktive ein, „Karte laden“
+  // blieb bei brotzeithaeusl, levia und arnold-lang geblockt (Alte-Linde-Bau, 20.10.2026).
+  osm: 'https://www.openstreetmap.org',
   vercelToolbar: 'https://vercel.live',
   // Ergänzt 23.07.2026: schiller-gartenbau.de/service/ liefert eine Maps-Embed-iframe
   // aus, die die eigene CSP live blockt (frame-src kannte nur self + turnstile). Ohne
@@ -79,8 +84,7 @@ export function buildCsp(siteOrigin, opts = {}) {
 
   const scriptHosts = pick(['plausible', 'turnstile', 'cal', 'tally', 'vercelToolbar']);
   const connectHosts = pick(['plausible', 'turnstile', 'cal', 'vercelToolbar']);
-  const frameHosts = pick(['turnstile', 'cal', 'tally', 'youtube', 'vercelToolbar', 'googleMaps']);
-  const imgHosts = pick(['osm']);
+  const frameHosts = pick(['turnstile', 'cal', 'tally', 'youtube', 'osm', 'vercelToolbar', 'googleMaps']);
   const script = [SELF, ...(inlineScripts ? ["'unsafe-inline'"] : []), ...scriptHosts].join(' ');
   const style = [SELF, ...(inlineStyles ? ["'unsafe-inline'"] : [])].join(' ');
 
@@ -90,7 +94,7 @@ export function buildCsp(siteOrigin, opts = {}) {
     `script-src-elem ${script}`,
     `style-src ${style}`,
     `style-src-elem ${style}`,
-    `img-src ${[SELF, 'data:', 'https:', ...imgHosts].join(' ')}`,
+    `img-src ${[SELF, 'data:', 'https:'].join(' ')}`,
     `font-src ${SELF}`,
     `connect-src ${[SELF, ...connectHosts].join(' ')}`,
     `media-src ${SELF}`,
