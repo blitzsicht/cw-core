@@ -22,11 +22,21 @@
  *   5. Leere Metadaten → keine Vorbelegung
  *   6. Einfügen hält die Datei gültig und die bestehenden Regeln unangetastet
  *   7. Einfügen erkennt einen bereits vorhandenen Eintrag
+ *   8-10. Ablage mit und ohne --assets
+ *   11-16. Urheberfelder: erkannt, nicht überdehnt, und der Einbau hält wirklich an
+ *
+ * Zu 11-16: Der Guard stammt aus einem echten Fall (spedition-steller, 23.10.2026). Ein
+ * Betrieb schickte 32 eigene Fuhrpark-Fotos; genau eines war die Aufnahme eines
+ * Berufsfotografen, erkennbar nur an `Artist`/IPTC-Copyright in den Metadaten. Weil
+ * `astro:assets` diese Felder beim Transform löscht, ist der Einbau die einzige Stelle,
+ * an der die Frage überhaupt noch gestellt werden kann. Test 15 ist die Gegenprobe zu
+ * 14 — dieselbe Datei ohne das Feld MUSS durchlaufen, sonst wäre der Guard nur eine
+ * Blockade, die immer blockiert.
  */
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { deuteMarker, einfuegen, NEUE_DATEI } from './bild-einbauen.mjs';
+import { deuteMarker, deuteUrheber, einfuegen, NEUE_DATEI } from './bild-einbauen.mjs';
 import { pruefeBildHerkunftRegeln, resolveBildHerkunft } from '../src/utils/bildherkunft.js';
 
 test('1. DigitalSourceType wird eindeutig gedeutet', () => {
@@ -160,6 +170,118 @@ test('10. Ende zu Ende: --assets legt unter src/assets ab und deklariert per ste
     const dekl = readFileSync(pjoin(repo, 'src', 'data', 'bild-herkunft.ts'), 'utf8');
     assert.match(dekl, /stem: 'empfang'/);
     assert.doesNotMatch(dekl, /pathPrefix: 'images\/empfang/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Urheberfelder (siehe Kopf, Punkte 11-16)
+// ---------------------------------------------------------------------------
+
+/** Gültiges 1x1-JPEG — exiftool schreibt nur in echte Bilddateien. */
+const JPEG_1X1 = Buffer.from(
+  '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a' +
+  'HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA' +
+  'AAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==', 'base64');
+
+const exiftoolDa = (() => {
+  try { execFileSync('exiftool', ['-ver'], { stdio: 'pipe' }); return true; } catch { return false; }
+})();
+
+test('11. Urheberfelder werden in EXIF, IPTC und XMP erkannt', () => {
+  const exif = deuteUrheber({ Artist: 'Stefan Kiefer', Copyright: 'mail@stefankkiefer.com' });
+  assert.equal(exif.gesetzt, true);
+  assert.equal(exif.felder.length, 2);
+  assert.deepEqual(exif.felder[0], { feld: 'Artist', wert: 'Stefan Kiefer' });
+
+  assert.equal(deuteUrheber({ 'By-line': 'Studio Muster' }).gesetzt, true);
+  assert.equal(deuteUrheber({ Creator: 'Fotograf X' }).gesetzt, true);
+  assert.equal(deuteUrheber({ ImageCreatorName: 'Agentur Y' }).gesetzt, true);
+});
+
+test('12. typische Handyaufnahme blockiert NICHT', () => {
+  // Der teure Fehler wäre hier: ein Guard, der bei jedem Kundenfoto anschlägt, wird
+  // nach dem dritten Mal durchgewinkt und schützt dann gar nichts mehr.
+  const handy = deuteUrheber({
+    Make: 'Apple', Model: 'iPhone 15', DateTimeOriginal: '2026:10:23 09:51:39',
+    Software: '17.5.1', DigitalSourceType: 'digitalCapture',
+  });
+  assert.equal(handy.gesetzt, false);
+  assert.equal(handy.felder.length, 0);
+  assert.equal(deuteUrheber({}).gesetzt, false);
+  assert.equal(deuteUrheber(null).gesetzt, false);
+});
+
+test('13. leere Werte zählen nicht als Urheber', () => {
+  assert.equal(deuteUrheber({ Artist: '', Copyright: '   ' }).gesetzt, false);
+});
+
+test('14. Ende zu Ende: mit fremdem Urheber wird NICHT eingebaut', { skip: !exiftoolDa && 'exiftool fehlt — NICHT GEPRÜFT, nicht grün' }, () => {
+  const root = mkdtempSync(pjoin(tmpdir(), 'bild-urheber-'));
+  try {
+    const repo = pjoin(root, 'customer-probe');
+    mkdirSync(pjoin(repo, 'src', 'data'), { recursive: true });
+    writeFileSync(pjoin(repo, 'src', 'data', 'site-data.ts'), "import { bildHerkunft } from './bild-herkunft';\n");
+    const quelle = pjoin(root, 'kran.jpg');
+    writeFileSync(quelle, JPEG_1X1);
+    execFileSync('exiftool', ['-overwrite_original', '-Artist=Stefan Kiefer',
+      '-Copyright=mail@stefankkiefer.com', quelle], { stdio: 'pipe' });
+
+    const skript = pjoin(pdirname(f2p(import.meta.url)), 'bild-einbauen.mjs');
+    const aus = execFileSync(process.execPath,
+      [skript, quelle, '--repo', repo, '--ziel', 'images/', '--assets', '--herkunft', 'mensch'],
+      { stdio: 'pipe', input: '', encoding: 'utf8' });
+
+    assert.ok(!existsSync(pjoin(repo, 'src', 'assets', 'images', 'kran.jpg')),
+      'Bild mit fremdem Urheber wurde trotzdem abgelegt');
+    assert.ok(!existsSync(pjoin(repo, 'src', 'data', 'bild-herkunft.ts')),
+      'Es wurde eine Deklaration für ein Bild geschrieben, das gar nicht eingebaut wurde');
+    assert.match(aus, /Stefan Kiefer/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('15. Gegenprobe zu 14: dieselbe Datei OHNE Urheberfeld läuft durch', { skip: !exiftoolDa && 'exiftool fehlt — NICHT GEPRÜFT, nicht grün' }, () => {
+  const root = mkdtempSync(pjoin(tmpdir(), 'bild-urheber-'));
+  try {
+    const repo = pjoin(root, 'customer-probe');
+    mkdirSync(pjoin(repo, 'src', 'data'), { recursive: true });
+    writeFileSync(pjoin(repo, 'src', 'data', 'site-data.ts'), "import { bildHerkunft } from './bild-herkunft';\n");
+    const quelle = pjoin(root, 'kran.jpg');
+    writeFileSync(quelle, JPEG_1X1);   // identisch zu Test 14, nur ohne exiftool-Schreiblauf
+
+    const skript = pjoin(pdirname(f2p(import.meta.url)), 'bild-einbauen.mjs');
+    execFileSync(process.execPath,
+      [skript, quelle, '--repo', repo, '--ziel', 'images/', '--assets', '--herkunft', 'mensch'],
+      { stdio: 'pipe', input: '' });
+
+    assert.ok(existsSync(pjoin(repo, 'src', 'assets', 'images', 'kran.jpg')),
+      'Ohne Urheberfeld blockiert der Guard trotzdem — dann schützt er nichts, er verhindert nur');
+    assert.match(readFileSync(pjoin(repo, 'src', 'data', 'bild-herkunft.ts'), 'utf8'), /stem: 'kran'/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('16. --urheber-ok baut trotz fremdem Urheber ein', { skip: !exiftoolDa && 'exiftool fehlt — NICHT GEPRÜFT, nicht grün' }, () => {
+  const root = mkdtempSync(pjoin(tmpdir(), 'bild-urheber-'));
+  try {
+    const repo = pjoin(root, 'customer-probe');
+    mkdirSync(pjoin(repo, 'src', 'data'), { recursive: true });
+    writeFileSync(pjoin(repo, 'src', 'data', 'site-data.ts'), "import { bildHerkunft } from './bild-herkunft';\n");
+    const quelle = pjoin(root, 'kran.jpg');
+    writeFileSync(quelle, JPEG_1X1);
+    execFileSync('exiftool', ['-overwrite_original', '-Artist=Stefan Kiefer', quelle], { stdio: 'pipe' });
+
+    const skript = pjoin(pdirname(f2p(import.meta.url)), 'bild-einbauen.mjs');
+    execFileSync(process.execPath,
+      [skript, quelle, '--repo', repo, '--ziel', 'images/', '--assets', '--herkunft', 'mensch', '--urheber-ok'],
+      { stdio: 'pipe', input: '' });
+
+    assert.ok(existsSync(pjoin(repo, 'src', 'assets', 'images', 'kran.jpg')),
+      '--urheber-ok wirkt nicht — dann gibt es keinen Weg an dem Guard vorbei, auch nicht mit Lizenz');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
