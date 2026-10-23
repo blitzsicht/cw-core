@@ -56,6 +56,7 @@ import { checkReviewClaims } from './review-claims-check.js';
 import { checkAntwortfrist } from './antwortfrist-check.js';
 import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
+import { pruefeSeite as pruefeFooterRechtsform } from './footer-rechtsform-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
 import {
   buildMarkerOwners,
@@ -543,6 +544,18 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * `seo.openingHours: []`; SchemaOrg.astro lässt die leere Liste still weg.
    */
   checkOpeningHours?: boolean;
+
+  /**
+   * Fußzeilen-Guard: meldet eine registerpflichtige Rechtsform, die als eigenes Segment
+   * neben dem Namen steht („© 2026 Ralf Steller · GmbH · Langquaid"). § 19 HGB verlangt
+   * den Zusatz IN der Firma; steht er daneben, ist der genannte Träger nicht die Firma.
+   * Auslöser spedition-steller 23.10.2026: Footer.astro bekam `legal.owner` — den
+   * Geschäftsführer — und hängte die Rechtsform der Person an. Default an.
+   */
+  checkFooterRechtsform?: boolean;
+
+  /** `true` bricht den Build ab, statt nur zu warnen. Default `false`. */
+  strictFooterRechtsform?: boolean;
   /**
    * Default FALSE (Soft-Warn-Start, opt-IN) → `true` bricht den Build ab.
    */
@@ -3832,6 +3845,48 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             }
           } else {
             logger.info('Öffnungszeiten-Guard: ✓ jeder LocalBusiness-Knoten trägt Öffnungszeiten.');
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Fußzeilen-Guard: Rechtsform als eigenes Segment neben dem Namen
+        // -------------------------------------------------------------------
+        // Auslöser 2026-10-23 (spedition-steller): „© 2026 Ralf Steller · GmbH ·
+        // Langquaid" — der Footer bekam `legal.owner`, also den Geschäftsführer, und
+        // hängte die Rechtsform einer natürlichen Person an. Gemessen wird das gebaute
+        // HTML, nicht siteData: die Footer-Werte kommen aus page-config.ts.
+        if (options.checkFooterRechtsform !== false) {
+          let zeilen = 0;
+          const befunde: { seite: string; zeile: string; rechtsform: string; traeger: string }[] = [];
+          for (const file of walkHtml(distDir)) {
+            const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+            const r = pruefeFooterRechtsform(readFileSync(file, 'utf-8'));
+            zeilen += r.gefunden;
+            for (const b of r.befunde) befunde.push({ seite: rel, ...b });
+          }
+          if (befunde.length > 0) {
+            // Entdoppelt: dieselbe Fußzeile steht auf jeder Seite.
+            const proZeile = new Map<string, { zahl: number; b: (typeof befunde)[0] }>();
+            for (const b of befunde) {
+              const e = proZeile.get(b.zeile);
+              if (e) e.zahl++;
+              else proZeile.set(b.zeile, { zahl: 1, b });
+            }
+            logger.warn(`Fußzeilen-Guard: ${proZeile.size} Copyright-Zeile(n) mit danebenstehender Rechtsform:`);
+            for (const [, e] of proZeile) {
+              logger.warn(
+                `  [rechtsform_als_eigenes_segment] „${e.b.zeile}" — „${e.b.rechtsform}" steht neben „${e.b.traeger}" statt in der Firma (§ 19 HGB). Im Footer den Rechtsträger übergeben (z. B. legal.company) und legalForm leer lassen. (auf ${e.zahl} Seite(n))`,
+              );
+            }
+            if (options.strictFooterRechtsform === true) {
+              throw new Error(
+                `[ai-discovery] strictFooterRechtsform=true: Build abgebrochen — ${proZeile.size} Copyright-Zeile(n) mit danebenstehender Rechtsform.`,
+              );
+            }
+          } else if (zeilen === 0) {
+            logger.info('Fußzeilen-Guard: ? keine Copyright-Zeile gefunden — nicht geprüft.');
+          } else {
+            logger.info(`Fußzeilen-Guard: ✓ ${zeilen} Copyright-Zeile(n), keine danebenstehende Rechtsform.`);
           }
         }
 
