@@ -22,6 +22,47 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.181.0 (2026-10-25)
+
+**Zwei Opt-ins aus einer Operator-Durchsicht:** ein Wegweiser, der zeigt, wohin er weist,
+und eine Antwort, die nicht wie eine Fehlermeldung aussieht. Beide sind rein additiv —
+ohne die neuen Props rendert die Flotte unverändert, belegt durch MIT/OHNE-Gegenproben im
+selben Testlauf.
+
+- [kunde:sichtbar] Wegweiser-Karten können jetzt ein Bild tragen statt nur Fettschrift.
+- [kunde:sichtbar] Der Antwort-Kasten am Seitenanfang ist wahlweise ohne Rahmen darstellbar.
+
+**Opt-in:** `LinkGrid` mit Bild (`items[].image`, `items[].imageAlt`, `bildHerkunft`)
+
+Fundfall spedition-steller: „Zwei Wege zu uns. Transportanfrage und Fahrer gesucht haben
+wieder kein Bild. Das ist auch nicht schön und nicht sprechend." `LinkGrid` kannte bis
+hierher nur `icon` — ein Emoji oder kurzes Zeichen. Die Flotte setzt Emoji-Icons bewusst
+nicht ein (UI-Regel „SVG icons, no emoji"), also blieben die Karten leer: zwei Zeilen
+Fettschrift mit Beschreibung, die sich wie eine Linkliste lesen. Das Bild liegt randlos
+oben in der Karte, Muster und Maße wie `.step-image` in `ProcessSteps`, damit beide Blöcke
+nebeneinander gleich aussehen. `bildHerkunft` setzt die Kennzeichnung nach Art. 50 AI Act
+ans Bild; ohne die Prop bleibt ein KI-Bild ungekennzeichnet — derselbe Vertrag wie bei
+`ProcessSteps`. `icon` bleibt gültig, `image` schlägt es.
+
+**Opt-in:** `AnswerBlock variant="plain"` — Antwort ohne Kasten
+
+Derselbe Durchgang, der interessantere Befund: `.answer-card` war ein grauer Kasten mit
+4 px farbiger Kante links. Das ist in jeder UI-Konvention die Form einer Hinweis- oder
+Fehlermeldung (Callout, Admonition). Bei einem Kunden, dessen Akzentfarbe Gelb ist, liest
+sich der Block damit als Warnung — und er trägt die **wichtigste** Aussage der Seite, die
+Lead-with-Answer-Passage, aus der KI-Antworten zitieren. Der Operator las ihn wörtlich als
+„der Hinweistext, wenn irgendwie ein Fehler auf der Website wäre".
+
+`variant="plain"` nimmt Fläche, Kante, Radius und Schatten weg und lässt Schriftgrößen,
+Abstände und das Question/Answer-JSON-LD unangetastet — `plain` ist keine zweite Gestaltung,
+sondern dieselbe ohne Kasten. Default bleibt `callout`; `variant="callout"` ist Byte für
+Byte der bisherige Stand (eigener Test, weil ein Schalter, der nichts tut, ein Fehler wäre).
+
+**Tests:** `tests/blocks/wegweiser-bild-antwort-schlicht.test.js`, 10 Proben. Jede Probe
+vergleicht MIT gegen OHNE Schalter im selben Lauf statt bloß „enthält `<img>`" zu prüfen.
+Sabotage-Gegenprobe gefahren: `is-plain` bzw. `has-image` aus der Komponente entfernt →
+je 1 Fehlschlag, nach Rücknahme wieder 10/10. Volle Suite 1477 Tests, 0 Fehler.
+
 ## v0.180.0 (2026-10-23)
 
 **Zwei Guards aus demselben Nachmittag:** Fußzeilen-Rechtsform und fremder Urheber im Bild.

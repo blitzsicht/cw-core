@@ -6,6 +6,13 @@
  * cards that link to other pages (target audiences, locations, sub-services).
  * Each card: title (required), optional description, optional leading icon.
  *
+ * Opt-in seit v0.181.0: `items[].image` zeigt ein Bild oben in der Karte,
+ * `bildHerkunft` setzt daran die Kennzeichnung nach Art. 50 AI Act. Anlass
+ * (spedition-steller, 25.10.2026): Ein Wegweiser ohne Bild sagt nicht, wohin er
+ * weist — zwei Karten mit nichts als Fettschrift lasen sich wie eine Linkliste.
+ * Emoji-Icons sind dafuer kein Ersatz, die Flotte setzt sie bewusst nicht ein
+ * (UI-Regel „SVG icons, no emoji").
+ *
  * @example
  *   <LinkGrid
  *     heading="Spezialisiert auf Ihre Anforderung"
@@ -16,6 +23,11 @@
  *     background="surface"
  *   />
  */
+import { Image } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
+
 export interface LinkCard {
   /** Card title. Required. */
   title: string;
@@ -23,8 +35,12 @@ export interface LinkCard {
   description?: string;
   /** Link target. Required. */
   href: string;
-  /** Optional leading icon (emoji or short string). */
+  /** Optional leading icon (emoji or short string). Entfaellt, wenn `image` gesetzt ist. */
   icon?: string;
+  /** Optionales Bild oben in der Karte. Schlaegt `icon`. */
+  image?: ImageMetadata;
+  /** Alt-Text fuer `image`: das Motiv, nicht der Kartentitel. Ohne Angabe leer und als dekorativ markiert (`role="presentation"`). */
+  imageAlt?: string;
 }
 
 interface Props {
@@ -36,9 +52,20 @@ interface Props {
   items?: readonly LinkCard[];
   /** Background variant. Default 'default'. */
   background?: 'surface' | 'default';
+  /**
+   * `siteData.bildHerkunft` — setzt an Kartenbildern die Kennzeichnung nach Art. 50
+   * AI Act. Ohne diese Prop bleibt ein KI-Bild ungekennzeichnet.
+   */
+  bildHerkunft?: unknown[];
 }
 
-const { heading, intro, items = [], background = 'default' } = Astro.props;
+const { heading, intro, items = [], background = 'default', bildHerkunft } = Astro.props;
+
+/* Je Karte einmal im Frontmatter aufgeloest — `bildLabel` ist asynchron. */
+const bildDaten = { bildHerkunft };
+const kartenLabel = await Promise.all(
+  items.map((c) => (c.image ? bildLabel(bildDaten, c.image) : null)),
+);
 ---
 {items.length > 0 && (
 <section class:list={['link-grid-section', background === 'surface' && 'is-surface']}>
@@ -47,9 +74,14 @@ const { heading, intro, items = [], background = 'default' } = Astro.props;
     {intro && <p class="link-grid-intro">{intro}</p>}
 
     <div class="link-grid">
-      {items.map((c) => (
-        <a href={c.href} class="link-card">
-          {c.icon && <span class="link-card-icon" aria-hidden="true">{c.icon}</span>}
+      {items.map((c, idx) => (
+        <a href={c.href} class:list={['link-card', c.image && 'has-image']}>
+          {c.image
+            ? <span class="link-card-image">
+                <Image src={c.image} alt={c.imageAlt ?? ''} role={c.imageAlt ? undefined : 'presentation'} widths={[320, 480, 640]} sizes="(max-width: 559px) 100vw, (max-width: 919px) 50vw, 25vw" loading="lazy" format="webp" class="link-card-img" />
+                {kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}
+              </span>
+            : c.icon && <span class="link-card-icon" aria-hidden="true">{c.icon}</span>}
           <strong>{c.title}</strong>
           {c.description && <span class="link-card-desc">{c.description}</span>}
         </a>
@@ -98,6 +130,23 @@ const { heading, intro, items = [], background = 'default' } = Astro.props;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   }
   .link-card-icon { font-size: 1.5rem; display: block; margin-bottom: 0.5rem; }
+  /* Opt-in v0.181.0: Bild statt Symbol, randlos oben in der Karte. Padding der
+     Karte wird per negativem Margin zurueckgenommen — dasselbe Muster wie
+     `.step-image` in ProcessSteps, damit beide Bloecke gleich aussehen. */
+  .link-card.has-image { padding: 0 0 1.25rem; overflow: hidden; }
+  .link-card-image {
+    /* Anker und Bezugsbreite fuer die KI-Kennzeichnung. */
+    position: relative;
+    container-type: inline-size;
+    display: block;
+    aspect-ratio: 16 / 10;
+    margin-bottom: 1rem;
+    background: var(--color-surface, #f8fafc);
+  }
+  .link-card-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .link-card.has-image strong,
+  .link-card.has-image .link-card-desc { padding: 0 1.5rem; }
+  .link-card.has-image strong { padding-bottom: 0; }
   .link-card strong {
     display: block;
     color: var(--color-primary);
