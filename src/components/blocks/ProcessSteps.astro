@@ -197,11 +197,21 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
     height: 100%;
   }
   .step-icon { font-size: 1.75rem; margin-bottom: 0.75rem; display: block; }
-  /* Opt-in v0.171.0: gefuellte Ziffer statt Kontur. */
+  /* Opt-in v0.171.0: gefuellte Ziffer statt Kontur.
+     Deckkraft 0.3 → 0.8 und `--color-accent-text` statt `--color-accent` (25.10.2026).
+     ANLASS spedition-steller: `numberStyle="solid"` sollte die Ziffer sichtbar machen und
+     tat das Gegenteil — 0.3 Deckkraft auf der Akzentfarbe ergab 1,48:1 bis 1,50:1, also
+     praktisch unsichtbar. Gemeldet hat das kein Audit: `::before` ist ein Pseudo-Element,
+     und axe prueft darauf keinen Farbkontrast. Aufgefallen ist es erst an der Weg-Variante
+     unten, die dieselbe Mechanik in einem echten <span> traegt.
+     `--color-accent-text` ist in tokens-base.css als "WCAG AA 4,5:1 auf Weiss" definiert;
+     der Fallback haelt Kunden ohne diesen Token lauffaehig. Gerechnet ueber 21 Flotten-
+     Werte: bei 0.8 ist der schlechteste Fall 3,31:1 (gowohnen), bei 0.7 nur 2,77:1 — die
+     Ziffer ist 56 px / 900, also Large Text mit Schwelle 3:1 (WCAG 1.4.3). */
   .nr-solid .step::before {
-    color: var(--color-accent);
+    color: var(--color-accent-text, var(--color-accent));
     -webkit-text-stroke: 0;
-    opacity: 0.3;
+    opacity: 0.8;
   }
   /* Opt-in v0.171.0: Bild statt Symbol, randlos oben in der Karte. */
   .step-image {
@@ -272,7 +282,9 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
     -webkit-text-stroke: 2px var(--color-primary);
     opacity: 0.55;
   }
-  .weg.nr-solid .weg-nr { color: var(--color-primary); -webkit-text-stroke: 0; opacity: 0.25; }
+  /* Deckkraft 0.25 → 0.8 (25.10.2026, siehe Begruendung bei .nr-solid .step::before).
+     Hier traegt die Primaerfarbe, nicht der Akzent: schlechtester Flotten-Wert 4,10:1. */
+  .weg.nr-solid .weg-nr { color: var(--color-primary); -webkit-text-stroke: 0; opacity: 0.8; }
   .weg-text h3 { margin: 1rem 0 0.5rem; font-size: clamp(1.4rem, 2.6vw, 1.9rem); line-height: 1.15; }
   .weg-text p { margin: 0; font-size: 1.1rem; line-height: 1.6; max-width: 36ch; }
 
