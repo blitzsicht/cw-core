@@ -22,6 +22,55 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.180.0 (2026-10-23)
+
+**Zwei Guards aus demselben Nachmittag:** Fußzeilen-Rechtsform und fremder Urheber im Bild.
+Beide fand nicht ein Audit, sondern ein Blick auf eine fertige Seite bzw. in eine Bilddatei.
+Bewusst **ohne** `[kunde]`-Zeile: beide melden nur beim Einbau bzw. im Build-Log und ändern
+am Erscheinungsbild und Verhalten der Kundenseiten nichts.
+
+**Guard:** Fußzeilen-Rechtsform — steht die Rechtsform als eigenes Segment neben dem Namen? (ai-discovery)
+
+Fundfall spedition-steller: `Footer.astro` setzt die Zeile als
+`© {jahr} {owner} · {legalForm} · {city}` zusammen; das Kundenrepo übergab als `owner` den
+Geschäftsführer statt der Gesellschaft. Ausgeliefert wurde „© 2026 Ralf Steller · GmbH · Langquaid“
+— eine Zeile, die die Rechtsform einer natürlichen Person zuschreibt. § 19 HGB verlangt den
+Rechtsformzusatz **in** der Firma, nicht daneben; steht er als eigenes Segment, ist der davor
+genannte Träger nicht die Firma (natürliche Person, oder verkürzte Marke).
+
+- Neu `src/integrations/ai-discovery/footer-rechtsform-check.js`: `pruefeSeite(html)` liest die
+  Copyright-Zeilen der gebauten Seiten, `pruefeCopyrightZeile()` zerlegt sie an `·` und prüft die
+  Segmente ab dem zweiten gegen eine Positivliste registerpflichtiger Rechtsformen. Langformen
+  stehen vorn, damit „GmbH & Co. KG“ nicht als „KG“ durchgeht.
+- Still bleiben Zusätze, die keine Firmenbestandteile im Sinn des HGB sind: „Einzelunternehmen“
+  (der cw-core-Default), „Freiberufler“, „Privatperson“ — dort ist das eigene Segment richtig.
+  Das erledigt die Positivliste von selbst.
+- Optionen `checkFooterRechtsform` (Default an, Soft-Warn) und `strictFooterRechtsform` (bricht ab).
+  Eine Fußzeile ohne Copyright-Zeile ist `? nicht geprüft`, nicht grün.
+- Gemessen wird die **gebaute Seite**, nicht `siteData`: die Footer-Werte stammen aus
+  `page-config.ts`, ein Check gegen `siteData.legal` würde ein anderes Objekt messen als das,
+  was ausgeliefert wird.
+- 11 Tests (`footer-rechtsform-check.test.mjs`), darunter zwei Gegenproben derselben Zeile bzw.
+  derselben Seite mit korrekter Firmierung. Zwei Sabotage-Proben lieferten disjunkte Fehlermengen.
+
+**Guard:** fremder Urheber in den Bildmetadaten hält den Einbau an (`scripts/bild-einbauen.mjs`)
+
+Ein Betrieb schickte 32 eigene Fuhrpark-Fotos. Eines trug `Artist: Stefan Kiefer` samt
+IPTC-Copyright, aufgenommen 2016 mit einer Canon EOS 5D Mark III — und war zugleich das einzige
+in Profi-Auflösung (5760×3840 gegen 640–1920 px bei den eigenen Aufnahmen). Dass der Kunde es
+weiterleitet, überträgt keine Nutzungsrechte; ohne Lizenz ist die Veröffentlichung ein Risiko
+nach § 97 UrhG, und tragen müsste es der Kunde.
+
+- `deuteUrheber(tags)` prüft acht Felder: EXIF `Artist`/`Copyright`, IPTC
+  `By-line`/`CopyrightNotice`/`Credit`, XMP `dc:creator`/`dc:rights`/`plus:ImageCreatorName`.
+  Ein Berufsfoto trägt sie fast immer, eine Handyaufnahme fast nie.
+- Ist eines gesetzt, wird das Bild **nicht** eingebaut: Rückfrage am TTY, sonst Abbruch für diese
+  Datei. `--urheber-ok` erzwingt den Einbau ausdrücklich. Default ist Nicht-Einbauen.
+- Die Prüfung geht nur hier: `astro:assets` entfernt beim Transform jede Metadatenspur, nach dem
+  Build ist nicht mehr messbar, was in der Quelldatei stand.
+
+---
+
 ## v0.179.0 (2026-10-20)
 
 - [kunde] Die Karte auf der Kontaktseite lädt nach dem Klick auf „Karte laden“ wieder zuverlässig; der Browser hatte sie bei einigen Seiten blockiert.

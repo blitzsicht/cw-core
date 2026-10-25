@@ -119,6 +119,45 @@ export function deuteMarker(tags) {
   return nichts;
 }
 
+/**
+ * Felder, in denen ein Urheber oder Rechteinhaber steht.
+ *
+ * EXIF `Artist`/`Copyright`, IPTC `By-line`/`CopyrightNotice`/`Credit`, XMP
+ * `dc:creator`/`dc:rights`/`plus:ImageCreatorName`. Ein Berufsfoto trägt sie fast
+ * immer, eine Handyaufnahme fast nie — das ist der Trennstrich, auf den es ankommt.
+ */
+const URHEBER_FELDER = ['Artist', 'Copyright', 'By-line', 'CopyrightNotice', 'Credit',
+  'Creator', 'Rights', 'ImageCreatorName'];
+
+/**
+ * Steht in den Metadaten ein fremder Urheber?
+ *
+ * Anlass (23.10.2026, spedition-steller): Ein Betrieb schickte 32 eigene Fuhrpark-Fotos
+ * für seine Website. EINES trug `Artist: Stefan Kiefer` samt IPTC-Copyright, aufgenommen
+ * 2016 mit einer Canon EOS 5D Mark III — und war zugleich das einzige in Profi-Auflösung
+ * (5760x3840 gegen 640 bis 1920 px bei den eigenen Aufnahmen). Dass der Kunde es
+ * weiterleitet, überträgt keine Nutzungsrechte; ohne Lizenz ist die Veröffentlichung ein
+ * Risiko nach § 97 UrhG, und tragen müsste es der Kunde.
+ *
+ * Diese Prüfung geht NUR hier. `astro:assets` entfernt beim Transform jede Metadatenspur:
+ * nach dem Build ist nicht mehr messbar, was in der Quelldatei stand.
+ *
+ * Das Urteil fällt der Mensch — der Wert kann auch der Betrieb selbst sein. Das Skript
+ * stellt nur sicher, dass niemand daran vorbeiläuft, ohne hingesehen zu haben.
+ *
+ * @param {Record<string, any>|null|undefined} tags  exiftool-Ausgabe
+ * @returns {{gesetzt: boolean, felder: {feld: string, wert: string}[]}}
+ */
+export function deuteUrheber(tags) {
+  const t = tags ?? {};
+  const felder = [];
+  for (const feld of URHEBER_FELDER) {
+    const wert = String(t[feld] ?? '').trim();
+    if (wert) felder.push({ feld, wert });
+  }
+  return { gesetzt: felder.length > 0, felder };
+}
+
 /** Kopf einer neuen Deklarationsdatei. */
 export const NEUE_DATEI = (slug) => `// Bild-Herkunft nach Art. 50 Abs. 4 UAbs. 1 AI Act (VO (EU) 2024/1689).
 //
@@ -200,7 +239,10 @@ function leseMarker(datei) {
   try {
     const roh = execFileSync('exiftool', [
       '-json', '-DigitalSourceType', '-Software', '-CreatorTool', '-ProcessingSoftware',
-      '-HistorySoftwareAgent', '-JUMBFTag', '-JUMBF', '-C2PAManifest', datei,
+      '-HistorySoftwareAgent', '-JUMBFTag', '-JUMBF', '-C2PAManifest',
+      // Urheberfelder: siehe deuteUrheber. Nach dem Build nicht mehr messbar.
+      '-Artist', '-Copyright', '-By-line', '-CopyrightNotice', '-Credit',
+      '-XMP-dc:Creator', '-XMP-dc:Rights', '-XMP-plus:ImageCreatorName', datei,
     ], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     return { tags: JSON.parse(roh)[0] ?? {}, verfuegbar: true };
   } catch {
@@ -272,6 +314,28 @@ async function main() {
         console.log(`  ${m.quelle}`);
       } else {
         console.log('  Keine Herkunftsspur in den Metadaten.');
+      }
+
+      // Urheberfelder: der Einbau hält an, bis jemand hingesehen hat. Default ist
+      // Nicht-Einbauen — ein fremdes Foto auf der Kundenseite ist teurer als ein
+      // übersprungenes eigenes (Fundfall spedition-steller, 23.10.2026).
+      const u = deuteUrheber(tags);
+      if (u.gesetzt) {
+        console.log('  ! URHEBER IN DEN METADATEN:');
+        for (const f of u.felder) console.log(`      ${f.feld}: ${f.wert}`);
+        console.log('    Wer das Bild geschickt hat, ist nicht, wer die Rechte daran hält.');
+        console.log('    Ohne Lizenz nicht einbauen — astro:assets löscht diese Felder beim Build,');
+        console.log('    danach ist die Frage nicht mehr messbar.');
+        let frei = hatFlag('--urheber-ok');
+        if (!frei && stdin.isTTY) {
+          const a = await frage('    Rechte geklärt, trotzdem einbauen? [ja | nein] (nein): ', 'nein');
+          frei = /^j/i.test(a);
+        }
+        if (!frei) {
+          console.error(`  ! ${name}: übersprungen — Urheberrechte ungeklärt (--urheber-ok erzwingt den Einbau).`);
+          continue;
+        }
+        console.log('    → Einbau trotz fremdem Urheber (ausdrücklich freigegeben).');
       }
 
       let herkunft = argWert('--herkunft') || m.herkunft;
