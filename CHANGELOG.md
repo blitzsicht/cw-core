@@ -22,6 +22,40 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.182.0 (2026-10-25)
+
+- [kunde:sichtbar] Die großen Schrittnummern (01, 02, 03) in der Ablauf-Darstellung waren
+  so hell, dass sie kaum zu erkennen waren. Sie sind jetzt deutlich lesbar.
+
+**Fix a11y: die gefüllte Schrittnummer war faktisch unsichtbar.** `numberStyle="solid"`
+ist in v0.171.0 eingebaut worden, damit die Schrittnummer **sichtbar** wird — die
+Kontur-Variante war am Screenshot nicht zu erkennen. Die Regel setzte aber Deckkraft 0.3
+(Raster) bzw. 0.25 (Weg), und damit war die Ziffer schlechter lesbar als vorher: axe maß
+1,47:1 auf der Startseite von spedition-steller.
+
+Zwei Befunde in einem, und der zweite ist der systemische: die **Raster**-Variante ist
+genauso kaputt, wurde aber nie gemeldet, weil sie die Ziffer als `::before` malt — und axe
+prüft auf Pseudo-Elementen keinen Farbkontrast. Rot wurde erst die Weg-Variante, die
+dieselbe Mechanik in einem echten `<span>` trägt. Ein Audit, das eine ganze
+Darstellungsform nicht messen kann, ist für diese Form kein Nachweis.
+
+- Beide Deckkraftwerte auf `0.8`. Gerechnet, nicht geschätzt: über 21 Flotten-Primärfarben
+  ist der schlechteste Fall bei 0.8 → 4,10:1, bei 0.7 nur 3,38:1. Schwelle ist 3:1, weil
+  die Ziffer 56 px bei `font-weight: 900` trägt (Large Text, WCAG 1.4.3).
+- Die Raster-Variante nutzt zusätzlich `var(--color-accent-text, var(--color-accent))`
+  statt des rohen Akzents. Deckkraft allein genügt dort nicht: Stellers Markengelb
+  `#FCC100` erreicht auch bei 0.8 nur 1,50:1. Der Fallback hält Kunden ohne den Token
+  lauffähig.
+- Test `tests/blocks/schrittnummer-kontrast.test.js`: 10 Proben, die Deckkraftwerte werden
+  **aus der ausgelieferten Datei gelesen**, nicht im Test wiederholt. Zwei Gegenproben
+  müssen mit den alten Werten 0.25/0.3 melden und tun es; eine dritte kalibriert den
+  Rechner gegen die axe-Messung (1,47:1) und eine vierte gegen Weiß-auf-Weiß (1:1).
+
+Kontur-Defaults bleiben unverändert — eine Änderung dort wäre eine eigene Entscheidung,
+und der Test hält sie fest, damit sie nicht nebenbei passiert.
+
+---
+
 ## v0.181.0 (2026-10-25)
 
 **Zwei Opt-ins aus einer Operator-Durchsicht:** ein Wegweiser, der zeigt, wohin er weist,
