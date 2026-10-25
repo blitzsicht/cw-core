@@ -39,6 +39,18 @@ interface Props {
   timeline?: string;
   /** Optional: zusätzliche Bullet-Points (max 5 für Skim-Lesbarkeit). */
   highlights?: string[];
+  /**
+   * Darstellung. Default `callout` — grauer Kasten mit farbiger Kante links.
+   *
+   * `plain` nimmt Kasten, Kante und Schatten weg und setzt den Text frei auf die
+   * Seite. Anlass (spedition-steller, 25.10.2026): Ein grauer Kasten mit 4 px
+   * farbigem Balken links ist die uebliche Form einer Hinweis- oder
+   * Fehlermeldung. Direkt unter dem Hero las der Operator ihn als Stoerung der
+   * Seite, nicht als deren wichtigste Aussage — bei gelbem Akzent sieht er aus
+   * wie eine Warnung. Der Inhalt bleibt in beiden Varianten derselbe, das
+   * Question/Answer-JSON-LD ebenso.
+   */
+  variant?: 'callout' | 'plain';
   /** Page-URL für Schema mainEntityOfPage. */
   pageUrl?: string;
 }
@@ -51,6 +63,7 @@ const {
   timeline,
   highlights = [],
   pageUrl,
+  variant = 'callout',
 } = Astro.props;
 
 // Schema: Question/Answer mit acceptedAnswer
@@ -75,7 +88,7 @@ if (answerWordCount > 80) {
 <script is:inline type="application/ld+json" set:html={JSON.stringify(answerSchema)} />
 
 <section class="answer-block" data-cw-answer-block>
-  <div class="answer-card">
+  <div class:list={['answer-card', variant === 'plain' && 'is-plain']}>
     <h2 class="answer-question">{question}</h2>
     <p class="answer-direct">{directAnswer}</p>
 
@@ -122,6 +135,15 @@ if (answerWordCount > 80) {
     border-radius: 8px;
     padding: 1.5rem 1.75rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+  /* Opt-in v0.181.0: ohne Kasten. Nur Flaeche weg — Schriftgroessen und
+     Abstaende bleiben, damit `plain` keine zweite Gestaltung ist. */
+  .answer-card.is-plain {
+    background: none;
+    border-left: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
   }
   .answer-question {
     font-size: clamp(1.125rem, 2vw, 1.375rem);
