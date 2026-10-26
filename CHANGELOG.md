@@ -22,6 +22,50 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.183.0 (2026-10-26)
+
+**Platzhaltertext-Guard: kein „Platzhalter: …" geht mehr an einen Kunden raus.** Neue
+Build-Prüfung in `ai-discovery`, die den **sichtbaren** Text jeder gebauten Seite nach
+Platzhaltertext durchsucht: `[Platzhalter]`, `Platzhalter:`, `Hier steht bald`,
+`Lorem ipsum`, `Blindtext`, `TODO`, `Foto folgt`, `folgt in Kürze` und Klammern mit
+Ankündigung darin (`[Preise folgen]`, `[wird vom Unternehmen ergänzt]`). Default an,
+warnt nur; `strictPlatzhaltertext: true` bricht den Build ab,
+`platzhaltertextAusnahmen: ['pfad/']` nimmt Seiten aus.
+
+Auslöser waren drei Vorschauen, die genau das ausgeliefert haben, bei zwei davon war die
+Mail schon beim Betrieb: levia-therapiezentrum zeigte in allen sechs Aufklappern
+„Platzhalter: Hier steht bald in drei, vier Sätzen …" — die Kundin hat es gelesen und
+gefragt; spedition-steller `/fahrer/` trug „[Platzhalter]" in drei Kartentiteln, zwei Tage
+nach der Vorschau-Mail; brotzeithaeusl `/partyservice/` trug „[Auswahl, Preise und
+Vorlaufzeit … folgen]", während die Angebots-Mail auf genau diese Seite verwies. Der
+vorhandene `vorlagen-platzhalter-check` konnte das nicht sehen: er prüft `{{DOMAIN}}` im
+**Quelltext**, nicht den Text der gebauten Seite.
+
+**Das Muster ist an der Flotte geeicht, nicht am Schreibtisch.** 589 gebaute Seiten in 31
+Repos. Die erste, weite Fassung meldete 26 Repos — fast alles Fehlalarme, in drei Klassen:
+CSS-Selektoren (`[data-ogsc]`) in den E-Mail-Signatur-Seiten von 20 Repos, „coming soon"
+als Produktaussage (gympanzen, preshot, platzfrei) und unsere eigene
+Vorschau-Kennzeichnung, die ÜBER Platzhalter spricht („Die Bilder sind Platzhalter, bis
+echte Fotos da sind." auf sechs Kundenseiten). Nach der Eichung: 5 Repos, alle echt —
+`<pre>`/`<code>` fallen aus dem sichtbaren Text, „coming soon" ist gestrichen,
+„Platzhalter" zählt nur in Ankündigungsform und eine Klammer nur mit Verb darin.
+
+Dabei sind drei Funde aufgetaucht, die niemand kannte, alle bei § 5 DDG-Pflichtangaben:
+**pferdesport-silberhorn** trägt „TODO: vom Kunden bestätigen (NorthData-Lead: …)" in der
+Fußzeile **jeder** Seite und in der Datenschutzerklärung — mit unserer Lead-Quelle darin;
+**blumen-schmid** im Impressum bei USt-IdNr. und Vertretungsberechtigten;
+**itk-regensburg** „[wird vom Unternehmen ergänzt]" bei der USt-IdNr. Alle drei sind
+ruhende Pre-Sale-Repos (letzte Commits Juli/August); ihre Vorschau antwortet unter
+`customer-<slug>.vercel.app` mit 404, ob ein anderer Host lebt, ist nicht geprüft.
+
+Belege: 22 Logik-Tests, drei Sabotage-Gegenproben mit disjunkten Fehlermengen (Muster leer
+→ alle Fundfälle rot · Code-Zone weg → 3 rot · Klammer ohne Verb-Bedingung → 3 rot) und
+fünf Build-Proben im echten `astro:build:done`-Pfad: saubere Seite → `✓`, Fundseite →
+4 Meldungen bei Exit 0, `strict` → Exit 1, `strict` + Ausnahme → Exit 0,
+`checkPlatzhaltertext: false` → keine Zeile im Log.
+
+---
+
 ## v0.182.0 (2026-10-25)
 
 - [kunde:sichtbar] Die großen Schrittnummern (01, 02, 03) in der Ablauf-Darstellung waren
