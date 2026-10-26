@@ -212,7 +212,11 @@ const HeadingTag = hideLeadIntro ? 'h3' : 'h2';
     {l.zip} {l.city}<br />
     Telefon: <a href={`tel:${phoneTel}`}>{l.phone}</a><br />
     {email && <>E-Mail: <a href={`mailto:${email}`}>{email}</a></>}
-    {l.ustIdNr && <><br />USt-IdNr.: {l.ustIdNr}</>}
+    {/* `hasUstId` MUSS mitgeprüft werden — dieselbe Bedingung wie in ImpressumBlock:189.
+        Ohne sie zeigte diese Seite eine USt-IdNr, die das Impressum verschweigt: bei
+        customer-blumen-schmid stand so „USt-IdNr.: TODO: USt-IdNr vom Kunden bestätigen"
+        in der ausgelieferten Datenschutzerklärung (Fund 26.10.2026). */}
+    {l.hasUstId && l.ustIdNr && <><br />USt-IdNr.: {l.ustIdNr}</>}
     {l.registergericht && l.registerNummer && (
       <><br />Handelsregister: {l.registergericht}, {l.register?.toUpperCase()} {l.registerNummer}</>
     )}
