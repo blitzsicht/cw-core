@@ -57,6 +57,7 @@ import { checkAntwortfrist } from './antwortfrist-check.js';
 import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
 import { pruefeSeite as pruefeFooterRechtsform } from './footer-rechtsform-check.js';
+import { pruefePlatzhaltertext, istZuPruefen } from './platzhaltertext-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
 import {
   buildMarkerOwners,
@@ -556,6 +557,28 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
 
   /** `true` bricht den Build ab, statt nur zu warnen. Default `false`. */
   strictFooterRechtsform?: boolean;
+
+  /**
+   * Platzhaltertext-Guard: meldet sichtbaren Platzhaltertext im gebauten HTML —
+   * „Platzhalter: …", „Lorem ipsum", „[Preise folgen]", „TODO", „Foto folgt". Default an.
+   *
+   * Auslöser 26.10.2026: drei Kunden-Vorschauen lieferten Platzhaltertext an den Kunden aus
+   * (levia-therapiezentrum in allen sechs Aufklappern, spedition-steller `/fahrer/` in drei
+   * Kartentiteln, brotzeithaeusl `/partyservice/` als Absatz) — bei zwei davon war die
+   * Vorschau-Mail schon beim Betrieb. Gemessen wird der SICHTBARE Text: Skripte, Stile,
+   * Kommentare und Attribute bleiben außen vor, sonst meldet jeder CSS-Selektor `[title]`.
+   */
+  checkPlatzhaltertext?: boolean;
+
+  /** `true` bricht den Build ab, statt nur zu warnen. Default `false` (Soft-Warn-Start). */
+  strictPlatzhaltertext?: boolean;
+
+  /**
+   * Seiten, die der Platzhaltertext-Guard überspringt — Pfad-Anfänge relativ zu `dist/`,
+   * z. B. `['onboarding/']` für eine Fragebogenseite, die ÜBER Platzhalter spricht statt
+   * welche zu zeigen. Default: leer (heute hat kein Kunde so eine Seite, gemessen 26.10.2026).
+   */
+  platzhaltertextAusnahmen?: string[];
   /**
    * Default FALSE (Soft-Warn-Start, opt-IN) → `true` bricht den Build ab.
    */
@@ -3887,6 +3910,50 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             logger.info('Fußzeilen-Guard: ? keine Copyright-Zeile gefunden — nicht geprüft.');
           } else {
             logger.info(`Fußzeilen-Guard: ✓ ${zeilen} Copyright-Zeile(n), keine danebenstehende Rechtsform.`);
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Platzhaltertext-Guard: sichtbarer Platzhaltertext im ausgelieferten HTML
+        // -------------------------------------------------------------------
+        // Auslöser 2026-10-26: levia-therapiezentrum („Platzhalter: Hier steht bald …" in
+        // allen sechs Aufklappern — die Kundin hat es gelesen), spedition-steller
+        // `/fahrer/` („[Platzhalter]" in drei Kartentiteln, zwei Tage nach der
+        // Vorschau-Mail) und brotzeithaeusl `/partyservice/`, während die Angebots-Mail
+        // auf genau diese Seite verwies. Der bestehende vorlagen-platzhalter-check prüft
+        // `{{DOMAIN}}` im QUELLTEXT und konnte das nicht sehen.
+        if (options.checkPlatzhaltertext !== false) {
+          const ausnahmen = options.platzhaltertextAusnahmen ?? [];
+          // Entdoppelt pro Fundstelle: derselbe Satz steht oft auf jeder Seite.
+          const proKontext = new Map<string, { treffer: string; seiten: string[] }>();
+          let geprueft = 0;
+          for (const file of walkHtml(distDir)) {
+            const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+            if (!istZuPruefen(rel, ausnahmen)) continue;
+            geprueft++;
+            for (const b of pruefePlatzhaltertext(readFileSync(file, 'utf-8'), rel)) {
+              const e = proKontext.get(b.kontext);
+              if (e) e.seiten.push(rel);
+              else proKontext.set(b.kontext, { treffer: b.treffer, seiten: [rel] });
+            }
+          }
+          if (proKontext.size > 0) {
+            logger.warn(`Platzhaltertext-Guard: ${proKontext.size} Fundstelle(n) mit sichtbarem Platzhaltertext:`);
+            for (const [kontext, e] of [...proKontext].slice(0, 8)) {
+              const wo = e.seiten.length > 1 ? `${e.seiten[0]} + ${e.seiten.length - 1} weitere` : e.seiten[0];
+              logger.warn(`  [platzhaltertext_sichtbar] ${wo}: „${kontext}" (Treffer: „${e.treffer}")`);
+            }
+            if (proKontext.size > 8) logger.warn(`  … und ${proKontext.size - 8} weitere.`);
+            logger.warn('  Platzhaltertext geht nie an den Kunden. Entweder den echten Text einsetzen oder den Abschnitt ganz weglassen, bis er da ist.');
+            if (options.strictPlatzhaltertext === true) {
+              throw new Error(
+                `[ai-discovery] strictPlatzhaltertext=true: Build abgebrochen — ${proKontext.size} Fundstelle(n) mit sichtbarem Platzhaltertext.`,
+              );
+            }
+          } else if (geprueft === 0) {
+            logger.info('Platzhaltertext-Guard: ? keine Seite geprüft — nicht geprüft.');
+          } else {
+            logger.info(`Platzhaltertext-Guard: ✓ ${geprueft} Seite(n), kein sichtbarer Platzhaltertext.`);
           }
         }
 
