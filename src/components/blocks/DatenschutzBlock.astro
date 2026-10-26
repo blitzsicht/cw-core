@@ -93,7 +93,7 @@ const showTurnstile = hasContactForm && hasTurnstile;
   <p>
     Verantwortlich für die Datenverarbeitung auf dieser Website ist:<br />
     {l.owner}<br />
-    {l.form}<br />
+    {l.form && <>{l.form}<br /></>}
     {l.street}<br />
     {l.zip} {l.city}{l.country && l.country !== 'DE' ? <>, {l.country}</> : null}<br />
     Telefon: <a href={`tel:${phoneToTelHref(l.phone)}`}>{l.phone}</a><br />
