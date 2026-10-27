@@ -64,6 +64,15 @@ fünf Build-Proben im echten `astro:build:done`-Pfad: saubere Seite → `✓`, F
 4 Meldungen bei Exit 0, `strict` → Exit 1, `strict` + Ausnahme → Exit 0,
 `checkPlatzhaltertext: false` → keine Zeile im Log.
 
+**Im selben Release (#189): die USt-IdNr erscheint nur noch mit `hasUstId`.**
+`InformationspflichtBlock` rendert sie bisher ohne diese Prüfung, `ImpressumBlock` prüft
+sie — deshalb versteckte blumen-schmids Impressum den TODO-Text, während die
+Datenschutzerklärung ihn auslieferte. Beide Blöcke prüfen jetzt dieselbe Bedingung.
+Dazu fällt eine leere `legal.form` im `DatenschutzBlock` nicht mehr als Leerzeile in die
+Adresse des Verantwortlichen. Belege: 5 Render-Proben, zwei Sabotagen mit disjunkten
+Fehlermengen. Sichtbar wirkt das nur bei `hasUstId: false` **und** gesetztem `ustIdNr` —
+fleetweit allein blumen-schmid (archiviert), daher keine `[kunde]`-Zeile.
+
 ---
 
 ## v0.182.0 (2026-10-25)
