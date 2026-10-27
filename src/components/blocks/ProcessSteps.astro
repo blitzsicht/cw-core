@@ -9,8 +9,10 @@
  *   <ProcessSteps items={siteData.processSteps} />
  *
  * Opt-in seit v0.171.0: `items[].image` zeigt statt des Symbols ein Bild oben in der
- * Karte, `bildHerkunft` setzt daran die KI-Kennzeichnung, `numberStyle="solid"` malt
- * die grosse Ziffer gefuellt statt als Kontur.
+ * Karte, `bildHerkunft` setzt daran die KI-Kennzeichnung.
+ *
+ * Seit v0.184.0 wird die grosse Schritt-Ziffer immer gefuellt gemalt; die
+ * Kontur-Darstellung gibt es nicht mehr (siehe `numberStyle`).
  *
  * Opt-in seit v0.177.0: `layout="weg"` erzaehlt die Schritte als Weg — je Schritt eine
  * Zeile mit grossem Bild, abwechselnd links und rechts, verbunden durch eine gepunktete
@@ -54,17 +56,23 @@ interface Props {
    */
   bildHerkunft?: unknown[];
   /**
-   * Darstellung der grossen Schritt-Ziffer, opt-in seit v0.171.0. `outline` (Default)
-   * ist die bisherige Kontur per `-webkit-text-stroke`. `solid` malt sie gefuellt in
-   * der Akzentfarbe mit geringer Deckkraft — fuer Schriften mit ueberlappenden
-   * Konturen, bei denen der Strich die inneren Ueberlappungen als Linien sichtbar macht.
+   * @deprecated Seit v0.184.0 **wirkungslos** — die Ziffer ist immer gefuellt. Die
+   * Prop bleibt nur deklariert, damit die Repos, die `numberStyle="solid"` setzen,
+   * weiter durch `astro check` kommen; sie darf beim naechsten Anfassen weg.
    *
-   * Gemessen 08.10.2026 auf haarwerk (system-ui, unter macOS SF Pro, Gewicht 800):
-   * die Kontur-„2“ zeigt dort, wo Diagonale und Fuss sich ueberlappen, ein
-   * Sternchen-Artefakt; 1, 3 und 4 nicht. Mit `solid` ist es weg. Belege:
-   * `reports/2026-10-08-ziffer-2/`.
+   * ANLASS. Die Kontur (`-webkit-text-stroke`, Fuellung transparent) malt bei
+   * Glyphen mit ueberlappenden Konturen die Ueberlappung als sichtbare Linie mit.
+   * Zweimal gemessen, beide Male an `system-ui` (macOS SF Pro): haarwerk 08.10.2026
+   * bei Gewicht 800 (`reports/2026-10-08-ziffer-2/`) und levia-therapiezentrum
+   * 27.10.2026 bei Gewicht 900 — die „2“ traegt dort einen Strich quer durch den Fuss.
+   * Die Ziffer erbt `--font-sans`, und das ist bei 8 von 10 betroffenen Repos nacktes
+   * `system-ui`: die Kontur war damit kein Einzelfall, sondern der Normalfall.
+   *
+   * Dazu war die Kontur nicht pruefbar: im Raster steht sie in einem `::before`, und
+   * axe misst auf Pseudo-Elementen keinen Farbkontrast. Eine Darstellung, die kein
+   * Audit messen kann, bleibt nicht als Wahlmoeglichkeit stehen.
    */
-  numberStyle?: 'outline' | 'solid';
+  numberStyle?: 'solid';
   /**
    * Anordnung, opt-in seit v0.177.0. `raster` (Default) ist das bisherige Kartenraster.
    * `weg` setzt jeden Schritt in eine eigene Zeile: Bild (4:3, gross) und Text
@@ -84,7 +92,6 @@ const {
   subheadingTemplate = 'Von Erstgespräch bis Live-Gang in {count} einfachen Schritten.',
   columns,
   bildHerkunft,
-  numberStyle = 'outline',
   layout = 'raster',
 } = Astro.props;
 const istWeg = layout === 'weg';
@@ -121,7 +128,7 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
     </div>
 
     {istWeg ? (
-    <ol class={`weg${numberStyle === 'solid' ? ' nr-solid' : ''}`}>
+    <ol class="weg">
       {items.map((step, idx) => (
         <li class="weg-schritt">
           <div class="weg-bild">
@@ -138,7 +145,7 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
       ))}
     </ol>
     ) : (
-    <div class={`steps${smartColumns ? ` cols-${smartColumns}` : ''}${numberStyle === 'solid' ? ' nr-solid' : ''}`}>
+    <div class={`steps${smartColumns ? ` cols-${smartColumns}` : ''}`}>
       {items.map((step, idx) => (
         <div class="step" data-step-nr={step.nr}>
           <div class="step-body">
@@ -175,20 +182,24 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
   }
 
   .step { position: relative; }
-  /* Decorative big-number watermark via ::before pseudo-element.
-     Wichtig: kein DOM-Element — axe-core prüft color-contrast nicht
-     auf generated content via content: attr(...). Visueller Effekt
-     identisch zum vorherigen .step-nr (Outline via text-stroke). */
+  /* Grosse Schritt-Ziffer als ::before, kein DOM-Element.
+     Das hat einen Preis: axe prueft auf Pseudo-Elementen keinen Farbkontrast,
+     dieser Wert ist also nur ueber den Build-Guard belegt, nicht ueber das
+     a11y-Audit (`integrations/ai-discovery/schrittnummer-contrast-check.js`).
+     `--color-accent-text` ist in tokens-base.css als "WCAG AA 4,5:1 auf Weiss"
+     definiert; der Fallback haelt Kunden ohne diesen Token lauffaehig.
+     Deckkraft 0.8: gerechnet ueber 21 Flotten-Werte ist der schlechteste Fall
+     3,31:1, bei 0.7 nur 2,77:1 — die Ziffer ist 56 px / 900, also Large Text
+     mit Schwelle 3:1 (WCAG 1.4.3). */
   .step::before {
     content: attr(data-step-nr);
     display: block;
     font-size: 3rem;
     font-weight: 800;
-    color: transparent;
-    -webkit-text-stroke: 1.5px var(--color-accent);
+    color: var(--color-accent-text, var(--color-accent));
     line-height: 1;
     margin-bottom: 0.5rem;
-    opacity: 0.55;
+    opacity: 0.8;
   }
   .step-body {
     background: var(--color-surface);
@@ -197,22 +208,6 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
     height: 100%;
   }
   .step-icon { font-size: 1.75rem; margin-bottom: 0.75rem; display: block; }
-  /* Opt-in v0.171.0: gefuellte Ziffer statt Kontur.
-     Deckkraft 0.3 → 0.8 und `--color-accent-text` statt `--color-accent` (25.10.2026).
-     ANLASS spedition-steller: `numberStyle="solid"` sollte die Ziffer sichtbar machen und
-     tat das Gegenteil — 0.3 Deckkraft auf der Akzentfarbe ergab 1,48:1 bis 1,50:1, also
-     praktisch unsichtbar. Gemeldet hat das kein Audit: `::before` ist ein Pseudo-Element,
-     und axe prueft darauf keinen Farbkontrast. Aufgefallen ist es erst an der Weg-Variante
-     unten, die dieselbe Mechanik in einem echten <span> traegt.
-     `--color-accent-text` ist in tokens-base.css als "WCAG AA 4,5:1 auf Weiss" definiert;
-     der Fallback haelt Kunden ohne diesen Token lauffaehig. Gerechnet ueber 21 Flotten-
-     Werte: bei 0.8 ist der schlechteste Fall 3,31:1 (gowohnen), bei 0.7 nur 2,77:1 — die
-     Ziffer ist 56 px / 900, also Large Text mit Schwelle 3:1 (WCAG 1.4.3). */
-  .nr-solid .step::before {
-    color: var(--color-accent-text, var(--color-accent));
-    -webkit-text-stroke: 0;
-    opacity: 0.8;
-  }
   /* Opt-in v0.171.0: Bild statt Symbol, randlos oben in der Karte. */
   .step-image {
     /* Anker und Bezugsbreite fuer die KI-Kennzeichnung. */
@@ -273,18 +268,16 @@ const subheading = subheadingTemplate.replace('{count}', String(items.length));
   }
   .weg-img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .weg-symbol { display: grid; place-items: center; height: 100%; font-size: 4rem; }
+  /* Hier traegt die Primaerfarbe, nicht der Akzent: schlechtester Flotten-Wert
+     bei Deckkraft 0.8 ist 4,10:1 (Begruendung der 0.8 siehe `.step::before`). */
   .weg-nr {
     display: block;
     font-size: clamp(3.5rem, 7vw, 6rem);
     font-weight: 900;
     line-height: 0.85;
-    color: transparent;
-    -webkit-text-stroke: 2px var(--color-primary);
-    opacity: 0.55;
+    color: var(--color-primary);
+    opacity: 0.8;
   }
-  /* Deckkraft 0.25 → 0.8 (25.10.2026, siehe Begruendung bei .nr-solid .step::before).
-     Hier traegt die Primaerfarbe, nicht der Akzent: schlechtester Flotten-Wert 4,10:1. */
-  .weg.nr-solid .weg-nr { color: var(--color-primary); -webkit-text-stroke: 0; opacity: 0.8; }
   .weg-text h3 { margin: 1rem 0 0.5rem; font-size: clamp(1.4rem, 2.6vw, 1.9rem); line-height: 1.15; }
   .weg-text p { margin: 0; font-size: 1.1rem; line-height: 1.6; max-width: 36ch; }
 

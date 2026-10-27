@@ -44,6 +44,10 @@ import {
   type Fundstelle as AiLabelFundstelle,
 } from './ai-label-check.js';
 import { pruefeButtonKontrast, type ButtonIssue } from './button-contrast-check.js';
+import {
+  pruefeSchrittnummerKontrast,
+  type SchrittnummerIssue,
+} from './schrittnummer-contrast-check.js';
 import { ergaenzeTabellenTabindex, ergaenzeWrapperTabindex } from './table-focusable.js';
 import {
   checkDeadFontFamilies,
@@ -345,6 +349,12 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   checkButtonContrast?: boolean;
   /** Knopf-Kontrast-Guard bricht den Build ab. Default: true. */
   strictButtonContrast?: boolean;
+  /** Schrittnummer-Kontrast-Guard: prüft die große Ziffer in ProcessSteps gegen
+   *  den Abschnittshintergrund, mit den Tokens DIESES Repos. Default: true. */
+  checkSchrittnummerKontrast?: boolean;
+  /** Schrittnummer-Kontrast-Guard bricht den Build ab. Default: false (Soft-Warn),
+   *  solange die Flotte noch nicht durchgängig geprüft ist. */
+  strictSchrittnummerKontrast?: boolean;
   /** Anker-Integritäts-Guard: meldet Links, die der Compiler hinter einer Tabelle
    *  wieder aufgemacht hat, und Links ohne erkennbaren Namen. Default: true. */
   checkAnchorIntegrity?: boolean;
@@ -3162,8 +3172,11 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // 1,65:1. Der Kern kann die Farbe nicht waehlen — welche Schrift auf
         // eine Marke passt, entscheidet der Kunde. Er kann sich aber weigern,
         // einen unlesbaren Knopf auszuliefern. Siehe button-contrast-check.js.
-        if (options.checkButtonContrast !== false) {
-          const cssDateien: string[] = [];
+        // Die Kunden-CSS wird von zwei Guards gelesen (Knopf, Schrittnummer).
+        // Ein Durchgang, eine Liste — zwei getrennte Suchen waeren zwei Wege zum
+        // selben Ziel, die irgendwann auseinanderlaufen.
+        const cssDateien: string[] = [];
+        {
           const suche = (dir: string) => {
             let eintraege;
             try {
@@ -3178,6 +3191,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             }
           };
           suche('src/styles');
+        }
+
+        if (options.checkButtonContrast !== false) {
 
           // Drei Zustaende, nicht zwei. Bis v0.143.0 lief hier alles, was kein
           // Befund war, in EINE info-Zeile: "✓ … (oder ist nicht berechenbar)".
@@ -3248,6 +3264,83 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             } else {
               logger.info(
                 'Knopf-Kontrast: übersprungen — .btn-accent kommt im ausgelieferten HTML nicht vor.',
+              );
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Kontrast der großen Schritt-Ziffer (ProcessSteps)
+        // -------------------------------------------------------------------
+        // Seit v0.184.0 wird die Ziffer gefüllt gemalt — die Kontur ist weg, weil
+        // sie bei `system-ui` die Glyphen-Überlappung als Strich mitmalte (levia
+        // 27.10.2026) und als `::before` von keinem a11y-Audit gemessen werden
+        // konnte. Damit hängt die Sichtbarkeit an einem Token, und genau da war
+        // die Lücke: der cw-core-Test rechnet gegen eine Handliste von
+        // Flottenfarben; weinkontor-sinzings `--color-accent-text: #ffffff` stand
+        // nicht darin. Dieser Guard liest die Tokens des Repos, das gerade baut.
+        if (options.checkSchrittnummerKontrast !== false) {
+          // Erst die Frage, ob die Ziffer überhaupt ausgeliefert wird: ein Kunde
+          // ohne ProcessSteps darf hier keinen Fehlalarm bekommen — und kein
+          // Häkchen über ungeprüftem Gebiet.
+          let genutzt = false;
+          for (const datei of htmlFiles) {
+            try {
+              const html = readFileSync(datei, 'utf-8');
+              if (html.includes('data-step-nr') || html.includes('class="weg-nr"')) {
+                genutzt = true;
+                break;
+              }
+            } catch {
+              /* eine unlesbare HTML-Datei ändert das Urteil nicht */
+            }
+          }
+
+          if (!genutzt) {
+            logger.info(
+              'Schrittnummer-Kontrast: übersprungen — die große Schritt-Ziffer kommt im ausgelieferten HTML nicht vor.',
+            );
+          } else {
+            const nrIssues: SchrittnummerIssue[] = [];
+            const nrNichtRechenbar: string[] = [];
+            let nrGerechnet = 0;
+            let nrUnlesbar = 0;
+            for (const datei of cssDateien) {
+              let ergebnis;
+              try {
+                ergebnis = pruefeSchrittnummerKontrast(readFileSync(datei, 'utf-8'));
+              } catch {
+                nrUnlesbar++;
+                continue;
+              }
+              if (ergebnis.status === 'nicht-rechenbar') {
+                if (ergebnis.grund) nrNichtRechenbar.push(`${datei}: ${ergebnis.grund}`);
+              } else {
+                nrGerechnet++;
+                nrIssues.push(...ergebnis.issues);
+              }
+            }
+
+            if (nrIssues.length > 0) {
+              for (const issue of nrIssues) logger.warn(`Schrittnummer-Kontrast: ${issue.detail}`);
+              if (options.strictSchrittnummerKontrast === true) {
+                throw new Error(
+                  `[ai-discovery] strictSchrittnummerKontrast=true: Build abgebrochen — die Schritt-Ziffer erreicht nur ${nrIssues[0].ratio}:1.`,
+                );
+              }
+            } else if (nrGerechnet > 0) {
+              logger.info(
+                `Schrittnummer-Kontrast: ✓ die große Schritt-Ziffer erfüllt 3:1 (${nrGerechnet} CSS-Datei(en) gerechnet).`,
+              );
+            } else {
+              // Dritter Zustand: die Ziffer steht im HTML, gerechnet wurde nichts.
+              logger.warn(
+                'Schrittnummer-Kontrast: NICHT GEPRÜFT — die Ziffer steht im ausgelieferten HTML, aber ' +
+                  `aus keiner CSS-Datei war ein Wert rechenbar. ${
+                    nrNichtRechenbar.length > 0
+                      ? nrNichtRechenbar.join(' · ')
+                      : `keine CSS-Datei unter src/styles gefunden${nrUnlesbar > 0 ? `, ${nrUnlesbar} unlesbar` : ''}`
+                  }. Solange das so bleibt, sagt der grüne Build über diese Ziffer nichts aus.`,
               );
             }
           }
