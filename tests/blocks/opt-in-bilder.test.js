@@ -47,13 +47,17 @@ for (const name of ['processSteps', 'uspIcons', 'uspSvgMitHeading', 'trustCards'
 // --- ProcessSteps ---------------------------------------------------------
 const PS = FAELLE.processSteps;
 
-test('ProcessSteps: numberStyle="outline" ausdrücklich = Default', async () => {
-  assert.equal(await render(PS.datei, { ...PS.props, numberStyle: 'outline' }), GOLDEN.processSteps);
+/* v0.184.0: die Kontur ist weg, die Ziffer ist immer gefüllt. `numberStyle` bleibt
+   nur deklariert, damit die sechs Repos, die sie setzen, weiter durch astro check
+   kommen — sie darf das Markup nicht mehr anfassen. Das Raster-Markup selbst ist
+   unverändert (die Ziffer kommt aus `data-step-nr`), deshalb weiter GOLDEN. */
+test('ProcessSteps: numberStyle="solid" ist wirkungslos', async () => {
+  assert.equal(await render(PS.datei, { ...PS.props, numberStyle: 'solid' }), GOLDEN.processSteps);
 });
 
-test('ProcessSteps: numberStyle="solid" setzt nur die Klasse am Raster', async () => {
+test('ProcessSteps: Schalterklasse nr-solid gibt es nicht mehr', async () => {
   const html = await render(PS.datei, { ...PS.props, numberStyle: 'solid' });
-  assert.equal(html, GOLDEN.processSteps.replace('class="steps cols-4"', 'class="steps cols-4 nr-solid"'));
+  assert.doesNotMatch(html, /nr-solid/);
 });
 
 test('ProcessSteps: image ersetzt das Symbol, Label mit bildHerkunft', async () => {

@@ -22,6 +22,71 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.184.0 (2026-10-27)
+
+- [kunde:sichtbar] Die großen Schrittnummern in der Ablauf-Darstellung werden jetzt
+  immer gefüllt gezeichnet. Die bisherige Umriss-Darstellung zeigte bei manchen
+  Schriften einen Strich quer durch die Ziffer.
+
+**Die Umriss-Ziffer ist gestrichen — nicht umgestellt, gestrichen.** `ProcessSteps` malte
+die große Schritt-Ziffer per Default als Kontur (`-webkit-text-stroke`, Füllung
+transparent). Überlappen sich die Konturen einer Glyphe, malt der Strich die Überlappung
+als Linie mit. Zweimal gemessen, beide Male an `system-ui` (macOS SF Pro): haarwerk am
+08.10. bei Gewicht 800 (`reports/2026-10-08-ziffer-2/`), levia-therapiezentrum am 27.10.
+bei Gewicht 900 — dort trug die „2" einen sichtbaren Strich quer durch den Fuß, gefunden
+vom Operator in der Kundenvorschau.
+
+**Das war kein Einzelfall, sondern der Normalfall.** Die Ziffer erbt `--font-sans`, und
+das ist bei **8 von 10** betroffenen Repos nacktes `system-ui` — dieselbe Familie wie in
+beiden Messungen. Betroffen (an origin geprüft, nicht geschätzt): blumen-schmid,
+digital-direkt, donau-profi, falzmarke, itk-regensburg, pferdesport-silberhorn,
+schiller-gartenbau, soleno, steller-sanierungen, weinkontor-sinzing — davon 6 live.
+Sechs weitere Repos setzten bereits von Hand `numberStyle="solid"`. Niemand in der Flotte
+rief `outline` ausdrücklich auf: der Umriss war nur noch Default, nicht mehr Wunsch.
+
+Dazu war er nicht prüfbar: im Raster steht die Ziffer in einem `::before`, und axe misst
+auf Pseudo-Elementen keinen Farbkontrast. Eine Darstellung, die kein Audit messen kann,
+bleibt nicht als Wahlmöglichkeit stehen — sonst stünden zwei Wege nebeneinander, von denen
+einer nachweislich kaputt ist.
+
+- `-webkit-text-stroke` ist aus der Komponente verschwunden, die gefüllte Regel ist die
+  einzige: Raster `--color-accent-text` (Fallback `--color-accent`), Weg `--color-primary`,
+  beide mit Deckkraft 0.8 wie seit v0.182.0.
+- `numberStyle` bleibt **deklariert, aber wirkungslos** (`@deprecated`, nur noch `'solid'`),
+  damit die sechs Repos, die sie setzen, weiter durch `astro check` kommen. Kein Kundenrepo
+  muss für dieses Release angefasst werden.
+- Tests: die Probe, die bis v0.183.0 die Kontur-Defaults festhielt, ist **umgedreht** statt
+  gelöscht — so steht die Entscheidung im Test. Dazu eine Gegenprobe, die eine wieder
+  eingebaute Kontur erkennt. Gemessen: Kontur zurückgebaut → 2 von 12 Proben rot,
+  zurückgenommen → 12/12.
+
+**Neuer Guard: `schrittnummer-contrast-check` in `ai-discovery` (Soft-Warn).** Mit der
+Kontur fällt die Sichtbarkeit der Ziffer ganz auf einen Token — und genau da saß der
+zweite Befund. Der Kontrast-Test aus v0.182.0 rechnet gegen eine **Handliste** von 21
+Flottenfarben vom 25.10.; `--color-accent-text: #ffffff` (weinkontor-sinzing,
+`tokens.css:14`) steht nicht darin. Dort entstünde eine weiße Ziffer auf weißem Abschnitt,
+und kein Test der Flotte hätte es gemeldet. Ein Check, der die Flotte nur als Kopie kennt,
+ist für den gebauten Kunden kein Nachweis.
+
+Der neue Guard liest die Tokens **des Repos, das gerade baut**, legt die Farbe mit
+Deckkraft 0.8 auf den Abschnittshintergrund und rechnet gegen 3:1 (Large Text, WCAG 1.4.3).
+Er meldet nur, wenn die Ziffer im ausgelieferten HTML wirklich steht, und kennt den dritten
+Zustand: „nicht gerechnet" ist nicht „bestanden". `strictSchrittnummerKontrast: true`
+bricht ab, Default ist Warnen; `checkSchrittnummerKontrast: false` schaltet ab.
+
+Belege: 10 Logik-Proben (Rechner gegen die axe-Messung 1,47:1 geeicht, Weiß auf Weiß 1:1,
+weinkontors echte Tokens müssen melden, mit abgedunkeltem Ton nicht, `#808080` besteht bei
+voller Farbe und fällt bei 0.8 durch — ohne Alpha-Komposition wäre der Guard grün, wo er
+rot sein muss) · 7 Proben im echten `astro:build:done`-Pfad (Befund ohne Abbruch, Gegenprobe
+stumm, Schalter aus, `strict` bricht ab, Seite ohne Ziffer übersprungen, Weg-Variante zählt
+mit, Ziffer ohne CSS → NICHT GEPRÜFT) · eine Probe hält die Annahmen des Guards gegen
+`ProcessSteps.astro` (Hintergrund, Deckkraft, Tokens), damit er nicht irgendwann das falsche
+Objekt misst. Flotten-Eichung über 16 Repos: 1 rot (weinkontor, 1:1), 15 grün, 0 nicht
+rechenbar.
+
+Die beiden Kontrast-Guards teilen sich ab hier **eine** CSS-Suche statt zweier.
+
+---
 ## v0.183.0 (2026-10-26)
 
 **Platzhaltertext-Guard: kein „Platzhalter: …" geht mehr an einen Kunden raus.** Neue

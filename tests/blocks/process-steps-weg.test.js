@@ -74,9 +74,15 @@ test('Gegenprobe Weg: Bild ohne bildHerkunft → kein Label', async () => {
   assert.doesNotMatch(html, /ai-label-am-bild/);
 });
 
-test('layout="weg" + numberStyle="solid": Klasse an der Liste', async () => {
-  const html = await render({ ...PS.props, layout: 'weg', numberStyle: 'solid' });
-  assert.match(html, /<ol class="weg nr-solid">/);
+/* v0.184.0: gefüllt ist die einzige Darstellung, die Schalterklasse ist weg.
+   Die Prop darf am Markup nichts mehr ändern — sonst stünde hier wieder ein
+   zweiter Weg neben dem ersten. */
+test('layout="weg": Liste ohne Schalterklasse, auch mit numberStyle', async () => {
+  const ohne = await render({ ...PS.props, layout: 'weg' });
+  const mit = await render({ ...PS.props, layout: 'weg', numberStyle: 'solid' });
+  assert.match(ohne, /<ol class="weg">/);
+  assert.equal(mit, ohne, 'numberStyle ist wirkungslos');
+  assert.doesNotMatch(mit, /nr-solid/);
 });
 
 test('layout: unbekannter Wert bleibt beim Raster', async () => {

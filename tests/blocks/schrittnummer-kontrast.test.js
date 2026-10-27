@@ -73,7 +73,7 @@ test('Rechner meldet Weiss auf Weiss als 1:1', () => {
 
 // 3 — Weg-Variante: Primaerfarbe, Wert aus der Datei
 test('Weg-Ziffer traegt bei jeder Primaerfarbe der Flotte', () => {
-  const d = deckkraftAus('.weg.nr-solid .weg-nr {');
+  const d = deckkraftAus('.weg-nr {');
   const schlecht = PRIMAER.map((f) => [f, kontrast(f, d)]).filter(([, k]) => k < SCHWELLE);
   assert.deepEqual(schlecht, [], `Deckkraft ${d} reicht nicht fuer: ${JSON.stringify(schlecht)}`);
 });
@@ -86,7 +86,7 @@ test('Gegenprobe Weg: Deckkraft 0.25 faellt durch', () => {
 
 // 5 — Raster-Variante: Akzent-Textfarbe, Wert aus der Datei
 test('Raster-Ziffer traegt bei jeder Akzent-Textfarbe der Flotte', () => {
-  const d = deckkraftAus('.nr-solid .step::before {');
+  const d = deckkraftAus('.step::before {');
   const schlecht = AKZENT_TEXT.map((f) => [f, kontrast(f, d)]).filter(([, k]) => k < SCHWELLE);
   assert.deepEqual(schlecht, [], `Deckkraft ${d} reicht nicht fuer: ${JSON.stringify(schlecht)}`);
 });
@@ -105,20 +105,38 @@ test('roher Akzent statt accent-text waere zu hell (Markengelb)', () => {
 
 // 8 — und steht auch wirklich so in der Datei
 test('Raster-Regel nutzt accent-text mit Fallback', () => {
-  const i = css.indexOf('.nr-solid .step::before {');
+  const i = css.indexOf('.step::before {');
   const block = css.slice(i, css.indexOf('}', i) + 1);
   assert.match(block, /color:\s*var\(--color-accent-text,\s*var\(--color-accent\)\)/);
 });
 
 // 9 — Weg-Regel bleibt auf der Primaerfarbe (dort ist sie belegt genug)
 test('Weg-Regel nutzt die Primaerfarbe', () => {
-  const i = css.indexOf('.weg.nr-solid .weg-nr {');
+  const i = css.indexOf('.weg-nr {');
   assert.match(css.slice(i, css.indexOf('}', i) + 1), /color:\s*var\(--color-primary\)/);
 });
 
-// 10 — Die Kontur-Defaults sind NICHT Teil dieses Fixes; der Test haelt das fest,
-//      damit eine spaetere Aenderung dort bewusst geschieht und nicht nebenbei.
-test('Kontur-Defaults bleiben unveraendert (bewusst ausserhalb dieses Fixes)', () => {
-  assert.match(css, /-webkit-text-stroke:\s*1\.5px var\(--color-accent\)/);
-  assert.match(css, /-webkit-text-stroke:\s*2px var\(--color-primary\)/);
+// 10 — Seit v0.184.0 gibt es die Kontur nicht mehr. Bis v0.183.0 hielt diese Probe
+//      das Gegenteil fest ("Kontur-Defaults bleiben unveraendert"); sie ist bewusst
+//      umgedreht worden, statt sie zu loeschen — so steht die Entscheidung im Test.
+//      ANLASS levia-therapiezentrum 27.10.2026: die Kontur-"2" trug einen Strich quer
+//      durch den Fuss, weil `-webkit-text-stroke` die Ueberlappung der Glyphe mitmalt.
+test('keine Kontur mehr: nirgends -webkit-text-stroke in der Komponente', () => {
+  const regeln = css.match(/-webkit-text-stroke\s*:/g) ?? [];
+  assert.deepEqual(regeln, [], 'die Ziffer wird gefuellt gemalt, nicht als Umriss');
+});
+
+// 11 — GEGENPROBE zu 10: die Probe muss melden, wenn jemand die Kontur zurueckbaut.
+//      Ohne sie waere 10 gruen, auch wenn der Rechner nie etwas zu sehen bekaeme.
+test('Gegenprobe: eine wieder eingebaute Kontur wird erkannt', () => {
+  const sabotiert = css.replace('.weg-nr {\n    display: block;',
+    '.weg-nr {\n    -webkit-text-stroke: 2px var(--color-primary);\n    display: block;');
+  assert.notEqual(sabotiert, css, 'Ankerstelle fuer die Sabotage nicht gefunden');
+  assert.ok((sabotiert.match(/-webkit-text-stroke\s*:/g) ?? []).length === 1);
+});
+
+// 12 — Und die gefuellte Ziffer steht ohne Schalterklasse in der Datei: eine Regel,
+//      die nur unter `.nr-solid` greift, waere nach v0.184.0 tot.
+test('die gefuellte Regel haengt an keiner Schalterklasse', () => {
+  assert.doesNotMatch(css, /nr-solid/);
 });
