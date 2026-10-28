@@ -22,6 +22,42 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.186.0 (2026-10-28)
+
+**Der Fußzeilen-Guard sah ausgeschriebene Rechtsformen nicht.** `footer-rechtsform-check`
+meldet, wenn eine Kundenseite die Rechtsform als eigenes Fußzeilen-Segment neben dem Namen
+führt statt in der Firma (§ 19 HGB — der Zusatz gehört in den Namen). Die Positivliste kannte
+nur die Kurzformen (`gmbh`, `e.v.`, `gbr`, `ug (haftungsbeschränkt)` …). Eine Seite, die
+`· Eingetragener Verein (e.V.) ·` auslieferte, lief deshalb still durch: ein Check, der
+erfüllt ist, bevor der geschützte Fall überhaupt erkennbar wäre, kann nicht rot werden.
+
+Gemessen am ausgelieferten HTML von allstargirls.de — alter Guard `befunde = 0`, neuer Guard
+`befunde = 1`. Die Fußzeile selbst ist im Kundenrepo korrigiert
+(`customer-allstargirls-regensburg#14`).
+
+- `REGISTER_RECHTSFORMEN` trägt 15 ausgeschriebene Formen zusätzlich zu den Kurzformen
+  (`eingetragener verein`, `gesellschaft mit beschränkter haftung`, `aktiengesellschaft`,
+  `gesellschaft bürgerlichen rechts`, `offene handelsgesellschaft`, `kommanditgesellschaft`,
+  `eingetragene genossenschaft`, `partnerschaftsgesellschaft`, `eingetragener kaufmann`,
+  `eingetragene kauffrau` u. a.).
+- `erkenneRechtsform()` prüft **zuerst das ganze** normierte Segment und erst danach den
+  Stamm ohne Klammerzusatz. Die Reihenfolge ist tragend: umgekehrt würde
+  `UG (haftungsbeschränkt)` auf `ug` verkürzt und als andere Rechtsform behandelt.
+- Geprüft wird nur der **Stamm**, nicht der Klammerinhalt. `Musterfirma (GmbH)` meldet
+  deshalb nicht — dort ist die Klammer Teil des Namens, nicht ein nachgestellter Zusatz.
+- Unverändert stumm: `Einzelunternehmen`, `Freiberufler`, `Privatperson`, `Notar`,
+  `Rechtsform folgt`. Sie stehen nicht in der Positivliste, und das bleibt das Prinzip —
+  kein Raten per Regex.
+
+Tests: 19 Proben in `footer-rechtsform-check.test.mjs`, davon 8 neu. Eine Probe pinnt elf
+**gemessene** Live-Fußzeilen der Flotte als Negativfälle, damit die Erweiterung nicht
+überfittet. Zwei Sabotage-Gegenproben (Klammer-Zweig entfernt, Reihenfolge getauscht) wurden
+rot gesehen.
+
+Bewusst **ohne `[kunde]`-Zeile**: der Guard warnt im Build und ändert an keiner Seite das
+Erscheinungsbild.
+
+
 ## v0.185.0 (2026-10-28)
 
 - [kunde:sichtbar] Links und hervorgehobene Textstellen — Impressum, Datenschutz,
