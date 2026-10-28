@@ -77,6 +77,31 @@ wird die Anker-Zeile entfernt, wird genau ein Test rot — und nur der.
 
 ---
 
+### Vorlage `page-config.template.ts`: Rechtsträger statt Inhaber
+
+Die Fußzeilen-Vorlage übergab `owner: siteData.legal.owner` und `legalForm:
+siteData.legal.form`. `legal.owner` ist aber nicht zwingend die Firma — bei einer GbR
+steht dort häufig eine Privatperson, und die Copyright-Zeile schrieb die Rechtsform dann
+einem Menschen zu („© 2026 Gottl Reiner · GbR"). § 19 HGB verlangt den Zusatz **in** der
+Firma.
+
+Die Vorlage nutzt jetzt `resolveCopyrightHolder(siteData)` — denselben SSOT, der
+`schemaConfig.copyrightHolder` speist, `legal.company` zuerst — und setzt `legalForm: ''`.
+Der leere String ist nötig, weil `Footer.astro` den Default `'Einzelunternehmen'` hat.
+
+Anlass: der Fußzeilen-Guard (v0.180.0) meldete am 27.10.2026 drei Kundenrepos. Ursache war
+die Vorlage, nicht die Repos — 19 von 24 übergaben `legalForm` ohne tragfähigen `owner`;
+gemeldet wurden nur die mit registerpflichtiger Rechtsform, die übrigen kippen still
+hinein, sobald ein Kunde seine Rechtsform ändert.
+
+Kein `[kunde]`-Marker: die Vorlage greift nur bei Neuanlagen über `cw-site-scaffold`,
+kein Bestandskunde ändert dadurch sein HTML. Die drei gemeldeten Repos sind einzeln
+gefixt (customer-donau-profi#59, customer-schiller-gartenbau#61,
+customer-gottl-richter-gomeier#71).
+
+Dazu `CW_CORE_PIN` im site-checks-Template auf v0.185.0 (Schritt 6b des Release-Skills;
+stand noch auf v0.184.0).
+
 ## v0.184.0 (2026-10-27)
 
 - [kunde:sichtbar] Die großen Schrittnummern in der Ablauf-Darstellung werden jetzt
