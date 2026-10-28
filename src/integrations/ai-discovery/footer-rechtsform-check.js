@@ -43,7 +43,15 @@
 
 /**
  * Registerpflichtige Rechtsformen, kleingeschrieben und ohne Satzzeichen verglichen.
- * Die längeren Formen stehen vorn, damit „GmbH & Co. KG“ nicht als „KG“ durchgeht.
+ * Verglichen wird das GANZE Segment, nicht ein Teilstring — „GmbH & Co. KG“ kann
+ * deshalb nicht als „KG“ durchgehen, unabhängig von der Reihenfolge hier. (Vorher stand
+ * hier, die Reihenfolge verhindere das. Sie tut es nicht: `includes` auf dem normierten
+ * Segment ist exakt. Eine Begründung, die nicht trägt, sieht im Code aus wie ein Schutz
+ * und ist keiner.) Die Gruppierung bleibt als Lesehilfe.
+ *
+ * Kurz- UND Langform, weil Kundenrepos beides in `legal.form` schreiben: `allstargirls`
+ * lieferte „Eingetragener Verein (e.V.)“ aus und blieb deshalb unentdeckt, während
+ * dieselbe Welle drei Kunden mit „GmbH“ richtigstellte (28.10.2026).
  */
 export const REGISTER_RECHTSFORMEN = [
   'gmbh & co. kg',
@@ -69,6 +77,25 @@ export const REGISTER_RECHTSFORMEN = [
   'e.g.',
   'e.v.',
   'e. v.',
+
+  // Ausgeschriebene Formen. Nicht aufgenommen: „Einzelunternehmen“, „Freiberufler“,
+  // „Privatperson“ — keine Firmenbestandteile im Sinn des HGB, die stehen zu Recht als
+  // eigenes Segment (siehe BEWUSST NICHT GEMELDET oben).
+  'gesellschaft mit beschränkter haftung',
+  'gemeinnützige gesellschaft mit beschränkter haftung',
+  'unternehmergesellschaft',
+  'aktiengesellschaft',
+  'europäische gesellschaft',
+  'kommanditgesellschaft',
+  'kommanditgesellschaft auf aktien',
+  'offene handelsgesellschaft',
+  'gesellschaft bürgerlichen rechts',
+  'eingetragene gesellschaft bürgerlichen rechts',
+  'partnerschaftsgesellschaft',
+  'eingetragener verein',
+  'eingetragene genossenschaft',
+  'eingetragener kaufmann',
+  'eingetragene kauffrau',
 ];
 
 /** @param {string} s @returns {string} */
@@ -77,14 +104,40 @@ function normiere(s) {
 }
 
 /**
+ * Das Segment ohne einen abschließenden Klammerzusatz: „Eingetragener Verein (e.V.)“
+ * → „eingetragener verein“. Nur EIN Klammerpaar am Ende, und nur wenn davor etwas
+ * steht.
+ * @param {string} normiert  bereits durch normiere() gelaufen
+ * @returns {string|null} der Stamm, sonst null
+ */
+function ohneKlammerzusatz(normiert) {
+  const m = /^(.+?)\s*\([^()]*\)$/.exec(normiert);
+  const stamm = m?.[1]?.trim();
+  return stamm ? stamm : null;
+}
+
+/**
  * Ist das Segment (für sich allein) eine registerpflichtige Rechtsform?
+ *
+ * Zwei Griffe, in dieser Reihenfolge:
+ *   1. das ganze normierte Segment — trifft `UG (haftungsbeschränkt)` als Ganzes, das
+ *      ist eine eigene Rechtsform und darf nicht auf `ug` verkürzt werden
+ *   2. das Segment ohne abschließenden Klammerzusatz — trifft
+ *      `Eingetragener Verein (e.V.)` über den Stamm und
+ *      `GbR (Gesellschaft bürgerlichen Rechts)` über `gbr`
+ *
+ * Geprüft wird nur der STAMM, nie der Klammerinhalt allein. Sonst würde
+ * „Musterfirma (GmbH)“ melden — das ist ein Name, keine danebenstehende Rechtsform.
+ *
  * @param {string} segment
  * @returns {string|null} die erkannte Rechtsform in Originalschreibweise, sonst null
  */
 export function erkenneRechtsform(segment) {
   const n = normiere(segment);
   if (!n) return null;
-  return REGISTER_RECHTSFORMEN.includes(n) ? segment.trim() : null;
+  if (REGISTER_RECHTSFORMEN.includes(n)) return segment.trim();
+  const stamm = ohneKlammerzusatz(n);
+  return stamm && REGISTER_RECHTSFORMEN.includes(stamm) ? segment.trim() : null;
 }
 
 /**
