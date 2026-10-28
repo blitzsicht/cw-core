@@ -22,6 +22,61 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## v0.185.0 (2026-10-28)
+
+- [kunde:sichtbar] Links und hervorgehobene Textstellen — Impressum, Datenschutz,
+  Leistungen, Kartenbereich, Team, Preise — werden wieder in der dafür vorgesehenen
+  Textfarbe gezeichnet. Auf einigen Seiten liefen sie bisher in der Flächenfarbe der
+  Marke oder in der normalen Textfarbe und waren dadurch kaum oder gar nicht als Link
+  zu erkennen.
+
+**Ein Token verschwand zwischen Quelltext und Auslieferung.** `--color-accent-text` steht
+laut Vorlage im `@theme`-Block. Tailwind v4 gibt eine `@theme`-Variable aber nur aus, wenn
+sie in der CSS vorkommt, die Tailwind selbst verarbeitet — ein `<style>`-Block in einer
+Astro-Komponente zählt dort **nicht** mit. cw-core liest den Token an 21 Stellen genau so.
+Folge: er stand in keinem `:root` der ausgelieferten Seite. Was gemalt wurde, hing am
+jeweiligen Fallback — 9 Stellen fielen auf `var(--color-accent)` zurück (die
+**Flächen**farbe), 2 auf `--color-primary`, 5 auf einen fest eingetragenen Hexwert, und
+5 erbten ohne Fallback die Fließtextfarbe.
+
+Dreimal unabhängig gemessen, dreimal dieselbe Ursache:
+
+| Wann | Wo | Befund |
+|---|---|---|
+| 20.10.2026 | Alte Linde | Links in Beige auf Weiß, **1,56:1** (ops#976) |
+| 23.10.2026 | spedition-steller | **1,64:1**, sechs `color-contrast`-Verstöße der Schwere `serious` im a11y-Audit; nach dem Fix 12 passed (ops#989) |
+| 28.10.2026 | weinkontor | der Schrittnummer-Guard meldete **1,00:1** für eine Ziffer, die der Browser weinrot malte — Fehlalarm, weil der Guard den Quelltext liest und nicht die Ausgabe (ops#993) |
+
+Bis hierher half sich jeder Kunde selbst, indem er den Token ein zweites Mal in sein
+eigenes `:root` schrieb — arnold-lang, alte-linde und spedition-steller tragen den
+handgeschriebenen Flicken samt Kommentar. Drei Repos repariert, der Rest nicht, und
+nirgends codifiziert.
+
+**Jetzt verankert `tokens-base.css` den Token selbst.** Eine `:root`-Zeile referenziert
+`--color-accent-text`; Tailwind gibt ihn daraufhin bei jedem Kunden aus, ohne dass ein
+Kundenrepo etwas doppelt pflegt. Gemessen an weinkontor: ohne die Zeile **0** Treffer für
+`--color-accent-text:` im gebauten HTML, mit ihr genau einer.
+
+**Bewusst nur dieser eine Token.** Dieselbe Lücke haben `--color-primary-light` (3 Blöcke),
+`--color-primary-dark` (4) und `--color-footer-bg` (1) — die steuern aber **Flächen**:
+mobiler Header, StickyMobileCTA, CTAPrimary, Fußzeile. Sie mitzuverankern würde bei jedem
+Kunden, der sie bisher verlor, eine Fläche umfärben (weinkontor gemessen: StickyMobileCTA
+`#13142a` → `#000000`, Fußzeile `#111` → `#000000`). Das ist eine eigene Entscheidung mit
+eigener Messung.
+
+**Neu: `Ausgabe-Anker` in der ai-discovery-Integration.** Liest das ausgelieferte CSS
+(inline wie als Datei) und meldet, wenn `--color-accent-text` dort **gelesen, aber nirgends
+definiert** ist. Drei Zustände, nicht zwei — „niemand liest den Token" ist kein bestandener
+Test, sondern gar keiner. Das ist der Totmannschalter zur Anker-Zeile: wer sie für toten
+Code hält und löscht, bekommt die Meldung statt stiller Rückkehr zum alten Verhalten.
+Default Soft-Warn (`strictAccentTextAusgabe: false`), damit der Release-Train nicht an
+seinem eigenen neuen Guard hängenbleibt.
+
+Acht Proben in `tests/ai-discovery/ausgabe-anker.test.js`, darunter eine Sabotage-Probe:
+wird die Anker-Zeile entfernt, wird genau ein Test rot — und nur der.
+
+---
+
 ## v0.184.0 (2026-10-27)
 
 - [kunde:sichtbar] Die großen Schrittnummern in der Ablauf-Darstellung werden jetzt

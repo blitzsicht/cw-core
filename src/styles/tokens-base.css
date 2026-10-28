@@ -49,6 +49,46 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 700;
 }
 
+/* ── Anker für Tokens, die nur Komponenten-Styles lesen ──────────────────────
+ *
+ * Tailwind v4 gibt eine `@theme`-Variable nur aus, wenn sie in der CSS vorkommt,
+ * die Tailwind selbst verarbeitet. Ein `<style>`-Block in einer Astro-Komponente
+ * zählt dort NICHT mit. `--color-accent-text` wird an 21 Stellen in
+ * `src/components` und `src/layouts` per `var()` gelesen und stand trotzdem in
+ * keinem `:root` der ausgelieferten Seite. Was dort stattdessen gemalt wurde,
+ * hing am jeweiligen Fallback: 9 Stellen fielen auf `var(--color-accent)`
+ * zurück — also auf die FLÄCHENfarbe —, 2 auf `--color-primary`, 5 auf einen
+ * fest eingetragenen Hexwert, und 5 erbten ohne Fallback die Fließtextfarbe.
+ *
+ * Belegt, nicht vermutet:
+ *   Alte Linde, 20.10.2026: Links in Beige auf Weiß, 1,56:1 (ops#976).
+ *   spedition-steller, 23.10.2026: 1,64:1, sechs `color-contrast`-Verstöße der
+ *     Schwere `serious` im a11y-Audit; nach dem Fix 12 passed (ops#989).
+ *   weinkontor, 28.10.2026: ohne diese Zeile 0 Treffer für
+ *     `--color-accent-text:` im gebauten HTML, mit ihr genau einer (ops#993).
+ *
+ * Bis hierher half sich jeder Kunde selbst, indem er den Token ein zweites Mal
+ * in sein eigenes `:root` schrieb (arnold-lang, alte-linde, spedition-steller).
+ * Die Zeile unten erledigt das ein für alle Mal: sie referenziert den Token,
+ * Tailwind gibt ihn daraufhin aus, und kein Kundenrepo pflegt etwas doppelt.
+ *
+ * Die Anker-Variable selbst liest niemand, und das ist Absicht — eine Regel
+ * MIT Wirkung wäre eine zweite Stelle, an der die Darstellung entsteht. Wer sie
+ * für toten Code hält und löscht, bekommt die Meldung „Token fehlt im gebauten
+ * CSS" aus der ai-discovery-Integration. Genau dafür steht sie da.
+ */
+:root {
+  --cw-anker-accent-text: var(--color-accent-text);
+}
+
+/* Bewusst NUR --color-accent-text. Dieselbe Lücke haben --color-primary-light
+ * (3 Blöcke), --color-primary-dark (4) und --color-footer-bg (1) — nur steuern
+ * die FLÄCHEN: mobiler Header, StickyMobileCTA, CTAPrimary, Fußzeile. Sie hier
+ * mitzuverankern würde bei jedem Kunden, der sie bisher verlor, eine Fläche
+ * umfärben (weinkontor am 28.10.2026 gemessen: StickyMobileCTA #13142a →
+ * #000000, Fußzeile #111 → #000000). Das ist eine eigene Entscheidung mit
+ * eigener Messung, kein Nebeneffekt dieses Fixes. */
+
 /* Layout */
 .container {
   max-width: var(--container-max, 72rem);

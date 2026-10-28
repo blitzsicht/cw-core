@@ -355,6 +355,13 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   /** Schrittnummer-Kontrast-Guard bricht den Build ab. Default: false (Soft-Warn),
    *  solange die Flotte noch nicht durchgängig geprüft ist. */
   strictSchrittnummerKontrast?: boolean;
+  /** Ausgabe-Anker: prüft, ob --color-accent-text im ausgelieferten CSS ankommt.
+   *  Tailwind v4 schüttelt ungenutzte @theme-Tokens heraus; fehlt der Token, malen
+   *  18 Blöcke mit der Flächenfarbe oder erben die Fließtextfarbe. Default: true. */
+  checkAccentTextAusgabe?: boolean;
+  /** Ausgabe-Anker bricht den Build ab. Default: false (Soft-Warn) — die Flotte
+   *  zieht erst über den Release-Train nach. */
+  strictAccentTextAusgabe?: boolean;
   /** Anker-Integritäts-Guard: meldet Links, die der Compiler hinter einer Tabelle
    *  wieder aufgemacht hat, und Links ohne erkennbaren Namen. Default: true. */
   checkAnchorIntegrity?: boolean;
@@ -3342,6 +3349,83 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                       : `keine CSS-Datei unter src/styles gefunden${nrUnlesbar > 0 ? `, ${nrUnlesbar} unlesbar` : ''}`
                   }. Solange das so bleibt, sagt der grüne Build über diese Ziffer nichts aus.`,
               );
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Kommt --color-accent-text in der Ausgabe an?
+        // -------------------------------------------------------------------
+        // Die beiden Kontrast-Guards oben rechnen mit `src/styles` — dem
+        // Quelltext. Der Browser liest das ausgegebene `:root`. Tailwind v4 gibt
+        // eine `@theme`-Variable aber nur aus, wenn sie in der CSS vorkommt, die
+        // Tailwind selbst verarbeitet; ein `<style>`-Block in einer
+        // Astro-Komponente zaehlt dort NICHT mit. Faellt der Token weg, malen 18
+        // Bloecke mit `var(--color-accent-text, var(--color-accent))` — der
+        // Flaechenfarbe — und vier ganz ohne Fallback erben die Fliesstextfarbe.
+        //
+        // Gemessen, nicht vermutet: Alte Linde 1,56:1 (20.10.2026, ops#976);
+        // spedition-steller 1,64:1 mit sechs `color-contrast`-Verstoessen der
+        // Schwere `serious`, nach dem Fix 12 passed (23.10.2026, ops#989);
+        // weinkontor ein Fehlalarm des Schrittnummer-Guards in die Gegenrichtung
+        // (28.10.2026, ops#993).
+        //
+        // tokens-base.css verankert den Token seitdem selbst. Diese Pruefung ist
+        // der Totmannschalter dazu: faellt der Anker weg, sagt sie es — statt dass
+        // die Guards weiter am falschen Objekt rechnen und gruen melden.
+        if (options.checkAccentTextAusgabe !== false) {
+          /** @type {string[]} */
+          const ausgabeCss: string[] = [];
+          for (const datei of htmlFiles) {
+            try {
+              ausgabeCss.push(...extractInlineStyles(readFileSync(datei, 'utf-8')));
+            } catch {
+              /* eine unlesbare HTML-Datei aendert das Urteil nicht */
+            }
+          }
+          {
+            const suche = (dir: string) => {
+              let eintraege;
+              try {
+                eintraege = readdirSync(dir, { withFileTypes: true });
+              } catch {
+                return;
+              }
+              for (const e of eintraege) {
+                const voll = `${dir}/${e.name}`;
+                if (e.isDirectory()) suche(voll);
+                else if (e.name.endsWith('.css')) {
+                  try {
+                    ausgabeCss.push(readFileSync(voll, 'utf-8'));
+                  } catch {
+                    /* desgleichen */
+                  }
+                }
+              }
+            };
+            suche(distDir);
+          }
+          const ausgabe = ausgabeCss.join('\n');
+
+          // Drei Zustaende, nicht zwei: "niemand liest den Token" ist kein
+          // bestandener Test, sondern gar keiner.
+          if (!ausgabe.includes('var(--color-accent-text')) {
+            logger.info(
+              'Ausgabe-Anker: übersprungen — im ausgelieferten CSS liest niemand --color-accent-text.',
+            );
+          } else if (/--color-accent-text\s*:/.test(ausgabe)) {
+            logger.info('Ausgabe-Anker: ✓ --color-accent-text steht im ausgelieferten CSS.');
+          } else {
+            const text =
+              'Ausgabe-Anker: --color-accent-text wird im ausgelieferten CSS gelesen, aber nirgends ' +
+              'definiert — Tailwind hat den @theme-Token herausgeschüttelt. Links und die große ' +
+              'Schritt-Ziffer fallen damit auf --color-accent (die Flächenfarbe) zurück oder erben ' +
+              'die Fließtextfarbe; der Kontrast-Guard oben rechnet dann mit einem Wert, den die Seite ' +
+              'nie benutzt. Prüfe, ob der Anker in cw-core/src/styles/tokens-base.css noch steht; ' +
+              'als Notnagel genügt --color-accent-text zusätzlich im eigenen :root (nicht nur @theme).';
+            logger.warn(text);
+            if (options.strictAccentTextAusgabe === true) {
+              throw new Error(`[ai-discovery] strictAccentTextAusgabe=true: Build abgebrochen — ${text}`);
             }
           }
         }
