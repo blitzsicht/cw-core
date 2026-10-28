@@ -6,6 +6,7 @@
 //
 // AI-SEO: schemaConfig verdrahtet seo.*-Felder vollständig — nicht leerlassen.
 import { siteData } from './site-data';
+import { resolveCopyrightHolder } from '@cw/core/utils/copyright';
 import type { SchemaProps } from '@cw/core/layouts/BaseLayout.astro';
 
 // Optionale Felder, die site-data.template.ts bewusst NICHT setzt (titleTemplate,
@@ -25,8 +26,22 @@ export const footerConfig = {
   email: siteData.contact.email,
   phone: siteData.contact.phone || undefined,
   logoSrcDark: '/logo-inverted.svg',
-  owner: siteData.legal.owner,
-  legalForm: siteData.legal.form,
+  // § 19 HGB: der Rechtsformzusatz gehört IN die Firma, nicht als eigenes Segment
+  // daneben. `legal.owner` ist nicht zwingend die Firma — bei einer GbR steht dort oft
+  // eine Privatperson, und „© 2026 <Person> · GbR · <Ort>" schreibt die Rechtsform
+  // einem Menschen zu. `resolveCopyrightHolder` nimmt `legal.company` zuerst und ist
+  // derselbe SSOT, der schemaConfig.copyrightHolder speist: Fußzeile und JSON-LD
+  // können dadurch nicht auseinanderlaufen.
+  //
+  // `legalForm: ''` ist Absicht und kein Weglassen — Footer.astro hat den Default
+  // 'Einzelunternehmen', eine GmbH stünde ohne den leeren String falsch da. Wer eine
+  // Rechtsform ausweisen will, schreibt sie in `legal.company`.
+  //
+  // Anlass: der Fußzeilen-Guard (v0.180.0) meldete am 27.10.2026 drei Kundenrepos.
+  // Ursache war diese Vorlage, nicht die Repos: 19 von 24 übergaben `legalForm` ohne
+  // tragfähigen `owner`. Gemeldet wurden nur die mit registerpflichtiger Rechtsform.
+  owner: resolveCopyrightHolder(siteData) ?? undefined,
+  legalForm: '',
   city: siteData.legal.city,
   leistungenLinks: siteData.nav.footer.leistungen,
   rechtlichesLinks: siteData.nav.footer.rechtliches,

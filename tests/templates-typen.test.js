@@ -26,6 +26,19 @@ const lies = (/** @type {string} */ f) => readFileSync(join(TEMPLATE_DIR, f), 'u
 const SHIM = "declare module '@cw/core/layouts/BaseLayout.astro' { export type SchemaProps = Record<string, unknown>; }\n";
 
 /**
+ * `@cw/core/utils/copyright` wird NICHT nachgebaut, sondern aus der echten
+ * `src/utils/copyright.d.ts` eingehängt. Ein handgeschriebener Shim könnte eine
+ * Signatur behaupten, die es nicht gibt — der Test wäre dann grün, während das
+ * Zielrepo rot ist. Die Deklarationsdatei existiert genau deshalb (ts7016, weil das
+ * exports-Ziel eine typlose `.js` ist); fällt sie weg, muss dieser Test rot werden.
+ * @returns {string}
+ */
+function copyrightShim() {
+  const d = readFileSync(join(TEMPLATE_DIR, '..', 'utils', 'copyright.d.ts'), 'utf8');
+  return `declare module '@cw/core/utils/copyright' {\n${d}\n}\n`;
+}
+
+/**
  * Typprüft site-data + page-config wie im Zielrepo (src/data/).
  * @param {string} siteData
  * @param {string} pageConfig
@@ -36,7 +49,7 @@ export function typBefunde(siteData, pageConfig) {
   const dateien = {
     '/repo/src/data/site-data.ts': siteData,
     '/repo/src/data/page-config.ts': pageConfig,
-    '/repo/src/shim.d.ts': SHIM,
+    '/repo/src/shim.d.ts': SHIM + copyrightShim(),
   };
   /** @type {ts.CompilerOptions} */
   const optionen = {
