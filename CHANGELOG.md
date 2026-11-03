@@ -22,6 +22,18 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+- [kunde] Für Google und KI-Assistenten lassen sich Zweitnamen eines Unternehmens und einer Person sowie der Rechtsname hinterlegen; am Erscheinungsbild ändert sich nichts.
+
+### Added
+
+- **`SchemaOrg.astro`**: optionale Namensfelder für Markenabgrenzung und Personen-Entitäten — jeweils nur gerendert, wenn gesetzt.
+  - Organization/LocalBusiness: `alternateName?: string | string[]`, `legalName?: string`.
+  - `FounderData` (Person): `additionalName?: string` (zweiter Vorname), `alternateName?: string | string[]`.
+  - Anlass `[steller-sanierungen]`: Marken-Abgrenzung — Person Frank Arno Steller, alternateName „Arno Steller“.
+  - Neu: `docs/schema-org-namen.md`, `scripts/schema-org.test.mjs` (4 Tests, inkl. Gegenprobe „ohne Felder nicht im Output“; läuft über den `scripts/**/*.test.mjs`-Glob in `pnpm test`).
+
 ## v0.186.0 (2026-10-28)
 
 **Der Fußzeilen-Guard sah ausgeschriebene Rechtsformen nicht.** `footer-rechtsform-check`
