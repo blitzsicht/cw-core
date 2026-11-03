@@ -6,6 +6,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) — entries in 
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`SchemaOrg.astro`**: optionale Namensfelder für Markenabgrenzung und Personen-Entitäten — jeweils nur gerendert, wenn gesetzt.
+  - Organization/LocalBusiness: `alternateName?: string[]`, `legalName?: string`.
+  - `FounderData` (Person): `additionalName?: string` (zweiter Vorname), `alternateName?: string[]`.
+  - Anlass `[steller-sanierungen]`: Marken-Abgrenzung — Person Frank Arno Steller, alternateName „Arno Steller".
+  - Neu: `docs/schema-org-namen.md`, `scripts/schema-org.test.mjs` (4 Tests, inkl. Gegenprobe „ohne Felder nicht im Output"; Teil von `pnpm test`).
+
+---
+
 ## [0.14.0] — 2026-07-06
 
 ### Added
