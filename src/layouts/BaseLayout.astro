@@ -49,6 +49,10 @@ export interface SchemaProps {
   logoUrl?: string;
   /** Rechtlich verantwortliche Entität für `copyrightNotice` (company-first). Default `name`. */
   copyrightHolder?: string | null;
+  /** Alternative Schreibweisen/Marken-Abgrenzung (schema.org `alternateName`). Nur gerendert, wenn gesetzt. */
+  alternateName?: string[] | readonly string[];
+  /** Juristischer Name (schema.org `legalName`). Nur gerendert, wenn gesetzt. */
+  legalName?: string;
   street?: string;
   zip?: string;
   city?: string;
@@ -74,6 +78,10 @@ export interface SchemaProps {
   knowsAbout?: string[] | readonly string[];
   founder?: {
     name: string;
+    /** Zweiter Vorname (schema.org `additionalName`), z. B. „Arno“ bei „Frank Arno Steller“. */
+    additionalName?: string;
+    /** Alternative Namensformen der Person (schema.org `alternateName`), z. B. Rufname. */
+    alternateName?: string[] | readonly string[];
     jobTitle?: string;
     description?: string;
     image?: string;
@@ -364,6 +372,8 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
         ogImage={schema.ogImage}
         logoUrl={schema.logoUrl}
         copyrightHolder={schema.copyrightHolder}
+        alternateName={schema.alternateName}
+        legalName={schema.legalName}
         street={schema.street}
         zip={schema.zip}
         city={schema.city}

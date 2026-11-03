@@ -13,13 +13,13 @@ gesetzt (und bei Arrays nicht leer) sind.
 
 ```astro
 <SchemaOrg
-  name="Steller Sanierungen"
-  legalName="Steller Sanierungen e. K."
-  alternateName={['Steller Sanierung']}
+  name="Musterbetrieb Huber"
+  legalName="Musterbetrieb Huber, Inh. Max Huber"
+  alternateName={['Huber Sanierung']}
   founder={{
-    name: 'Frank Steller',
-    additionalName: 'Arno',
-    alternateName: ['Arno Steller'],
+    name: 'Max Josef Huber',
+    additionalName: 'Josef',
+    alternateName: ['Josef Huber'],
   }}
   ...
 />
@@ -27,4 +27,6 @@ gesetzt (und bei Arrays nicht leer) sind.
 
 Anlass: `[steller-sanierungen]` — Person „Frank Arno Steller" wird unter
 „Arno Steller" gefunden; die Entität muss beide Namensformen tragen.
-Tests: `scripts/schema-org.test.mjs`.
+Kundenseiten setzen die Felder nicht an der Komponente, sondern über
+`<BaseLayout schema={{ … }}>` (bzw. `LandingPage`/`ContentPage`); `SchemaProps` in
+`BaseLayout.astro` reicht sie durch. Tests: `tests/blocks/schemaorg-namen.test.js`.

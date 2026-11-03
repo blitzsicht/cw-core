@@ -24,6 +24,24 @@ import { experimental_AstroContainer } from 'astro/container';
 
 const ROOT = resolve(import.meta.dirname, '../..');
 
+/**
+ * `@/…` ist in Kundenrepos deren `src/` (tsconfig `paths`); BaseLayout.astro importiert so
+ * `@/styles/tokens.css` des Kunden. In cw-core gibt es die Datei nicht, der Container-Server
+ * löste den Alias gar nicht auf (03.11.2026, Render von BaseLayout brach ab). Deshalb zeigt
+ * `@/` im Test auf ein Kunden-Fixture; was es dort nicht gibt, fällt auf cw-core `src/` zurück.
+ * @param {any} resolveCfg
+ */
+function mitKundenAlias(resolveCfg) {
+  const kunde = resolve(ROOT, 'tests/blocks/fixtures/kunde-src');
+  const eintraege = [
+    { find: '@/styles/tokens.css', replacement: resolve(kunde, 'styles/tokens.css') },
+    { find: /^@\//, replacement: `${resolve(ROOT, 'src')}/` },
+  ];
+  const alias = resolveCfg?.alias;
+  const vorhanden = Array.isArray(alias) ? alias : Object.entries(alias ?? {}).map(([find, replacement]) => ({ find, replacement }));
+  return { ...resolveCfg, alias: [...eintraege, ...vorhanden] };
+}
+
 /** @type {Promise<{ render: (datei: string, props?: Record<string, unknown>) => Promise<string>, laden: (datei: string) => Promise<Record<string, any>>, close: () => Promise<void> }> | null} */
 let instanz = null;
 
@@ -36,6 +54,7 @@ async function starten() {
     ...cfg,
     root: ROOT,
     logLevel: 'silent',
+    resolve: mitKundenAlias(cfg.resolve),
     server: { middlewareMode: true, hmr: false, watch: null },
     appType: 'custom',
     optimizeDeps: { noDiscovery: true, include: [] },

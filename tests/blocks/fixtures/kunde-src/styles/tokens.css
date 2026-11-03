@@ -1,0 +1,3 @@
+/* Platzhalter für die Kundendatei src/styles/tokens.css. BaseLayout.astro importiert
+   `@/styles/tokens.css` aus dem Kundenrepo; in cw-core selbst gibt es die Datei nicht.
+   Der Test-Server (tests/blocks/_render-astro.js) zeigt `@/` hierher. */
