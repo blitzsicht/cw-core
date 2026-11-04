@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="300" viewBox="0 0 600 300" role="img" aria-label="Testbild mit sechs Farbbalken">
+  <rect x="0" y="0" width="100" height="300" fill="#1d1e3b"/>
+  <rect x="100" y="0" width="100" height="300" fill="#ef7612"/>
+  <rect x="200" y="0" width="100" height="300" fill="#2a9d8f"/>
+  <rect x="300" y="0" width="100" height="300" fill="#e9c46a"/>
+  <rect x="400" y="0" width="100" height="300" fill="#8ab17d"/>
+  <rect x="500" y="0" width="100" height="300" fill="#6d597a"/>
+  <circle cx="300" cy="150" r="90" fill="#ffffff" fill-opacity="0.85"/>
+</svg>
