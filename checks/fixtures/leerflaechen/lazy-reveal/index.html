@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixture lazy-reveal — Reveal-Blöcke und Lazy-Bilder</title>
+<style>
+  /* Spiegelt cw-core src/styles/tokens-base.css (Reveal-Vorzustand hinter `scripting: enabled`,
+   * `.is-visible` vergibt nur JavaScript) — bewusst ohne Import, das Fixture bleibt statisch. */
+  :root { --motion-duration-base: 400ms; --motion-ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 18px/1.5 system-ui, -apple-system, sans-serif; color: #1d1e3b; background: #fff; }
+  .wrap { max-width: 72rem; margin: 0 auto; padding: 0 1rem; }
+  .hero { background: #1d1e3b; color: #fff; padding: 2.5rem 1rem; }
+  .hero h1 { font-size: 2.25rem; line-height: 1.15; margin: 0 0 1rem; }
+  .hero p { margin: 0 0 1rem; max-width: 40rem; }
+  .hero a { display: inline-block; background: #ef7612; color: #fff; padding: .75rem 1.25rem; text-decoration: none; }
+  section { padding: 1.5rem 0; }
+  h2 { font-size: 1.5rem; margin: 0 0 .75rem; }
+  p { margin: 0 0 1rem; }
+  figure { margin: 0 0 1rem; }
+  figure img { display: block; width: 100%; max-width: 600px; height: auto; margin: 0 auto; }
+  figcaption { text-align: center; font-size: .9rem; margin-top: .5rem; }
+  footer { border-top: 1px solid #1d1e3b; padding: 1.5rem 0; }
+  @media (scripting: enabled) {
+    [data-motion-reveal] {
+      opacity: 0;
+      will-change: opacity, transform;
+      transition: opacity var(--motion-duration-base) var(--motion-ease-out),
+                  transform var(--motion-duration-base) var(--motion-ease-out);
+    }
+    [data-motion-reveal="up"] { transform: translate3d(0, 2rem, 0); }
+  }
+  [data-motion-reveal].is-visible { opacity: 1; transform: translate3d(0, 0, 0); will-change: auto; }
+  @media (prefers-reduced-motion: reduce) {
+    [data-motion-reveal] { opacity: 1; transform: none; transition: none; }
+  }
+</style>
+</head>
+<body>
+  <header class="hero"><div class="wrap">
+    <h1>Reveal-Blöcke und Lazy-Bilder</h1>
+    <p>Fixture für checks/screenshot-gescrollt.mjs. Oben echter Text, damit der Kopf der Seite nie als Leerfläche zählt; was darunter passiert, steht im Dateinamen.</p>
+    <a href="#ende">Zum Ende der Seite</a>
+  </div></header>
+  <main class="wrap">
+  <section>
+    <h2>Abschnitt 1</h2>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+  </section>
+  <section>
+    <h2>Abschnitt 2</h2>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+  </section>
+  <section>
+    <h2>Abschnitt 3</h2>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+  </section>
+  <section>
+    <h2>Abschnitt 4</h2>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+  </section>
+  <section>
+    <h2>Abschnitt 5</h2>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+  </section>
+  <section>
+    <h2>Abschnitt 6</h2>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+  </section>
+  <section data-motion-reveal="up">
+    <h2>Abschnitt 7</h2>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+  </section>
+  <figure><img loading="lazy" src="/bild.svg" width="600" height="300" alt="Testbild 1, sechs Farbbalken"><figcaption>Bild 1 (loading=&quot;lazy&quot;)</figcaption></figure>
+  <section data-motion-reveal="up">
+    <h2>Abschnitt 8</h2>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+  </section>
+  <figure><img loading="lazy" src="/bild.svg" width="600" height="300" alt="Testbild 2, sechs Farbbalken"><figcaption>Bild 2 (loading=&quot;lazy&quot;)</figcaption></figure>
+  <section data-motion-reveal="up">
+    <h2>Abschnitt 9</h2>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+  </section>
+  <figure><img loading="lazy" src="/bild.svg" width="600" height="300" alt="Testbild 3, sechs Farbbalken"><figcaption>Bild 3 (loading=&quot;lazy&quot;)</figcaption></figure>
+  <section data-motion-reveal="up">
+    <h2>Abschnitt 10</h2>
+    <p></p>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+  </section>
+  <figure><img loading="lazy" src="/bild.svg" width="600" height="300" alt="Testbild 4, sechs Farbbalken"><figcaption>Bild 4 (loading=&quot;lazy&quot;)</figcaption></figure>
+  <section data-motion-reveal="up">
+    <h2>Abschnitt 11</h2>
+    <p>Die Prüfung läuft nach dem Durchscrollen, nicht davor. Ein Ganzseiten-Screenshot ohne Scrollen zeigt Lazy-Bilder leer und Reveal-Blöcke unsichtbar, obwohl beides beim Lesen längst da wäre. Dieser Absatz ist Füllung mit echtem Text, damit die Zeilen des Bildes nicht einfarbig sind.</p>
+    <p>Jede Pixelzeile wird einzeln angesehen: die Spanne zwischen hellstem und dunkelstem Kanalwert aller Pixel. Liegt sie unter sieben, gilt die Zeile als einfarbig. Zusammenhängende einfarbige Zeilen bilden eine Strecke; gezählt wird erst ab dreihundert Pixeln Höhe.</p>
+    <p>Zwischen zwei Absätzen bleibt ein Abstand von einer Zeile, zwischen zwei Abschnitten etwas mehr. Beides liegt weit unter der Schwelle. Erst eine Lücke von der Höhe eines halben Bildschirms zählt, und die kommt auf einer fertig geladenen Seite nicht vor.</p>
+    <p>Der Hintergrund ist Weiß, die Schrift ist dunkelblau. Für den Zähler spielt die Farbe keine Rolle, nur die Abwechslung innerhalb einer Zeile: Glyphen gegen Grund. Eine Zeile mit einem einzigen Buchstaben reicht, um sie als Inhalt zu werten.</p>
+    <p></p>
+  </section>
+  <figure><img loading="lazy" src="/bild.svg" width="600" height="300" alt="Testbild 5, sechs Farbbalken"><figcaption>Bild 5 (loading=&quot;lazy&quot;)</figcaption></figure>
+  </main>
+  <footer id="ende"><div class="wrap"><p>Ende der Seite. Dieser Fuß lädt immer sofort, damit die letzte Strecke der Seite Inhalt hat.</p></div></footer>
+<script>
+  // Spiegelt observeReveals() aus cw-core src/scripts/motion-runtime.ts: threshold 0.15,
+  // rootMargin 0 0 -10 %. Ohne Scrollen schneidet kein Block den Viewport, nichts wird sichtbar.
+  const els = document.querySelectorAll("[data-motion-reveal]");
+  if (!("IntersectionObserver" in window)) els.forEach((el) => el.classList.add("is-visible"));
+  else {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add("is-visible"); io.unobserve(e.target); }
+    }, { threshold: 0.15, rootMargin: "0px 0px -10% 0px" });
+    els.forEach((el) => io.observe(el));
+  }
+</script>
+</body>
+</html>

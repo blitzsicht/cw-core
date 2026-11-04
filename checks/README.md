@@ -74,11 +74,51 @@ gehört nicht hierher.
 ## Eigene package.json
 
 Absicht. Die Wurzel von cw-core zieht astro, sharp, satori und exiftool-vendored — das in jedem
-CI-Lauf von 23 Repos zu installieren wäre Verschwendung. Hier sind es drei Pakete.
+CI-Lauf von 23 Repos zu installieren wäre Verschwendung. Hier sind es vier Pakete (Playwright, axe, serve, pngjs).
 
 `checks/` steht **nicht** in den `exports` von `cw-core/package.json`. Kundenrepos installieren
 cw-core als `dependency`; deren devDependencies löst pnpm gar nicht erst auf. Der Guard kostet
 eine Kunden-Installation also nichts.
+
+## screenshot-gescrollt — was ein Screenshot ohne Scrollen nicht zeigt
+
+Anlass 04.11.2026: der Ganzseiten-Screenshot aus dem Gate (`npx playwright screenshot --full-page`)
+war auf blitzsicht.com bei 390 px auf 21.985 von 26.892 Pixelzeilen einfarbig, 82 %. Die Seite war
+nicht leer: `loading="lazy"`-Bilder bleiben ohne Scrollen ungeladen, `data-motion-reveal`-Blöcke
+bleiben bei `opacity: 0`, weil ohne Scrollen kein IntersectionObserver feuert. Chromium rendert für
+`fullPage` den Bereich jenseits des Viewports, ohne ihn je zu scrollen. Nach dem Durchscrollen hatte
+dieselbe Seite keine einfarbige Strecke über 300 px.
+
+`screenshot-gescrollt.mjs` scrollt erst (600 px je Schritt, scrollHeight je Schritt neu gelesen,
+wartet auf angestoßene Bilder), fährt zurück und nimmt dann auf. Dazu zwei Messungen:
+
+- **Leerflächen:** je Pixelzeile die Spanne max − min über R, G, B aller Pixel; ≤ 6 heißt einfarbig;
+  zusammenhängende einfarbige Zeilen sind eine Strecke; gezählt werden Strecken ≥ 300 px
+  (`--schwelle`). Ein Wert > 0 heißt zuerst „nicht fertig geladen“, nicht „leeres Design“.
+- **DOM-Höhe mit und ohne Reduced-Motion**, über `newContext({ reducedMotion })` (nicht über
+  `use.reducedMotion` der Test-Config, das kommt nie an: #202). Mehr als 5 % Unterschied ist ein
+  Befund; auf blitzsicht.com stapelte die Logoschleife unter Reduce 28 Logos untereinander.
+
+```bash
+cd cw-core/checks && pnpm install
+node screenshot-gescrollt.mjs --dist <kundenrepo>/dist --seiten /,/leistungen/ --breiten 390,1400 --out /tmp/screens
+node screenshot-gescrollt.mjs --url https://blitzsicht.com/ --ohne-scrollen     # Gegenprobe: alter Zustand
+pnpm test:screens                                                                # Abnahme an den Fixtures, ≈ 2 min
+```
+
+Exit wie im Gate (customer-websites `scripts/cw-site-gate.sh`): 0 kein Befund · 1 Befund (Höhen;
+mit `--leer-hart` auch Strecken) · 2 nicht geprüft (Seite nicht ladbar, Abhängigkeit fehlt) ·
+64 Aufruffehler. Die letzten beiden stdout-Zeilen (`leerflaechen … summe=N`, `hoehen … befund=ja|nein`)
+liest das Gate mit sed/grep; `messung.json` im Ausgabeordner trägt alles für Vorher/Nachher.
+
+Fixtures unter `fixtures/leerflaechen/` (statisch, kein cw-core-Import; CSS und Observer spiegeln
+`tokens-base.css` und `motion-runtime.ts`): `lazy-reveal/` meldet ohne Scrollen Strecken und
+gescrollt keine, `eager/` nie, `abstand-320/` genau eine (ein legitimer Abstand, dokumentiert kein
+Fehler: der Zähler unterscheidet Layout-Luft nicht von Ladefehlern, deshalb bleibt die Gate-Zeile
+meldend, bis der Flottenscan die Schwelle liefert), `marquee-reduce/` Exit 1 über die Höhe.
+Gemessen 04.11.2026: Chromium headless lädt Lazy-Bilder ≈ 2.200 px unter dem Viewport ohne
+Scrollen, ≈ 5.900 px darunter nicht; das Fixture trägt den Nachweis über die Reveal-Blöcke, nicht
+über die Lazy-Distanz.
 
 ## Lokal fahren
 
