@@ -11,13 +11,21 @@
  *
  * Geprüft wird das Ergebnis, nicht die Mechanik: JSON-LD hinter dem Layout = JSON-LD der
  * Komponente, für einen Prop-Satz, der jedes Feld setzt. Zwei Wächter halten den Test scharf:
- *   - Abdeckung: jedes Feld, das SchemaOrg aus `Astro.props` liest, steht in JEDES_FELD.
- *   - Trennschärfe: lässt man ein Feld weg, ändert sich der Output. Sonst fiele ein Feld,
+ *   - Abdeckung: jedes Feld aus `interface Props` und aus der Destrukturierung von
+ *     `Astro.props` steht in JEDES_FELD, ebenso jedes Feld von FounderData, EmployeeData und
+ *     ServiceData im jeweiligen Unterobjekt.
+ *   - Trennschärfe: lässt man ein Feld weg, ändert sich der Output. Das gilt auch für die
+ *     Founder-Unterfelder, denn genau dort fehlten in #198 die Namen. Sonst fiele ein Feld,
  *     das hinter dem Layout verloren geht, nicht auf.
+ *
+ * Die Feldnamen kommen aus dem TypeScript-AST des Frontmatters, nicht aus einem Komma-Split:
+ * Defaults wie `['German', 'English']` oder Kommentare in der Destrukturierung erzeugten
+ * sonst Scheinfelder (Review cw-core #200, 04.11.2026).
  */
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 import { renderer, schliessen } from './_render-astro.js';
 
 after(schliessen);
@@ -62,7 +70,16 @@ const JEDES_FELD = {
   numberOfEmployees: 12,
   additionalTypes: ['RealEstateAgent'],
   schemaType: 'LocalBusiness',
-  employees: [{ name: 'Erika Muster', role: 'Leitung', credentials: ['Meisterin'] }],
+  employees: [
+    {
+      name: 'Erika Muster',
+      role: 'Leitung',
+      title: 'Dipl.-Ing.',
+      phone: '+49 941 111222',
+      email: 'erika@example.test',
+      credentials: ['Meisterin'],
+    },
+  ],
   services: [{ label: 'Prüfen', shortDesc: 'Wir prüfen.', href: '/pruefen' }],
   service: { label: 'Prüfen', shortDesc: 'Wir prüfen.', href: '/pruefen' },
   knowsAbout: ['Testen'],
@@ -86,16 +103,42 @@ function bloecke(html) {
   return [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
 }
 
-/** Feldnamen, die SchemaOrg.astro aus `Astro.props` destrukturiert. */
-function felderDerKomponente() {
+/** Frontmatter von SchemaOrg.astro als TypeScript-AST. */
+function frontmatter() {
   const quelle = readFileSync(KOMPONENTE, 'utf8');
-  const block = quelle.match(/const \{([\s\S]*?)\} = Astro\.props;/);
-  assert.ok(block, 'Destrukturierung von Astro.props in SchemaOrg.astro nicht gefunden');
-  return block[1]
-    .split(',')
-    .map((z) => z.trim().split(/[\s=:]/)[0])
-    .filter(Boolean);
+  const fm = quelle.match(/^---\n([\s\S]*?)\n---/);
+  assert.ok(fm, 'Frontmatter in SchemaOrg.astro nicht gefunden');
+  return ts.createSourceFile('SchemaOrg.ts', fm[1], ts.ScriptTarget.Latest, true);
 }
+
+/** Feldnamen eines Interfaces im Frontmatter. @param {ts.SourceFile} sf @param {string} name */
+function felderVon(sf, name) {
+  const decl = sf.statements.find((s) => ts.isInterfaceDeclaration(s) && s.name.text === name);
+  assert.ok(decl && ts.isInterfaceDeclaration(decl), `interface ${name} nicht gefunden`);
+  return decl.members.filter(ts.isPropertySignature).map((m) => m.name.getText(sf));
+}
+
+/** Namen, die aus `Astro.props` destrukturiert werden (alle Statements dieser Form). @param {ts.SourceFile} sf */
+function destrukturiert(sf) {
+  /** @type {string[]} */
+  const namen = [];
+  for (const s of sf.statements) {
+    if (!ts.isVariableStatement(s)) continue;
+    for (const d of s.declarationList.declarations) {
+      if (!d.initializer || d.initializer.getText(sf) !== 'Astro.props' || !ts.isObjectBindingPattern(d.name)) continue;
+      for (const el of d.name.elements) namen.push((el.propertyName ?? el.name).getText(sf));
+    }
+  }
+  return namen;
+}
+
+const SF = frontmatter();
+
+/**
+ * JSON-LD der Grundseite (Layout ohne `schema`), einmal je Lauf gerendert.
+ * @type {Promise<string[]> | undefined}
+ */
+let grundBloecke;
 
 /** @param {Record<string, unknown>} props */
 async function direkt(props) {
@@ -105,15 +148,33 @@ async function direkt(props) {
 /** JSON-LD hinter dem Layout, ohne die Blöcke, die das Layout auch ohne `schema` ausgibt. */
 async function hinterLayout(/** @type {Record<string, unknown>} */ schema) {
   const r = await renderer();
-  const grund = bloecke(await r.render(LAYOUT, LAYOUT_BASIS)).map((b) => JSON.stringify(b));
+  grundBloecke ??= r.render(LAYOUT, LAYOUT_BASIS).then((html) => bloecke(html).map((b) => JSON.stringify(b)));
+  const grund = await grundBloecke;
   return bloecke(await r.render(LAYOUT, { ...LAYOUT_BASIS, schema })).filter((b) => !grund.includes(JSON.stringify(b)));
 }
 
 test('Abdeckung: JEDES_FELD setzt jedes Feld, das SchemaOrg liest', () => {
-  const felder = felderDerKomponente();
-  assert.ok(felder.length >= 25, `nur ${felder.length} Felder erkannt, Parser prüfen`);
-  const fehlt = felder.filter((f) => !(f in JEDES_FELD));
+  const props = felderVon(SF, 'Props');
+  const gelesen = destrukturiert(SF);
+  assert.ok(props.length >= 25, `nur ${props.length} Felder in Props erkannt, Parser prüfen`);
+  assert.ok(gelesen.length >= 25, `nur ${gelesen.length} destrukturierte Felder erkannt, Parser prüfen`);
+  const fehlt = [...new Set([...props, ...gelesen])].filter((f) => !(f in JEDES_FELD));
   assert.deepEqual(fehlt, [], `in JEDES_FELD fehlen: ${fehlt.join(', ')}`);
+});
+
+test('Abdeckung: Unterobjekte setzen jedes Feld ihres Typs', () => {
+  /** @type {Array<[string, Record<string, unknown>]>} */
+  const faelle = [
+    ['FounderData', JEDES_FELD.founder],
+    ['EmployeeData', JEDES_FELD.employees[0]],
+    ['ServiceData', JEDES_FELD.service],
+  ];
+  for (const [typ, objekt] of faelle) {
+    const felder = felderVon(SF, typ);
+    assert.ok(felder.length >= 2, `interface ${typ}: nur ${felder.length} Felder erkannt`);
+    const fehlt = felder.filter((f) => !(f in objekt));
+    assert.deepEqual(fehlt, [], `${typ}: im Testobjekt fehlen ${fehlt.join(', ')}`);
+  }
 });
 
 test('Trennschärfe: jedes optionale Feld verändert den Output der Komponente', async () => {
@@ -128,6 +189,20 @@ test('Trennschärfe: jedes optionale Feld verändert den Output der Komponente',
     if (JSON.stringify(await direkt(ohne)) === voll) unsichtbar.push(k);
   }
   assert.deepEqual(unsichtbar, [], `ohne Wirkung im JSON-LD: ${unsichtbar.join(', ')}`);
+});
+
+test('Trennschärfe: jedes optionale Founder-Feld verändert den Output', async () => {
+  const voll = JSON.stringify(await direkt(JEDES_FELD));
+  const optional = Object.keys(JEDES_FELD.founder).filter((k) => k !== 'name');
+  assert.ok(optional.length >= 10, 'zu wenige optionale Founder-Felder');
+  const ausgaben = await Promise.all(
+    optional.map(async (k) => {
+      const { [k]: _weg, ...founder } = JEDES_FELD.founder;
+      return [k, JSON.stringify(await direkt({ ...JEDES_FELD, founder }))];
+    }),
+  );
+  const unsichtbar = ausgaben.filter(([, a]) => a === voll).map(([k]) => k);
+  assert.deepEqual(unsichtbar, [], `founder: ohne Wirkung im JSON-LD: ${unsichtbar.join(', ')}`);
 });
 
 for (const schemaType of /** @type {const} */ (['LocalBusiness', 'Organization'])) {
