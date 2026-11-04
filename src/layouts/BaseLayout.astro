@@ -37,61 +37,24 @@
  *     <slot />
  *   </BaseLayout>
  */
+import type { ComponentProps } from 'astro/types';
 import SchemaOrg from '../components/seo/SchemaOrg.astro';
 import { vorschauBasis } from '../utils/vorschau-basis.js';
 import '@/styles/tokens.css';
 
-export interface SchemaProps {
-  name: string;
-  description: string;
-  url: string;
-  ogImage: string;
-  logoUrl?: string;
-  /** Rechtlich verantwortliche Entität für `copyrightNotice` (company-first). Default `name`. */
-  copyrightHolder?: string | null;
-  /** Alternative Schreibweisen/Marken-Abgrenzung (schema.org `alternateName`). Nur gerendert, wenn gesetzt. */
-  alternateName?: string[] | readonly string[];
-  /** Juristischer Name (schema.org `legalName`). Nur gerendert, wenn gesetzt. */
-  legalName?: string;
-  street?: string;
-  zip?: string;
-  city?: string;
-  country?: string;
-  email?: string;
-  phone?: string;
-  areaServed?: string | string[] | readonly string[];
-  priceRange?: string;
-  sameAs?: string[] | readonly string[];
-  availableLanguage?: string[] | readonly string[];
-  openingHours?: string[] | readonly string[];
-  geo?: { latitude: number; longitude: number };
-  foundingDate?: string;
-  slogan?: string;
-  numberOfEmployees?: number | string;
-  additionalTypes?: string[] | readonly string[];
-  /** `'Organization'` für Produkt-/SaaS-Seiten ohne Ladenbetrieb. Default `'LocalBusiness'`. */
-  schemaType?: 'LocalBusiness' | 'Organization';
-  employees?: Array<{ name: string; role?: string; title?: string; phone?: string; email?: string; credentials?: string[] | readonly string[] }> | ReadonlyArray<{ name: string; role?: string; title?: string; phone?: string; email?: string; credentials?: string[] | readonly string[] }>;
-  services?: Array<{ label: string; shortDesc?: string; href: string }> | ReadonlyArray<{ label: string; shortDesc?: string; href: string }>;
-  service?: { label: string; shortDesc?: string; href: string };
+/**
+ * Props für `<BaseLayout schema={…}>`: genau die Props von SchemaOrg.astro, abgeleitet statt
+ * kopiert. Ein neues SchemaOrg-Feld ist damit sofort hier bekannt und wird durchgereicht.
+ * Anlass: die frühere Kopie kannte alternateName, legalName und die Founder-Namen nicht,
+ * der JSON-LD-Output blieb trotz gesetzter Werte leer (Review cw-core #198, 03.11.2026).
+ */
+export type SchemaProps = ComponentProps<typeof SchemaOrg> & {
+  /**
+   * @deprecated Wird ignoriert. FAQPage-JSON-LD kommt allein aus FAQ.astro, sonst stünde es doppelt.
+   * Bleibt im Typ, damit ältere page-config.ts mit `faqs` weiter typprüfen.
+   */
   faqs?: Array<{ question: string; answer: string }> | ReadonlyArray<{ question: string; answer: string }>;
-  knowsAbout?: string[] | readonly string[];
-  founder?: {
-    name: string;
-    /** Zweiter Vorname (schema.org `additionalName`), z. B. „Arno“ bei „Frank Arno Steller“. */
-    additionalName?: string;
-    /** Alternative Namensformen der Person (schema.org `alternateName`), z. B. Rufname. */
-    alternateName?: string[] | readonly string[];
-    jobTitle?: string;
-    description?: string;
-    image?: string;
-    email?: string;
-    phone?: string;
-    knowsAbout?: string[] | readonly string[];
-    credentials?: string[] | readonly string[];
-    sameAs?: string[] | readonly string[];
-  };
-}
+};
 
 interface Props {
   /** Page-specific title fragment. Combined with `titleTemplate`. */
@@ -218,6 +181,9 @@ const {
   trackingMode = 'inline',
   schema,
 } = Astro.props;
+
+// An SchemaOrg geht alles aus `schema` außer `faqs` (siehe SchemaProps).
+const schemaOrgProps = schema ? (({ faqs: _faqs, ...rest }) => rest)(schema) : undefined;
 
 const resolvedDescription = description ?? defaultDescription;
 
@@ -364,40 +330,7 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
     )}
 
     <!-- Schema.org JSON-LD -->
-    {schema && (
-      <SchemaOrg
-        name={schema.name}
-        description={schema.description}
-        url={schema.url}
-        ogImage={schema.ogImage}
-        logoUrl={schema.logoUrl}
-        copyrightHolder={schema.copyrightHolder}
-        alternateName={schema.alternateName}
-        legalName={schema.legalName}
-        street={schema.street}
-        zip={schema.zip}
-        city={schema.city}
-        country={schema.country}
-        email={schema.email}
-        phone={schema.phone}
-        areaServed={schema.areaServed}
-        priceRange={schema.priceRange}
-        sameAs={schema.sameAs}
-        availableLanguage={schema.availableLanguage}
-        openingHours={schema.openingHours}
-        geo={schema.geo}
-        foundingDate={schema.foundingDate}
-        slogan={schema.slogan}
-        numberOfEmployees={schema.numberOfEmployees}
-        additionalTypes={schema.additionalTypes}
-        schemaType={schema.schemaType}
-        employees={schema.employees}
-        services={schema.services}
-        service={schema.service}
-        knowsAbout={schema.knowsAbout}
-        founder={schema.founder}
-      />
-    )}
+    {schemaOrgProps && <SchemaOrg {...schemaOrgProps} />}
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

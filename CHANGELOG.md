@@ -22,6 +22,14 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+### Changed
+
+- **`BaseLayout.astro`: `SchemaProps` ist aus den Props von `SchemaOrg.astro` abgeleitet** (`ComponentProps<typeof SchemaOrg>`) statt kopiert, die Weitergabe ein Spread statt 30 Einzel-Props. Ein neues SchemaOrg-Feld kommt damit ohne zweite Stelle auch hinter `<BaseLayout schema={…}>` an. Vorher fehlten genau so `alternateName`, `legalName` und die Founder-Namen (Review #198). JSON-LD-Output unverändert.
+- `SchemaProps.faqs` ist `@deprecated` und wird wie bisher ignoriert (FAQPage kommt allein aus `FAQ.astro`). Das Feld bleibt im Typ, damit ältere `page-config.ts` weiter typprüfen.
+- Neuer Test `tests/blocks/schemaorg-durchreichung.test.js`: JSON-LD hinter dem Layout = JSON-LD der Komponente, für einen Prop-Satz mit jedem Feld, `LocalBusiness` und `Organization`. Zwei Wächter halten ihn scharf: der Prop-Satz muss jedes Feld abdecken, das SchemaOrg aus `Astro.props` liest, und jedes Feld muss den Output sichtbar ändern.
+
 ## v0.187.0 (2026-11-04)
 
 - [kunde] Für Google und KI-Assistenten lassen sich Zweitnamen eines Unternehmens und einer Person sowie der Rechtsname hinterlegen; am Erscheinungsbild ändert sich nichts.
