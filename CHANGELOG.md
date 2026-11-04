@@ -22,7 +22,11 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.188.0 (2026-11-04)
+
+### Added
+
+- **`checks/screenshot-gescrollt.mjs`** (#206): Ganzseiten-Screenshot erst nach dem Durchscrollen (Lazy-Bilder geladen, `data-motion-reveal`-Blöcke sichtbar), Leerflächen-Zähler aus dem PNG (einfarbige Strecken ≥ 300 px je Pixelzeile) und DOM-Höhe mit und ohne Reduced-Motion (Differenz > 5 % = Befund). Anlass 04.11.2026: der Gate-Screenshot von blitzsicht.com war zu 82 % einfarbig, ohne dass die Seite leer war; die Höhen-Differenz durch KundenMarquee-Dubletten maß bis dahin niemand. Aufruf `--url` oder `--dist` (startet `serve`), `--seiten`, `--breiten`, `--ohne-scrollen` (Gegenprobe), `--leer-hart`, `--schwelle`, `--json`; Exit 0 kein Befund · 1 Befund · 2 nicht geprüft · 64 Aufruf. Vier Fixtures unter `checks/fixtures/leerflaechen/`, `pnpm test:screens` (8 Proben inkl. Sabotage-Gegenprobe), devDependency `pngjs 7.0.0`. Das Gate in customer-websites (#184) liest die Schlusszeilen `leerflaechen …` und `hoehen …`.
 
 ### Changed
 
