@@ -51,6 +51,15 @@ test('Slop-Fixture: Exit 1, Befunde > 0, Allowlist greift', () => {
   for (const regel of ['low-contrast', 'undersized-ui-text', 'gradient-text', 'line-length', 'pulsing-dot']) {
     assert.match(r.schluss, new RegExp(`regeln=\\S*${regel}`), `Regel ${regel} fehlt in: ${r.schluss}`);
   }
+  // Der Proxy-Tag /js/script.js läuft unter `serve` auf 404; Chromium führt das nicht aus, also kein
+  // script-error. Käme hier einer, läge eine Datei mit HTML-Inhalt in der Fixture (blitzsicht 04.11.2026).
+  assert.doesNotMatch(r.schluss, /script-error/, `script-error in der Slop-Fixture: ${r.schluss}`);
+});
+
+test('Skriptfehler-Fixture: Syntaxfehler im Seitenskript → Exit 1, script-error', () => {
+  const r = lauf(['--dist', path.join(FIX, 'skriptfehler'), '--breiten', '1280', '--out', path.join(TMP, 'skriptfehler')]);
+  assert.equal(r.rc, 1, r.stdout + r.stderr);
+  assert.match(r.schluss, /regeln=\S*script-error/, r.schluss);
 });
 
 test('Slop-Fixture ohne Allowlist: mehr Befunde, Differenz = Allowlist-Treffer', () => {

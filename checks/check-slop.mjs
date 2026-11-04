@@ -47,6 +47,13 @@ import { parseArgs } from 'node:util';
 const HIER = path.dirname(fileURLToPath(import.meta.url));
 const IMPECCABLE = 'impeccable@4.8.0';   // Pin; Regelkatalog 4.8.0: 62 Regeln (31 slop, 31 quality)
 const HOEHEN = { 390: 844, 768: 1024, 1280: 800, 1400: 900 };
+// Kein Filter für `script-error` — auch nicht mit --dist. Gegenbeispiel 04.11.2026: im Gate an
+// customer-blitzsicht meldete die Regel „Unexpected token '<' (/js/script.js:1:1)“. Das sah nach einem
+// Artefakt des Wegwerf-Servers aus (Plausible-Proxy per Vercel-Rewrite, nicht in dist), war aber eine
+// echte Datei dist/client/js/script.js mit einer Cloudflare-Access-Anmeldeseite als Inhalt. Ein 404
+// unter `serve` erzeugt dagegen keinen script-error (Chromium führt 404-Antworten nicht aus; Fixture
+// fixtures/slop/slop/ mit <script async src="/js/script.js"> gemessen). impeccable meldet je Seite nur
+// den ersten Skriptfehler; die Regel steht deshalb immer ganz vorn in der Behebung.
 const DETECT_TIMEOUT = 180_000;
 
 const USAGE = `Aufruf: node check-slop.mjs (--url <basis> | --dist <webroot>) [--seiten /,/leistungen/] [--breiten 1280,390]

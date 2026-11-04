@@ -24,4 +24,8 @@
     <div class="card"><div class="inner"><h2>Lorem ipsum</h2><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p><span class="tiny">Hinweis</span></div></div>
     <div class="card"><div class="inner"><h2>Lorem ipsum</h2><p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p><span class="tiny">Hinweis</span></div></div>
   </div>
-</main></body></html>
+</main>  <!-- Plausible-Proxy-Tag wie in jeder cw-core-Seite. Unter `serve` ein 404; Chromium führt 404-Antworten
+       nicht aus, also kein script-error (gemessen 04.11.2026). Liegt die Datei dagegen in dist und enthält
+       HTML (customer-blitzsicht 04.11.2026: Cloudflare-Access-Seite), meldet die Regel zu Recht. -->
+  <script async src="/js/script.js"></script>
+</body></html>

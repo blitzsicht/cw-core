@@ -152,10 +152,18 @@ advisories=V befund=ja|nein`) liest das Gate; `slop-<slug>-<breite>.json` und `m
 Ausgabeordner tragen die Rohbefunde mit Selektor und Snippet.
 
 Fixtures unter `fixtures/slop/`: `slop/` (Verlaufstext, Eyebrow-Chip, Lorem ipsum, Glow-Karten,
-9-px-Text, Zeilen über 120 Zeichen, pulsierender Punkt) liefert Exit 1, `sauber/` Exit 0.
-`pnpm test:slop` (7 Proben, ≈ 20 s): dazu toter Port → 2, Tippfehler in der Allowlist → 64, und
+9-px-Text, Zeilen über 120 Zeichen, pulsierender Punkt) liefert Exit 1, `sauber/` Exit 0,
+`skriptfehler/` (ein Syntaxfehler im Seitenskript) Exit 1 mit `script-error`.
+`pnpm test:slop` (8 Proben, ≈ 22 s): dazu toter Port → 2, Tippfehler in der Allowlist → 64, und
 die Sabotage-Gegenprobe: eine Allowlist mit jeder Regel der Slop-Fixture muss Exit 0 liefern,
 und der Lauf ohne Allowlist muss genau um die Allowlist-Treffer höher liegen.
+
+`script-error` wird nie gefiltert, auch nicht mit `--dist`. Gegenbeispiel 04.11.2026: das Gate an
+customer-blitzsicht meldete „Unexpected token '<' (/js/script.js:1:1)“, was nach einem Artefakt des
+Wegwerf-Servers aussah (der Plausible-Proxy ist ein Vercel-Rewrite). Tatsächlich lag
+`dist/client/js/script.js` als Datei im Build und enthielt eine Cloudflare-Access-Anmeldeseite.
+Ein 404 unter `serve` erzeugt keinen `script-error` (Chromium führt 404-Antworten nicht aus).
+impeccable meldet je Seite nur den ersten Skriptfehler; die Regel steht deshalb in der Behebung vorn.
 
 ## Lokal fahren
 
