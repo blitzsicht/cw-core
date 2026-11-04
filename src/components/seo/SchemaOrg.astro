@@ -52,6 +52,10 @@ export interface EmployeeData {
  */
 export interface FounderData {
   name: string;
+  /** Zweiter Vorname (schema.org `additionalName`), z.B. „Arno" bei „Frank Arno Steller". */
+  additionalName?: string;
+  /** Alternative Namensformen (schema.org `alternateName`), z.B. Rufname „Arno Steller". */
+  alternateName?: string[] | readonly string[];
   jobTitle?: string;
   /** Bio/Beschreibung — z.B. „Seit 1998 im GaLaBau, Galabau-Meister 2010". */
   description?: string;
@@ -78,6 +82,10 @@ interface Props {
   name: string;
   /** Business description. */
   description: string;
+  /** Alternative Schreibweisen/Marken-Abgrenzung (schema.org `alternateName`). Nur gerendert, wenn gesetzt. */
+  alternateName?: string[] | readonly string[];
+  /** Juristischer Name (schema.org `legalName`). Nur gerendert, wenn gesetzt. */
+  legalName?: string;
   /** Canonical site URL (no trailing slash). */
   url: string;
   /** Path or absolute URL to OG image (resolved against `url`). */
@@ -196,6 +204,8 @@ interface Props {
 const {
   name,
   description,
+  alternateName,
+  legalName,
   url,
   ogImage,
   logoUrl,
@@ -285,6 +295,8 @@ const localBusinessSchema = {
   '@type': typeArray,
   '@id': orgId,
   name,
+  ...(alternateName && alternateName.length ? { alternateName: [...alternateName] } : {}),
+  ...(legalName ? { legalName } : {}),
   description,
   url,
   ...(resolvedLogo ? { logo: resolvedLogo } : {}),
@@ -398,6 +410,10 @@ const founderSchema = founder && founderId
       '@type': 'Person',
       '@id': founderId,
       name: founder.name,
+      ...(founder.additionalName ? { additionalName: founder.additionalName } : {}),
+      ...(founder.alternateName && founder.alternateName.length
+        ? { alternateName: [...founder.alternateName] }
+        : {}),
       ...(founder.jobTitle ? { jobTitle: founder.jobTitle } : {}),
       ...(founder.description ? { description: founder.description } : {}),
       ...(founderImageUrl ? { image: founderImageUrl } : {}),
