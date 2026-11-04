@@ -120,6 +120,43 @@ Gemessen 04.11.2026: Chromium headless lädt Lazy-Bilder ≈ 2.200 px unter dem 
 Scrollen, ≈ 5.900 px darunter nicht; das Fixture trägt den Nachweis über die Reveal-Blöcke, nicht
 über die Lazy-Distanz.
 
+## check-slop — Slop-Detektor mit Regel-ID statt Bauchgefühl
+
+`check-slop.mjs` fährt impeccable `detect` (gepinnt `4.8.0`, zur Laufzeit per `npx -y`, keine
+Abhängigkeit im Lockfile, `DO_NOT_TRACK=1`) gegen die gerenderte Seite und übersetzt das
+Ergebnis in die Exit-Konvention des Gates. Anlass 04.11.2026 (customer-websites,
+`docs/design-skills-2026-11-04/plan.md`, Schritt 3): der Craft-Check stellt zehn Fragen an einen
+Menschen; was sich messen lässt, soll ein Werkzeug mit Regel-ID melden. Probe an 16 Live- und
+8 Dev-Seiten bei 1280 und 390 px: 3–16 s je Seite, von 30 klassifizierten Befunden nach Allowlist
+ein Fehlalarm (ein SVG-Siegeltext als Fließtext gewertet), darunter neue echte Befunde (schwarze
+Schrift auf Dunkelgrün im Sticky-Button 2,4:1, 150 Zeichen je Zeile, h1 → h3).
+
+```bash
+node check-slop.mjs --dist <kundenrepo>/dist --seiten / --breiten 1280,390 --out /tmp/slop-<slug>
+node check-slop.mjs --url https://<domain>/ --ohne-allowlist      # Gegenprobe: nichts unterdrückt
+```
+
+Je Seite und Breite läuft `detect --json --no-config --viewport <b>x<h>`. `--no-config` heißt: keine
+`.impeccable/`-Konfiguration, keine DESIGN.md, keine Inline-Ignores aus dem Kundenrepo; die
+einzige Stelle, an der ein Befund nicht zählt, ist `slop-allowlist.json` hier (Ein-System).
+Dort stehen Regeln, die Markenentscheidungen oder cw-core-Systemmuster bestrafen (Stand 04.11.2026:
+`kicker-above-heading`, `marquee`, `side-tab`, `ai-color-palette`, `cream-palette`), jede mit
+Grund. Jede ID wird gegen den Regelkatalog (`detect --list-rules --quiet`, 62 Regeln) geprüft;
+eine unbekannte ID bricht mit Exit 64 ab, damit ein Tippfehler keine Regel still abschaltet.
+Advisories (impeccable wertet sie nie) werden gezählt, nicht gewertet.
+
+Exit: 0 gemessen, kein Befund · 1 Befund · 2 nicht geprüft (Seite nicht ladbar, Katalog nicht
+lesbar) · 64 Aufruf. impeccable selbst meldet 2 = Befund und 1 = Ziel nicht scanbar, der Wrapper
+tauscht das. Die letzte stdout-Zeile (`slop start@1280=N … summe=S regeln=… allowlist=A
+advisories=V befund=ja|nein`) liest das Gate; `slop-<slug>-<breite>.json` und `messung.json` im
+Ausgabeordner tragen die Rohbefunde mit Selektor und Snippet.
+
+Fixtures unter `fixtures/slop/`: `slop/` (Verlaufstext, Eyebrow-Chip, Lorem ipsum, Glow-Karten,
+9-px-Text, Zeilen über 120 Zeichen, pulsierender Punkt) liefert Exit 1, `sauber/` Exit 0.
+`pnpm test:slop` (7 Proben, ≈ 20 s): dazu toter Port → 2, Tippfehler in der Allowlist → 64, und
+die Sabotage-Gegenprobe: eine Allowlist mit jeder Regel der Slop-Fixture muss Exit 0 liefern,
+und der Lauf ohne Allowlist muss genau um die Allowlist-Treffer höher liegen.
+
 ## Lokal fahren
 
 ```bash

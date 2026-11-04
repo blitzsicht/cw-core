@@ -1,0 +1,11 @@
+{
+  "_kommentar": "Regeln von impeccable detect, die im Gate nicht zählen: Markenentscheidungen und cw-core-Systemmuster. Ein Eintrag braucht einen Grund mit Datum und Messung. Unbekannte Regel-IDs brechen check-slop.mjs mit Exit 64 ab (Tippfehler-Guard). Geprüft und erweitert am Strict-Tag (blitzsicht-ops, Einbautag + 14).",
+  "stand": "2026-11-04",
+  "regeln": {
+    "kicker-above-heading": "cw-core-Systemmuster: Eyebrow über jeder Blocküberschrift (Flottenscan 04.11.2026: 16 Treffer auf 3 Live-Seiten, alle wahr, alle gewollt)",
+    "marquee": "cw-core-Systemmuster: KundenMarquee und Testimonials-Schleife (6 Live-Seiten); das Reduce-Verhalten misst die Höhen-Zeile des Gates, nicht dieser Detektor",
+    "side-tab": "cw-core-Systemmuster: AnswerBlock `answer-card` mit 4 px Akzentrand und 8 px Radius (5 Live-, 3 Dev-Seiten); eine Änderung gehört nach cw-core, nicht in ein rotes Kundengate",
+    "ai-color-palette": "Markenfarbe, keine Vorlagenfarbe (mika Petrol-Verlauf #004650→#002f36, platzfrei Cyan); die Regel bestraft Farbfamilien, nicht Herkunft",
+    "cream-palette": "Markenfarbe (levia Beige #fbf6ec als Seitengrund); Markenentscheidung, keine Vorlage"
+  }
+}

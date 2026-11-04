@@ -13,7 +13,9 @@
     "test:mobil": "playwright test mobile-audit.spec.ts --project=mobile --project=tablet",
     "test:a11y": "playwright test a11y-audit.spec.ts --project=mobile --project=tablet",
     "test:layout": "playwright test layout-audit.spec.ts --project=mobile --project=tablet --project=desktop",
-    "test:screens": "node --test screenshot-gescrollt.test.mjs"
+    "test:screens": "node --test screenshot-gescrollt.test.mjs",
+    "check:slop": "node check-slop.mjs",
+    "test:slop": "node --test check-slop.test.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",
