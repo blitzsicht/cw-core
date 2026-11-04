@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.187.0 (2026-11-04)
 
 - [kunde] Für Google und KI-Assistenten lassen sich Zweitnamen eines Unternehmens und einer Person sowie der Rechtsname hinterlegen; am Erscheinungsbild ändert sich nichts.
 
