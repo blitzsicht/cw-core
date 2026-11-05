@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.191.0 (2026-11-05)
 
 - [kunde] Formularfelder, deren Eingabetext oder Platzhalter zu wenig Kontrast zum Feld hat, werden beim Prüfen der Website gemeldet.
 
