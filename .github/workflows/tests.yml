@@ -103,13 +103,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
         working-directory: checks
 
-      # Seit v0.150.0 (layout-audit) sind es 17 Tests:
-      #   mobile + tablet: mobile-audit 2 + a11y-audit 2 + layout-audit 3 (Positivkontrolle + 2 Routen) = 7 x 2 = 14
+      # Seit v0.150.0 (layout-audit) waren es 17 Tests, seit dem Skip-Link-Guard (#216) sind es 19:
+      #   mobile + tablet: mobile-audit 2 + a11y-audit 2 + skip-link 1 + layout-audit 3 (Positivkontrolle + 2 Routen) = 8 x 2 = 16
       #   desktop: nur layout-audit (testMatch) = 3
       # Zusaetzlich geprueft: im Projekt desktop taucht KEINE andere Spec auf — sonst liefe
       # mobile-audit dort doppelt und a11y-audit mit einem Viewport, fuer den sie nie
       # kalibriert wurde.
-      - name: Specs aufzaehlen (17 Tests erwartet — Kern-Rueckfall ohne DIST_DIR)
+      - name: Specs aufzaehlen (19 Tests erwartet — Kern-Rueckfall ohne DIST_DIR)
         working-directory: checks
         run: |
           set -euo pipefail
@@ -117,8 +117,8 @@ jobs:
           echo "$AUSGABE"
           ANZAHL=$(echo "$AUSGABE" | grep -oE 'Total: [0-9]+ test' | grep -oE '[0-9]+' || echo 0)
           echo "gezaehlt: $ANZAHL"
-          if [ "${ANZAHL:-0}" -ne 17 ]; then
-            echo "::error::Erwartet waren 17 Tests (mobile+tablet je 7, desktop 3), gezaehlt: $ANZAHL"
+          if [ "${ANZAHL:-0}" -ne 19 ]; then
+            echo "::error::Erwartet waren 19 Tests (mobile+tablet je 8, desktop 3), gezaehlt: $ANZAHL"
             exit 1
           fi
           FREMD=$(echo "$AUSGABE" | grep -E '\[desktop\]' | grep -vc 'layout-audit.spec.ts' || true)
