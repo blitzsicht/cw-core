@@ -62,6 +62,7 @@ import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
 import { pruefeSeite as pruefeFooterRechtsform } from './footer-rechtsform-check.js';
 import { pruefePlatzhaltertext, istZuPruefen } from './platzhaltertext-check.js';
+import { pruefeVerbotsliste, GARANTIE_PRAEDIKATE } from './verbotsliste-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
 import {
   buildMarkerOwners,
@@ -596,6 +597,40 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * welche zu zeigen. Default: leer (heute hat kein Kunde so eine Seite, gemessen 26.10.2026).
    */
   platzhaltertextAusnahmen?: string[];
+
+  /**
+   * Verbotslisten-Guard: meldet Formulierungen aus einer Liste im ausgelieferten Text —
+   * sichtbarer Text, `<title>`, Meta-`description`/`keywords`/`og:description`/
+   * `twitter:description`. Default an.
+   *
+   * Auslöser 05.11.2026 (blitzsicht-ops#1042): blitzsicht.com trug nach der eigenen
+   * Akquise-Verbotsliste zehn Altlasten in `src/` — „rechtssicher" in drei Blogartikeln und
+   * der Paketmatrix, „über 95 von 100 Punkten" ohne Quelle und Datum, „Beste Webagenturen"
+   * als Meta-Description. Der Platzhaltertext-Guard kennt nur Lücken, keine Versprechen.
+   */
+  checkVerbotsliste?: boolean;
+
+  /** `true` bricht den Build ab, statt nur zu melden. Default `false` (Soft-Start). */
+  strictVerbotsliste?: boolean;
+
+  /**
+   * Eigene Formulierungsliste des Kunden (Teilstrings, Groß-/Kleinschreibung egal, Whitespace
+   * normalisiert). Ohne diese Option gilt der Flottendefault — die drei Garantie-Prädikate
+   * `rechtssicher`, `abmahnsicher`, `anwaltlich geprüft` — und Treffer gehen nur als `info`
+   * ins Log (der Release-Train zählt WARN-Köpfe; ein neuer Guard darf seinen eigenen Rollout
+   * nicht blocken, cw-core#196). Mit eigener Liste wird jeder Treffer eine Warnung. Kurze
+   * Wörter nur mit Kontext eintragen („Beste Webagentur", nicht „Beste": das trifft auch
+   * „bestellen"). `[]` schaltet den Guard still ab.
+   */
+  verboteneFormulierungen?: string[];
+
+  /**
+   * Seiten, die der Verbotslisten-Guard überspringt — Pfad-Anfänge relativ zu `dist/`,
+   * z. B. `['datenschutz/']` für die Datenschutzerklärung, deren Rechtsgrundlage zu
+   * Art. 6 Abs. 1 lit. f DSGVO das Wort „rechtssicher" in der Standardformulierung trägt.
+   */
+  verbotslisteAusnahmen?: string[];
+
   /**
    * Default FALSE (Soft-Warn-Start, opt-IN) → `true` bricht den Build ab.
    */
@@ -4131,6 +4166,65 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             logger.info('Platzhaltertext-Guard: ? keine Seite geprüft — nicht geprüft.');
           } else {
             logger.info(`Platzhaltertext-Guard: ✓ ${geprueft} Seite(n), kein sichtbarer Platzhaltertext.`);
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Verbotslisten-Guard: Garantie-Prädikate und Kundenformulierungen im Text
+        // -------------------------------------------------------------------
+        // Auslöser 2026-11-05 (blitzsicht-ops#1042): blitzsicht.com trug nach der eigenen
+        // Akquise-Verbotsliste zehn Altlasten in src/ — „rechtssicher" in drei Blogartikeln
+        // und der Paketmatrix, „über 95 von 100 Punkten" ohne Quelle, „Beste Webagenturen"
+        // als Meta-Description. Kein Guard sah Versprechen, nur Lücken (Platzhaltertext),
+        // und Meta-Inhalte fallen in sichtbarerText() als Attribute weg. Zwei Stufen: ohne
+        // Kundenliste werden Treffer auf die drei Garantie-Prädikate als INFO gemeldet (das
+        // Train-Gate zählt WARN-Köpfe, cw-core#196 — ein neuer Guard darf seinen eigenen
+        // Rollout nicht blocken); eine eigene `verboteneFormulierungen`-Liste hebt auf WARN,
+        // `strictVerbotsliste` auf Abbruch. Reine Logik in verbotsliste-check.js.
+        if (options.checkVerbotsliste !== false) {
+          const eigeneListe = options.verboteneFormulierungen !== undefined;
+          const formulierungen: readonly string[] = options.verboteneFormulierungen ?? GARANTIE_PRAEDIKATE;
+          const anzahl = formulierungen.filter((f) => f.trim() !== '').length;
+          const ausnahmen = options.verbotslisteAusnahmen ?? [];
+          if (anzahl === 0) {
+            logger.info('Verbotslisten-Guard: nicht konfiguriert (0 Einträge).');
+          } else {
+            // Entdoppelt pro Fundstelle (Ort + Kontext): derselbe Satz steht oft in Header
+            // oder Footer jeder Seite.
+            const proKontext = new Map<string, { kontext: string; ort: string; treffer: string; formulierung: string; seiten: string[] }>();
+            let geprueft = 0;
+            for (const file of walkHtml(distDir)) {
+              const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
+              if (!istZuPruefen(rel, ausnahmen)) continue;
+              geprueft++;
+              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen)) {
+                const key = `${b.ort}\u0000${b.kontext}`;
+                const e = proKontext.get(key);
+                if (e) e.seiten.push(rel);
+                else proKontext.set(key, { kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel] });
+              }
+            }
+            const melden = eigeneListe ? (m: string) => logger.warn(m) : (m: string) => logger.info(m);
+            if (proKontext.size > 0) {
+              melden(
+                `Verbotslisten-Guard: ${proKontext.size} Fundstelle(n) mit ${eigeneListe ? 'Formulierungen aus der Kundenliste' : 'Garantie-Prädikaten (Flottendefault, nur Hinweis)'}:`,
+              );
+              for (const e of [...proKontext.values()].slice(0, 8)) {
+                const wo = e.seiten.length > 1 ? `${e.seiten[0]} + ${e.seiten.length - 1} weitere` : e.seiten[0];
+                melden(`  [verbotsliste_treffer] ${wo} (${e.ort}): „${e.kontext}" (Treffer: „${e.treffer}" ← „${e.formulierung}")`);
+              }
+              if (proKontext.size > 8) melden(`  … und ${proKontext.size - 8} weitere.`);
+              melden('  Ein Garantie-Prädikat verspricht ein Ergebnis, das die Seite nicht belegen kann. Tatsache statt Prädikat: was gebaut ist, mit Quelle und Datum — oder der Satz fällt weg.');
+              if (options.strictVerbotsliste === true) {
+                throw new Error(
+                  `[ai-discovery] strictVerbotsliste=true: Build abgebrochen — ${proKontext.size} Fundstelle(n) mit Formulierungen aus der Verbotsliste.`,
+                );
+              }
+            } else if (geprueft === 0) {
+              logger.info('Verbotslisten-Guard: ? keine Seite geprüft — nicht geprüft.');
+            } else {
+              logger.info(`Verbotslisten-Guard: ✓ ${geprueft} Seite(n), ${anzahl} Formulierung(en), 0 Treffer.`);
+            }
           }
         }
 
