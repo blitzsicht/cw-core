@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.189.0 (2026-11-05)
 
 ### Added
 
