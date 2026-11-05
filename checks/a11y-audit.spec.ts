@@ -57,6 +57,23 @@ for (const route of PAGES) {
     await page.waitForLoadState('load');
     await page.evaluate(() => document.fonts.ready);
 
+    // Skip-Link-Paarung auf JEDER Seite (Review nach dem Merge von #217, Befunde 1 und 2): Der Link kommt aus
+    // BaseLayout, das Ziel main#inhalt nur aus LandingPage und ContentPage. Seiten mit BaseLayout direkt hatten
+    // mit v0.190.0 einen toten ersten Tab-Stop (live 05.11.2026: blitzsicht /report/, /fix/, /danke/), und die
+    // Probe an PAGES[0] unten sah das nicht. Seit v0.192.0 rendert BaseLayout den Link nur mit Ziel; hier wird
+    // das je Seite gemessen, auch gegen eigene Layouts. Eine Seite OHNE Link ist kein Fehler, nur eine Annotation:
+    // der Paket-Pin kann hinter dem Guard-Pin liegen, und eigene Layouts (gympanzen, href="#main") haben keinen
+    // cw-core-Link.
+    const skip = await page.evaluate(() => ({
+      links: document.querySelectorAll('a.skip-link[href="#inhalt"]').length,
+      ziele: document.querySelectorAll('#inhalt').length,
+    }));
+    if (skip.links === 0) {
+      test.info().annotations.push({ type: 'skip-link', description: `${route}: kein Skip-Link im Build` });
+    } else {
+      expect(skip.ziele, `${route}: ${skip.links} Skip-Link(s) auf #inhalt, aber ${skip.ziele} Ziel(e) im Dokument — toter erster Tab-Stop`).toBe(1);
+    }
+
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'])
       .analyze();
@@ -105,14 +122,24 @@ for (const route of PAGES) {
   });
 }
 
-// Skip-Link (cw-core #216, Bake-off 05.11.2026 F-007 an haarwerk): der erste Tab-Stop jeder Seite ist der Link
-// „Zum Inhalt springen", Enter setzt den Fokus auf <main id="inhalt" tabindex="-1">. Link und main kommen aus
-// BaseLayout/LandingPage/ContentPage, nicht aus der Seite — eine Seite des Builds genügt als Probe.
-// Negativprobe (gemessen 05.11.2026 am haarwerk-Build): Link aus dem gebauten HTML entfernt → erster Tab-Stop ist
-// das Logo, Test rot; mit Link grün.
+// Skip-Link (cw-core #216, Bake-off 05.11.2026 F-007 an haarwerk): der erste Tab-Stop ist der Link
+// „Zum Inhalt springen", Enter setzt den Fokus auf <main id="inhalt" tabindex="-1">. Geprüft an der ERSTEN Seite
+// des Builds, die den Link trägt — nicht blind an PAGES[0] (Review nach dem Merge von #217, Befund 3): der
+// Guard-Pin im site-checks-Workflow läuft dem Paket-Pin des Kunden voraus, ein Build ohne Link (Paket < v0.190.0
+// oder eigenes Layout) wird übersprungen und nicht rot (Memory „Neuer Guard blockt seinen eigenen Rollout“). Die
+// Paarung Link⇔Ziel prüft der a11y-Test oben auf jeder Seite.
+// Negativproben (gemessen 05.11.2026 am haarwerk-Build, nachgefahren am examples-Build): Link aus dem gebauten
+// HTML entfernt → übersprungen mit Grund; tabindex="-1" aus main entfernt → Enter setzt keinen Fokus, Test rot;
+// unverändert grün.
 if (PAGES.length > 0) {
-  test(`skip-link ${PAGES[0]}`, async ({ page }) => {
-    await page.goto(PAGES[0], { waitUntil: 'load', timeout: 15_000 });
+  test('skip-link: erster Tab-Stop und Enter auf main#inhalt', async ({ page }) => {
+    let probe: string | null = null;
+    for (const route of PAGES) {
+      await page.goto(route, { waitUntil: 'domcontentloaded', timeout: 15_000 });
+      if ((await page.locator('a.skip-link[href="#inhalt"]').count()) > 0) { probe = route; break; }
+    }
+    test.skip(probe === null, `kein a.skip-link in ${PAGES.length} Seiten des Builds (Paket-Pin < v0.190.0 oder eigenes Layout)`);
+    await page.goto(probe!, { waitUntil: 'load', timeout: 15_000 });
     await page.keyboard.press('Tab');
     const erster = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;

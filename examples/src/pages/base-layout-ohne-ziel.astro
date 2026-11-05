@@ -1,0 +1,36 @@
+---
+/**
+ * BaseLayout direkt, ohne Sprungziel.
+ *
+ * Anlass (Review nach dem Merge von cw-core#217, 05.11.2026, Befund 1): BaseLayout rendert den Skip-Link
+ * „Zum Inhalt springen“, das Ziel `main#inhalt` setzen aber nur LandingPage und ContentPage. Seiten, die
+ * BaseLayout direkt nutzen (blitzsicht /report/, /fix/, /danke/; gowohnen Seite.astro), hatten mit v0.190.0
+ * einen toten ersten Tab-Stop: Enter tat nichts.
+ *
+ * Seit dem Fix erscheint der Link nur, wenn der Inhalt `id="inhalt"` trägt. Diese Seite hat kein Ziel —
+ * und deshalb auch keinen Skip-Link. Das ist die Negativprobe des Fixes.
+ *
+ * Gegenprobe (gemessen 05.11.2026): Build ohne den Fix → diese Seite trägt `class="skip-link"` 1× und
+ * `id="inhalt"` 0×; mit Fix → 0× und 0×.
+ */
+import BaseLayout from '@cw/core/layouts/BaseLayout.astro';
+---
+<BaseLayout
+  title="BaseLayout direkt, ohne Ziel"
+  description="Seite ohne main#inhalt: kein Skip-Link, kein toter Tab-Stop."
+  robots="noindex"
+  siteName="cw-core Examples"
+  siteUrl="http://localhost:4322"
+  defaultTitle="cw-core Examples"
+  defaultDescription="Component-Showcase"
+  defaultOgImage="/og.png"
+>
+  <main>
+    <h1>BaseLayout direkt, ohne Sprungziel</h1>
+    <p>
+      Dieses <code>&lt;main&gt;</code> hat keine <code>id=inhalt</code>. BaseLayout rendert deshalb keinen
+      Skip-Link: Ein Link ohne Ziel wäre ein toter erster Tab-Stop.
+    </p>
+    <p><a href="/base-layout-mit-ziel/">Dieselbe Seite mit Sprungziel</a></p>
+  </main>
+</BaseLayout>

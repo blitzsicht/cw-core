@@ -126,6 +126,27 @@ jobs:
             echo "::error::Projekt desktop enthaelt $FREMD Tests ausserhalb von layout-audit"
             exit 1
           fi
+          # Rueckfall-Guard (Review nach dem Merge von #219, Befund 3): der Zaehlwert allein sieht nicht, ob
+          # `--list` nebenbei node:test-Dateien ausgefuehrt hat — vor #219 stand Total 19 neben 17 Ergebniszeilen
+          # von node:test. Null solcher Zeilen, sonst rot. (grep -c endet ohne Treffer mit 1, daher || true.)
+          NODETEST=$(echo "$AUSGABE" | grep -cE '^\s*(✔|✖|ok [0-9]|not ok)' || true)
+          echo "node:test-Zeilen in der --list-Ausgabe: ${NODETEST:-0}"
+          if [ "${NODETEST:-0}" -ne 0 ]; then
+            echo "::error::$NODETEST node:test-Ergebniszeilen in der --list-Ausgabe — testMatch in playwright.config.ts greift nicht"
+            exit 1
+          fi
+
+      # Die node:test-Dateien in checks/ liefen bis #219 nur versehentlich beim --list mit (Ergebnis ignoriert,
+      # 7 „not ok“ ohne Chromium), seit #219 in keinem Job (Review nach dem Merge, Befund 4). Hier laufen sie als
+      # eigener Schritt: check-slop (npx impeccable, braucht Netz), formular-kontrast und screenshot-gescrollt
+      # (beide Chromium). Die Wurzel-Globs von `pnpm test` erfassen checks/ nicht.
+      - name: node:test in checks/ (check-slop, formular-kontrast, screenshot-gescrollt)
+        working-directory: checks
+        run: |
+          pnpm exec playwright install chromium --with-deps
+          pnpm test:slop
+          pnpm test:formular
+          pnpm test:screens
 
   # Formulare im Browser wirklich absenden (blitzsicht-ops#900): Klick →
   # Client-Skript in ContactForm.astro → echter createContactHandler → Erfolgs-

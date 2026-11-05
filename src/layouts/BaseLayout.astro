@@ -118,7 +118,8 @@ interface Props {
   /**
    * Text des Skip-Links, der als erstes Kind des `body` steht und nur bei Tastaturfokus
    * sichtbar wird (cw-core #216, Bake-off 05.11.2026 F-007). Ziel ist `main#inhalt`, das
-   * `LandingPage` und `ContentPage` setzen. Defaults to "Zum Inhalt springen".
+   * `LandingPage` und `ContentPage` setzen; der Link wird nur gerendert, wenn der Inhalt dieses
+   * Ziel trägt (Review nach dem Merge von #217, Befund 1). Defaults to "Zum Inhalt springen".
    */
   skipLinkLabel?: string;
   /** OG locale. Defaults to "de_DE". */
@@ -188,6 +189,15 @@ const {
   trackingMode = 'inline',
   schema,
 } = Astro.props;
+
+// Skip-Link nur mit Ziel (Review nach dem Merge von #217, 05.11.2026, Befund 1). Den Link rendert BaseLayout, das
+// Ziel `main#inhalt` setzen LandingPage und ContentPage — Seiten mit BaseLayout direkt (blitzsicht /report/, /fix/,
+// /danke/; gowohnen Seite.astro) hatten mit v0.190.0 einen toten ersten Tab-Stop: Enter tat nichts. Deshalb wird der
+// Slot vorab gerendert und unverändert per `set:html` ausgegeben; der Link kommt nur, wenn ein Start-Tag darin
+// `id="inhalt"` trägt (Attribut im Tag, nicht Fließtext). Wer BaseLayout direkt nutzt und den Link will, setzt
+// `<main id="inhalt" tabindex="-1">` (examples/src/pages/base-layout-mit-ziel.astro).
+const inhalt = Astro.slots.has('default') ? await Astro.slots.render('default') : '';
+const hatSprungziel = /<[a-z][a-z0-9-]*\b[^>]*\sid=["']inhalt["']/i.test(inhalt);
 
 // An SchemaOrg geht alles aus `schema` außer `faqs` (siehe SchemaProps).
 const schemaOrgProps = schema ? (({ faqs: _faqs, ...rest }) => rest)(schema) : undefined;
@@ -359,9 +369,9 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
             https://blitzsicht.com
       ================================================================
     -->
-    <!-- Erster Tab-Stop jeder Seite; Stil in tokens-base.css (.skip-link), Ziel main#inhalt (cw-core #216). -->
-    <a class="skip-link" href="#inhalt">{skipLinkLabel}</a>
-    <slot />
+    <!-- Erster Tab-Stop jeder Seite mit Sprungziel; Stil in tokens-base.css (.skip-link), Ziel main#inhalt (cw-core #216). -->
+    {hatSprungziel && <a class="skip-link" href="#inhalt">{skipLinkLabel}</a>}
+    <Fragment set:html={inhalt} />
   </body>
   <script>
     import { initAutoEvents } from '../utils/analytics/auto-events';

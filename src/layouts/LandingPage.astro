@@ -170,6 +170,8 @@ interface Props {
     username?: string;
     gender?: 'male' | 'female';
   };
+  /** Text des Skip-Links, durchgereicht an BaseLayout (Default „Zum Inhalt springen“). */
+  skipLinkLabel?: string;
   /** Header config. */
   header?: HeaderConfig;
   /** Footer config. Required because Footer requires `siteName`. */
@@ -214,6 +216,7 @@ const {
   stickyContact,
   motion,
   turnstileSiteKey,
+  skipLinkLabel,
 } = Astro.props;
 ---
 <BaseLayout
@@ -237,6 +240,7 @@ const {
   schema={schema}
   ogType={ogType}
   ogProfile={ogProfile}
+  skipLinkLabel={skipLinkLabel}
 >
   <slot name="head" slot="head" />
   {motion?.smoothScroll && <SmoothScroll />}
