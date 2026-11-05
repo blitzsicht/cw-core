@@ -24,6 +24,12 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+- [kunde] Formularfelder, deren Eingabetext oder Platzhalter zu wenig Kontrast zum Feld hat, werden beim Prüfen der Website gemeldet.
+
+### Added
+
+- **`checks/formular-kontrast.mjs`** + Abschnitt in `a11y-audit.spec.ts`: Formularkontrast-Guard. Misst je sichtbarem Feld (`input` ohne Schalter-/Knopf-Typen, `textarea`, `select`) die `color` und die `::placeholder`-Farbe gegen den effektiven Hintergrund (Elternkette, Alpha überblendet; Canvas normalisiert auch `oklab(…)`), Schwelle 4,5:1. Soft-Start: Befund als Annotation `formular-kontrast` + Log, rot nur mit `STRICT_FORMULAR_KONTRAST=1`. Gegenprobe im Spec selbst (Fixture weiß-auf-weiß meldet 2, Fixture lesbar 0). `pnpm test:formular` (9 Proben, node:test + Chromium). Anlass: customer-blitzsicht `/website-audit` stand mit weißem Eingabetext auf weißem Feld live (blitzsicht-ops#1055 A2) — Tailwinds Preflight `input { color: inherit }` erbte `color: white` aus dem Hero; axe sieht ein leeres Feld und sein Pseudo-Element nicht.
+
 ### Fixed
 
 - **`checks/playwright.config.ts`** (#218): `testIgnore: ['**/*.test.mjs', '**/node_modules/**']` direkt nach `testDir`. Playwrights Standard-`testMatch` lud beim `--list` des CI-Jobs „checks/ laedt und zaehlt“ auch die node:test-Dateien `check-slop.test.mjs` und `screenshot-gescrollt.test.mjs` und führte sie aus (lokal 17 `✔`-Zeilen, 16 Proben in rund 90 s; im CI-Lauf 42004940939 7 `not ok`, Ergebnis ignoriert). Gegenprobe: eine werfende `kaputt.test.mjs` im Ordner brach `--list` vorher mit Exit 1 ab (Total 0), jetzt Exit 0 und Total 19; Spec beiseite gelegt → Total 15, der Job würde rot. `pnpm test:slop` und `pnpm test:screens` unverändert.
@@ -35,6 +41,10 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 ### Added
 
 - **Skip-Link** (#216, Bake-off 05.11.2026, design-review-Befund F-007 an haarwerk): `BaseLayout` rendert als erstes Kind des `body` `<a class="skip-link" href="#inhalt">` (Text per Prop `skipLinkLabel`), `LandingPage` und `ContentPage` setzen `<main id="inhalt" tabindex="-1">`; Stile in `tokens-base.css` (geparkt über dem Rand, bei `:focus-visible` im Bild). Guard: `checks/a11y-audit.spec.ts` prüft auf der ersten Seite des Builds, dass der erste Tab-Stop der Link ist und Enter den Fokus auf `main#inhalt` setzt. Cluster-Scan 05.11.: kein Kundenrepo nutzt `id="inhalt"` oder `#inhalt`. CI-Zählung in `tests.yml` („checks/ laedt und zaehlt“) 17 → 19.
+
+### Fixed
+
+- **`scripts/bildherkunft-uebernehmen.mjs`**: schreibt nicht mehr über bestehende Deklarationen (#210).
 
 ## v0.189.0 (2026-11-05)
 
