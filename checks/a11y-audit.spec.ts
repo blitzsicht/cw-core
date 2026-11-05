@@ -80,3 +80,23 @@ for (const route of PAGES) {
     // moderate + minor logged but not failing
   });
 }
+
+// Skip-Link (cw-core #216, Bake-off 05.11.2026 F-007 an haarwerk): der erste Tab-Stop jeder Seite ist der Link
+// „Zum Inhalt springen", Enter setzt den Fokus auf <main id="inhalt" tabindex="-1">. Link und main kommen aus
+// BaseLayout/LandingPage/ContentPage, nicht aus der Seite — eine Seite des Builds genügt als Probe.
+// Negativprobe (gemessen 05.11.2026 am haarwerk-Build): Link aus dem gebauten HTML entfernt → erster Tab-Stop ist
+// das Logo, Test rot; mit Link grün.
+if (PAGES.length > 0) {
+  test(`skip-link ${PAGES[0]}`, async ({ page }) => {
+    await page.goto(PAGES[0], { waitUntil: 'load', timeout: 15_000 });
+    await page.keyboard.press('Tab');
+    const erster = await page.evaluate(() => {
+      const el = document.activeElement as HTMLElement | null;
+      return el ? { tag: el.tagName, href: el.getAttribute('href') } : null;
+    });
+    expect(erster, 'erster Tab-Stop muss der Skip-Link (a[href="#inhalt"]) sein').toEqual({ tag: 'A', href: '#inhalt' });
+    await page.keyboard.press('Enter');
+    const ziel = await page.evaluate(() => document.activeElement?.id ?? '');
+    expect(ziel, 'Enter auf dem Skip-Link muss den Fokus auf main#inhalt setzen').toBe('inhalt');
+  });
+}

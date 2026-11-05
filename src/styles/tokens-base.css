@@ -590,6 +590,34 @@ h1, h2, h3, h4, h5, h6 {
   border: 0;
 }
 
+/* Skip-Link (cw-core #216): erstes Kind des body in BaseLayout, Ziel main#inhalt in den Layouts.
+   Ohne Fokus über dem oberen Rand geparkt (nicht display:none, sonst wäre er nicht fokussierbar);
+   bei Tastaturfokus rutscht er ins Bild. Farben wie der Accent-Knopf (--color-accent + --color-accent-btn-text,
+   Z. 23), damit Sites mit hellem Accent ihre Textfarbe schon über den vorhandenen Token setzen. */
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10000;
+  padding: 0.75rem 1.25rem;
+  background: var(--color-accent);
+  color: var(--color-accent-btn-text, white);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  transform: translateY(-200%);
+  transition: transform 0.15s ease-out;
+}
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid var(--color-accent-btn-text, white);
+  outline-offset: 2px;
+}
+/* Das Sprungziel bekommt per tabindex="-1" den Fokus, soll aber keinen Rahmen um den ganzen Inhalt zeichnen. */
+main#inhalt:focus {
+  outline: none;
+}
+
 /* Cross-Document View Transitions (Chrome/Edge 126+, Safari 18.2+) —
    zentral für alle Customer-Sites (Speed-Rollout 2026-07). Reines CSS,
    Progressive Enhancement: nicht unterstützte Browser navigieren normal.

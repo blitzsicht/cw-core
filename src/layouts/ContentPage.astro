@@ -215,7 +215,7 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
     karriereHref={header.karriereHref}
     hideBrandName={header.hideBrandName}
   />
-  <main class:list={["content-page", { "flush-bottom": shouldFlush }]}>
+  <main id="inhalt" tabindex="-1" class:list={["content-page", { "flush-bottom": shouldFlush }]}>
     <div class="container">
       {showTitle && <h1>{title}</h1>}
       <slot />

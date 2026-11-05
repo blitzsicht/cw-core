@@ -115,6 +115,12 @@ interface Props {
   defaultOgImage: string;
   /** HTML lang attribute. Defaults to "de". */
   lang?: string;
+  /**
+   * Text des Skip-Links, der als erstes Kind des `body` steht und nur bei Tastaturfokus
+   * sichtbar wird (cw-core #216, Bake-off 05.11.2026 F-007). Ziel ist `main#inhalt`, das
+   * `LandingPage` und `ContentPage` setzen. Defaults to "Zum Inhalt springen".
+   */
+  skipLinkLabel?: string;
   /** OG locale. Defaults to "de_DE". */
   ogLocale?: string;
   /**
@@ -172,6 +178,7 @@ const {
   titleTemplate,
   defaultOgImage,
   lang = 'de',
+  skipLinkLabel = 'Zum Inhalt springen',
   ogLocale = 'de_DE',
   ogType = 'website',
   ogProfile,
@@ -352,6 +359,8 @@ if (plausibleScript?.startsWith('/') && !plausibleEndpoint) {
             https://blitzsicht.com
       ================================================================
     -->
+    <!-- Erster Tab-Stop jeder Seite; Stil in tokens-base.css (.skip-link), Ziel main#inhalt (cw-core #216). -->
+    <a class="skip-link" href="#inhalt">{skipLinkLabel}</a>
     <slot />
   </body>
   <script>
