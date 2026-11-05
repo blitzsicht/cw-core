@@ -8,8 +8,14 @@
  *
  * Warum eine eigene Datei statt inline wie `imageRights`: zink-baeckerei allein hat 69
  * Bilder. Ein Block dieser Größe mitten im site-data-Objekt macht die Datei unlesbar und
- * jeden Diff daran unbrauchbar. Die erzeugte Datei trägt einen Erzeugt-Hinweis und darf
- * überschrieben werden; die zwei Zeilen in `site-data.ts` schreibt man einmal.
+ * jeden Diff daran unbrauchbar. Die zwei Zeilen in `site-data.ts` schreibt man einmal.
+ *
+ * **Die Zieldatei darf NICHT blind überschrieben werden.** Sie hat einen zweiten Schreiber:
+ * `bild-einbauen.mjs` ergänzt sie bei jedem eingebauten Bild. Gemessen am 05.11.2026 trug
+ * `customer-blitzsicht` 108 Regeln, von denen dieses Skript 38 kannte — ein Lauf mit
+ * `--schreiben` hätte 72 Rechtsaussagen gelöscht, ohne ein Wort zu sagen. Seitdem vergleicht
+ * `lib/bildherkunft-verlust.mjs` vor dem Schreiben mit dem Bestand, der Lauf bricht bei
+ * Verlust ab (Exit 2) und `--verlust-ok` ist der ausdrückliche Ausweg.
  *
  * Rechtlicher Rahmen: Art. 50 Abs. 4 UAbs. 1 AI Act, Legaldefinition Art. 3 Nr. 60.
  * Volltext: cw-recht → texte/eu/ai-act/ai-act.md. Keine Rechtsberatung.
@@ -19,13 +25,17 @@
  *   node scripts/bildherkunft-übernehmen.mjs --export … --deepfake vorschlaege.json
  *   node scripts/bildherkunft-übernehmen.mjs --export … --schreiben          # legt Dateien an
  *   node scripts/bildherkunft-übernehmen.mjs --export … --schreiben --verdrahten
+ *   node scripts/bildherkunft-übernehmen.mjs --export … --schreiben --verlust-ok
+ *       # überschreibt auch dann, wenn bestehende Deklarationen dabei wegfallen
  *
- * Ohne `--schreiben` passiert nichts — es wird nur berichtet, was passieren würde.
+ * Ohne `--schreiben` passiert nichts — es wird nur berichtet, was passieren würde,
+ * einschließlich der Deklarationen, die ein Schreiblauf verwerfen würde.
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { alsLiteral, regelZeile } from './bildherkunft-arbeitsliste.mjs';
+import { verlustVergleich } from './lib/bildherkunft-verlust.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
 import { registryPfad } from './registry-pfad.mjs';
 
@@ -80,9 +90,12 @@ if (repoOverride) {
   repoPfad[nurSlug] = repoOverride;
 }
 
-const KOPF = (slug, anzahl, stand) => `// ERZEUGTE DATEI — nicht von Hand bearbeiten.
-// Erzeugt von cw-core/scripts/bildherkunft-übernehmen.mjs aus der Bild-Arbeitsliste.
-// Änderungen gehen beim nächsten Lauf verloren; einordnen in der Arbeitsliste.
+const KOPF = (slug, anzahl, stand) => `// Angelegt von cw-core/scripts/bildherkunft-übernehmen.mjs aus der Bild-Arbeitsliste,
+// seitdem ergänzt von cw-core/scripts/bild-einbauen.mjs bei jedem weiteren Bild.
+// Beide Wege sind vorgesehen, und Änderungen von Hand sind erlaubt: der Generator
+// überschreibt eine ergänzte Datei nicht mehr, sondern bricht ab und nennt, welche
+// Deklarationen fehlen würden (nur \`--verlust-ok\` überstimmt das). Neue Einordnungen
+// gehören trotzdem auch in die Arbeitsliste, sonst kennt sie der nächste Lauf nicht.
 //
 // Bild-Herkunft nach Art. 50 Abs. 4 UAbs. 1 AI Act (VO (EU) 2024/1689).
 // Die Norm verlangt vom Betreiber eine Offenlegung nur für KI-Inhalte, die ein Deepfake
@@ -105,6 +118,7 @@ export const bildHerkunft: BildHerkunftRegel[] = [
 const stand = new Date(daten.stand).toLocaleDateString('de-DE');
 const bericht = [];
 let gesamtPflicht = 0;
+let gesamtVerlust = 0;
 
 for (const [slug, liste] of Object.entries(daten.sites)) {
   if (nurSlug && slug !== nurSlug) continue;
@@ -143,23 +157,55 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   const inhalt = KOPF(slug, zeilen.length, stand) + zeilen.join('\n') + '\n];\n';
   const ziel = join(repo, 'src/data/bild-herkunft.ts');
 
-  bericht.push({ slug, geschrieben: zeilen.length, offen, pflicht, befunde, ziel });
+  // Zweite Gegenprobe, diesmal gegen den Bestand: was steht schon in der Zieldatei, das
+  // dieser Lauf nicht kennt? Ohne sie wäre `writeFileSync` ein stiller Totalverlust — in
+  // blitzsicht gemessen 72 von 108 Regeln, darunter sechs Art.-50-Einstufungen. Die Datei
+  // hat zwei Schreiber (bild-einbauen.mjs ergänzt sie), und nur dieser wusste nichts davon.
+  let verlust;
+  try {
+    verlust = verlustVergleich(existsSync(ziel) ? readFileSync(ziel, 'utf8') : '', zeilen);
+  } catch (e) {
+    // Unbekannte Zeilenform in der Zieldatei. Nicht schreiben: ohne verlässliche Lesung
+    // ist über den Bestand nichts ausgesagt, und „nichts ausgesagt" ist nicht „nichts da".
+    bericht.push({ slug, fehler: `Zieldatei nicht lesbar — ${e.message.split('\n')[0]}` });
+    continue;
+  }
+
+  bericht.push({ slug, geschrieben: zeilen.length, offen, pflicht, befunde, ziel, verlust });
   gesamtPflicht += pflicht;
+  gesamtVerlust += verlust.verloren.length;
 
   if (hatFlag('--schreiben')) {
     if (befunde.length) { console.error(`  ! ${slug}: ${befunde.length} Befunde — NICHT geschrieben`); continue; }
+    if (verlust.verloren.length && !hatFlag('--verlust-ok')) {
+      console.error(`  ! ${slug}: ${verlust.verloren.length} bestehende Deklarationen gingen verloren — NICHT geschrieben`);
+      continue;
+    }
     writeFileSync(ziel, inhalt, 'utf8');
   }
 }
 
-console.log(`\n${'Site'.padEnd(24)} ${'Regeln'.padStart(7)} ${'offen'.padStart(6)} ${'Label'.padStart(6)}  Befunde`);
+console.log(`\n${'Site'.padEnd(24)} ${'Regeln'.padStart(7)} ${'offen'.padStart(6)} ${'Label'.padStart(6)} ${'Verlust'.padStart(8)}  Befunde`);
 for (const b of bericht) {
   if (b.fehler) { console.log(`${b.slug.padEnd(24)} ${b.fehler}`); continue; }
   const bf = b.befunde.length ? `${b.befunde.length} ✗` : '—';
-  console.log(`${b.slug.padEnd(24)} ${String(b.geschrieben).padStart(7)} ${String(b.offen).padStart(6)} ${String(b.pflicht).padStart(6)}  ${bf}`);
+  const vl = b.verlust.verloren.length ? `${b.verlust.verloren.length} ✗` : '—';
+  console.log(`${b.slug.padEnd(24)} ${String(b.geschrieben).padStart(7)} ${String(b.offen).padStart(6)} ${String(b.pflicht).padStart(6)} ${vl.padStart(8)}  ${bf}`);
   for (const f of b.befunde.slice(0, 3)) console.log(`    ${f.field}: ${f.detail}`);
+  // Der Probelauf ist die Stelle, an der ein Verlust auffallen soll — nicht erst der
+  // Schreiblauf. Deshalb steht er hier und nicht im `--schreiben`-Zweig.
+  for (const p of b.verlust.verloren.slice(0, 5)) console.log(`    verliert: ${p}`);
+  if (b.verlust.verloren.length > 5) console.log(`    … und ${b.verlust.verloren.length - 5} weitere`);
+  // Eine Adresse, die nur die Quelle kennt, ist nicht automatisch falsch — bei einem
+  // gelöschten Bild ist sie es aber: dann legt der Lauf eine Regel für eine Datei an,
+  // die es nicht mehr gibt (blitzsicht 05.11.2026: jimdo-alternative.webp, pakete.webp).
+  for (const p of b.verlust.neuAngelegt.slice(0, 5)) console.log(`    neu: ${p}`);
 }
 console.log(`\nKennzeichnungspflichtig insgesamt: ${gesamtPflicht}`);
+if (gesamtVerlust) {
+  console.log(`Bestehende Deklarationen, die dieser Lauf verwirft: ${gesamtVerlust}`);
+  console.log('  → in die Arbeitsliste aufnehmen und neu exportieren, oder --verlust-ok setzen.');
+}
 
 if (!hatFlag('--schreiben')) {
   console.log('\nProbelauf — nichts geschrieben. Mit --schreiben ausfuehren.');
@@ -195,3 +241,14 @@ if (hatFlag('--schreiben') && hatFlag('--verdrahten')) {
     console.log(`  ✓ ${b.slug}`);
   }
 }
+
+// Eigene Codes für „nichts geschrieben, und zwar aus einem Grund", unterscheidbar von 1
+// (Nutzungsfehler, etwa fehlendes --export). Exit 0 hieße hier: der Lauf schreibt nichts,
+// meldet aber Erfolg — ein Aufrufer, der nur den Code liest, hielte die Datei für aktuell.
+//
+// Gemessen am 05.11.2026: ohne Code 3 endete ein Lauf gegen eine unlesbare Zieldatei mit
+// Exit 0 und der Meldung mitten in einer Tabelle. Dasselbe galt schon vorher für
+// „repo_path fehlt" — eine Site stillschweigend zu überspringen ist kein Erfolg.
+const uebersprungen = bericht.filter((b) => b.fehler).length;
+if (uebersprungen) process.exit(3);
+if (gesamtVerlust && !hatFlag('--verlust-ok')) process.exit(2);
