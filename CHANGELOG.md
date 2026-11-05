@@ -28,7 +28,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ### Added
 
-- **Skip-Link** (#216, Bake-off 05.11.2026, design-review-Befund F-007 an haarwerk): `BaseLayout` rendert als erstes Kind des `body` `<a class="skip-link" href="#inhalt">` (Text per Prop `skipLinkLabel`), `LandingPage` und `ContentPage` setzen `<main id="inhalt" tabindex="-1">`; Stile in `tokens-base.css` (geparkt über dem Rand, bei `:focus-visible` im Bild). Guard: `checks/a11y-audit.spec.ts` prüft auf der ersten Seite des Builds, dass der erste Tab-Stop der Link ist und Enter den Fokus auf `main#inhalt` setzt. Cluster-Scan 05.11.: kein Kundenrepo nutzt `id="inhalt"` oder `#inhalt`.
+- **Skip-Link** (#216, Bake-off 05.11.2026, design-review-Befund F-007 an haarwerk): `BaseLayout` rendert als erstes Kind des `body` `<a class="skip-link" href="#inhalt">` (Text per Prop `skipLinkLabel`), `LandingPage` und `ContentPage` setzen `<main id="inhalt" tabindex="-1">`; Stile in `tokens-base.css` (geparkt über dem Rand, bei `:focus-visible` im Bild). Guard: `checks/a11y-audit.spec.ts` prüft auf der ersten Seite des Builds, dass der erste Tab-Stop der Link ist und Enter den Fokus auf `main#inhalt` setzt. Cluster-Scan 05.11.: kein Kundenrepo nutzt `id="inhalt"` oder `#inhalt`. CI-Zählung in `tests.yml` („checks/ laedt und zaehlt“) 17 → 19.
 
 ## v0.189.0 (2026-11-05)
 
