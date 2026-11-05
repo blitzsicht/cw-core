@@ -10,6 +10,7 @@ import AxeBuilder from '@axe-core/playwright';
 // Seiten kommen aus der Sitemap des Builds, nicht aus einer gepflegten Liste —
 // dieselbe Lücke wie beim mobile-audit. Siehe tests/seiten.ts.
 import { seitenAusBuild } from './seiten';
+import { formularKontrastBefunde, unterSchwelle, WEISS_AUF_WEISS, LESBAR } from './formular-kontrast.mjs';
 
 const PAGES = seitenAusBuild();
 
@@ -78,6 +79,29 @@ for (const route of PAGES) {
     expect(critical, `${route}: ${critical.length} critical a11y violations: ${critical.map(v => v.id).join(', ')}`).toHaveLength(0);
     expect(serious, `${route}: ${serious.length} serious a11y violations: ${serious.map(v => v.id).join(', ')}`).toHaveLength(0);
     // moderate + minor logged but not failing
+
+    // Formularkontrast (blitzsicht-ops#1055 A2): Eingabetext und Placeholder jedes sichtbaren
+    // Felds gegen den effektiven Hintergrund. axe sieht das nicht — ein leeres Feld hat keinen
+    // Textknoten, der Placeholder ist ein Pseudo-Element. Soft-Start: Befund als Annotation und
+    // im Log; rot erst mit STRICT_FORMULAR_KONTRAST=1 (Flottenmessung vor dem Umschalten,
+    // Muster ops#1053). Messlogik und Fixtures: formular-kontrast.mjs.
+    const formular = await page.evaluate(formularKontrastBefunde);
+    const schlecht = unterSchwelle(formular, 4.5);
+    if (schlecht.length > 0) {
+      console.log(`\n[${route}] ${schlecht.length} Formularfelder unter 4,5:1:`);
+      for (const b of schlecht) {
+        console.log(`  ${b.feld}: Text ${b.text} = ${b.textKontrast}:1`
+          + (b.placeholder ? `, Placeholder ${b.placeholder} = ${b.placeholderKontrast}:1` : '')
+          + ` auf ${b.hintergrund}`);
+      }
+      test.info().annotations.push({
+        type: 'formular-kontrast',
+        description: `${route}: ${schlecht.map((b) => `${b.feld} ${b.textKontrast}/${b.placeholderKontrast ?? '-'}`).join(', ')}`,
+      });
+    }
+    if (process.env.STRICT_FORMULAR_KONTRAST === '1') {
+      expect(schlecht, `${route}: ${schlecht.length} Formularfelder unter 4,5:1: ${schlecht.map((b) => b.feld).join(', ')}`).toHaveLength(0);
+    }
   });
 }
 
@@ -100,3 +124,15 @@ if (PAGES.length > 0) {
     expect(ziel, 'Enter auf dem Skip-Link muss den Fokus auf main#inhalt setzen').toBe('inhalt');
   });
 }
+
+// Gegenprobe des Messers im selben Lauf: der echte Fehlerfall muss melden, der Fix nicht.
+// Ohne diese Probe wäre ein Guard, der nie rot wird, von einem Guard, der misst, nicht zu
+// unterscheiden (claim-verification, Kurztest 3).
+test('formular-kontrast: Fixture weiß-auf-weiß meldet, Fixture lesbar nicht', async ({ page }) => {
+  await page.setContent(WEISS_AUF_WEISS);
+  const kaputt = unterSchwelle(await page.evaluate(formularKontrastBefunde));
+  expect(kaputt.length, 'Fehlerfall muss melden').toBe(2);
+  await page.setContent(LESBAR);
+  const heil = unterSchwelle(await page.evaluate(formularKontrastBefunde));
+  expect(heil, 'Fix darf nichts melden').toHaveLength(0);
+});
