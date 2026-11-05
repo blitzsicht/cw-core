@@ -22,6 +22,12 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **`checks/playwright.config.ts`** (#218): `testIgnore: ['**/*.test.mjs', '**/node_modules/**']` direkt nach `testDir`. Playwrights Standard-`testMatch` lud beim `--list` des CI-Jobs „checks/ laedt und zaehlt“ auch die node:test-Dateien `check-slop.test.mjs` und `screenshot-gescrollt.test.mjs` und führte sie aus (lokal 17 `✔`-Zeilen, 16 Proben in rund 90 s; im CI-Lauf 42004940939 7 `not ok`, Ergebnis ignoriert). Gegenprobe: eine werfende `kaputt.test.mjs` im Ordner brach `--list` vorher mit Exit 1 ab (Total 0), jetzt Exit 0 und Total 19; Spec beiseite gelegt → Total 15, der Job würde rot. `pnpm test:slop` und `pnpm test:screens` unverändert.
+
 ## v0.190.0 (2026-11-05)
 
 - [kunde] Wer mit der Tastatur navigiert, kann auf jeder Seite mit dem ersten Tab-Druck direkt zum Inhalt springen („Zum Inhalt springen“); ohne Tastaturfokus bleibt der Link unsichtbar.

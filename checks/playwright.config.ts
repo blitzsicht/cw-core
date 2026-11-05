@@ -29,6 +29,11 @@ const PORT = Number(process.env.PORT ?? 4321);
 export default defineConfig({
   // Die Specs liegen neben dieser Datei.
   testDir: '.',
+  // Nur die *.spec.ts sind Playwright-Specs. Die node:test-Dateien (*.test.mjs zu
+  // check-slop.mjs und screenshot-gescrollt.mjs) liegen im selben Ordner und passen
+  // auf Playwrights Standard-testMatch; ohne testIgnore importiert `--list` sie und
+  // führt sie aus (7 „not ok“ im CI-Log, Ergebnis ignoriert, cw-core#218).
+  testIgnore: ['**/*.test.mjs', '**/node_modules/**'],
   // 49 Seiten × 2 Viewports; jede Seite lädt, bekommt Animationen abgeschaltet
   // und wird von axe durchgerechnet. 60 s je Test lässt Luft für die grossen
   // Kundenseiten, ohne einen echten Hänger ewig laufen zu lassen.
