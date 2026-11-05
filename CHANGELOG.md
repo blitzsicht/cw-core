@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.190.0 (2026-11-05)
 
 - [kunde] Wer mit der Tastatur navigiert, kann auf jeder Seite mit dem ersten Tab-Druck direkt zum Inhalt springen („Zum Inhalt springen“); ohne Tastaturfokus bleibt der Link unsichtbar.
 
