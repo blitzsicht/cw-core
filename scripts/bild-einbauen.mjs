@@ -39,7 +39,8 @@ import { istDirektAufruf } from './lib/direkt-aufruf.mjs';
 import { execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
-import { regelZeile } from './bildherkunft-arbeitsliste.mjs';
+import { alsLiteral, regelZeile } from './bildherkunft-arbeitsliste.mjs';
+import { schluesselAusZeile } from './lib/bildherkunft-verlust.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
 import { TAG_DENY_RE, DIGITAL_SOURCE_TYPE } from '../src/integrations/ai-discovery/geotag-core.js';
 import { registryPfad } from './registry-pfad.mjs';
@@ -193,9 +194,15 @@ export const bildHerkunft: BildHerkunftRegel[] = [
  * @returns {string}
  */
 export function einfuegen(inhalt, zeile) {
-  const schluessel = zeile.match(/(pathPrefix|stem): '((?:[^'\\]|\\.)*)'/);
+  // Schlüssel über die geteilte Erkennung, nicht über einen zweiten Regex: dieselbe
+  // Deutung braucht auch der Verlust-Guard des Generators (lib/bildherkunft-verlust.mjs).
+  // Zwei Fassungen hieße, dass „schon deklariert" hier und „geht verloren" dort
+  // verschiedene Dinge bedeuten können.
+  const schluessel = schluesselAusZeile(zeile);
   if (schluessel) {
-    const suche = `${schluessel[1]}: '${schluessel[2]}'`;
+    // Gesucht wird im Dateitext, also im escapten Literal — ein Apostroph im Pfad stünde
+    // sonst roh im Suchmuster und fände seinen eigenen Eintrag nicht.
+    const suche = `${schluessel.art}: ${alsLiteral(schluessel.wert)}`;
     if (inhalt.includes(suche)) {
       throw new Error(`bereits deklariert: ${suche} — Eintrag von Hand ändern statt doppelt anzulegen.`);
     }
