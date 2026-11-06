@@ -62,7 +62,12 @@ import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
 import { pruefeSeite as pruefeFooterRechtsform } from './footer-rechtsform-check.js';
 import { pruefePlatzhaltertext, istZuPruefen, vermerkeFundstelle } from './platzhaltertext-check.js';
-import { pruefeVerbotsliste, normalisierteListe, GARANTIE_PRAEDIKATE } from './verbotsliste-check.js';
+import {
+  pruefeVerbotsliste,
+  pruefeErlaubteListe,
+  normalisierteListe,
+  GARANTIE_PRAEDIKATE,
+} from './verbotsliste-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
 import {
   buildMarkerOwners,
@@ -641,9 +646,47 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
   verboteneFormulierungen?: string[];
 
   /**
-   * Seiten, die der Verbotslisten-Guard überspringt — Pfad-Anfänge relativ zu `dist/`,
+   * Sätze, in denen eine verbotene Formulierung stehen DARF — weil der Satz das Gegenteil
+   * sagt („ohne korrekte Inhalte **keine** Anfragen bringt"), weil er jemanden zitiert, oder
+   * weil er eine Rechtsgrundlage wiedergibt („berechtigtes Interesse an rechtssicherer
+   * Beweisführung").
+   *
+   * Exakter Teilstring, Groß-/Kleinschreibung egal, Whitespace normalisiert. Ein Treffer
+   * fällt weg, wenn eine dieser Phrasen ihn UMSCHLIESST — der ganze Trefferbereich muss
+   * innerhalb eines Vorkommens der Phrase liegen. Deshalb hebt
+   * `['ohne korrekte Inhalte keine Anfragen bringt']` genau dieses Vorkommen auf und lässt
+   * „eine Website, die Anfragen bringt" im selben Dokument als Treffer stehen.
+   *
+   * Keine Satzgrenze, keine Zeichenzahl: in gerendertem HTML gibt es keine verlässliche
+   * Satzgrenze (Überschriften und Listenpunkte enden ohne Punkt, Abkürzungen setzen falsche),
+   * der Guard müsste raten. Der exakte Teilstring hat dagegen eine Eigenschaft, die kein
+   * Ratverfahren hat: er lässt sich **selbst prüfen**. Enthält eine Phrase keine der
+   * verbotenen Formulierungen, kann sie nie greifen — das meldet der Guard beim Laden, noch
+   * bevor eine Seite geprüft ist. Eine Phrase, die auf keiner geprüften Seite greift, wird
+   * nach dem Lauf als Altlast gemeldet.
+   *
+   * Preis dieser Entscheidung: der Wortlaut muss gepflegt werden. Ändert sich der Satz,
+   * greift die Ausnahme nicht mehr — und genau das steht dann im Build-Log.
+   *
+   * Dies ist der EINE Mechanismus für „trifft hier nicht" (cw-core#236); `verbotslisteAusnahmen`
+   * ist sein veralteter Vorgänger.
+   */
+  erlaubteFormulierungen?: string[];
+
+  /**
+   * @deprecated Ersetzt durch `erlaubteFormulierungen` (cw-core#236). Wirkt weiter und löst
+   * eine Verfallswarnung aus — zu entfernen, bevor der Strict-Flip kommt (frühestens
+   * 02.12.2026, cw-core#229).
+   *
+   * Seiten, die der Verbotslisten-Guard ganz überspringt — Pfad-Anfänge relativ zu `dist/`,
    * z. B. `['datenschutz/']` für die Datenschutzerklärung, deren Rechtsgrundlage zu
    * Art. 6 Abs. 1 lit. f DSGVO das Wort „rechtssicher" in der Standardformulierung trägt.
+   *
+   * Warum weg: eine Pfad-Ausnahme stummt JEDES Muster auf der GANZEN Seite, auf Dauer und
+   * unbemerkt. Für den einen Satz, um den es geht, ist das viel zu weit — die bisher einzige
+   * Nutzung in der Flotte (`['datenschutz/index.html']`, gemessen 06.11.2026: 1 von 31 Repos)
+   * deckte damit 24 Muster ab, um genau einen Treffer zu erlauben. `erlaubteFormulierungen`
+   * nennt stattdessen den Satz und lässt alles andere auf der Seite weiter messbar.
    */
   verbotslisteAusnahmen?: string[];
 
@@ -4206,6 +4249,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           const form = (v: unknown) => (Array.isArray(v) ? 'Liste mit Nicht-Strings' : typeof v);
           const rohListe: unknown = options.verboteneFormulierungen;
           const rohAusnahmen: unknown = options.verbotslisteAusnahmen;
+          const rohErlaubt: unknown = options.erlaubteFormulierungen;
           if (rohListe !== undefined && !istStringListe(rohListe)) {
             logger.warn(
               `Verbotslisten-Guard: \`verboteneFormulierungen\` muss eine Liste von Strings sein (ist: ${form(rohListe)}) — Angabe ignoriert, es gilt der Flottendefault.`,
@@ -4214,6 +4258,20 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           if (rohAusnahmen !== undefined && !istStringListe(rohAusnahmen)) {
             logger.warn(
               `Verbotslisten-Guard: \`verbotslisteAusnahmen\` muss eine Liste von Strings sein (ist: ${form(rohAusnahmen)}) — Angabe ignoriert, es wird jede Seite geprüft.`,
+            );
+          }
+          if (rohErlaubt !== undefined && !istStringListe(rohErlaubt)) {
+            logger.warn(
+              `Verbotslisten-Guard: \`erlaubteFormulierungen\` muss eine Liste von Strings sein (ist: ${form(rohErlaubt)}) — Angabe ignoriert, es wird kein Treffer aufgehoben.`,
+            );
+          }
+          // Verfallswarnung, nicht stilles Ignorieren (cw-core#236): ein Schlüssel, der nichts
+          // mehr tut und nichts sagt, wäre der nächste stumme Schalter. Die Pfad-Ausnahme wirkt
+          // deshalb weiter — sie abzuschalten würde die eine Seite, die sie heute nutzt, beim
+          // nächsten Pin-Bump ohne Vorwarnung warnen lassen.
+          if (rohAusnahmen !== undefined) {
+            logger.warn(
+              'Verbotslisten-Guard: `verbotslisteAusnahmen` ist veraltet (cw-core#236) — eine Pfad-Ausnahme stummt JEDES Muster auf der GANZEN Seite. Auf `erlaubteFormulierungen` umstellen: dort steht der eine Satz, der erlaubt ist, und der Rest der Seite bleibt messbar.',
             );
           }
           const eigene = istStringListe(rohListe) ? rohListe : undefined;
@@ -4237,6 +4295,15 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // Einträge und meldete für ['rechtssicher','Rechtssicher'] zwei (Befund 7).
           const anzahl = normalisierteListe(formulierungen).size;
           const ausnahmen: readonly string[] = istStringListe(rohAusnahmen) ? rohAusnahmen : [];
+          const erlaubte: readonly string[] = istStringListe(rohErlaubt) ? rohErlaubt : [];
+          // Ladeprüfung, bevor eine Seite gelesen ist: eine Phrase ohne verbotenes Muster darin
+          // kann niemals einen Treffer aufheben. Genau die Probe, die ein Ratverfahren
+          // (Satzgrenze, N Zeichen) nicht hätte — der Schalter kann nicht stumm danebenliegen.
+          for (const f of pruefeErlaubteListe(erlaubte, formulierungen)) {
+            logger.warn(
+              `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${f.phrase}" ${f.grund} — Eintrag streichen oder den Wortlaut auf den Satz ziehen, der die Formulierung enthält.`,
+            );
+          }
           if (anzahl === 0) {
             logger.info('Verbotslisten-Guard: nicht konfiguriert (0 Einträge).');
           } else {
@@ -4247,18 +4314,46 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             type Fundstelle = { kontext: string; ort: string; treffer: string; formulierung: string; seiten: string[] };
             const proKontextKunde = new Map<string, Fundstelle>();
             const proKontextFlotte = new Map<string, Fundstelle>();
+            // Welche Ausnahme hat auf welchen Seiten gegriffen. Die Gegenrichtung ist der
+            // Zweck: was NICHT hier landet, ist Altlast und wird unten gemeldet.
+            const genutzteAusnahmen = new Map<string, Set<string>>();
             let geprueft = 0;
             for (const file of walkHtml(distDir)) {
               const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
               if (!istZuPruefen(rel, ausnahmen)) continue;
               geprueft++;
-              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen)) {
+              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
+                if (b.aufgehobenDurch !== undefined) {
+                  const seiten = genutzteAusnahmen.get(b.aufgehobenDurch) ?? new Set<string>();
+                  seiten.add(rel);
+                  genutzteAusnahmen.set(b.aufgehobenDurch, seiten);
+                  continue;
+                }
                 const key = `${b.ort}\u0000${b.kontext}`;
                 const norm = b.formulierung.replace(/\s+/g, ' ').trim().toLowerCase();
                 const ziel = kundenListe.has(norm) ? proKontextKunde : proKontextFlotte;
                 vermerkeFundstelle(ziel, key, rel, () => ({
                   kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel],
                 }));
+              }
+            }
+            // Was eine Ausnahme zudeckt, steht im Log — mit Wortlaut und Datei. Sonst ist der
+            // Unterschied zwischen „Satz ist ehrlich" und „Guard sieht nichts mehr" von außen
+            // nicht zu sehen (cw-core#236).
+            for (const [phrase, seiten] of genutzteAusnahmen) {
+              const liste = [...seiten];
+              const wo = liste.length > 3 ? `${liste.slice(0, 3).join(', ')} + ${liste.length - 3} weitere` : liste.join(', ');
+              logger.info(`Verbotslisten-Guard: Ausnahme „${phrase}" greift auf ${wo}.`);
+            }
+            // Eine Ausnahme, die nie greift, spiegelt Sicherheit vor — nach dem Muster des
+            // Pin-Drift-Checks als Warnung, nicht als Hinweis. Zwei Ursachen, eine Folge: der
+            // Satz ist weg, oder der Wortlaut stimmt nicht mehr. In beiden Fällen Altlast.
+            if (geprueft > 0) {
+              for (const [, phrase] of normalisierteListe(erlaubte)) {
+                if (genutzteAusnahmen.has(phrase)) continue;
+                logger.warn(
+                  `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" hat auf keiner der ${geprueft} geprüften Seite(n) gegriffen — Satz ist weg oder der Wortlaut stimmt nicht mehr. Eintrag in astro.config nachziehen oder streichen.`,
+                );
               }
             }
             // Der Hinweis richtet sich nach der Liste, aus der der Treffer kommt (Befund 6):

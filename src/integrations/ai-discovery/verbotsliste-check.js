@@ -185,14 +185,23 @@ export function normalisierteListe(formulierungen) {
  * „rechtssicher" fünf Zeichen später — zwei Befunde, so gewollt und so getestet. Wer eine
  * Formulierung einmal gemeldet haben will, trägt sie einmal ein.
  *
+ * Eine `erlaubte` Formulierung hebt einen Treffer auf, wenn sie ihn UMSCHLIESST — der
+ * Trefferbereich muss vollständig innerhalb eines Vorkommens der erlaubten Phrase liegen.
+ * Aufgehobene Befunde fallen NICHT aus dem Ergebnis, sie tragen `aufgehobenDurch`. Ein stiller
+ * Wegfall wäre der nächste stumme Schalter: so kann der Aufrufer melden, WAS eine Ausnahme
+ * gerade zudeckt, und eine Probe kann prüfen, dass sie nur das verneinte Vorkommen deckt und
+ * nicht auch das unverneinte (cw-core#236).
+ *
  * @param {string} html roher HTML-Inhalt der Seite
  * @param {string} seite relativer Pfad für die Meldung, z. B. `blog/dsgvo/index.html`
  * @param {readonly string[]} formulierungen Teilstrings, Groß-/Kleinschreibung egal; leer → keine Befunde
+ * @param {readonly string[]} [erlaubte] Phrasen, die einen umschlossenen Treffer aufheben
  * @returns {VerbotslistenBefund[]} erst der sichtbare Text, dann Titel und Metas; je Ort nach Position
  */
-export function pruefeVerbotsliste(html, seite, formulierungen) {
+export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
   const liste = normalisierteListe(formulierungen);
   if (liste.size === 0) return [];
+  const erlaubtListe = normalisierteListe(erlaubte);
 
   // Einmal reinigen, dann beide Quellen daraus: nur so entfernt `replace(TITLE, ' ')` den
   // Titel, den `kopfInhalte()` auch als Titel gezählt hat. Auf rohem HTML konnten die zwei
@@ -213,21 +222,68 @@ export function pruefeVerbotsliste(html, seite, formulierungen) {
     // toLowerCase() kann die Länge ändern (etwa bei „İ"); dann kommt der Kontext aus der
     // Kleinfassung, sonst stimmen die Positionen nicht mehr.
     const anzeige = klein.length === text.length ? text : klein;
+    // Die Vorkommen der erlaubten Phrasen EINMAL je Quelle, nicht je Treffer — und in
+    // `klein` gesucht, derselben Zeichenkette wie die Muster, sonst stimmen die Positionen
+    // nicht zusammen.
+    /** @type {{ von: number, bis: number, original: string }[]} */
+    const freigaben = [];
+    for (const [n, original] of erlaubtListe) {
+      for (let i = klein.indexOf(n); i !== -1; i = klein.indexOf(n, i + 1)) {
+        freigaben.push({ von: i, bis: i + n.length, original });
+      }
+    }
     /** @type {Map<number, VerbotslistenBefund>} */
     const proPosition = new Map();
     for (const [n, original] of liste) {
       for (let i = klein.indexOf(n); i !== -1; i = klein.indexOf(n, i + 1)) {
         if (proPosition.has(i)) continue;
-        proPosition.set(i, {
+        const ende = i + n.length;
+        // UMSCHLIESSEN, nicht überlappen: der ganze Treffer muss in einem Vorkommen der
+        // erlaubten Phrase liegen. Nur so trennt die Ausnahme „ohne korrekte Inhalte keine
+        // Anfragen bringt" von „eine Website, die Anfragen bringt" im selben Dokument.
+        const freigabe = freigaben.find((f) => f.von <= i && ende <= f.bis);
+        /** @type {VerbotslistenBefund} */
+        const befund = {
           seite,
           ort,
           formulierung: original,
-          treffer: anzeige.slice(i, i + n.length),
-          kontext: anzeige.slice(Math.max(0, i - 45), i + n.length + 45).trim(),
-        });
+          treffer: anzeige.slice(i, ende),
+          kontext: anzeige.slice(Math.max(0, i - 45), ende + 45).trim(),
+        };
+        if (freigabe) befund.aufgehobenDurch = freigabe.original;
+        proPosition.set(i, befund);
       }
     }
     befunde.push(...[...proPosition.entries()].sort((a, b) => a[0] - b[0]).map(([, b]) => b));
+  }
+  return befunde;
+}
+
+/**
+ * Ladeprüfung der Ausnahmeliste: eine erlaubte Formulierung, die KEIN verbotenes Muster
+ * enthält, kann niemals einen Treffer aufheben. Sie ist dann toter Eintrag, der Sicherheit
+ * vorspiegelt — und zwar schon vor dem ersten Build, also prüfbar ohne eine einzige Seite.
+ *
+ * Das ist der Grund, warum die Ausnahme ein exakter Teilstring ist und keine Satzgrenze:
+ * ein exakter Teilstring lässt sich gegen die Verbotsliste selbst prüfen. Eine Satzgrenze
+ * müsste der Guard raten, und Raten im Stummschalter ist genau das, was cw-core#236
+ * verhindern soll.
+ *
+ * @param {readonly string[]} erlaubte
+ * @param {readonly string[]} formulierungen
+ * @returns {{ phrase: string, grund: string }[]} leer = alle Einträge können greifen
+ */
+export function pruefeErlaubteListe(erlaubte, formulierungen) {
+  const muster = [...normalisierteListe(formulierungen).keys()];
+  /** @type {{ phrase: string, grund: string }[]} */
+  const befunde = [];
+  for (const [n, original] of normalisierteListe(erlaubte)) {
+    if (!muster.some((m) => n.includes(m))) {
+      befunde.push({
+        phrase: original,
+        grund: 'enthält keine der verbotenen Formulierungen und kann deshalb keinen Treffer aufheben',
+      });
+    }
   }
   return befunde;
 }

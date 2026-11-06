@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pruefeVerbotsliste, kopfInhalte, GARANTIE_PRAEDIKATE } from './verbotsliste-check.js';
+import {
+  pruefeVerbotsliste,
+  pruefeErlaubteListe,
+  kopfInhalte,
+  GARANTIE_PRAEDIKATE,
+} from './verbotsliste-check.js';
 import { istZuPruefen } from './platzhaltertext-check.js';
 
 const seite = 'index.html';
@@ -285,4 +290,125 @@ test('Befund 8: ein unangeführter Wert endet am Leerzeichen, nicht erst am Tag-
 test('kopfInhalte: unangeführter name und unangeführter content werden gelesen', () => {
   const k = kopfInhalte('<html><head><meta name=og:description content=Seite></head></html>');
   assert.deepEqual(k, [{ ort: 'meta:og:description', inhalt: 'Seite' }]);
+});
+
+// ── cw-core#236: `erlaubteFormulierungen` — eine Phrase hebt den Treffer auf, den sie
+//    UMSCHLIESST. Der Punkt des Mechanismus ist die Trennschärfe, nicht das Stummstellen.
+//
+//    GEGENPROBEN, am selben Baum gemessen (42 Proben gesamt, ohne Sabotage 0 rot). Drei
+//    Sabotagen mit verschiedenen Fehlermengen — eine allein würde nicht zeigen, dass die
+//    Proben den Mechanismus und seine Grenze getrennt messen:
+//
+//      A  Umschließung → Überlappung aufgeweicht (`freigaben[0]` statt Positionsprüfung,
+//         die naive Fassung „Phrase steht irgendwo in der Quelle"):  3 rot
+//         — Kern, „umschließen, nicht überlappen", Datenschutz-Fall.
+//      B  Ladeprüfung meldet nie etwas (`if (false && …)`):           1 rot
+//         — und nur die Ladeprüfungs-Probe; die Gegenprobe dazu bleibt grün.
+//      C  Mechanismus ganz aus (`aufgehobenDurch` wird nie gesetzt):  5 rot
+//         — Kern, Datenschutz, Meta-Ort, Whitespace, Mehrfachvorkommen.
+//
+//    A∖C ist „umschließen, nicht überlappen", C∖A sind die drei Wirkungsproben: die eine
+//    Richtung kann nicht für die andere einstehen.
+
+const BEIDE_RICHTUNGEN =
+  '<html><body>' +
+  '<p>Eine Website, die ohne korrekte Inhalte keine Anfragen bringt, kostet nur Geld.</p>' +
+  '<p>Der Kunde wollte es so: eine Website, die Anfragen bringt.</p>' +
+  '</body></html>';
+
+test('#236 Kern: die Ausnahme hebt das verneinte Vorkommen auf und lässt das unverneinte stehen', () => {
+  const b = pruefeVerbotsliste(BEIDE_RICHTUNGEN, seite, ['Anfragen bringt'], [
+    'keine Anfragen bringt',
+  ]);
+  assert.equal(b.length, 2, 'beide Vorkommen werden gefunden — die Ausnahme filtert nicht die Suche');
+  const auf = b.filter((x) => x.aufgehobenDurch !== undefined);
+  const offen = b.filter((x) => x.aufgehobenDurch === undefined);
+  assert.equal(auf.length, 1, 'genau das verneinte Vorkommen ist aufgehoben');
+  assert.equal(auf[0].aufgehobenDurch, 'keine Anfragen bringt', 'die Meldung nennt die Phrase');
+  assert.ok(auf[0].kontext.includes('ohne korrekte Inhalte'), 'und zwar das im verneinten Satz');
+  assert.equal(offen.length, 1, 'das unverneinte Vorkommen bleibt Treffer — sonst deckt die Ausnahme zu viel');
+  assert.ok(offen[0].kontext.includes('Der Kunde wollte'), 'nämlich das im Zitat-Satz');
+});
+
+test('#236 GEGENPROBE: ohne die Ausnahme sind beide Vorkommen offene Treffer', () => {
+  const b = pruefeVerbotsliste(BEIDE_RICHTUNGEN, seite, ['Anfragen bringt']);
+  assert.equal(b.length, 2);
+  assert.equal(
+    b.filter((x) => x.aufgehobenDurch !== undefined).length,
+    0,
+    'ohne vierten Parameter hebt nichts auf — der Unterschied zur Probe davor ist die Ausnahme selbst',
+  );
+});
+
+test('#236 umschließen, nicht überlappen: eine halb deckende Phrase hebt nicht auf', () => {
+  // Treffer „100 Punkte" beginnt VOR der Phrase „Punkte von 100" — die Phrase deckt nur
+  // das Ende. Würde Überlappung genügen, wäre jede Ausnahme ein Freibrief nach links.
+  const html = '<html><body><p>Wir erreichen 100 Punkte von 100 im Test.</p></body></html>';
+  const b = pruefeVerbotsliste(html, seite, ['100 Punkte'], ['Punkte von 100']);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].aufgehobenDurch, undefined, 'teilweise Deckung hebt nicht auf');
+});
+
+test('#236 Datenschutz-Fall: die Rechtsgrundlage ist erlaubt, ein zweites „rechtssicher" nicht', () => {
+  // Der echte Satz aus customer-blitzsicht/datenschutz, heute über eine PFAD-Ausnahme
+  // stummgestellt — die dort alle 24 Muster auf der ganzen Seite mit abdeckt.
+  const html =
+    '<html><body>' +
+    '<p>Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an rechtssicherer Beweisführung).</p>' +
+    '<p>Unsere Seiten sind rechtssicher gebaut.</p>' +
+    '</body></html>';
+  const b = pruefeVerbotsliste(html, seite, GARANTIE_PRAEDIKATE, [
+    'an rechtssicherer Beweisführung',
+  ]);
+  assert.equal(b.length, 2);
+  assert.equal(b.filter((x) => x.aufgehobenDurch !== undefined).length, 1);
+  const offen = b.find((x) => x.aufgehobenDurch === undefined);
+  assert.ok(offen.kontext.includes('gebaut'), 'das Werbeversprechen auf derselben Seite bleibt sichtbar');
+});
+
+test('#236 die Ausnahme wirkt an jedem Ort, auch in der Meta-Description', () => {
+  const html =
+    '<html><head><meta name="description" content="Keine Anfragen bringt eine Seite ohne Inhalte."></head>' +
+    '<body><p>Sauber.</p></body></html>';
+  const b = pruefeVerbotsliste(html, seite, ['Anfragen bringt'], ['keine Anfragen bringt']);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].ort, 'meta:description');
+  assert.equal(b[0].aufgehobenDurch, 'keine Anfragen bringt', 'Groß-/Kleinschreibung egal');
+});
+
+test('#236 Whitespace: die Phrase greift über einen Zeilenumbruch im Quelltext', () => {
+  const html = '<html><body><p>Ohne Inhalte keine\n    Anfragen bringt das nichts.</p></body></html>';
+  const b = pruefeVerbotsliste(html, seite, ['Anfragen bringt'], ['keine Anfragen bringt']);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].aufgehobenDurch, 'keine Anfragen bringt');
+});
+
+test('#236 dieselbe Phrase zweimal auf der Seite hebt beide Vorkommen auf', () => {
+  const html =
+    '<html><body><p>Keine Anfragen bringt Variante A.</p><p>Und keine Anfragen bringt Variante B.</p></body></html>';
+  const b = pruefeVerbotsliste(html, seite, ['Anfragen bringt'], ['keine Anfragen bringt']);
+  assert.equal(b.length, 2);
+  assert.equal(b.filter((x) => x.aufgehobenDurch !== undefined).length, 2);
+});
+
+test('#236 eine leere Ausnahmeliste ändert nichts', () => {
+  const mit = pruefeVerbotsliste(BEIDE_RICHTUNGEN, seite, ['Anfragen bringt'], []);
+  const ohne = pruefeVerbotsliste(BEIDE_RICHTUNGEN, seite, ['Anfragen bringt']);
+  assert.deepEqual(mit, ohne);
+});
+
+test('#236 Ladeprüfung: eine Phrase ohne verbotenes Muster kann nie greifen und wird gemeldet', () => {
+  const f = pruefeErlaubteListe(['Wir bauen Websites in Regensburg'], P18);
+  assert.equal(f.length, 1);
+  assert.equal(f[0].phrase, 'Wir bauen Websites in Regensburg', 'die Meldung nennt den Wortlaut');
+  assert.ok(f[0].grund.includes('keinen Treffer aufheben'));
+});
+
+test('#236 Ladeprüfung GEGENPROBE: eine Phrase MIT Muster ist in Ordnung', () => {
+  assert.deepEqual(pruefeErlaubteListe(['keine Anfragen bringt'], ['Anfragen bringt']), []);
+  assert.deepEqual(
+    pruefeErlaubteListe(['an rechtssicherer Beweisführung'], GARANTIE_PRAEDIKATE),
+    [],
+    'Groß-/Kleinschreibung und Teilstring wie in der Prüfung selbst',
+  );
 });
