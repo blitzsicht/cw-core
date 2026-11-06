@@ -222,3 +222,67 @@ test('E wörtliches > im content-Attribut: die Meta wird gelesen und richtig ver
   assert.ok(b.some((x) => x.ort === 'meta:description'), 'der Ort, an dem die Formulierung wirklich steht');
   assert.equal(b.find((x) => x.ort === 'meta:description').kontext, 'Preis > 500 € und rechtssicher');
 });
+
+// ── Verdeckte Schreibweisen (cw-core#230, Befunde 1, 2 und 8) ───────────────────
+//    Jede dieser Proben war am Stand `b8f04a8e` rot: der Guard fand 0 Treffer, obwohl
+//    ein Besucher das Prädikat liest. Die Referenzprobe in jedem Block zeigt, dass
+//    der Aufbau an sich trifft — ohne sie wäre jede 0 auch mit einem kaputten Test
+//    erklärbar (Messfalle „Lief nie").
+
+test('Befund 1: benannte Entity im Text — „gepr&uuml;ft“ ist für den Leser „geprüft“', () => {
+  assert.equal(treffer('<html><body><p>Alle Texte anwaltlich gepr&uuml;ft.</p></body></html>').length, 1);
+  // Referenz: dieselbe Seite ohne Entity trifft auch — der Aufbau misst.
+  assert.equal(treffer('<html><body><p>Alle Texte anwaltlich geprüft.</p></body></html>').length, 1);
+});
+
+test('Befund 1: numerische Entity dezimal und hexadezimal, im Text und in der Meta', () => {
+  assert.equal(treffer('<html><body><p>anwaltlich gepr&#252;ft</p></body></html>').length, 1, 'dezimal');
+  assert.equal(treffer('<html><body><p>anwaltlich gepr&#xFC;ft</p></body></html>').length, 1, 'hexadezimal');
+  const meta = '<html><head><meta name="description" content="anwaltlich gepr&#252;ft seit 2019"></head><body></body></html>';
+  const b = treffer(meta);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].ort, 'meta:description');
+});
+
+test('Befund 1: eine unbekannte Entity bleibt ein Trenner — sie darf kein Wort zusammenziehen', () => {
+  // `&kaputt;` ist kein Zeichen. Würde es verschwinden, entstünde „rechtssicher“ aus
+  // zwei Wortteilen, die nebeneinander nichts versprechen.
+  assert.equal(treffer('<html><body><p>Wir arbeiten rechts&kaputt;sicher</p></body></html>').length, 0);
+});
+
+test('Befund 2: literales U+00AD trennt kein Wort (sieben Flottendateien nutzen es)', () => {
+  assert.equal(treffer('<html><body><p>Alles rechts­sicher</p></body></html>').length, 1);
+});
+
+test('Befund 2: <wbr> trennt kein Wort — auch nicht als <wbr/> oder im Titel', () => {
+  assert.equal(treffer('<html><body><p>Alles rechts<wbr>sicher</p></body></html>').length, 1, 'im Text');
+  assert.equal(treffer('<html><body><p>Alles rechts<wbr/>sicher</p></body></html>').length, 1, 'selbstschließend');
+  const b = treffer('<html><head><title>rechts<wbr>sicher bauen</title></head><body></body></html>');
+  assert.equal(b.length, 1, 'im Dokumenttitel');
+  assert.equal(b[0].ort, 'title');
+});
+
+test('Befund 2 GEGENPROBE: ein echtes Leerzeichen trennt weiter — die Normalisierung bleibt scharf', () => {
+  assert.equal(treffer('<html><body><p>Zum Thema Rechts sicher beraten</p></body></html>').length, 0);
+  assert.equal(treffer('<html><body><p>Ein Absatz endet.</p><p>Sicher ist das nicht.</p></body></html>').length, 0,
+    'Absatzgrenze zieht zwei Wörter nicht zusammen');
+});
+
+test('Befund 8: Meta-Wert ohne Anführungszeichen wird geprüft', () => {
+  const b = treffer('<html><head><meta name=description content=rechtssicher></head><body></body></html>');
+  assert.equal(b.length, 1);
+  assert.equal(b[0].ort, 'meta:description');
+});
+
+test('Befund 8: ein unangeführter Wert endet am Leerzeichen, nicht erst am Tag-Ende', () => {
+  // `content=sauber rechtssicher` ist HTML-seitig der Wert „sauber"; „rechtssicher"
+  // ist ein eigenes (ungültiges) Attribut und kein Inhalt, den jemand liest.
+  assert.equal(treffer('<html><head><meta name=description content=sauber rechtssicher></head><body></body></html>').length, 0);
+  // Gegenprobe zur Probe davor: derselbe Aufbau mit dem Wort IM Wert trifft.
+  assert.equal(treffer('<html><head><meta name=description content=rechtssicher-gebaut></head><body></body></html>').length, 1);
+});
+
+test('kopfInhalte: unangeführter name und unangeführter content werden gelesen', () => {
+  const k = kopfInhalte('<html><head><meta name=og:description content=Seite></head></html>');
+  assert.deepEqual(k, [{ ort: 'meta:og:description', inhalt: 'Seite' }]);
+});

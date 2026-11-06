@@ -15,12 +15,17 @@
  * Vergleichsseite. Kein Guard sah das: der Platzhaltertext-Guard kennt nur Lücken, nicht
  * Versprechen, und Meta-Inhalte gehen in `sichtbarerText()` verloren (Attribute fallen weg).
  *
- * ZWEI LISTEN, ZWEI STUFEN. Die Flotte bekommt ohne Konfiguration die drei Garantie-Prädikate
- * (`GARANTIE_PRAEDIKATE`): ein Prädikat, das ein Ergebnis zusagt, das keine Seite belegen
- * kann. Treffer darauf meldet der Aufrufer als Info, nie als Warnung — der Release-Train
- * zählt WARN-Köpfe, und ein neuer Guard darf seinen eigenen Rollout nicht blocken
- * (cw-core#196). Erst eine eigene Kundenliste (`verboteneFormulierungen`) hebt auf WARN,
- * `strictVerbotsliste` auf Abbruch.
+ * ZWEI LISTEN, ZWEI STUFEN — und die zweite ERGÄNZT die erste. Die Flotte bekommt immer die
+ * drei Garantie-Prädikate (`GARANTIE_PRAEDIKATE`): ein Prädikat, das ein Ergebnis zusagt,
+ * das keine Seite belegen kann. Treffer darauf meldet der Aufrufer als Info, nie als Warnung
+ * — der Release-Train zählt WARN-Köpfe, und ein neuer Guard darf seinen eigenen Rollout
+ * nicht blocken (cw-core#196). Eine eigene Kundenliste (`verboteneFormulierungen`) kommt
+ * HINZU; ihre Treffer sind WARN, `strictVerbotsliste` hebt sie auf Abbruch.
+ *
+ * Bis zum 06.11.2026 ersetzte die Kundenliste den Flottendefault (`eigene ?? …` in index.ts,
+ * cw-core#230 Befund 3). Wer eine eigene Liste anlegte, schaltete damit still die drei
+ * Prädikate ab — genau die Regression, gegen die dieser Guard gebaut wurde. customer-blitzsicht
+ * schrieb sie deshalb in seiner Liste ab: eine Kopie, die niemand nachzieht.
  *
  * TEILSTRING, nicht Wortgrenze: „rechtssicher" soll „rechtssichere", „DSGVO-rechtssicherer"
  * und „Rechtssicherheit" treffen. Die Kehrseite steht beim Eintragen: ein kurzes Wort wie
@@ -36,7 +41,7 @@
  * Metas und Titel (Fälle A–C dort).
  */
 
-import { sichtbarerText } from './platzhaltertext-check.js';
+import { sichtbarerText, entitiesUndTrennerWeg } from './platzhaltertext-check.js';
 
 /**
  * Flottendefault: Garantie-Prädikate, die auf keiner Kundenseite belegbar sind. Alle drei
@@ -55,32 +60,27 @@ const META_FELDER = Object.freeze(['description', 'keywords', 'og:description', 
  */
 
 /**
- * Entities in Attributwerten und im Titel: `&amp;`, `&quot;`, `&#39;` werden zu ihrem
- * Zeichen, der Rest zu einem Leerzeichen (wie in `sichtbarerText`).
- * @param {string} s
- */
-function entitiesWeg(s) {
-  return s
-    .replace(/&amp;/gi, '&')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#0*39;|&apos;/gi, "'")
-    .replace(/&nbsp;/gi, ' ')
-    // Weiches Trennzeichen trennt kein Wort: es MUSS verschwinden, nicht zum Leerzeichen
-    // werden. Sonst zerfällt „rechts&shy;sicher" in zwei Hälften und rutscht an der Liste
-    // vorbei — bei deutschen Komposita ein realistischer Weg, das Prädikat zu verstecken.
-    .replace(/&shy;|&#0*173;|&#x0*ad;/gi, '')
-    .replace(/&[a-z]+;|&#\d+;/gi, ' ');
-}
-
-/**
- * Ein Attributwert aus einem Tag-String, doppelt oder einfach angeführt.
+ * Ein Attributwert aus einem Tag-String: doppelt angeführt, einfach angeführt oder GAR
+ * NICHT angeführt.
+ *
+ * Der unangeführte Fall fehlte bis zum 06.11.2026 (cw-core#230, Befund 8):
+ * `<meta name=description content=rechtssicher>` wurde still übersprungen, der Guard
+ * meldete 0 Treffer. Astro quotet, deshalb heute selten — aber „selten" und „still" ist
+ * die Verbindung, die einen Guard unbrauchbar macht.
+ *
+ * Der unangeführte Wert endet am ersten Whitespace oder am `>`, genau wie im HTML-Standard:
+ * `content=sauber rechtssicher` hat den Wert „sauber", „rechtssicher" ist dort ein eigenes
+ * (ungültiges) Attribut und kein Inhalt, den jemand liest. Deshalb `[^\s"'=<>`]+` und
+ * nicht „bis zum Tag-Ende" — sonst meldete der Guard Text, der nie angezeigt wird.
+ *
  * @param {string} tag
  * @param {string} name
  * @returns {string | undefined}
  */
 function attribut(tag, name) {
-  const m = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'i').exec(tag);
-  return m ? (m[1] ?? m[2]) : undefined;
+  const m = new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s"'=<>\`]+))`, 'i').exec(tag);
+  if (!m) return undefined;
+  return m[1] ?? m[2] ?? m[3];
 }
 
 const TITLE = /<title\b[^>]*>([\s\S]*?)<\/title>/i;
@@ -109,7 +109,11 @@ function ohneUnsichtbares(html) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<!--[\s\S]*?-->/g, ' ');
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    // `<wbr>` trennt für den Leser kein Wort (cw-core#230, Befund 2). Hier UND in
+    // `sichtbarerText()`, weil beide eigenständig aufgerufen werden: hier erwischt es
+    // auch den Dokumenttitel, dort den Textstrom des Platzhaltertext-Guards.
+    .replace(/<wbr\b[^>]*>/gi, '');
 }
 
 /**
@@ -129,7 +133,7 @@ export function kopfInhalte(html) {
   /** @type {{ ort: VerbotslistenOrt, inhalt: string }[]} */
   const aus = [];
   const t = TITLE.exec(rein);
-  if (t) aus.push({ ort: 'title', inhalt: entitiesWeg(t[1]) });
+  if (t) aus.push({ ort: 'title', inhalt: entitiesUndTrennerWeg(t[1]) });
   // `[^>]*` bräche am ersten `>` — auch an einem in einem Attributwert. Ein `content="a > b"`
   // ließ die ganze Meta still ausfallen: der Tag endete für den Regex mitten im Wert, der
   // Rest matchte nicht mehr. Angeführte Werte werden deshalb als Ganzes übersprungen.
@@ -139,9 +143,33 @@ export function kopfInhalte(html) {
     if (!META_FELDER.includes(name)) continue;
     const content = attribut(tag, 'content');
     if (content === undefined) continue;
-    aus.push({ ort: /** @type {VerbotslistenOrt} */ (`meta:${name}`), inhalt: entitiesWeg(content) });
+    aus.push({ ort: /** @type {VerbotslistenOrt} */ (`meta:${name}`), inhalt: entitiesUndTrennerWeg(content) });
   }
   return aus;
+}
+
+/**
+ * Die Liste, wie der Checker sie wirklich sieht: Whitespace zusammengezogen, getrimmt,
+ * kleingeschrieben, leere Einträge weg, Dubletten weg. Schlüssel ist die normalisierte
+ * Fassung, Wert das erste Original — der Befund soll den Eintrag so zeigen, wie er in der
+ * Kundenkonfiguration steht.
+ *
+ * Exportiert, weil der Aufrufer dieselbe Zahl nennen muss, die hier gilt (cw-core#230,
+ * Befund 7): `index.ts` zählte `formulierungen.filter(f => f.trim() !== '').length` und
+ * meldete für `['rechtssicher', 'Rechtssicher']` „2 Formulierung(en)", geprüft wurde eine.
+ * Eine Zahl, zwei Quellen — jetzt eine.
+ *
+ * @param {readonly string[]} formulierungen
+ * @returns {Map<string, string>} normalisiert → Original (erstes Vorkommen)
+ */
+export function normalisierteListe(formulierungen) {
+  /** @type {Map<string, string>} */
+  const liste = new Map();
+  for (const f of formulierungen) {
+    const n = f.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (n && !liste.has(n)) liste.set(n, f.trim());
+  }
+  return liste;
 }
 
 /**
@@ -163,12 +191,7 @@ export function kopfInhalte(html) {
  * @returns {VerbotslistenBefund[]} erst der sichtbare Text, dann Titel und Metas; je Ort nach Position
  */
 export function pruefeVerbotsliste(html, seite, formulierungen) {
-  /** @type {Map<string, string>} normalisiert → Original aus der Liste (erstes Vorkommen) */
-  const liste = new Map();
-  for (const f of formulierungen) {
-    const n = f.replace(/\s+/g, ' ').trim().toLowerCase();
-    if (n && !liste.has(n)) liste.set(n, f.trim());
-  }
+  const liste = normalisierteListe(formulierungen);
   if (liste.size === 0) return [];
 
   // Einmal reinigen, dann beide Quellen daraus: nur so entfernt `replace(TITLE, ' ')` den

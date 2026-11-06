@@ -62,7 +62,7 @@ import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
 import { pruefeSeite as pruefeFooterRechtsform } from './footer-rechtsform-check.js';
 import { pruefePlatzhaltertext, istZuPruefen, vermerkeFundstelle } from './platzhaltertext-check.js';
-import { pruefeVerbotsliste, GARANTIE_PRAEDIKATE } from './verbotsliste-check.js';
+import { pruefeVerbotsliste, normalisierteListe, GARANTIE_PRAEDIKATE } from './verbotsliste-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
 import {
   buildMarkerOwners,
@@ -610,17 +610,33 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    */
   checkVerbotsliste?: boolean;
 
-  /** `true` bricht den Build ab, statt nur zu melden. Default `false` (Soft-Start). */
+  /**
+   * `true` bricht den Build ab, statt nur zu melden. Default `false` (Soft-Start).
+   *
+   * Greift auf Treffer der KUNDENLISTE (`verboteneFormulierungen`). Treffer auf den
+   * Flottendefault bleiben auch mit `strictVerbotsliste: true` ein Hinweis — strict ist die
+   * Eskalation einer eigenen Liste, und seit die Flottenprädikate immer mitlaufen (s. u.)
+   * würde die andere Lesart jede Seite abbrechen lassen, die den Schalter ohne eigene Liste
+   * setzt. Ohne Kundenliste hat `strictVerbotsliste` deshalb keine Wirkung.
+   */
   strictVerbotsliste?: boolean;
 
   /**
    * Eigene Formulierungsliste des Kunden (Teilstrings, Groß-/Kleinschreibung egal, Whitespace
-   * normalisiert). Ohne diese Option gilt der Flottendefault — die drei Garantie-Prädikate
-   * `rechtssicher`, `abmahnsicher`, `anwaltlich geprüft` — und Treffer gehen nur als `info`
-   * ins Log (der Release-Train zählt WARN-Köpfe; ein neuer Guard darf seinen eigenen Rollout
-   * nicht blocken, cw-core#196). Mit eigener Liste wird jeder Treffer eine Warnung. Kurze
-   * Wörter nur mit Kontext eintragen („Beste Webagentur", nicht „Beste": das trifft auch
-   * „bestellen"). `[]` schaltet den Guard still ab.
+   * normalisiert). Sie kommt ZUM Flottendefault HINZU, sie ersetzt ihn nicht: die drei
+   * Garantie-Prädikate `rechtssicher`, `abmahnsicher`, `anwaltlich geprüft` werden immer
+   * geprüft und gehen als `info` ins Log (der Release-Train zählt WARN-Köpfe; ein neuer Guard
+   * darf seinen eigenen Rollout nicht blocken, cw-core#196). Treffer auf die eigene Liste
+   * sind Warnungen.
+   *
+   * Bis zum 06.11.2026 ERSETZTE diese Option den Flottendefault (cw-core#230, Befund 3) —
+   * eine eigene Liste schaltete die drei Prädikate still ab. Wer sie deshalb in seiner Liste
+   * abgeschrieben hat, kann sie jetzt streichen; doppelte Einträge sind harmlos (sie zählen
+   * einmal und gelten als Kundeneintrag, also WARN).
+   *
+   * Kurze Wörter nur mit Kontext eintragen („Beste Webagentur", nicht „Beste": das trifft
+   * auch „bestellen"). `[]` lässt den Flottendefault laufen; zum Abschalten
+   * `checkVerbotsliste: false`.
    */
   verboteneFormulierungen?: string[];
 
@@ -4201,16 +4217,36 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             );
           }
           const eigene = istStringListe(rohListe) ? rohListe : undefined;
-          const eigeneListe = eigene !== undefined;
-          const formulierungen: readonly string[] = eigene ?? GARANTIE_PRAEDIKATE;
-          const anzahl = formulierungen.filter((f) => f.trim() !== '').length;
+          // VEREINIGUNG, nicht Ersetzung (cw-core#230, Befund 3). Bis zum 06.11.2026 stand
+          // hier `eigene ?? GARANTIE_PRAEDIKATE`: wer eine eigene Liste anlegte, schaltete
+          // die drei Flottenprädikate STILL ab — genau die Regression, gegen die der Guard
+          // gebaut wurde (ops#1042). customer-blitzsicht schrieb sie deshalb in seiner
+          // Liste ab; das ist eine Kopie, die niemand nachzieht.
+          //
+          // Die Kundenliste steht VORNE. `normalisierteListe()` behält das erste Original
+          // je normalisiertem Eintrag — steht ein Prädikat in beiden Listen, gewinnt so die
+          // Kundenfassung, und der Treffer wird als WARN gemeldet statt als Hinweis.
+          const kundenListe = normalisierteListe(eigene ?? []);
+          // „Es gibt eine Kundenliste" heißt: sie enthält etwas. `verboteneFormulierungen: []`
+          // und `['  ']` schalteten vorher den ganzen Guard ab (anzahl 0 → „nicht
+          // konfiguriert"); jetzt läuft der Flottendefault weiter, und die Herkunftsangabe
+          // in der ✓-Zeile darf dann nicht „Kundenliste + Flottendefault" behaupten.
+          const eigeneListe = kundenListe.size > 0;
+          const formulierungen: readonly string[] = [...(eigene ?? []), ...GARANTIE_PRAEDIKATE];
+          // Dieselbe Zahl, die der Checker wirklich prüft — vorher zählte `filter()` rohe
+          // Einträge und meldete für ['rechtssicher','Rechtssicher'] zwei (Befund 7).
+          const anzahl = normalisierteListe(formulierungen).size;
           const ausnahmen: readonly string[] = istStringListe(rohAusnahmen) ? rohAusnahmen : [];
           if (anzahl === 0) {
             logger.info('Verbotslisten-Guard: nicht konfiguriert (0 Einträge).');
           } else {
-            // Entdoppelt pro Fundstelle (Ort + Kontext): derselbe Satz steht oft in Header
-            // oder Footer jeder Seite.
-            const proKontext = new Map<string, { kontext: string; ort: string; treffer: string; formulierung: string; seiten: string[] }>();
+            // Zwei Sammler, weil zwei Stufen: Treffer auf die Kundenliste sind WARN, Treffer
+            // auf den Flottendefault bleiben Hinweis (cw-core#196 — ein Guard darf seinen
+            // eigenen Rollout nicht blocken). Entdoppelt pro Fundstelle (Ort + Kontext):
+            // derselbe Satz steht oft in Header oder Footer jeder Seite.
+            type Fundstelle = { kontext: string; ort: string; treffer: string; formulierung: string; seiten: string[] };
+            const proKontextKunde = new Map<string, Fundstelle>();
+            const proKontextFlotte = new Map<string, Fundstelle>();
             let geprueft = 0;
             for (const file of walkHtml(distDir)) {
               const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
@@ -4218,31 +4254,59 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               geprueft++;
               for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen)) {
                 const key = `${b.ort}\u0000${b.kontext}`;
-                vermerkeFundstelle(proKontext, key, rel, () => ({
+                const norm = b.formulierung.replace(/\s+/g, ' ').trim().toLowerCase();
+                const ziel = kundenListe.has(norm) ? proKontextKunde : proKontextFlotte;
+                vermerkeFundstelle(ziel, key, rel, () => ({
                   kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel],
                 }));
               }
             }
-            const melden = eigeneListe ? (m: string) => logger.warn(m) : (m: string) => logger.info(m);
-            if (proKontext.size > 0) {
-              melden(
-                `Verbotslisten-Guard: ${proKontext.size} Fundstelle(n) mit ${eigeneListe ? 'Formulierungen aus der Kundenliste' : 'Garantie-Prädikaten (Flottendefault, nur Hinweis)'}:`,
-              );
-              for (const e of [...proKontext.values()].slice(0, 8)) {
+            // Der Hinweis richtet sich nach der Liste, aus der der Treffer kommt (Befund 6):
+            // „Garantie-Prädikat" trifft `rechtssicher`, aber nicht einen Kundeneintrag wie
+            // `100 Punkte` oder `monatlicher Report` — dort stand der Satz vorher daneben.
+            const berichte = (
+              treffer: Map<string, Fundstelle>,
+              melden: (m: string) => void,
+              quelle: string,
+              hinweis: string,
+            ) => {
+              if (treffer.size === 0) return;
+              melden(`Verbotslisten-Guard: ${treffer.size} Fundstelle(n) mit ${quelle}:`);
+              for (const e of [...treffer.values()].slice(0, 8)) {
                 const wo = e.seiten.length > 1 ? `${e.seiten[0]} + ${e.seiten.length - 1} weitere` : e.seiten[0];
                 melden(`  [verbotsliste_treffer] ${wo} (${e.ort}): „${e.kontext}" (Treffer: „${e.treffer}" ← „${e.formulierung}")`);
               }
-              if (proKontext.size > 8) melden(`  … und ${proKontext.size - 8} weitere.`);
-              melden('  Ein Garantie-Prädikat verspricht ein Ergebnis, das die Seite nicht belegen kann. Tatsache statt Prädikat: was gebaut ist, mit Quelle und Datum — oder der Satz fällt weg.');
-              if (options.strictVerbotsliste === true) {
-                throw new Error(
-                  `[ai-discovery] strictVerbotsliste=true: Build abgebrochen — ${proKontext.size} Fundstelle(n) mit Formulierungen aus der Verbotsliste.`,
-                );
+              if (treffer.size > 8) melden(`  … und ${treffer.size - 8} weitere.`);
+              melden(`  ${hinweis}`);
+            };
+            berichte(
+              proKontextKunde,
+              (m) => logger.warn(m),
+              'Formulierungen aus der Kundenliste',
+              'Diese Formulierungen hat der Kunde selbst auf die Verbotsliste gesetzt. Entweder der Satz fällt weg, oder er wird zur belegten Tatsache — mit Quelle und Datum.',
+            );
+            berichte(
+              proKontextFlotte,
+              (m) => logger.info(m),
+              'Garantie-Prädikaten (Flottendefault, nur Hinweis)',
+              'Ein Garantie-Prädikat verspricht ein Ergebnis, das die Seite nicht belegen kann. Tatsache statt Prädikat: was gebaut ist, mit Quelle und Datum — oder der Satz fällt weg.',
+            );
+            // `strictVerbotsliste` greift NUR auf die Kundenliste. Die Doku stellt strict als
+            // Eskalation einer eigenen Liste dar; auf den Flottendefault angewandt würde es
+            // jede Kundenseite abbrechen lassen, die den Schalter setzt, ohne eine Liste zu
+            // pflegen — und mit der Vereinigung oben wäre das ab jetzt jede.
+            if (options.strictVerbotsliste === true && proKontextKunde.size > 0) {
+              throw new Error(
+                `[ai-discovery] strictVerbotsliste=true: Build abgebrochen — ${proKontextKunde.size} Fundstelle(n) mit Formulierungen aus der Kundenliste.`,
+              );
+            }
+            if (proKontextKunde.size === 0 && proKontextFlotte.size === 0) {
+              if (geprueft === 0) {
+                logger.info('Verbotslisten-Guard: ? keine Seite geprüft — nicht geprüft.');
+              } else {
+                const woher = eigeneListe ? 'Kundenliste + Flottendefault' : 'Flottendefault';
+                logger.info(`Verbotslisten-Guard: ✓ ${geprueft} Seite(n), ${anzahl} Formulierung(en) (${woher}), 0 Treffer.`);
               }
-            } else if (geprueft === 0) {
-              logger.info('Verbotslisten-Guard: ? keine Seite geprüft — nicht geprüft.');
-            } else {
-              logger.info(`Verbotslisten-Guard: ✓ ${geprueft} Seite(n), ${anzahl} Formulierung(en), 0 Treffer.`);
             }
           }
         }

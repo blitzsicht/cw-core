@@ -89,12 +89,25 @@ test('GEGENPROBE kurze Klammer „[1]“ bleibt still, lange Prosa-Klammer melde
 
 // ── sichtbarerText: der Normalisierer selbst, einmal mit Gegenprobe
 
-test('sichtbarerText entfernt Tags, Stile, Skripte, Kommentare und Entities', () => {
+test('sichtbarerText entfernt Tags, Stile, Skripte, Kommentare und löst Entities auf', () => {
   const html =
     '<style>[title]{x}</style><script>let a="[b]"</script><!-- [c] --><p>Hallo&nbsp;Welt &amp; mehr</p>';
   const t = sichtbarerText(html);
-  assert.equal(t, 'Hallo Welt mehr');
+  // Bis zum 06.11.2026 stand hier `'Hallo Welt mehr'`: `&amp;` wurde wie jede unbekannte
+  // Entity zum Leerzeichen. Seit cw-core#230 ist es sein Zeichen — der Leser sieht „&",
+  // und der Prüftext soll das sein, was der Leser sieht. Der Platzhaltertext-Guard sucht
+  // Klammern und Ankündigungen, ihn berührt das nicht.
+  assert.equal(t, 'Hallo Welt & mehr');
   assert.ok(!t.includes('['), 'kein Rest aus Stil, Skript oder Kommentar');
+});
+
+test('sichtbarerText: Umlaut-Entities, Trennstellen und eine unbekannte Entity', () => {
+  assert.equal(sichtbarerText('<p>gepr&uuml;ft, gepr&#252;ft, gepr&#xFC;ft</p>'), 'geprüft, geprüft, geprüft');
+  assert.equal(sichtbarerText('<p>rechts&shy;sicher rechts­sicher rechts<wbr>sicher</p>'),
+    'rechtssicher rechtssicher rechtssicher', 'drei Trennstellen, dasselbe Wort');
+  // GEGENPROBE: eine Entity, die kein Zeichen ist, bleibt ein Trenner — sonst würde die
+  // Normalisierung Wörter zusammenziehen, die keine sind.
+  assert.equal(sichtbarerText('<p>rechts&kaputt;sicher</p>'), 'rechts sicher');
 });
 
 test('sichtbarerText behält echten Text — Gegenprobe zur Entfernung', () => {

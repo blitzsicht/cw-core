@@ -25,6 +25,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 ## [Unreleased]
 
 - [kunde] Die Prüfung, die Werbeversprechen ohne Deckung auf Ihrer Website findet, sieht jetzt auch Versprechen im Seitentitel und in den Angaben für Suchmaschinen zuverlässig — und meldet keine Sätze mehr, die längst entfernt und nur noch als Notiz im Quelltext stehen.
+- [kunde] Dieselbe Prüfung erkennt Werbeversprechen jetzt auch dann, wenn sie durch Trennhilfen oder Sonderzeichen-Schreibweisen im Quelltext zerlegt sind, und sie prüft die drei allgemeinen Versprechen („rechtssicher", „abmahnsicher", „anwaltlich geprüft") künftig auf jeder Website — auch auf denen mit eigener Wortliste, wo sie zuvor stillschweigend entfielen.
 
 ### Added
 
@@ -51,12 +52,58 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ### Changed
 
+- **Die Kundenliste ERGÄNZT den Flottendefault, sie ersetzt ihn nicht mehr** (cw-core#230, Befund 3).
+  `options.verboteneFormulierungen ?? GARANTIE_PRAEDIKATE` hieß: wer eine eigene Liste anlegte,
+  schaltete `rechtssicher`, `abmahnsicher` und `anwaltlich geprüft` **still** ab — genau die
+  Regression, gegen die der Guard gebaut wurde (ops#1042). customer-blitzsicht schrieb die drei
+  deshalb in seiner Liste ab, mit einem Kommentar, der die Ersetzung erklärt; das ist eine Kopie,
+  die niemand nachzieht. Jetzt laufen beide Listen: Treffer auf die Kundenliste sind **WARN**,
+  Treffer auf den Flottendefault **Hinweis** (der Release-Train zählt WARN-Köpfe, cw-core#196).
+  Steht ein Eintrag in beiden, gilt die Kundenfassung — die Kundenliste steht in der Vereinigung
+  vorn, und `normalisierteListe()` behält je Eintrag das erste Original.
+
+  Folgen für Kundenrepos: Listen, die die drei Prädikate abschreiben, können sie streichen
+  (Dubletten sind harmlos). `verboteneFormulierungen: []` schaltet den Guard **nicht** mehr ab,
+  sondern lässt den Flottendefault laufen — zum Abschalten `checkVerbotsliste: false`.
+- **`strictVerbotsliste` eskaliert die Kundenliste, nicht den Flottendefault.** Mit der
+  Vereinigung oben hätte die andere Lesart jede Seite abgebrochen, die den Schalter setzt, ohne
+  eine eigene Liste zu pflegen. Ohne Kundenliste hat der Schalter deshalb keine Wirkung; die
+  Abbruchmeldung nennt jetzt „Fundstelle(n) mit Formulierungen aus der Kundenliste".
+- **Der Hinweistext richtet sich nach der Liste** (Befund 6): „Ein Garantie-Prädikat verspricht
+  ein Ergebnis …" stand auch unter Kundeneinträgen wie `100 Punkte` oder `monatlicher Report`,
+  wo er die Sache nicht trifft. Kundentreffer bekommen jetzt ihren eigenen Satz.
+- **Die ✓-Zeile nennt die Zahl, die wirklich geprüft wird, und deren Herkunft** (Befund 7):
+  `anzahl` zählte rohe Einträge, der Checker entdoppelt normalisiert — für
+  `['rechtssicher', 'Rechtssicher']` meldete das Log „2 Formulierung(en)", geprüft wurde eine.
+  Beides kommt jetzt aus `normalisierteListe()`, die Zeile sagt `(Kundenliste + Flottendefault)`
+  oder `(Flottendefault)`.
 - `kunde-gate`: die „unbekannt"-Meldung nennt jetzt die wahrscheinliche Ursache und den Befehl
   (`Kopfzeile nicht in Normform? (node scripts/lint-changelog.mjs; sonst cw-release Schritt 4)`).
   Exit 11 bleibt bewusst fail open.
 
 ### Fixed
 
+- **Entity-kodierte Umlaute werden gelesen** (cw-core#230, Befund 1): `anwaltlich gepr&uuml;ft`,
+  `gepr&#252;ft` und `gepr&#xFC;ft` ergaben **null** Treffer. `entitiesWeg()` machte jede Entity
+  außer vier Sonderfällen zum Leerzeichen, und hexadezimale fielen ganz durch den Rost
+  (`&[a-z]+;|&#\d+;` kannte nur Dezimalstellen). Neu löst `entitiesUndTrennerWeg()` benannte
+  (Tabelle mit Umlauten, Typografie, Einheiten), dezimale und hexadezimale Entities zu ihrem
+  Zeichen auf; was kein Zeichen ergibt, bleibt ein Leerzeichen und trennt weiter — eine
+  unbekannte Entity darf keine Wörter zusammenziehen (`rechts&kaputt;sicher` ist kein Prädikat).
+- **Literales U+00AD und `<wbr>` verstecken kein Prädikat mehr** (Befund 2): `&shy;` war seit
+  #228 behandelt, das **Zeichen selbst** nicht — und genau das steht in sieben Quelldateien der
+  Flotte (customer-gottl-richter-gomeier 5×, customer-blitzsicht `agb.astro`,
+  customer-allstargirls-regensburg `index.astro`) und live auf `blitzsicht.com/agb/` zweimal
+  (`Sonder\u00adkündigungs\u00adrecht`, `Leistungs\u00aderbringung`). `<wbr>` ebenfalls nicht,
+  und das muss **vor** dem Tag-Strip weg, sonst macht der daraus ein Leerzeichen. Entfernt werden
+  jetzt U+00AD, U+200B–U+200D, U+2060 und U+FEFF — Zeichen, die für den Leser kein Wort trennen,
+  dürfen es im Prüftext auch nicht.
+- **Meta-Werte ohne Anführungszeichen werden geprüft** (Befund 8):
+  `<meta name=description content=rechtssicher>` wurde still übersprungen. Astro quotet, deshalb
+  selten — „selten" und „still" ist die Verbindung, die einen Guard unbrauchbar macht. Der
+  unangeführte Wert endet am Whitespace oder `>`, wie im HTML-Standard: bei
+  `content=sauber rechtssicher` ist „rechtssicher" ein eigenes, ungültiges Attribut und kein
+  Inhalt, den jemand liest — also weiter kein Treffer.
 - **Verbotslisten-Guard liest nicht mehr rohes HTML** (Review nach dem Merge von #220, acht Befunde): `kopfInhalte()`
   scannte den ungereinigten Seiteninhalt und brach damit die Abgrenzung, die der Dateikopf selbst aufschreibt
   („NICHT geprüft: … HTML-Kommentare"). Astro behält Kommentare im Output. Neu räumt `ohneUnsichtbares()` Skripte,
@@ -68,7 +115,9 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 - **Weiches Trennzeichen versteckt kein Prädikat mehr**: `&shy;`/`&#173;` wurde wie jede unbekannte Entity zum
   Leerzeichen — „rechts&shy;sicher" kam als „rechts sicher" an und rutschte an der Liste vorbei. Bei deutschen
   Komposita, wo die Trennung sinnvoll ist, ein realistischer Weg, ein Prädikat zu verstecken. Behoben in
-  `sichtbarerText()` (geteilt von beiden Guards) und in `entitiesWeg()` für Titel und Metas.
+  `sichtbarerText()` (geteilt von beiden Guards) und für Titel und Metas. (Nachgezogen im selben Block:
+  `entitiesWeg()` heißt seit cw-core#230 `entitiesUndTrennerWeg()` und löst Entities auf, statt sie
+  wegzuwerfen — der Name hier zeigte sonst auf eine Funktion, die es nicht mehr gibt.)
 - **`<meta>` mit `>` im Attributwert wird gelesen**: `<meta\b[^>]*>` brach am ersten `>`, auch an einem im Wert. Der
   Treffer fiel nicht aus — er landete über den Textstrom im Befund, aber als `ort: 'text'` und mit Attribut-Müll im
   Kontext. Angeführte Werte werden jetzt als Ganzes übersprungen. Der Text-Leck selbst stammt aus
