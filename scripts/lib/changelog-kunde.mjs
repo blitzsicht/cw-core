@@ -120,7 +120,16 @@ export function kundenwirkung(md, von, bis) {
 
   const kennt = (v) => alle.some((e) => compareVersions(e.version, v) === 0);
   if (!kennt(bis)) {
-    return { status: 'unbekannt', grund: `${bis} fehlt im CHANGELOG (cw-release Schritt 4?)`, ...leer };
+    // Die häufigste Ursache ist nicht ein vergessener Abschnitt, sondern eine Kopfzeile
+    // außerhalb der Normform: HEADER_RE verlangt `## vX.Y.Z`, also findet `## Unreleased`
+    // oder `## [v0.192.0]` die Version nicht — und Exit 11 ist fail open, der Bump läuft
+    // und die [kunde]-Zeile fehlt still im Monatsreport (cw-core#222, gemessen 06.11.2026:
+    // dieselbe Datei mit `## v0.192.0 (2026-11-06)` → Exit 0, mit `## Unreleased` → Exit 11).
+    return {
+      status: 'unbekannt',
+      grund: `${bis} fehlt im CHANGELOG — Kopfzeile nicht in Normform? (\`node scripts/lint-changelog.mjs\`; sonst cw-release Schritt 4)`,
+      ...leer,
+    };
   }
   if (!kennt(von)) {
     // Häufig bei sehr alten Pins. Ohne Startpunkt ist die Spanne nicht bestimmbar.
