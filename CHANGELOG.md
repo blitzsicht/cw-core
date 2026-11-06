@@ -26,6 +26,35 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 - [kunde] Die Prüfung, die Werbeversprechen ohne Deckung auf Ihrer Website findet, sieht jetzt auch Versprechen im Seitentitel und in den Angaben für Suchmaschinen zuverlässig — und meldet keine Sätze mehr, die längst entfernt und nur noch als Notiz im Quelltext stehen.
 
+### Added
+
+- **Changelog-Kopfform wird geprüft** (cw-core#222): `scripts/lib/changelog-kopfform.mjs` +
+  `scripts/lint-changelog.mjs`. Normform ist `## [Unreleased]` (höchstens einmal, als erster
+  Abschnitt) oder `## vX.Y.Z (YYYY-MM-DD)` mit optionalem Präreleasesuffix und freiem Zusatz.
+  Rot mit Zeilennummer sind `## Unreleased`, `## [v0.191.0]`, eine Version ohne Datum, ein
+  deutsches Datum, ein zweiter Unreleased-Block und ein Unreleased-Block unterhalb einer Version.
+  Läuft über `pnpm test` in CI mit, ohne eigenen Workflow-Schritt.
+
+  Warum: `cw-release` benennt nur `## [Unreleased]` um. `## Unreleased` bleibt stehen, die neue
+  Version bekommt keinen Abschnitt — und die bisherige Gegenprobe des Skills
+  (`grep -c '^## \[Unreleased\]'` = 0 **nach** dem Edit) ist dann trivial erfüllt, weil die Zahl
+  schon vorher 0 war. Ein Check, der nicht rot werden kann. `kunde-gate` findet die Version
+  danach nicht, meldet „unbekannt" (Exit 11, fail open), und die `[kunde]`-Zeile fällt still aus
+  dem Monatsreport. Gemessen am 06.11.2026 an derselben Datei: mit `## v0.192.0 (2026-11-06)`
+  → Exit 0 „kundenwirksam"; nur die Kopfzeile zu `## Unreleased` geändert → Exit 11.
+
+  Zweiter, eigenständiger Grund für die Reihenfolge-Regel: `parseChangelog()` ordnet
+  `[kunde]`-Zeilen dem letzten gematchten **Versions**-Header zu. Steht `## [Unreleased]` nicht
+  oben, wandern seine Zeilen in die darüberstehende, bereits veröffentlichte Version — gemessen:
+  „NOCH NICHT VERÖFFENTLICHT" erschien unter `v0.192.0`. Das ist ein unveröffentlichter Satz im
+  Kundenreport, keine Formfrage.
+
+### Changed
+
+- `kunde-gate`: die „unbekannt"-Meldung nennt jetzt die wahrscheinliche Ursache und den Befehl
+  (`Kopfzeile nicht in Normform? (node scripts/lint-changelog.mjs; sonst cw-release Schritt 4)`).
+  Exit 11 bleibt bewusst fail open.
+
 ### Fixed
 
 - **Verbotslisten-Guard liest nicht mehr rohes HTML** (Review nach dem Merge von #220, acht Befunde): `kopfInhalte()`
@@ -64,6 +93,15 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
   die 18 alten grün. Am echten Build gegengeprüft (blitzsicht, 59 Seiten): dieselben 6 Treffer wie unter v0.191.0,
   Exit 0; mit `verboteneFormulierungen` als String bricht der alte Stand mit Exit 1 ab, der neue warnt und prüft
   mit 3 Formulierungen weiter.
+
+- `scripts/lib/changelog-kopfform.test.mjs`, 10 Proben. Die wichtigste prüft den Changelog
+  **dieses** Repos und läuft bei jedem PR mit. Gegenproben gegen echte Stände aus der Historie:
+  `c9b5b46d` (PR #172) und `8cd66293` trugen `## Unreleased` in Zeile 25, der Lint wird dagegen
+  rot. Sabotage-Gegenprobe am vollen CI-Lauf: Datum aus der Kopfzeile von v0.192.0 entfernt →
+  `pnpm test` 1 fail mit `CHANGELOG.md:25`, zurückgesetzt → 1597 pass / 0 fail.
+
+  Der in #222 genannte Anlass ließ sich **nicht** belegen: der gepushte Stand von #213
+  (`824c19a2`) trägt die korrekte Form. Die Fehlform gab es trotzdem, nur in anderen Commits.
 
 ## v0.192.0 (2026-11-06)
 
