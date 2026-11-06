@@ -105,6 +105,8 @@ interface Props {
   /** Auto-Tracking-Steuerung — siehe BaseLayout (v0.54.0, Doppelfeuer-Fix). */
   trackingMode?: 'inline' | 'full' | 'none';
   schema?: SchemaProps;
+  /** Text des Skip-Links, durchgereicht an BaseLayout (Default „Zum Inhalt springen“). */
+  skipLinkLabel?: string;
   header?: HeaderConfig;
   footer: FooterConfig;
   /** See LandingPage.turnstileSiteKey — site-wide Pre-Clearance widget. */
@@ -162,6 +164,7 @@ const {
   motion,
   flushBottom,
   showTitle = true,
+  skipLinkLabel,
 } = Astro.props;
 
 // Zero-config: flushBottom explizit gesetzt → gilt. Sonst automatisch bündig,
@@ -186,6 +189,7 @@ const shouldFlush = flushBottom ?? Astro.slots.has('full-width');
   plausibleEndpoint={plausibleEndpoint}
   trackingMode={trackingMode}
   schema={schema}
+  skipLinkLabel={skipLinkLabel}
 >
   {/*
     Head-Slot durchreichen, wie LandingPage es tut. Ohne diese Zeile kommt eine Seite,

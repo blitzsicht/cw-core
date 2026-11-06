@@ -497,6 +497,8 @@ h1, h2, h3, h4, h5, h6 {
   .motion-cursor { display: none; }
   [data-motion-parallax] { transform: none !important; }
   [data-motion-blob] { animation: none !important; }
+  /* Skip-Link: Einfahren ohne Bewegung (Review nach dem Merge von #217, Befund 7). */
+  .skip-link { transition: none; }
 
   /* Bewegung aus, Antwort an.
    * Der Druckpunkt bleibt sichtbar, er passiert nur sofort statt ueber Zeit.
@@ -593,7 +595,9 @@ h1, h2, h3, h4, h5, h6 {
 /* Skip-Link (cw-core #216): erstes Kind des body in BaseLayout, Ziel main#inhalt in den Layouts.
    Ohne Fokus über dem oberen Rand geparkt (nicht display:none, sonst wäre er nicht fokussierbar);
    bei Tastaturfokus rutscht er ins Bild. Farben wie der Accent-Knopf (--color-accent + --color-accent-btn-text,
-   Z. 23), damit Sites mit hellem Accent ihre Textfarbe schon über den vorhandenen Token setzen. */
+   Z. 23), damit Sites mit hellem Accent ihre Textfarbe schon über den vorhandenen Token setzen. Der Fokusring
+   liegt mit outline-offset auf dem Seitenhintergrund, nicht auf der Füllung: --color-accent-btn-text war dort weiß
+   auf weiß (Review nach dem Merge von #217, Befund 4), deshalb --color-primary. */
 .skip-link {
   position: absolute;
   top: 0.5rem;
@@ -610,10 +614,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 .skip-link:focus-visible {
   transform: translateY(0);
-  outline: 3px solid var(--color-accent-btn-text, white);
+  outline: 3px solid var(--color-primary, #1D1E3B);
   outline-offset: 2px;
 }
-/* Das Sprungziel bekommt per tabindex="-1" den Fokus, soll aber keinen Rahmen um den ganzen Inhalt zeichnen. */
+/* Das Sprungziel bekommt per tabindex="-1" den Fokus, soll aber keinen Rahmen um den ganzen Inhalt zeichnen.
+   scroll-margin-top hält den Anfang unter dem sticky Header (Header.astro, rund 4 rem) frei — unabhängig von
+   Breite und Reduced Motion, anders als das scroll-padding-top des Snap-Blocks oben (Review #217, Befund 5). */
+main#inhalt {
+  scroll-margin-top: 4.5rem;
+}
 main#inhalt:focus {
   outline: none;
 }

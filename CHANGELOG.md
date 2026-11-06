@@ -22,6 +22,29 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+- [kunde] Der Link „Zum Inhalt springen“ erscheint nur noch auf Seiten, die ein Sprungziel haben; sein Fokusrahmen ist auch auf weißem Hintergrund sichtbar, und nach dem Sprung verdeckt die Kopfzeile den Inhalt nicht mehr.
+
+### Fixed
+
+- **Skip-Link nur mit Ziel** (Review nach dem Merge von #217, sieben Befunde): `BaseLayout` rendert den Link
+  `a.skip-link[href="#inhalt"]` nur, wenn der gerenderte Inhalt `id="inhalt"` trägt (Slot per
+  `Astro.slots.render`, Ausgabe unverändert per `set:html`). Seiten, die BaseLayout direkt nutzen, hatten mit v0.190.0
+  einen toten ersten Tab-Stop (live 05.11.: blitzsicht `/report/`, `/fix/`, `/danke/`; gowohnen `Seite.astro`). Wer den
+  Link dort will, setzt `<main id="inhalt" tabindex="-1">` — Beispiele `examples/src/pages/base-layout-{ohne,mit}-ziel.astro`.
+  `skipLinkLabel` reichen `LandingPage` und `ContentPage` jetzt durch. CSS: Fokusring `--color-primary` statt
+  `--color-accent-btn-text` (war weiß auf weißem Seitenhintergrund), `main#inhalt { scroll-margin-top: 4.5rem }` gegen den
+  sticky Header (auch unter 768 px und mit Reduced Motion), `.skip-link`-Transition im Reduce-Block aus.
+  `checks/a11y-audit.spec.ts`: Paarung Link⇔Ziel auf jeder Seite (rot bei Link ohne Ziel, Annotation bei Seite ohne
+  Link), der Tab/Enter-Test läuft an der ersten Seite mit Link und wird ohne Link im Build übersprungen statt rot
+  (Guard-Pin vor Paket-Pin, sechs Repos mit `a11y-blocking` unter v0.190.0 am 05.11.).
+- **checks: Positivliste `testMatch: '**/*.spec.ts'`** statt der Sperrliste aus #219 (Review nach dem Merge, vier
+  Befunde): die Sperrliste deckte nur `*.test.mjs`, `*.test.js`/`*.test.ts`/`*.spec.js` liefen beim `--list` weiter
+  mit. `tests.yml`, Job „checks/ laedt und zaehlt“: zusätzlich 0 node:test-Ergebniszeilen in der `--list`-Ausgabe
+  (der Zählwert 21 allein sah den Defekt nicht: 21 bei 17 Fremdzeilen) und eigene Schritte `pnpm test:slop`,
+  `pnpm test:formular` und `pnpm test:screens` (mit Chromium), die vorher in keinem Job liefen.
+
 ## v0.191.0 (2026-11-05)
 
 - [kunde] Formularfelder, deren Eingabetext oder Platzhalter zu wenig Kontrast zum Feld hat, werden beim Prüfen der Website gemeldet.
