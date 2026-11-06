@@ -61,7 +61,7 @@ import { checkAntwortfrist } from './antwortfrist-check.js';
 import { checkStickyTel } from './sticky-tel-check.js';
 import { checkOpeningHours } from './opening-hours-check.js';
 import { pruefeSeite as pruefeFooterRechtsform } from './footer-rechtsform-check.js';
-import { pruefePlatzhaltertext, istZuPruefen } from './platzhaltertext-check.js';
+import { pruefePlatzhaltertext, istZuPruefen, vermerkeFundstelle } from './platzhaltertext-check.js';
 import { pruefeVerbotsliste, GARANTIE_PRAEDIKATE } from './verbotsliste-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
 import {
@@ -4144,9 +4144,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             if (!istZuPruefen(rel, ausnahmen)) continue;
             geprueft++;
             for (const b of pruefePlatzhaltertext(readFileSync(file, 'utf-8'), rel)) {
-              const e = proKontext.get(b.kontext);
-              if (e) e.seiten.push(rel);
-              else proKontext.set(b.kontext, { treffer: b.treffer, seiten: [rel] });
+              vermerkeFundstelle(proKontext, b.kontext, rel, () => ({ treffer: b.treffer, seiten: [rel] }));
             }
           }
           if (proKontext.size > 0) {
@@ -4182,10 +4180,31 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
         // Rollout nicht blocken); eine eigene `verboteneFormulierungen`-Liste hebt auf WARN,
         // `strictVerbotsliste` auf Abbruch. Reine Logik in verbotsliste-check.js.
         if (options.checkVerbotsliste !== false) {
-          const eigeneListe = options.verboteneFormulierungen !== undefined;
-          const formulierungen: readonly string[] = options.verboteneFormulierungen ?? GARANTIE_PRAEDIKATE;
+          // Ein Kunden-`astro.config.mjs` ist ungetyptes JS — die Typen oben sind dort nur
+          // Dokumentation. `verboteneFormulierungen: 'rechtssicher'` (String statt Liste) warf
+          // vorher einen TypeError mitten in `astro:build:done`: `.filter is not a function`,
+          // Build tot, ohne ein Wort darüber, welche Option falsch steht. Der Guard läuft im
+          // Soft-Start, also sagt er es und macht mit dem Flottendefault weiter.
+          const istStringListe = (v: unknown): v is readonly string[] =>
+            Array.isArray(v) && v.every((x) => typeof x === 'string');
+          const form = (v: unknown) => (Array.isArray(v) ? 'Liste mit Nicht-Strings' : typeof v);
+          const rohListe: unknown = options.verboteneFormulierungen;
+          const rohAusnahmen: unknown = options.verbotslisteAusnahmen;
+          if (rohListe !== undefined && !istStringListe(rohListe)) {
+            logger.warn(
+              `Verbotslisten-Guard: \`verboteneFormulierungen\` muss eine Liste von Strings sein (ist: ${form(rohListe)}) — Angabe ignoriert, es gilt der Flottendefault.`,
+            );
+          }
+          if (rohAusnahmen !== undefined && !istStringListe(rohAusnahmen)) {
+            logger.warn(
+              `Verbotslisten-Guard: \`verbotslisteAusnahmen\` muss eine Liste von Strings sein (ist: ${form(rohAusnahmen)}) — Angabe ignoriert, es wird jede Seite geprüft.`,
+            );
+          }
+          const eigene = istStringListe(rohListe) ? rohListe : undefined;
+          const eigeneListe = eigene !== undefined;
+          const formulierungen: readonly string[] = eigene ?? GARANTIE_PRAEDIKATE;
           const anzahl = formulierungen.filter((f) => f.trim() !== '').length;
-          const ausnahmen = options.verbotslisteAusnahmen ?? [];
+          const ausnahmen: readonly string[] = istStringListe(rohAusnahmen) ? rohAusnahmen : [];
           if (anzahl === 0) {
             logger.info('Verbotslisten-Guard: nicht konfiguriert (0 Einträge).');
           } else {
@@ -4199,9 +4218,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               geprueft++;
               for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen)) {
                 const key = `${b.ort}\u0000${b.kontext}`;
-                const e = proKontext.get(key);
-                if (e) e.seiten.push(rel);
-                else proKontext.set(key, { kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel] });
+                vermerkeFundstelle(proKontext, key, rel, () => ({
+                  kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel],
+                }));
               }
             }
             const melden = eigeneListe ? (m: string) => logger.warn(m) : (m: string) => logger.info(m);

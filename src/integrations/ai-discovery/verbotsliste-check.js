@@ -30,7 +30,10 @@
  *
  * NICHT geprüft: `<script>` (auch JSON-LD), `<style>`, HTML-Kommentare, `<pre>`/`<code>`,
  * sonstige Attributwerte (alt, aria-label, placeholder) — dieselbe Abgrenzung wie beim
- * Platzhaltertext-Guard, aus denselben dort gemessenen Gründen.
+ * Platzhaltertext-Guard, aus denselben dort gemessenen Gründen. Sie gilt für Kopf UND
+ * Textstrom: `ohneUnsichtbares()` räumt vor der Trennung auf. Bis zum 06.11.2026 galt sie
+ * nur für den Textstrom, `kopfInhalte()` scannte rohes HTML und meldete auskommentierte
+ * Metas und Titel (Fälle A–C dort).
  */
 
 import { sichtbarerText } from './platzhaltertext-check.js';
@@ -62,6 +65,10 @@ function entitiesWeg(s) {
     .replace(/&quot;/gi, '"')
     .replace(/&#0*39;|&apos;/gi, "'")
     .replace(/&nbsp;/gi, ' ')
+    // Weiches Trennzeichen trennt kein Wort: es MUSS verschwinden, nicht zum Leerzeichen
+    // werden. Sonst zerfällt „rechts&shy;sicher" in zwei Hälften und rutscht an der Liste
+    // vorbei — bei deutschen Komposita ein realistischer Weg, das Prädikat zu verstecken.
+    .replace(/&shy;|&#0*173;|&#x0*ad;/gi, '')
     .replace(/&[a-z]+;|&#\d+;/gi, ' ');
 }
 
@@ -79,19 +86,54 @@ function attribut(tag, name) {
 const TITLE = /<title\b[^>]*>([\s\S]*?)<\/title>/i;
 
 /**
+ * Was ein Besucher nie sieht, FÜLLT auch keinen Kopf: Skripte (auch JSON-LD), Stile und
+ * HTML-Kommentare fallen weg, bevor Kopf und Textstrom getrennt werden. Die Tags selbst
+ * bleiben stehen — `kopfInhalte()` braucht `<title>` und `<meta>` noch.
+ *
+ * Warum das hier und nicht erst in `sichtbarerText()`: ohne diesen Schritt scannte
+ * `kopfInhalte()` rohes HTML und brach damit die Abgrenzung, die der Dateikopf aufschreibt
+ * („NICHT geprüft: … HTML-Kommentare"). Astro behält Kommentare im Output. Gemessen am
+ * 06.11.2026, drei Fälle aus einem Lauf:
+ *   A ein auskommentiertes `<meta name="description">` ergab einen Befund `meta:description`
+ *     für Text, den niemand sieht;
+ *   B ein auskommentierter `<title>` VOR dem echten wurde als Dokumenttitel gemeldet
+ *     (`TITLE` ist unverankerter First-Match);
+ *   C derselbe Fall entfernte in `html.replace(TITLE, ' ')` den falschen Titel, der echte
+ *     leckte in den Textstrom und der Befund trug `ort: 'text'` statt `'title'`.
+ * Alle drei lösen sich mit derselben Reinigung: der erste verbliebene `<title>` IST der
+ * Dokumenttitel.
+ *
+ * @param {string} html
+ */
+function ohneUnsichtbares(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<!--[\s\S]*?-->/g, ' ');
+}
+
+/**
  * Titel und Meta-Inhalte einer Seite, jeweils mit ihrem Ort. `sichtbarerText()` lässt den
  * Titel als Text stehen und wirft Meta-Inhalte weg (Attribute) — hier werden beide getrennt
  * eingesammelt, damit der Befund sagt, WO die Formulierung steht. Nur das erste `<title>`
  * zählt (der Dokumenttitel); SVG-Titel im Body bleiben Teil des sichtbaren Texts.
+ *
+ * Reinigt selbst über `ohneUnsichtbares()` — die Funktion ist exportiert und wird direkt
+ * aufgerufen, ihr Vertrag darf nicht davon abhängen, dass der Aufrufer vorgereinigt hat.
+ * Der zweite Lauf aus `pruefeVerbotsliste()` findet dann nichts mehr zu entfernen.
  * @param {string} html
  * @returns {{ ort: VerbotslistenOrt, inhalt: string }[]}
  */
 export function kopfInhalte(html) {
+  const rein = ohneUnsichtbares(html);
   /** @type {{ ort: VerbotslistenOrt, inhalt: string }[]} */
   const aus = [];
-  const t = TITLE.exec(html);
+  const t = TITLE.exec(rein);
   if (t) aus.push({ ort: 'title', inhalt: entitiesWeg(t[1]) });
-  for (const m of html.matchAll(/<meta\b[^>]*>/gi)) {
+  // `[^>]*` bräche am ersten `>` — auch an einem in einem Attributwert. Ein `content="a > b"`
+  // ließ die ganze Meta still ausfallen: der Tag endete für den Regex mitten im Wert, der
+  // Rest matchte nicht mehr. Angeführte Werte werden deshalb als Ganzes übersprungen.
+  for (const m of rein.matchAll(/<meta\b(?:"[^"]*"|'[^']*'|[^>])*>/gi)) {
     const tag = m[0];
     const name = (attribut(tag, 'name') ?? attribut(tag, 'property') ?? '').toLowerCase();
     if (!META_FELDER.includes(name)) continue;
@@ -106,9 +148,14 @@ export function kopfInhalte(html) {
  * Prüft eine gebaute Seite gegen die Formulierungsliste.
  *
  * Gemeldet wird JEDES Vorkommen je Ort — dieselbe Verdeckungsfalle wie beim Platzhaltertext-
- * Guard: ein Treffer darf den zweiten auf derselben Seite nicht verschlucken. Doppelte
- * Fundstellen (gleicher Ort, gleiche Position) fallen weg, etwa wenn „rechtssicher" und
- * „DSGVO-rechtssicher" beide in der Liste stehen.
+ * Guard: ein Treffer darf den zweiten auf derselben Seite nicht verschlucken. Entdoppelt wird
+ * nur, was an GENAU DERSELBEN Position im selben Ort landet (zwei Listeneinträge, die sich
+ * auf dasselbe Zeichen normalisieren).
+ *
+ * Überlappende Treffer fallen ausdrücklich NICHT weg: stehen „rechtssicher" und
+ * „DSGVO-rechtssicher" beide in der Liste, meldet „DSGVO-rechtssicher" an seiner Position und
+ * „rechtssicher" fünf Zeichen später — zwei Befunde, so gewollt und so getestet. Wer eine
+ * Formulierung einmal gemeldet haben will, trägt sie einmal ein.
  *
  * @param {string} html roher HTML-Inhalt der Seite
  * @param {string} seite relativer Pfad für die Meldung, z. B. `blog/dsgvo/index.html`
@@ -124,11 +171,15 @@ export function pruefeVerbotsliste(html, seite, formulierungen) {
   }
   if (liste.size === 0) return [];
 
+  // Einmal reinigen, dann beide Quellen daraus: nur so entfernt `replace(TITLE, ' ')` den
+  // Titel, den `kopfInhalte()` auch als Titel gezählt hat. Auf rohem HTML konnten die zwei
+  // auf verschiedene `<title>` zeigen (Fall B/C in `ohneUnsichtbares`).
+  const rein = ohneUnsichtbares(html);
   /** @type {{ ort: VerbotslistenOrt, inhalt: string }[]} */
   const quellen = [
     // Der Dokumenttitel wird vor dem Textstrom entfernt, sonst stünde er zweimal da.
-    { ort: 'text', inhalt: sichtbarerText(html.replace(TITLE, ' ')) },
-    ...kopfInhalte(html),
+    { ort: 'text', inhalt: sichtbarerText(rein.replace(TITLE, ' ')) },
+    ...kopfInhalte(rein),
   ];
 
   /** @type {VerbotslistenBefund[]} */

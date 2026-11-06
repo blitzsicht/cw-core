@@ -169,3 +169,56 @@ test('GARANTIE_PRAEDIKATE sind genau die drei Prädikate aus P18 und unveränder
   assert.ok(Object.isFrozen(GARANTIE_PRAEDIKATE));
   for (const p of GARANTIE_PRAEDIKATE) assert.ok(P18.includes(p), `${p} steht in P18`);
 });
+
+// ── NACHLESE 06.11.2026 (Review zu cw-core#220). Fünf Proben, die der Guard vor diesem
+//    Stand alle anders beantwortet hat — jede einmal gegen `HEAD` gefahren und rot gesehen,
+//    Ergebnis 5/5 Unterschiede bei 0 unerwünschten Verhaltensänderungen. Ohne diesen
+//    Gegenlauf wäre „grün" von „kann nicht rot werden" nicht zu unterscheiden.
+//    Gemeinsame Ursache von A, B und C: `kopfInhalte()` scannte rohes HTML und brach damit
+//    die Abgrenzung, die der Dateikopf selbst aufschreibt.
+
+test('A auskommentiertes <meta> im Kopf ist kein Befund — Astro behält HTML-Kommentare im Output', () => {
+  const html = '<html><head><!-- <meta name="description" content="rechtssicher seit 2026"> -->'
+    + '<title>Websites für Betriebe</title></head><body><p>Pflichtangaben vollständig.</p></body></html>';
+  assert.deepEqual(treffer(html), [], 'ein entfernter Claim im Kommentar darf nicht melden');
+  // Gegenprobe: dasselbe <meta> ohne Kommentar meldet.
+  assert.equal(treffer(html.replace('<!-- ', '').replace('> -->', '>')).length, 1);
+});
+
+test('B auskommentierter <title> VOR dem echten verdrängt den Dokumenttitel nicht', () => {
+  const html = '<html><head><!-- <title>rechtssicher — alter Titel</title> -->'
+    + '<title>Websites für Betriebe</title></head><body><p>Hallo.</p></body></html>';
+  const k = kopfInhalte(html);
+  assert.equal(k.find((x) => x.ort === 'title')?.inhalt, 'Websites für Betriebe',
+    'TITLE ist unverankerter First-Match — ohne Vorreinigung gewinnt der Kommentar');
+  assert.deepEqual(treffer(html), []);
+});
+
+test('C der echte Titel meldet als „title“, auch wenn ein Kommentar einen zweiten <title> trägt', () => {
+  const html = '<html><head><!-- <title>alter Titel</title> --><title>Rechtssicher bauen</title></head><body><p>Hallo.</p></body></html>';
+  const b = treffer(html);
+  assert.equal(b.length, 1, 'ein Befund, nicht zwei');
+  assert.equal(b[0].ort, 'title', 'vorher leckte der echte Titel in den Textstrom und meldete als „text“');
+});
+
+test('D weiches Trennzeichen versteckt kein Prädikat — im Text und im Titel', () => {
+  // „rechts&shy;sicher“ wird vom Browser als ein Wort gelesen; als Leerzeichen behandelt
+  // wäre es ein Weg, jedes deutsche Kompositum an der Liste vorbeizuschleusen.
+  assert.equal(treffer('<p>Unsere Texte sind rechts&shy;sicher.</p>').length, 1);
+  assert.equal(treffer('<p>Unsere Texte sind rechts&#173;sicher.</p>').length, 1, 'numerische Form genauso');
+  assert.equal(kopfInhalte('<title>rechts&shy;sicher</title>')[0].inhalt, 'rechtssicher');
+  // Gegenprobe: ein echtes Leerzeichen bleibt ein echtes Leerzeichen.
+  assert.deepEqual(treffer('<p>Das Recht und die Sicherheit, rechts sicher abbiegen.</p>'), []);
+});
+
+test('E wörtliches > im content-Attribut: die Meta wird gelesen und richtig verortet', () => {
+  // `<meta\b[^>]*>` brach am ersten `>` — auch an einem im Attributwert. Der Treffer fiel
+  // nicht aus (er landete über `sichtbarerText` im Textstrom), aber am falschen Ort und mit
+  // Attribut-Müll im Kontext. Der Text-Leck selbst stammt aus `sichtbarerText`s `<[^>]+>`
+  // und bleibt offen — ein toleranter Tag-Regex dort kann bei ungeraden Anführungszeichen
+  // über das Tag hinausgreifen und Text schlucken, also genau einen Guard still machen.
+  const html = '<head><meta name="description" content="Preis > 500 € und rechtssicher"></head><body><p>Text.</p></body>';
+  const b = treffer(html);
+  assert.ok(b.some((x) => x.ort === 'meta:description'), 'der Ort, an dem die Formulierung wirklich steht');
+  assert.equal(b.find((x) => x.ort === 'meta:description').kontext, 'Preis > 500 € und rechtssicher');
+});
