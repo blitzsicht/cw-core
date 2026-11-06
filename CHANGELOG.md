@@ -22,6 +22,43 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+**Feature:** `erlaubteFormulierungen` — der Verbotslisten-Guard kennt jetzt Ausnahmen auf Satz-, nicht auf Seitenebene
+
+Kontext: Ein Muster traf bisher auch dort, wo der Satz das Gegenteil sagt — „ohne korrekte
+Inhalte **keine** Anfragen bringt" ist kein Werbeversprechen, sondern die Warnung davor.
+Der einzige Ausweg war, das Muster weggelassen zu lassen und den Grund als Kommentar
+hinzuschreiben. Damit war die ehrliche Formulierung geschützt und die unehrliche gleich mit:
+das Muster „kann nicht rot werden", eine Ebene höher (cw-core#236, aus dem Review zu #230).
+
+Neu:
+
+- `erlaubteFormulierungen?: string[]` — Phrasen, die einen Treffer aufheben, wenn sie ihn
+  **umschließen** (exakter Teilstring, Groß-/Kleinschreibung egal, Whitespace normalisiert).
+  Überlappen genügt nicht: `['keine Anfragen bringt']` hebt das verneinte Vorkommen auf und
+  lässt „eine Website, die Anfragen bringt" im selben Dokument als Treffer stehen.
+- **Ladeprüfung**, noch bevor eine Seite gelesen ist: enthält eine erlaubte Phrase keine der
+  verbotenen Formulierungen, kann sie niemals greifen — Warnung mit Wortlaut. Das ist der
+  Grund für den exakten Teilstring und gegen eine geratene Satzgrenze: nur der Teilstring
+  lässt sich gegen die Verbotsliste selbst prüfen, der Schalter kann nicht stumm danebenliegen.
+- **Was eine Ausnahme zudeckt, steht im Log** (`Ausnahme „…" greift auf <Seite>`), und eine
+  Ausnahme, die auf keiner geprüften Seite greift, ist eine Warnung — Satz entfernt oder
+  Wortlaut gedriftet, in beiden Fällen Altlast.
+- `strictVerbotsliste` zählt aufgehobene Treffer nicht mit.
+
+**Deprecated:** `verbotslisteAusnahmen` (Pfad-Ausnahme) ist der veraltete Vorgänger. Er wirkt
+weiter und löst eine Verfallswarnung aus — stillschweigend ignorieren wäre der nächste stumme
+Schalter. Eine Pfad-Ausnahme stummt jedes Muster auf der ganzen Seite: die bisher einzige
+Nutzung in der Flotte (gemessen 06.11.2026 an `origin/main` von 31 Repos: 1 Repo,
+`['datenschutz/index.html']`) deckte 24 Muster ab, um genau einen Treffer zu erlauben.
+
+**Migrations-Hinweis:** Keiner für den Pin-Bump. Wer `verbotslisteAusnahmen` nutzt, sieht eine
+Warnung im Build-Log und ersetzt sie durch den Satz, um den es geht — für die
+Datenschutz-Seite ist das `erlaubteFormulierungen: ['an rechtssicherer Beweisführung']`.
+
+---
+
 ## v0.193.0 (2026-11-06)
 
 - [kunde] Die Prüfung, die Werbeversprechen ohne Deckung auf Ihrer Website findet, sieht jetzt auch Versprechen im Seitentitel und in den Angaben für Suchmaschinen zuverlässig — und meldet keine Sätze mehr, die längst entfernt und nur noch als Notiz im Quelltext stehen.

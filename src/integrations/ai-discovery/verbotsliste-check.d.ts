@@ -16,6 +16,12 @@ export interface VerbotslistenBefund {
   treffer: string;
   /** ±45 Zeichen um die Fundstelle */
   kontext: string;
+  /**
+   * Gesetzt, wenn eine `erlaubteFormulierungen`-Phrase diesen Treffer umschließt — mit deren
+   * Original-Schreibweise. Der Befund bleibt im Ergebnis: der Aufrufer soll melden können,
+   * WAS eine Ausnahme zudeckt (cw-core#236).
+   */
+  aufgehobenDurch?: string;
 }
 
 /** Flottendefault: `rechtssicher`, `abmahnsicher`, `anwaltlich geprüft`. */
@@ -27,7 +33,17 @@ export function pruefeVerbotsliste(
   html: string,
   seite: string,
   formulierungen: readonly string[],
+  erlaubte?: readonly string[],
 ): VerbotslistenBefund[];
+
+/**
+ * Ladeprüfung der Ausnahmeliste: Einträge, die kein verbotenes Muster enthalten, können
+ * keinen Treffer aufheben. Leeres Ergebnis = jeder Eintrag kann greifen.
+ */
+export function pruefeErlaubteListe(
+  erlaubte: readonly string[],
+  formulierungen: readonly string[],
+): { phrase: string; grund: string }[];
 
 /**
  * Die Liste, wie der Checker sie sieht: normalisiert → Original, ohne Leere und Dubletten.

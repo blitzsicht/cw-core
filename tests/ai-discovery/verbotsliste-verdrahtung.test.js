@@ -196,3 +196,129 @@ test('eine leere Kundenliste schaltet den Guard nicht mehr ab — der Flottendef
   assert.ok(ok, sauber.infos.join(' | '));
   assert.match(ok, /\(Flottendefault\)/, 'nicht „Kundenliste + Flottendefault" — die Liste ist leer');
 });
+
+// ── cw-core#236: `erlaubteFormulierungen`. Die Logik-Proben (umschließen statt überlappen,
+//    Ladeprüfung, Orte) stehen im Modul-Test. HIER steht, was nur am Hook zu sehen ist:
+//    welche Stufe die Meldung bekommt, ob `strictVerbotsliste` noch abbricht, ob eine
+//    ungenutzte Ausnahme auffällt und was mit dem veralteten `verbotslisteAusnahmen` passiert.
+
+/** Beide Richtungen im selben Dokument: einmal verneint, einmal als Versprechen. */
+const BEIDE_RICHTUNGEN =
+  '<p>Ohne korrekte Inhalte keine Anfragen bringt die schönste Seite nichts.</p>' +
+  '<p>Wir bauen eine Website, die Anfragen bringt.</p>';
+
+test('#236 die Ausnahme hebt genau eine der zwei Warnungen auf', async () => {
+  const e = await lauf({
+    body: BEIDE_RICHTUNGEN,
+    optionen: {
+      verboteneFormulierungen: ['Anfragen bringt'],
+      erlaubteFormulierungen: ['keine Anfragen bringt'],
+    },
+  });
+  const treffer = e.warnungen.filter((w) => w.includes('[verbotsliste_treffer]'));
+  assert.equal(treffer.length, 1, `genau das Versprechen bleibt: ${e.warnungen.join(' | ')}`);
+  assert.ok(treffer[0].includes('Wir bauen eine Website'), treffer[0]);
+  assert.ok(
+    e.infos.some((i) => i.includes('Ausnahme „keine Anfragen bringt" greift auf index.html')),
+    `was die Ausnahme zudeckt, muss im Log stehen: ${e.infos.join(' | ')}`,
+  );
+});
+
+test('#236 GEGENPROBE: ohne die Ausnahme sind es zwei Warnungen', async () => {
+  const e = await lauf({
+    body: BEIDE_RICHTUNGEN,
+    optionen: { verboteneFormulierungen: ['Anfragen bringt'] },
+  });
+  assert.equal(e.warnungen.filter((w) => w.includes('[verbotsliste_treffer]')).length, 2, e.warnungen.join(' | '));
+  assert.ok(e.infos.every((i) => !i.includes('Ausnahme')), 'und keine Ausnahme-Zeile');
+});
+
+test('#236 strict bricht beim verbleibenden Treffer ab, beim aufgehobenen nicht', async () => {
+  const beide = await lauf({
+    body: BEIDE_RICHTUNGEN,
+    optionen: {
+      strictVerbotsliste: true,
+      verboteneFormulierungen: ['Anfragen bringt'],
+      erlaubteFormulierungen: ['keine Anfragen bringt'],
+    },
+  });
+  assert.match(beide.fehler ?? '', /1 Fundstelle\(n\)/, 'der aufgehobene Treffer zählt nicht mit');
+
+  const nurVerneint = await lauf({
+    body: '<p>Ohne korrekte Inhalte keine Anfragen bringt die schönste Seite nichts.</p>',
+    optionen: {
+      strictVerbotsliste: true,
+      verboteneFormulierungen: ['Anfragen bringt'],
+      erlaubteFormulierungen: ['keine Anfragen bringt'],
+    },
+  });
+  assert.equal(nurVerneint.fehler, null, 'ein aufgehobener Treffer allein bricht nicht ab');
+});
+
+test('#236 eine Ausnahme, die nie greift, erscheint als Warnung mit Wortlaut', async () => {
+  const e = await lauf({
+    body: SAUBER,
+    optionen: {
+      verboteneFormulierungen: ['Anfragen bringt'],
+      erlaubteFormulierungen: ['keine Anfragen bringt'],
+    },
+  });
+  const altlast = e.warnungen.find((w) => w.includes('hat auf keiner'));
+  assert.ok(altlast, `Altlast-Warnung fehlt: ${e.warnungen.join(' | ')}`);
+  assert.ok(altlast.includes('„keine Anfragen bringt"'), 'mit Wortlaut');
+  assert.match(altlast, /1 geprüften Seite\(n\)/, 'und mit der Zahl der geprüften Seiten');
+});
+
+test('#236 Ladeprüfung am Hook: eine Phrase ohne verbotenes Muster wird gemeldet', async () => {
+  const e = await lauf({
+    body: SAUBER,
+    optionen: { erlaubteFormulierungen: ['Wir bauen Websites für Handwerksbetriebe'] },
+  });
+  assert.ok(
+    e.warnungen.some((w) => w.includes('kann deshalb keinen Treffer aufheben')),
+    e.warnungen.join(' | '),
+  );
+  // GEGENPROBE: eine Phrase, die ein Flottenprädikat enthält, löst diese Meldung nicht aus.
+  const gut = await lauf({ body: SAUBER, optionen: { erlaubteFormulierungen: ['an rechtssicherer Beweisführung'] } });
+  assert.ok(gut.warnungen.every((w) => !w.includes('kann deshalb keinen Treffer aufheben')), gut.warnungen.join(' | '));
+});
+
+test('#236 `verbotslisteAusnahmen` warnt als veraltet und wirkt weiter', async () => {
+  const e = await lauf({ optionen: { verbotslisteAusnahmen: ['index.html'] } });
+  assert.ok(
+    e.warnungen.some((w) => w.includes('`verbotslisteAusnahmen` ist veraltet')),
+    `Verfallswarnung fehlt — ein stillschweigend ignorierter Schlüssel wäre der nächste stumme Schalter: ${e.warnungen.join(' | ')}`,
+  );
+  // WIRKT WEITER: der Body trägt „rechtssicher" und „100 Punkte", trotzdem ist keine Seite
+  // geprüft. Hätte die Deprecation den Schlüssel abgeschaltet, stünde hier ein Treffer.
+  assert.ok(e.infos.some((i) => i.includes('keine Seite geprüft')), e.infos.join(' | '));
+  assert.ok(e.warnungen.every((w) => !w.includes('[verbotsliste_treffer]')), e.warnungen.join(' | '));
+  // GEGENPROBE: ohne den Schlüssel keine Verfallswarnung.
+  const ohne = await lauf({});
+  assert.ok(ohne.warnungen.every((w) => !w.includes('veraltet')), ohne.warnungen.join(' | '));
+});
+
+test('#236 eine falsch getippte Ausnahmeliste wird gemeldet, nicht geworfen', async () => {
+  const e = await lauf({
+    body: BEIDE_RICHTUNGEN,
+    optionen: { verboteneFormulierungen: ['Anfragen bringt'], erlaubteFormulierungen: 'keine Anfragen bringt' },
+  });
+  assert.equal(e.fehler, null, 'ein Kunden-astro.config ist ungetyptes JS — der Guard darf nicht sterben');
+  assert.ok(
+    e.warnungen.some((w) => w.includes('`erlaubteFormulierungen` muss eine Liste von Strings sein')),
+    e.warnungen.join(' | '),
+  );
+  assert.equal(
+    e.warnungen.filter((w) => w.includes('[verbotsliste_treffer]')).length,
+    2,
+    'und es wird kein Treffer aufgehoben',
+  );
+  // Die Angabe wird IGNORIERT, nicht irgendwie verwertet. Ein String ist in JS iterierbar:
+  // ohne die Typprüfung liefe `normalisierteListe` zeichenweise darüber und die Ladeprüfung
+  // meldete jeden Buchstaben als wirkungslose Phrase. GEMESSEN: diese eine Zeile ist der
+  // Unterschied — ohne sie blieb die Probe grün, obwohl die Typprüfung ausgebaut war.
+  assert.ok(
+    e.warnungen.every((w) => !w.includes('kann deshalb keinen Treffer aufheben')),
+    `der String darf nicht zeichenweise als Phrasenliste gelesen werden: ${e.warnungen.join(' | ')}`,
+  );
+});
