@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.192.0 (2026-11-06)
 
 - [kunde] Der Link „Zum Inhalt springen“ erscheint nur noch auf Seiten, die ein Sprungziel haben; sein Fokusrahmen ist auch auf weißem Hintergrund sichtbar, und nach dem Sprung verdeckt die Kopfzeile den Inhalt nicht mehr.
 
