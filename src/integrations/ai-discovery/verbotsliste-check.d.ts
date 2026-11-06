@@ -28,3 +28,10 @@ export function pruefeVerbotsliste(
   seite: string,
   formulierungen: readonly string[],
 ): VerbotslistenBefund[];
+
+/**
+ * Die Liste, wie der Checker sie sieht: normalisiert → Original, ohne Leere und Dubletten.
+ * Der Aufrufer braucht sie, um dieselbe Zahl zu nennen, die wirklich geprüft wird
+ * (cw-core#230, Befund 7) und um Treffer nach Herkunft zu trennen (Befund 3).
+ */
+export function normalisierteListe(formulierungen: readonly string[]): Map<string, string>;

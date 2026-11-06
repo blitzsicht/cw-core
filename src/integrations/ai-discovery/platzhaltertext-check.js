@@ -73,30 +73,101 @@ const MUSTER = [
 ];
 
 /**
+ * Benannte Entities, die ein ZEICHEN sind und kein Trenner. Alles, was hier nicht steht,
+ * wird zum Leerzeichen — eine unbekannte Entity trennt Wörter, sie zieht sie nicht zusammen
+ * (`rechts&kaputt;sicher` ist kein Prädikat, Probe in verbotsliste-check.test.mjs).
+ *
+ * Die Liste ist nach dem Bedarf der deutschen Kundenseiten gewählt, nicht vollständig:
+ * Umlaute und ß in allen Fällen, Typografie (Anführungen, Striche, Auslassung), Einheiten
+ * und die vier, die schon vorher einzeln dastanden. `shy`, `zwnj`, `zwj` und `wj` ergeben
+ * das jeweilige unsichtbare Zeichen und werden einen Schritt später mit ihm entfernt —
+ * eine Quelle statt zwei Regeln an zwei Stellen.
+ */
+const BENANNTE_ENTITIES = Object.freeze({
+  amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ',
+  auml: 'ä', ouml: 'ö', uuml: 'ü', Auml: 'Ä', Ouml: 'Ö', Uuml: 'Ü', szlig: 'ß',
+  agrave: 'à', aacute: 'á', eacute: 'é', egrave: 'è', ecirc: 'ê', iacute: 'í',
+  oacute: 'ó', ocirc: 'ô', uacute: 'ú', ccedil: 'ç', ntilde: 'ñ',
+  ndash: '–', mdash: '—', hellip: '…', middot: '·', bull: '•',
+  bdquo: '„', ldquo: '“', rdquo: '”', sbquo: '‚', lsquo: '‘', rsquo: '’',
+  laquo: '«', raquo: '»', prime: '′', Prime: '″',
+  euro: '€', pound: '£', yen: '¥', cent: '¢', sect: '§', para: '¶',
+  deg: '°', plusmn: '±', times: '×', divide: '÷', minus: '−', frac12: '½',
+  copy: '©', reg: '®', trade: '™',
+  shy: '­', zwnj: '‌', zwj: '‍', wj: '⁠',
+});
+
+/**
+ * Ein Zeichen aus einem Codepunkt, oder ein Leerzeichen, wenn der Punkt keines ergibt
+ * (Steuerzeichen, Surrogate, über U+10FFFF). `String.fromCodePoint` wirft dort.
+ * @param {number} cp
+ */
+function ausCodepunkt(cp) {
+  if (!Number.isFinite(cp) || cp <= 0 || cp > 0x10ffff) return ' ';
+  if (cp >= 0xd800 && cp <= 0xdfff) return ' ';
+  if (cp < 0x20 && cp !== 0x09 && cp !== 0x0a) return ' ';
+  return String.fromCodePoint(cp);
+}
+
+/**
+ * Entities zu ihren Zeichen, dann unsichtbare Trennzeichen weg. Geteilt von beiden Guards,
+ * die über diese Datei laufen — Verbotsliste UND Platzhaltertext.
+ *
+ * ANLASS (cw-core#230, Befunde 1 und 2): bis zum 06.11.2026 wurde jede Entity außer vier
+ * Sonderfällen zum Leerzeichen (`&[a-z]+;|&#\d+;`). Damit fanden `anwaltlich gepr&uuml;ft`,
+ * `gepr&#252;ft` und `gepr&#xFC;ft` **null** Treffer — hexadezimale Entities fielen ganz
+ * durch den Rost, weil das Muster nur Dezimalstellen kannte. Dasselbe für literales U+00AD:
+ * `&shy;` war behandelt, das Zeichen selbst nicht, und genau das steht in sieben
+ * Quelldateien der Flotte (gottl-richter-gomeier 5×, blitzsicht `agb.astro`, allstargirls
+ * `index.astro`) und im blitzsicht-Build in `agb/index.html`.
+ *
+ * Reihenfolge ist nicht beliebig: erst hex, dann dezimal, dann benannt. Numerisch zuerst
+ * heißt, dass ein dekodiertes `&` aus `&amp;` nicht nachträglich als Entity-Anfang gelesen
+ * wird — `&amp;#173;` bleibt der Text „&#173;", wie es im Quelltext gemeint war.
+ *
+ * Zuletzt fallen die unsichtbaren Trenner: U+00AD (weiches Trennzeichen), Zero-Width-Space
+ * und -Non-Joiner, Word-Joiner, BOM. Sie trennen für den Leser KEIN Wort, also dürfen sie
+ * auch im Prüftext keines trennen. Ein echtes Leerzeichen bleibt ein Trenner (Gegenprobe).
+ *
+ * @param {string} s
+ * @returns {string}
+ */
+export function entitiesUndTrennerWeg(s) {
+  return s
+    .replace(/&#x([0-9a-f]+);/gi, (_m, h) => ausCodepunkt(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_m, d) => ausCodepunkt(Number(d)))
+    .replace(/&([a-z][a-z0-9]*);/gi, (_m, n) =>
+      Object.prototype.hasOwnProperty.call(BENANNTE_ENTITIES, n)
+        ? BENANNTE_ENTITIES[/** @type {keyof typeof BENANNTE_ENTITIES} */ (n)]
+        : Object.prototype.hasOwnProperty.call(BENANNTE_ENTITIES, n.toLowerCase())
+          ? BENANNTE_ENTITIES[/** @type {keyof typeof BENANNTE_ENTITIES} */ (n.toLowerCase())]
+          : ' ',
+    )
+    .replace(/[­​‌‍⁠﻿]/g, '');
+}
+
+/**
  * Sichtbarer Text einer Seite: ohne Skripte, Stile, Code-Blöcke, Kommentare und Tags.
  * @param {string} html
  * @returns {string}
  */
 export function sichtbarerText(html) {
-  return html
+  const ohneTags = html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     // Code zum Kopieren ist kein Seitentext: in 20 Repos steht in den
     // E-Mail-Signatur-Seiten ein CSS-Block mit `[data-ogsc]`-Selektoren.
     .replace(/<(pre|code|kbd|samp)\b[\s\S]*?<\/\1>/gi, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    // Weiches Trennzeichen trennt kein Wort: es MUSS verschwinden, nicht zum Leerzeichen
-    // werden. Vor dem 06.11.2026 wurde es wie jede unbekannte Entity zum Leerzeichen —
-    // „rechts&shy;sicher" kam im Textstrom als „rechts sicher" an und rutschte am
-    // Verbotslisten-Guard vorbei (gemessen). Bei deutschen Komposita, wo die Trennung
-    // sinnvoll ist, ein realistischer Weg, ein Prädikat zu verstecken. Betrifft beide
-    // Guards, die diese Funktion teilen.
-    .replace(/&shy;|&#0*173;|&#x0*ad;/gi, '')
-    .replace(/&[a-z]+;|&#\d+;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
+    // `<wbr>` ist eine Trennstelle, kein Wortende — der Leser sieht „rechtssicher", auch
+    // wenn die Zeile dort umbricht. Muss VOR dem Tag-Strip weg, denn der macht aus jedem
+    // Tag ein Leerzeichen und damit aus einem Wort zwei (cw-core#230, Befund 2).
+    .replace(/<wbr\b[^>]*>/gi, '')
+    .replace(/<[^>]+>/g, ' ');
+  // Entities zu Zeichen, unsichtbare Trenner weg — geteilt mit dem Verbotslisten-Guard;
+  // Begründung und Reihenfolge stehen an `entitiesUndTrennerWeg`. Erst danach den
+  // Whitespace kollabieren, sonst bliebe ein dekodiertes `&nbsp;` doppelt stehen.
+  return entitiesUndTrennerWeg(ohneTags).replace(/\s+/g, ' ').trim();
 }
 
 /**
