@@ -22,6 +22,49 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+- [kunde] Die Prüfung, die Werbeversprechen ohne Deckung auf Ihrer Website findet, sieht jetzt auch Versprechen im Seitentitel und in den Angaben für Suchmaschinen zuverlässig — und meldet keine Sätze mehr, die längst entfernt und nur noch als Notiz im Quelltext stehen.
+
+### Fixed
+
+- **Verbotslisten-Guard liest nicht mehr rohes HTML** (Review nach dem Merge von #220, acht Befunde): `kopfInhalte()`
+  scannte den ungereinigten Seiteninhalt und brach damit die Abgrenzung, die der Dateikopf selbst aufschreibt
+  („NICHT geprüft: … HTML-Kommentare"). Astro behält Kommentare im Output. Neu räumt `ohneUnsichtbares()` Skripte,
+  Stile und Kommentare ab, bevor Kopf und Textstrom getrennt werden — die Tags selbst bleiben stehen. Das löst drei
+  Befunde zugleich: ein auskommentiertes `<meta name="description">` meldete Text, den niemand sieht; ein
+  auskommentierter `<title>` **vor** dem echten wurde als Dokumenttitel gemeldet (`TITLE` ist unverankerter
+  First-Match); und derselbe Fall entfernte in `html.replace(TITLE, ' ')` den falschen Titel, worauf der echte in den
+  Textstrom leckte und der Befund `ort: 'text'` statt `'title'` trug.
+- **Weiches Trennzeichen versteckt kein Prädikat mehr**: `&shy;`/`&#173;` wurde wie jede unbekannte Entity zum
+  Leerzeichen — „rechts&shy;sicher" kam als „rechts sicher" an und rutschte an der Liste vorbei. Bei deutschen
+  Komposita, wo die Trennung sinnvoll ist, ein realistischer Weg, ein Prädikat zu verstecken. Behoben in
+  `sichtbarerText()` (geteilt von beiden Guards) und in `entitiesWeg()` für Titel und Metas.
+- **`<meta>` mit `>` im Attributwert wird gelesen**: `<meta\b[^>]*>` brach am ersten `>`, auch an einem im Wert. Der
+  Treffer fiel nicht aus — er landete über den Textstrom im Befund, aber als `ort: 'text'` und mit Attribut-Müll im
+  Kontext. Angeführte Werte werden jetzt als Ganzes übersprungen. Der Text-Leck selbst stammt aus
+  `sichtbarerText()`s `<[^>]+>` und bleibt offen: ein toleranter Tag-Regex dort kann bei ungeraden
+  Anführungszeichen über das Tag hinausgreifen und Text schlucken, also genau einen Guard still machen.
+- **Fundstellen zählen Seiten nicht doppelt**: beide Sammelstellen in `index.ts` hatten `if (e) e.seiten.push(rel)`
+  ohne Prüfung. Stand derselbe Satz zweimal auf einer Seite, behauptete die Logzeile „x + 1 weitere" — eine zweite
+  betroffene Seite, die es nicht gab. Ein Guard, der die Menge seiner Befunde übertreibt, ist so wenig brauchbar wie
+  einer, der sie verschweigt. Die Logik liegt jetzt als `vermerkeFundstelle()` an einer Stelle für beide Guards.
+- **Falsche Optionsform bricht den Build nicht mehr ab**: `verboteneFormulierungen: 'rechtssicher'` (String statt
+  Liste) warf `formulierungen.filter is not a function` mitten in `astro:build:done` — Kunden-`astro.config.mjs` ist
+  ungetyptes JS, die Typen sind dort nur Dokumentation. Der Guard läuft im Soft-Start, also benennt er jetzt die
+  falsche Option und macht mit dem Flottendefault weiter. Gilt ebenso für `verbotslisteAusnahmen`.
+- JSDoc zu `pruefeVerbotsliste()`: das Beispiel behauptete, überlappende Treffer („rechtssicher" und
+  „DSGVO-rechtssicher") fielen weg. Der Dedup-Schlüssel ist die Startposition, sie fallen **nicht** weg — der eigene
+  Test fordert vier Fundstellen. Code und Dokumentation stimmen jetzt überein.
+
+### Testing
+
+- `verbotsliste-check.test.mjs` +5 Proben (A–E), `platzhaltertext-check.test.mjs` +3 Proben für
+  `vermerkeFundstelle()`. Gegenbeweis: die ergänzte Testdatei gegen `HEAD` gefahren → genau die 5 neuen Proben rot,
+  die 18 alten grün. Am echten Build gegengeprüft (blitzsicht, 59 Seiten): dieselben 6 Treffer wie unter v0.191.0,
+  Exit 0; mit `verboteneFormulierungen` als String bricht der alte Stand mit Exit 1 ab, der neue warnt und prüft
+  mit 3 Formulierungen weiter.
+
 ## v0.192.0 (2026-11-06)
 
 - [kunde] Der Link „Zum Inhalt springen“ erscheint nur noch auf Seiten, die ein Sprungziel haben; sein Fokusrahmen ist auch auf weißem Hintergrund sichtbar, und nach dem Sprung verdeckt die Kopfzeile den Inhalt nicht mehr.

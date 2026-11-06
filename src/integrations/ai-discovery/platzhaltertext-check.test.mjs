@@ -4,6 +4,7 @@ import {
   pruefePlatzhaltertext,
   sichtbarerText,
   istZuPruefen,
+  vermerkeFundstelle,
 } from './platzhaltertext-check.js';
 
 const seite = 'index.html';
@@ -195,4 +196,39 @@ test('GEGENPROBE zur Eichung: dieselben Wörter in Ankündigungsform melden doch
   assert.ok(treffer('<p>Platzhalter: Hier kommt bald Text.</p>').length >= 1, 'Doppelpunkt zählt');
   assert.ok(treffer('<h3>[Platzhalter] Moderne Fahrzeuge</h3>').length >= 1, 'Klammerform zählt');
   assert.ok(treffer('<p>[Preise und Vorlaufzeit folgen]</p>').length >= 1, 'Klammer mit Verb zählt');
+});
+
+// ── NACHLESE 06.11.2026 (Review zu cw-core#220): `vermerkeFundstelle`. Vorher stand in
+//    index.ts an BEIDEN Sammelstellen `if (e) e.seiten.push(rel)` ohne Prüfung —
+//    `git show HEAD:src/integrations/ai-discovery/index.ts | sed -n '4147p;4203p'` zeigt es.
+//    Die Logzeile `${seiten[0]} + ${seiten.length - 1} weitere` behauptete dann eine zweite
+//    betroffene Seite, die es nicht gab.
+
+test('vermerkeFundstelle: dieselbe Seite zweimal bleibt eine Seite', () => {
+  const m = new Map();
+  vermerkeFundstelle(m, 'k', 'pakete/index.html', () => ({ treffer: 'x', seiten: ['pakete/index.html'] }));
+  vermerkeFundstelle(m, 'k', 'pakete/index.html', () => ({ treffer: 'x', seiten: ['pakete/index.html'] }));
+  assert.deepEqual(m.get('k').seiten, ['pakete/index.html'], 'zwei Treffer auf einer Seite sind eine betroffene Seite');
+  // Genau das, was die Logzeile daraus macht — der eigentliche Schaden:
+  const s = m.get('k').seiten;
+  assert.equal(s.length > 1 ? `${s[0]} + ${s.length - 1} weitere` : s[0], 'pakete/index.html');
+});
+
+test('vermerkeFundstelle: GEGENPROBE zwei verschiedene Seiten werden beide vermerkt', () => {
+  const m = new Map();
+  vermerkeFundstelle(m, 'k', 'a/index.html', () => ({ seiten: ['a/index.html'] }));
+  vermerkeFundstelle(m, 'k', 'b/index.html', () => ({ seiten: ['b/index.html'] }));
+  vermerkeFundstelle(m, 'k', 'a/index.html', () => ({ seiten: ['a/index.html'] }));
+  assert.deepEqual(m.get('k').seiten, ['a/index.html', 'b/index.html'], 'ohne diese Probe wäre „entdoppelt" von „verschluckt" nicht zu unterscheiden');
+});
+
+test('vermerkeFundstelle: verschiedene Schlüssel bleiben getrennt, `anlegen` läuft nur beim ersten Mal', () => {
+  const m = new Map();
+  let anlegeLaeufe = 0;
+  const anlegen = (seite) => () => { anlegeLaeufe++; return { seiten: [seite] }; };
+  vermerkeFundstelle(m, 'k1', 'a/index.html', anlegen('a/index.html'));
+  vermerkeFundstelle(m, 'k2', 'a/index.html', anlegen('a/index.html'));
+  vermerkeFundstelle(m, 'k1', 'a/index.html', anlegen('a/index.html'));
+  assert.equal(m.size, 2);
+  assert.equal(anlegeLaeufe, 2, 'der dritte Aufruf darf den Eintrag nicht neu bauen');
 });

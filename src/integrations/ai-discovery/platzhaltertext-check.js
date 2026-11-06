@@ -87,9 +87,43 @@ export function sichtbarerText(html) {
     .replace(/<!--[\s\S]*?-->/g, ' ')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/gi, ' ')
+    // Weiches Trennzeichen trennt kein Wort: es MUSS verschwinden, nicht zum Leerzeichen
+    // werden. Vor dem 06.11.2026 wurde es wie jede unbekannte Entity zum Leerzeichen —
+    // „rechts&shy;sicher" kam im Textstrom als „rechts sicher" an und rutschte am
+    // Verbotslisten-Guard vorbei (gemessen). Bei deutschen Komposita, wo die Trennung
+    // sinnvoll ist, ein realistischer Weg, ein Prädikat zu verstecken. Betrifft beide
+    // Guards, die diese Funktion teilen.
+    .replace(/&shy;|&#0*173;|&#x0*ad;/gi, '')
     .replace(/&[a-z]+;|&#\d+;/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * Vermerkt eine Fundstelle unter ihrem Schlüssel und führt die Seiten, auf denen sie steht —
+ * JEDE Seite genau einmal. Geteilt von allen Guards, die über `walkHtml` laufen und ihre
+ * Befunde über Seiten hinweg entdoppeln.
+ *
+ * ANLASS (06.11.2026, Review zu cw-core#220): beide Aufrufstellen in index.ts hatten
+ * `if (e) e.seiten.push(rel)` ohne Prüfung. Stand derselbe Satz zweimal auf derselben Seite,
+ * wuchs `seiten` auf `['x','x']` und die Logzeile behauptete „x + 1 weitere" — eine zweite
+ * betroffene Seite, die es nicht gab. Ein Guard, der die Menge seiner Befunde übertreibt,
+ * ist genauso wenig brauchbar wie einer, der sie verschweigt.
+ *
+ * `includes` statt „nur die letzte vergleichen": der Walk liefert heute alle Befunde einer
+ * Seite zusammen, aber darauf soll sich die Funktion nicht verlassen — eine Annahme, die
+ * der Aufrufer brechen kann, ist eine Falle. Bei zweistelligen Seitenzahlen kostet das nichts.
+ *
+ * @template {{ seiten: string[] }} T
+ * @param {Map<string, T>} proKontext Sammler, wird verändert
+ * @param {string} key Schlüssel der Fundstelle (z. B. `ort\u0000kontext`)
+ * @param {string} seite relativer Pfad der Seite, auf der die Fundstelle steht
+ * @param {() => T} anlegen baut den Eintrag, wenn der Schlüssel neu ist (inkl. `seiten`)
+ */
+export function vermerkeFundstelle(proKontext, key, seite, anlegen) {
+  const e = proKontext.get(key);
+  if (!e) proKontext.set(key, anlegen());
+  else if (!e.seiten.includes(seite)) e.seiten.push(seite);
 }
 
 /**
