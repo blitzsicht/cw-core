@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.193.0 (2026-11-06)
 
 - [kunde] Die Prüfung, die Werbeversprechen ohne Deckung auf Ihrer Website findet, sieht jetzt auch Versprechen im Seitentitel und in den Angaben für Suchmaschinen zuverlässig — und meldet keine Sätze mehr, die längst entfernt und nur noch als Notiz im Quelltext stehen.
 - [kunde] Dieselbe Prüfung erkennt Werbeversprechen jetzt auch dann, wenn sie durch Trennhilfen oder Sonderzeichen-Schreibweisen im Quelltext zerlegt sind, und sie prüft die drei allgemeinen Versprechen („rechtssicher", „abmahnsicher", „anwaltlich geprüft") künftig auf jeder Website — auch auf denen mit eigener Wortliste, wo sie zuvor stillschweigend entfielen.
