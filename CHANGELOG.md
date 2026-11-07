@@ -47,6 +47,23 @@ Neu:
   Wortlaut gedriftet, in beiden Fällen Altlast.
 - `strictVerbotsliste` zählt aufgehobene Treffer nicht mit.
 
+**Fix:** Nachlese zum Review (cw-core#241) — drei Lücken im neuen Mechanismus, alle vor dem Tag
+geschlossen:
+
+- Eine erlaubte Phrase, die **wörtlich** einem verbotenen Muster entspricht, hob jeden Treffer
+  auf jeder Seite auf (`'rechtssicher'.includes('rechtssicher')` ist wahr) — eine Pfad-Ausnahme
+  ohne Pfad. Sie wird jetzt gemeldet **und verworfen**, nicht nur gemeldet. Gefiltert wird über
+  die normalisierte Form, sonst bliebe eine zweite Schreibweise desselben Eintrags wirksam,
+  während die Meldung nur die erste nennt.
+- Die Entdoppelung je Fundstelle behielt den **ersten** Treffer, nicht den längsten. Damit
+  entschied die Reihenfolge in der Kundenliste das Ergebnis: deckte eine Ausnahme das kürzere
+  Muster ab, fiel der längere Treffer aus beiden Töpfen — weder gemeldet noch als aufgehoben
+  gezählt. Jetzt gewinnt der längste Treffer, das Ergebnis ist von der Reihenfolge unabhängig.
+- Die Altlast-Warnung („Ausnahme greift auf keiner Seite") nannte immer denselben Grund. Liegt
+  der Satz auf einer Seite, die `verbotslisteAusnahmen` komplett überspringt, kann die
+  Satz-Ausnahme dort nie greifen — das steht jetzt mit der Seite als eigener Grund in der
+  Warnung, statt als „Satz ist weg oder der Wortlaut stimmt nicht mehr".
+
 **Deprecated:** `verbotslisteAusnahmen` (Pfad-Ausnahme) ist der veraltete Vorgänger. Er wirkt
 weiter und löst eine Verfallswarnung aus — stillschweigend ignorieren wäre der nächste stumme
 Schalter. Eine Pfad-Ausnahme stummt jedes Muster auf der ganzen Seite: die bisher einzige

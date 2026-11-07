@@ -43,7 +43,7 @@ export function pruefeVerbotsliste(
 export function pruefeErlaubteListe(
   erlaubte: readonly string[],
   formulierungen: readonly string[],
-): { phrase: string; grund: string }[];
+): { phrase: string; grund: string; art: 'ohne-muster' | 'gleich-muster' }[];
 
 /**
  * Die Liste, wie der Checker sie sieht: normalisiert → Original, ohne Leere und Dubletten.

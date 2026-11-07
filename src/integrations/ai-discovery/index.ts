@@ -4299,11 +4299,24 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // Ladeprüfung, bevor eine Seite gelesen ist: eine Phrase ohne verbotenes Muster darin
           // kann niemals einen Treffer aufheben. Genau die Probe, die ein Ratverfahren
           // (Satzgrenze, N Zeichen) nicht hätte — der Schalter kann nicht stumm danebenliegen.
+          // Schlüssel ist die NORMALISIERTE Phrase, nicht das Original: `pruefeErlaubteListe`
+          // meldet je normalisiertem Eintrag nur das erste Original, und bei
+          // `['rechtssicher', 'Rechtssicher']` wäre der zweite sonst weiter in Kraft.
+          const beanstandet = new Set<string>();
           for (const f of pruefeErlaubteListe(erlaubte, formulierungen)) {
+            beanstandet.add(f.phrase.replace(/\s+/g, ' ').trim().toLowerCase());
             logger.warn(
-              `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${f.phrase}" ${f.grund} — Eintrag streichen oder den Wortlaut auf den Satz ziehen, der die Formulierung enthält.`,
+              `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${f.phrase}" ${f.grund} — Angabe ignoriert. Eintrag streichen oder den Wortlaut auf den Satz ziehen, der die Formulierung enthält.`,
             );
           }
+          // Beanstandete Einträge werden VERWORFEN, nicht bloß beklagt (Nachlese #241,
+          // Befund 1). Eine Phrase, die mit dem Muster identisch ist, hob sonst jeden Treffer
+          // auf jeder Seite auf, während im Log nur eine Warnung unter vielen stand — und
+          // `strictVerbotsliste` greift nicht, weil aufgehobene Treffer nicht zählen. Das ist
+          // derselbe Umgang wie beim Typfehler oben: sagen und mit dem Default weitermachen.
+          const erlaubtAktiv: readonly string[] = [...normalisierteListe(erlaubte)]
+            .filter(([n]) => !beanstandet.has(n))
+            .map(([, original]) => original);
           if (anzahl === 0) {
             logger.info('Verbotslisten-Guard: nicht konfiguriert (0 Einträge).');
           } else {
@@ -4317,12 +4330,31 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Welche Ausnahme hat auf welchen Seiten gegriffen. Die Gegenrichtung ist der
             // Zweck: was NICHT hier landet, ist Altlast und wird unten gemeldet.
             const genutzteAusnahmen = new Map<string, Set<string>>();
+            // Dasselbe für die Seiten, die der Scan per Pfad überspringt: dort WÜRDE die
+            // Phrase greifen. Der Unterschied entscheidet, welche Warnung unten steht.
+            const uebersprungenMitPhrase = new Map<string, Set<string>>();
             let geprueft = 0;
             for (const file of walkHtml(distDir)) {
               const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
-              if (!istZuPruefen(rel, ausnahmen)) continue;
+              if (!istZuPruefen(rel, ausnahmen)) {
+                // Befund 3 (#241): auf einer per Pfad übersprungenen Seite kann keine Satz-
+                // Ausnahme greifen — auch wenn der Satz wortwörtlich dort steht. Ohne diese
+                // Erhebung meldete die Altlast-Warnung unten „Satz ist weg", und zwar genau im
+                // vorgesehenen Migrationszustand (customer-blitzsicht hat heute
+                // `verbotslisteAusnahmen: ['datenschutz/index.html']`, und #219 Befund 6 setzt
+                // die Satz-Ausnahme für einen Satz auf genau dieser Seite).
+                if (erlaubtAktiv.length > 0) {
+                  for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubtAktiv)) {
+                    if (b.aufgehobenDurch === undefined) continue;
+                    const seiten = uebersprungenMitPhrase.get(b.aufgehobenDurch) ?? new Set<string>();
+                    seiten.add(rel);
+                    uebersprungenMitPhrase.set(b.aufgehobenDurch, seiten);
+                  }
+                }
+                continue;
+              }
               geprueft++;
-              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
+              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubtAktiv)) {
                 if (b.aufgehobenDurch !== undefined) {
                   const seiten = genutzteAusnahmen.get(b.aufgehobenDurch) ?? new Set<string>();
                   seiten.add(rel);
@@ -4349,8 +4381,20 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Pin-Drift-Checks als Warnung, nicht als Hinweis. Zwei Ursachen, eine Folge: der
             // Satz ist weg, oder der Wortlaut stimmt nicht mehr. In beiden Fällen Altlast.
             if (geprueft > 0) {
-              for (const [, phrase] of normalisierteListe(erlaubte)) {
+              for (const [, phrase] of normalisierteListe(erlaubtAktiv)) {
                 if (genutzteAusnahmen.has(phrase)) continue;
+                // Drei Ursachen, drei Sätze (Nachlese #241, Befund 3). Vorher stand hier
+                // immer „Satz ist weg oder der Wortlaut stimmt nicht mehr" — auch dann, wenn
+                // der Satz dasteht und nur die Pfad-Ausnahme die ganze Seite verschluckt.
+                const uebersprungen = uebersprungenMitPhrase.get(phrase);
+                if (uebersprungen !== undefined) {
+                  const wo = [...uebersprungen];
+                  const liste = wo.length > 3 ? `${wo.slice(0, 3).join(', ')} + ${wo.length - 3} weitere` : wo.join(', ');
+                  logger.warn(
+                    `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" greift nicht, weil ${liste} per \`verbotslisteAusnahmen\` ganz übersprungen wird — der Satz steht dort, die Pfad-Ausnahme stummt aber JEDES Muster auf der GANZEN Seite. Pfad-Ausnahme streichen, dann wirkt die Satz-Ausnahme.`,
+                  );
+                  continue;
+                }
                 logger.warn(
                   `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" hat auf keiner der ${geprueft} geprüften Seite(n) gegriffen — Satz ist weg oder der Wortlaut stimmt nicht mehr. Eintrag in astro.config nachziehen oder streichen.`,
                 );

@@ -236,7 +236,15 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
     const proPosition = new Map();
     for (const [n, original] of liste) {
       for (let i = klein.indexOf(n); i !== -1; i = klein.indexOf(n, i + 1)) {
-        if (proPosition.has(i)) continue;
+        // An derselben Startposition gewinnt der LÄNGSTE Treffer, nicht der erste
+        // (Nachlese #241, Befund 2). Vorher entschied die Reihenfolge in der Config: deckte
+        // die Ausnahme das kürzere Muster, nahm es das längere mit, das über die Ausnahme
+        // hinausreicht — der Treffer war dann weder gemeldet noch als aufgehoben verbucht.
+        // Gemessen an „… an rechtssicher Beweisfuehrung und mehr." mit Ausnahme
+        // `['an rechtssicher ']`: Reihenfolge A meldete nichts, Reihenfolge B meldete das
+        // lange Muster. Dasselbe Dokument, zwei Ergebnisse.
+        const vorhanden = proPosition.get(i);
+        if (vorhanden && vorhanden.treffer.length >= n.length) continue;
         const ende = i + n.length;
         // UMSCHLIESSEN, nicht überlappen: der ganze Treffer muss in einem Vorkommen der
         // erlaubten Phrase liegen. Nur so trennt die Ausnahme „ohne korrekte Inhalte keine
@@ -275,12 +283,28 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
  */
 export function pruefeErlaubteListe(erlaubte, formulierungen) {
   const muster = [...normalisierteListe(formulierungen).keys()];
-  /** @type {{ phrase: string, grund: string }[]} */
+  /** @type {{ phrase: string, grund: string, art: 'ohne-muster' | 'gleich-muster' }[]} */
   const befunde = [];
   for (const [n, original] of normalisierteListe(erlaubte)) {
+    // Gleichheit ZUERST: `'rechtssicher'.includes('rechtssicher')` ist true, die Prüfung
+    // unten ließe den Eintrag also wortlos durch — und er hebt dann JEDEN Treffer dieses
+    // Musters auf JEDER Seite auf (Nachlese #241, Befund 1). Das ist eine Pfad-Ausnahme
+    // ohne Pfad, nur leiser: `verbotslisteAusnahmen` warnt wenigstens. Der Aufrufer
+    // verwirft solche Einträge, statt sie anzuwenden.
+    if (muster.includes(n)) {
+      befunde.push({
+        phrase: original,
+        art: 'gleich-muster',
+        grund:
+          'ist mit dem verbotenen Muster identisch und würde deshalb JEDEN Treffer auf JEDER ' +
+          'Seite aufheben — das ist eine Pfad-Ausnahme ohne Pfad',
+      });
+      continue;
+    }
     if (!muster.some((m) => n.includes(m))) {
       befunde.push({
         phrase: original,
+        art: 'ohne-muster',
         grund: 'enthält keine der verbotenen Formulierungen und kann deshalb keinen Treffer aufheben',
       });
     }

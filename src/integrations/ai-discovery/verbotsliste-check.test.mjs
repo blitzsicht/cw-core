@@ -309,6 +309,18 @@ test('kopfInhalte: unangeführter name und unangeführter content werden gelesen
 //
 //    A∖C ist „umschließen, nicht überlappen", C∖A sind die drei Wirkungsproben: die eine
 //    Richtung kann nicht für die andere einstehen.
+//
+//    NACHLESE #241, am 07.11.2026 gemessen — vier weitere Sabotagen, je für sich, dazwischen
+//    zurückgespielt, Ausgangslage und Endkontrolle grün:
+//
+//      D  Positions-Dedup zurück auf „erster gewinnt":        2 rot (beide Befund-2-Proben)
+//      E  Gleichheitsprüfung aus (`if (false)`):              4 rot (Befund 1, Modul + Hook)
+//      F  Verwerfen aus (`erlaubtAktiv = erlaubte`):          2 rot (Befund 1 am Hook)
+//      G  Erhebung auf übersprungenen Seiten aus:             1 rot (Befund 3)
+//
+//    E umfasst F: ohne die Prüfung fehlt auch die Grundlage zum Verwerfen. Umgekehrt nicht —
+//    F zeigt, dass Melden allein nicht genügt, denn mit F blieben die Modul-Proben grün,
+//    während der Schalter weiter offen stand. D und G sind von beidem unabhängig.
 
 const BEIDE_RICHTUNGEN =
   '<html><body>' +
@@ -411,4 +423,66 @@ test('#236 Ladeprüfung GEGENPROBE: eine Phrase MIT Muster ist in Ordnung', () =
     [],
     'Groß-/Kleinschreibung und Teilstring wie in der Prüfung selbst',
   );
+});
+
+// ── Nachlese #241: Position und Gleichheit ───────────────────────────────────
+
+const GLEICHER_START = '<html><body><p>Wir arbeiten an rechtssicher Beweisfuehrung und mehr.</p></body></html>';
+
+test('#241 Befund 2: an einer Position gewinnt der längste Treffer — in BEIDEN Reihenfolgen', () => {
+  // Vorher entschied die Reihenfolge in der Config, und in einer von beiden fiel der lange
+  // Treffer aus beiden Richtungen heraus: weder gemeldet noch als aufgehoben verbucht.
+  // Die Ausnahme deckt `rechtssicher`, reicht aber nicht über `rechtssicher Beweisfuehrung`.
+  const eng = ['rechtssicher', 'rechtssicher Beweisfuehrung'];
+  const lang = ['rechtssicher Beweisfuehrung', 'rechtssicher'];
+  const a = pruefeVerbotsliste(GLEICHER_START, seite, eng, ['an rechtssicher ']);
+  const b = pruefeVerbotsliste(GLEICHER_START, seite, lang, ['an rechtssicher ']);
+  assert.deepEqual(
+    a.map((x) => [x.formulierung, x.aufgehobenDurch ?? null]),
+    [['rechtssicher Beweisfuehrung', null]],
+    'der lange Treffer wird gemeldet, nicht vom kurzen verdeckt',
+  );
+  assert.deepEqual(
+    b.map((x) => [x.formulierung, x.aufgehobenDurch ?? null]),
+    a.map((x) => [x.formulierung, x.aufgehobenDurch ?? null]),
+    'dasselbe Dokument, dieselbe Ausnahme — die Reihenfolge in der Config darf nichts ändern',
+  );
+});
+
+test('#241 Befund 2: ohne Ausnahme gewinnt der längste Treffer ebenso', () => {
+  // Die Positions-Entdoppelung ist älter als #238; erst die Ausnahme machte den Verlust
+  // sichtbar. Diese Probe hält fest, dass die Regel auch ohne Ausnahme gilt — sonst hinge
+  // das Ergebnis weiter an der Reihenfolge, nur unauffälliger.
+  const kurz = pruefeVerbotsliste(GLEICHER_START, seite, ['rechtssicher', 'rechtssicher Beweisfuehrung']);
+  const lang = pruefeVerbotsliste(GLEICHER_START, seite, ['rechtssicher Beweisfuehrung', 'rechtssicher']);
+  assert.equal(kurz.length, 1);
+  assert.equal(kurz[0].formulierung, 'rechtssicher Beweisfuehrung');
+  assert.deepEqual(kurz.map((x) => x.formulierung), lang.map((x) => x.formulierung));
+});
+
+test('#241 Befund 2: zwei Muster an VERSCHIEDENEN Positionen bleiben zwei Befunde', () => {
+  // Gegenrichtung: „längster gewinnt" gilt je Startposition, nicht je Dokument.
+  const html = '<html><body><p>Wir bauen rechtssicher und arbeiten abmahnsicher.</p></body></html>';
+  const b = pruefeVerbotsliste(html, seite, ['rechtssicher', 'abmahnsicher']);
+  assert.deepEqual(b.map((x) => x.formulierung), ['rechtssicher', 'abmahnsicher']);
+});
+
+test('#241 Befund 1: eine Ausnahme, die dem Muster GLEICH ist, wird als Globalschalter gemeldet', () => {
+  // `'rechtssicher'.includes('rechtssicher')` ist true — die Prüfung auf „enthält kein
+  // Muster" ließ den Eintrag wortlos durch, und er hob jeden Treffer auf jeder Seite auf.
+  const f = pruefeErlaubteListe(['rechtssicher'], GARANTIE_PRAEDIKATE);
+  assert.equal(f.length, 1, JSON.stringify(f));
+  assert.equal(f[0].art, 'gleich-muster');
+  assert.ok(f[0].grund.includes('identisch'), f[0].grund);
+  // Und die Unterscheidung bleibt: der tote Eintrag hat einen anderen Grund.
+  const tot = pruefeErlaubteListe(['Wir bauen Websites in Regensburg'], P18);
+  assert.equal(tot[0].art, 'ohne-muster');
+});
+
+test('#241 Befund 1: Gleichheit zählt nach Normalisierung, nicht nach Schreibweise', () => {
+  for (const phrase of ['Rechtssicher', '  rechtssicher  ', 'RECHTSSICHER']) {
+    const f = pruefeErlaubteListe([phrase], GARANTIE_PRAEDIKATE);
+    assert.equal(f.length, 1, `${phrase}: ${JSON.stringify(f)}`);
+    assert.equal(f[0].art, 'gleich-muster', `${phrase}: ${JSON.stringify(f)}`);
+  }
 });

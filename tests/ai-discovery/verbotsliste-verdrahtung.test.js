@@ -29,6 +29,13 @@
  *     belegt den Fix deshalb NICHT — sie hält die Reihenfolge-Entscheidung fest (Kundenliste
  *     zuerst in `normalisierteListe`), damit ein künftiger Umbau sie nicht still umdreht.
  *     Ohne diesen Satz hier würde man sie als Beleg lesen; sie ist ein Regressionsnetz.
+ *
+ * NACHLESE #241 (07.11.2026): vier Sabotagen am Fix, je für sich gemessen —
+ *   D Positions-Dedup zurück auf „erster gewinnt" 2 rot · E Gleichheitsprüfung aus 4 rot ·
+ *   F Verwerfen aus 2 rot · G Erhebung auf übersprungenen Seiten aus 1 rot.
+ * E umfasst F, umgekehrt nicht: F belegt, dass Melden allein nicht genügt — der Schalter
+ * stand mit F weiter offen, während die Modul-Proben grün blieben. Tabelle und Begründung
+ * im Kopf von `src/integrations/ai-discovery/verbotsliste-check.test.mjs`.
  */
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -71,10 +78,13 @@ const SITE_DATA = {
 };
 
 /**
- * @param {{ body?: string, optionen?: Record<string, unknown> }} fall
+ * @param {{ body?: string, optionen?: Record<string, unknown>, seiten?: Record<string, string> }} fall
+ *   `seiten` legt zusätzliche Dateien unter `dist/` an (Pfad → Body). Gebraucht für die
+ *   Pfad-Ausnahme: dort muss EINE Seite übersprungen und eine andere geprüft werden,
+ *   sonst ist `geprueft === 0` und die Altlast-Schleife läuft gar nicht (#241, Befund 3).
  * @returns {Promise<{ warnungen: string[], infos: string[], fehler: string | null }>}
  */
-async function lauf({ body = BEIDES, optionen = {} } = {}) {
+async function lauf({ body = BEIDES, optionen = {}, seiten = {} } = {}) {
   const r = await renderer();
   const { default: aiDiscovery } = await r.laden('src/integrations/ai-discovery/index.ts');
 
@@ -83,6 +93,11 @@ async function lauf({ body = BEIDES, optionen = {} } = {}) {
   const dist = join(projekt, 'dist');
   mkdirSync(dist, { recursive: true });
   writeFileSync(join(dist, 'index.html'), seite(body));
+  for (const [pfad, inhalt] of Object.entries(seiten)) {
+    const ziel = join(dist, pfad);
+    mkdirSync(join(ziel, '..'), { recursive: true });
+    writeFileSync(ziel, seite(inhalt));
+  }
 
   /** @type {string[]} */
   const warnungen = [];
@@ -320,5 +335,113 @@ test('#236 eine falsch getippte Ausnahmeliste wird gemeldet, nicht geworfen', as
   assert.ok(
     e.warnungen.every((w) => !w.includes('kann deshalb keinen Treffer aufheben')),
     `der String darf nicht zeichenweise als Phrasenliste gelesen werden: ${e.warnungen.join(' | ')}`,
+  );
+});
+
+// ── Nachlese #241 ────────────────────────────────────────────────────────────
+
+test('#241 Befund 1: eine Ausnahme gleich dem Muster wird verworfen, nicht angewandt', async () => {
+  // Der stumme Globalschalter. `'rechtssicher'.includes('rechtssicher')` ist true, die
+  // Ladeprüfung ließ den Eintrag also wortlos durch — und er hob jeden Treffer dieses
+  // Musters auf JEDER Seite auf. `strictVerbotsliste` greift dabei nicht, weil aufgehobene
+  // Treffer nicht zählen; im Log stand nur eine info-Zeile.
+  const e = await lauf({ optionen: { erlaubteFormulierungen: ['rechtssicher'] } });
+  const gemeldet = e.warnungen.find((w) => w.includes('ist mit dem verbotenen Muster identisch'));
+  assert.ok(gemeldet, `Globalschalter nicht gemeldet: ${e.warnungen.join(' | ')}`);
+  assert.ok(gemeldet.includes('Angabe ignoriert'), 'und die Angabe wird verworfen, nicht nur beklagt');
+  // Entscheidend ist die Wirkung, nicht die Meldung: der Treffer muss dastehen. Er landet
+  // bei `infos`, weil `rechtssicher` aus dem Flottendefault kommt und dort nur Hinweis ist
+  // (cw-core#196) — gesucht wird deshalb in beiden Strömen.
+  assert.ok(
+    [...e.warnungen, ...e.infos].some((w) => w.includes('[verbotsliste_treffer]') && w.includes('rechtssicher')),
+    `der Treffer wurde trotzdem aufgehoben: ${e.warnungen.join(' | ')} ${e.infos.join(' | ')}`,
+  );
+  assert.ok(
+    e.infos.every((i) => !i.includes('Ausnahme „rechtssicher" greift')),
+    `die verworfene Phrase hat gegriffen: ${e.infos.join(' | ')}`,
+  );
+});
+
+test('#241 Befund 1: auch die zweite Schreibweise derselben Phrase wird verworfen', async () => {
+  // `pruefeErlaubteListe` meldet je normalisiertem Eintrag nur das ERSTE Original. Würde der
+  // Hook nach dem rohen String filtern, bliebe „Rechtssicher" in Kraft und der Schalter
+  // stünde weiter offen — nur mit großem R.
+  const e = await lauf({ optionen: { erlaubteFormulierungen: ['rechtssicher', 'Rechtssicher'] } });
+  assert.ok(
+    [...e.warnungen, ...e.infos].some((w) => w.includes('[verbotsliste_treffer]') && w.includes('rechtssicher')),
+    `Treffer fehlt: ${e.warnungen.join(' | ')} ${e.infos.join(' | ')}`,
+  );
+});
+
+test('#241 Befund 1 GEGENPROBE: eine echte Satz-Ausnahme geht weiter durch', async () => {
+  // Ohne diese Richtung wäre „jede Ausnahme verwerfen" die Lehre — und #219 Befunde 5–7
+  // (`erlaubteFormulierungen: ['an rechtssicherer Beweisführung']`) wären blockiert.
+  const e = await lauf({
+    body: '<p>Wir arbeiten an rechtssicherer Beweisführung und erreichen 100 Punkte.</p>',
+    optionen: { erlaubteFormulierungen: ['an rechtssicherer Beweisführung'] },
+  });
+  assert.ok(
+    e.warnungen.every((w) => !w.includes('ist mit dem verbotenen Muster identisch')),
+    e.warnungen.join(' | '),
+  );
+  assert.ok(
+    e.infos.some((i) => i.includes('Ausnahme „an rechtssicherer Beweisführung" greift')),
+    `die echte Ausnahme greift nicht mehr: ${e.infos.join(' | ')} ${e.warnungen.join(' | ')}`,
+  );
+  assert.ok(
+    [...e.warnungen, ...e.infos].every((w) => !(w.includes('[verbotsliste_treffer]') && w.includes('rechtssicher'))),
+    `${e.warnungen.join(' | ')} ${e.infos.join(' | ')}`,
+  );
+});
+
+test('#241 Befund 3: die Warnung nennt die Pfad-Ausnahme als Ursache, nicht „Satz ist weg"', async () => {
+  // Der vorgesehene Migrationszustand: eine Seite ist noch per Pfad ausgenommen, und die
+  // Satz-Ausnahme zeigt auf einen Satz auf genau dieser Seite. Der Scan überspringt die
+  // Seite VOR `pruefeVerbotsliste`, dort kann keine Phrase greifen — und die Altlast-Warnung
+  // behauptete deshalb, der Satz sei weg, während er dasteht.
+  const e = await lauf({
+    body: SAUBER,
+    seiten: { 'datenschutz/index.html': '<p>Wir arbeiten an rechtssicherer Beweisführung.</p>' },
+    optionen: {
+      verbotslisteAusnahmen: ['datenschutz/index.html'],
+      erlaubteFormulierungen: ['an rechtssicherer Beweisführung'],
+    },
+  });
+  const w = e.warnungen.find((x) => x.includes('„an rechtssicherer Beweisführung"') && x.includes('greift nicht'));
+  assert.ok(w, `Ursachen-Warnung fehlt: ${e.warnungen.join(' | ')}`);
+  assert.ok(w.includes('datenschutz/index.html'), 'sie nennt die übersprungene Seite');
+  assert.ok(w.includes('Pfad-Ausnahme streichen'), 'und was zu tun ist');
+  assert.ok(
+    e.warnungen.every((x) => !x.includes('Satz ist weg oder der Wortlaut stimmt nicht mehr')),
+    `die falsche Ursache steht weiter da: ${e.warnungen.join(' | ')}`,
+  );
+});
+
+test('#241 Befund 3 GEGENPROBE: ohne Pfad-Ausnahme greift dieselbe Phrase', async () => {
+  const e = await lauf({
+    body: SAUBER,
+    seiten: { 'datenschutz/index.html': '<p>Wir arbeiten an rechtssicherer Beweisführung.</p>' },
+    optionen: { erlaubteFormulierungen: ['an rechtssicherer Beweisführung'] },
+  });
+  assert.ok(
+    e.infos.some((i) => i.includes('Ausnahme „an rechtssicherer Beweisführung" greift')),
+    `${e.infos.join(' | ')} ${e.warnungen.join(' | ')}`,
+  );
+  assert.ok(e.warnungen.every((x) => !x.includes('greift nicht, weil')), e.warnungen.join(' | '));
+});
+
+test('#241 Befund 3: ein echter Altbestand meldet weiter „Satz ist weg"', async () => {
+  // Die dritte Ursache muss unterscheidbar bleiben: Phrase greift nirgends UND keine Seite
+  // ist übersprungen. Ohne diese Probe könnte der Fix die Altlast-Warnung ganz verschlucken.
+  const e = await lauf({
+    body: SAUBER,
+    optionen: {
+      verboteneFormulierungen: ['Anfragen bringt'],
+      erlaubteFormulierungen: ['keine Anfragen bringt'],
+    },
+  });
+  assert.ok(
+    e.warnungen.some((w) => w.includes('Satz ist weg oder der Wortlaut stimmt nicht mehr')),
+    e.warnungen.join(' | '),
   );
 });
