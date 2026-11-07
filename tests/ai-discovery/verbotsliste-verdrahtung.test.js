@@ -34,7 +34,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { renderer, schliessen } from '../blocks/_render-astro.js';
 
@@ -74,7 +74,7 @@ const SITE_DATA = {
  * @param {{ body?: string, optionen?: Record<string, unknown> }} fall
  * @returns {Promise<{ warnungen: string[], infos: string[], fehler: string | null }>}
  */
-async function lauf({ body = BEIDES, optionen = {} } = {}) {
+async function lauf({ body = BEIDES, optionen = {}, weitere = {} } = {}) {
   const r = await renderer();
   const { default: aiDiscovery } = await r.laden('src/integrations/ai-discovery/index.ts');
 
@@ -83,6 +83,11 @@ async function lauf({ body = BEIDES, optionen = {} } = {}) {
   const dist = join(projekt, 'dist');
   mkdirSync(dist, { recursive: true });
   writeFileSync(join(dist, 'index.html'), seite(body));
+  // Weitere Seiten, Schlüssel = Pfad relativ zu dist (#238-Nachlese B4).
+  for (const [rel, inhalt] of Object.entries(weitere)) {
+    mkdirSync(dirname(join(dist, rel)), { recursive: true });
+    writeFileSync(join(dist, rel), seite(inhalt));
+  }
 
   /** @type {string[]} */
   const warnungen = [];
@@ -321,4 +326,46 @@ test('#236 eine falsch getippte Ausnahmeliste wird gemeldet, nicht geworfen', as
     e.warnungen.every((w) => !w.includes('kann deshalb keinen Treffer aufheben')),
     `der String darf nicht zeichenweise als Phrasenliste gelesen werden: ${e.warnungen.join(' | ')}`,
   );
+});
+
+// ── Nachlese Review cw-core#238 (07.11.2026) ────────────────────────────────────────────
+
+const RECHTSGRUNDLAGE = '<p>Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an rechtssicherer Beweisführung).</p>';
+
+test('#238-Nachlese B4: steht die Phrase nur auf einer pfad-ausgenommenen Seite, sagt die Warnung das', async () => {
+  // Der Umstiegsweg aus dem CHANGELOG: erst `erlaubteFormulierungen` eintragen, dann die
+  // Pfad-Ausnahme streichen. Im Zwischenstand stimmen Satz und Wortlaut — die Diagnose
+  // „Satz ist weg oder der Wortlaut stimmt nicht" war falsch und lud zum Streichen ein.
+  const e = await lauf({
+    body: SAUBER,
+    weitere: { 'datenschutz/index.html': RECHTSGRUNDLAGE },
+    optionen: {
+      verbotslisteAusnahmen: ['datenschutz/index.html'],
+      erlaubteFormulierungen: ['an rechtssicherer Beweisführung'],
+    },
+  });
+  const w = e.warnungen.filter((x) => x.includes('„an rechtssicherer Beweisführung"'));
+  assert.equal(w.length, 1, w.join(' | '));
+  assert.ok(w[0].includes('datenschutz/index.html') && w[0].includes('verbotslisteAusnahmen'), w[0]);
+  assert.ok(!w[0].includes('Satz ist weg'), `falsche Diagnose: ${w[0]}`);
+  // GEGENPROBE: ohne Pfad-Ausnahme greift die Phrase, keine Warnung zu ihr.
+  const g = await lauf({
+    body: SAUBER,
+    weitere: { 'datenschutz/index.html': RECHTSGRUNDLAGE },
+    optionen: { erlaubteFormulierungen: ['an rechtssicherer Beweisführung'] },
+  });
+  assert.equal(g.warnungen.filter((x) => x.includes('„an rechtssicherer Beweisführung"')).length, 0, g.warnungen.join(' | '));
+});
+
+test('#238-Nachlese B5: eine Phrase ohne Muster wird einmal gemeldet, nicht zweimal mit zwei Ratschlägen', async () => {
+  const e = await lauf({ body: SAUBER, optionen: { erlaubteFormulierungen: ['Wir bauen Websites'] } });
+  const w = e.warnungen.filter((x) => x.includes('„Wir bauen Websites"'));
+  assert.equal(w.length, 1, w.join(' | '));
+  assert.ok(w[0].includes('kann deshalb keinen Treffer aufheben'), 'es bleibt die Meldung der Ladeprüfung');
+});
+
+test('#238-Nachlese B6: eine falsch getippte Pfad-Ausnahme löst keine Verfallswarnung aus', async () => {
+  const e = await lauf({ optionen: { verbotslisteAusnahmen: 'datenschutz/' } });
+  assert.ok(e.warnungen.some((w) => w.includes('`verbotslisteAusnahmen` muss eine Liste von Strings sein')), e.warnungen.join(' | '));
+  assert.ok(e.warnungen.every((w) => !w.includes('ist veraltet')), `zwei Meldungen, die sich widersprechen: ${e.warnungen.join(' | ')}`);
 });

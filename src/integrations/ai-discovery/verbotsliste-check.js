@@ -56,7 +56,7 @@ const META_FELDER = Object.freeze(['description', 'keywords', 'og:description', 
 
 /**
  * @typedef {'text' | 'title' | 'meta:description' | 'meta:keywords' | 'meta:og:description' | 'meta:twitter:description'} VerbotslistenOrt
- * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string }} VerbotslistenBefund
+ * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string, aufgehobenDurch?: string }} VerbotslistenBefund
  */
 
 /**
@@ -201,7 +201,10 @@ export function normalisierteListe(formulierungen) {
 export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
   const liste = normalisierteListe(formulierungen);
   if (liste.size === 0) return [];
-  const erlaubtListe = normalisierteListe(erlaubte);
+  // Eine Phrase, die nur das Muster selbst ist, wäre die Pfad-Ausnahme über alle Seiten: sie
+  // hebt JEDEN Treffer dieses Musters auf (Review cw-core#238, Befund 1). Sie wird nicht
+  // angewandt; `pruefeErlaubteListe()` meldet sie beim Laden.
+  const erlaubtListe = new Map([...normalisierteListe(erlaubte)].filter(([n]) => !liste.has(n)));
 
   // Einmal reinigen, dann beide Quellen daraus: nur so entfernt `replace(TITLE, ' ')` den
   // Titel, den `kopfInhalte()` auch als Titel gezählt hat. Auf rohem HTML konnten die zwei
@@ -236,12 +239,17 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
     const proPosition = new Map();
     for (const [n, original] of liste) {
       for (let i = klein.indexOf(n); i !== -1; i = klein.indexOf(n, i + 1)) {
-        if (proPosition.has(i)) continue;
         const ende = i + n.length;
         // UMSCHLIESSEN, nicht überlappen: der ganze Treffer muss in einem Vorkommen der
         // erlaubten Phrase liegen. Nur so trennt die Ausnahme „ohne korrekte Inhalte keine
         // Anfragen bringt" von „eine Website, die Anfragen bringt" im selben Dokument.
         const freigabe = freigaben.find((f) => f.von <= i && ende <= f.bis);
+        // Ein Befund je Startposition, der erste Listeneintrag gewinnt (die Kundenliste steht
+        // vorn, ihr Treffer ist WARN). AUSSER der vorhandene ist aufgehoben und dieser nicht:
+        // sonst verdeckte ein aufgehobenes kurzes Muster ein längeres, das die Phrase NICHT
+        // umschließt, und das Ergebnis hinge an der Reihenfolge der Liste (Review #238, B2).
+        const vorher = proPosition.get(i);
+        if (vorher && !(vorher.aufgehobenDurch !== undefined && !freigabe)) continue;
         /** @type {VerbotslistenBefund} */
         const befund = {
           seite,
@@ -274,10 +282,21 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
  * @returns {{ phrase: string, grund: string }[]} leer = alle Einträge können greifen
  */
 export function pruefeErlaubteListe(erlaubte, formulierungen) {
-  const muster = [...normalisierteListe(formulierungen).keys()];
+  const verboten = normalisierteListe(formulierungen);
+  const muster = [...verboten.keys()];
   /** @type {{ phrase: string, grund: string }[]} */
   const befunde = [];
   for (const [n, original] of normalisierteListe(erlaubte)) {
+    // Enthalten heißt nicht umschließen MIT Kontext: ist die Phrase das Muster selbst, hebt
+    // sie jeden Treffer auf (Review cw-core#238, Befund 1). `pruefeVerbotsliste()` wendet
+    // sie deshalb nicht an — hier steht, warum.
+    if (verboten.has(n)) {
+      befunde.push({
+        phrase: original,
+        grund: 'ist selbst ein verbotenes Muster und würde jeden Treffer darauf aufheben, deshalb wird der Eintrag nicht angewandt',
+      });
+      continue;
+    }
     if (!muster.some((m) => n.includes(m))) {
       befunde.push({
         phrase: original,

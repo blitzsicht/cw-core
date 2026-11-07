@@ -53,9 +53,28 @@ Schalter. Eine Pfad-Ausnahme stummt jedes Muster auf der ganzen Seite: die bishe
 Nutzung in der Flotte (gemessen 06.11.2026 an `origin/main` von 31 Repos: 1 Repo,
 `['datenschutz/index.html']`) deckte 24 Muster ab, um genau einen Treffer zu erlauben.
 
-**Migrations-Hinweis:** Keiner für den Pin-Bump. Wer `verbotslisteAusnahmen` nutzt, sieht eine
-Warnung im Build-Log und ersetzt sie durch den Satz, um den es geht — für die
-Datenschutz-Seite ist das `erlaubteFormulierungen: ['an rechtssicherer Beweisführung']`.
+**Migrations-Hinweis:** Wer `verbotslisteAusnahmen` nutzt, bekommt eine Verfallswarnung. Sie
+zählt im Mass-Upgrade als Guard-Befund (`verbotslisten-guard`), das Repo bekommt dort **keinen
+automatischen PR**: Pin-Bump und Umstellung gehen dann von Hand in einem Commit. Die
+Pfad-Ausnahme durch den Satz ersetzen, um den es geht — für die Datenschutz-Seite ist das
+`erlaubteFormulierungen: ['an rechtssicherer Beweisführung']` — und die Pfad-Ausnahme im selben
+Commit streichen. Bleibt sie stehen, meldet der Guard, dass die Phrase nur auf der
+ausgenommenen Seite greift. Gemessen 07.11.2026: einziges Repo ist customer-blitzsicht, das
+im Train ohnehin von Hand gehoben wird (#237).
+
+**Nachlese Review cw-core#238** (vor dem Tag, sieben Befunde, sechs im Code):
+
+- Eine erlaubte Phrase, die **nur das Muster selbst** ist (`['rechtssicher']`), bestand die
+  Ladeprüfung und hob jeden Treffer auf — die Pfad-Ausnahme über alle Seiten. Sie wird jetzt
+  gemeldet und nicht angewandt.
+- Ein aufgehobener kurzer Treffer verdeckte einen längeren, nicht umschlossenen an derselben
+  Stelle; das Ergebnis hing an der Reihenfolge der Liste. Jetzt gewinnt der offene.
+- Steht eine Phrase nur auf einer pfad-ausgenommenen Seite, nennt die Warnung Seite und
+  Ursache, statt „Satz ist weg" zu raten.
+- Eine Phrase ohne Muster wird einmal gemeldet, nicht zweimal mit widersprüchlichem Rat.
+- Eine falsch getippte `verbotslisteAusnahmen` löst keine zweite, widersprechende
+  Verfallswarnung mehr aus.
+- `VerbotslistenBefund` (JSDoc) kennt `aufgehobenDurch`; `tsc --checkJs` meldet 0 statt 1 Fehler.
 
 ---
 

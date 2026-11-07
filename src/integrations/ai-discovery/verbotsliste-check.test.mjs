@@ -412,3 +412,31 @@ test('#236 Ladeprüfung GEGENPROBE: eine Phrase MIT Muster ist in Ordnung', () =
     'Groß-/Kleinschreibung und Teilstring wie in der Prüfung selbst',
   );
 });
+
+// ── Nachlese Review cw-core#238 (07.11.2026) ────────────────────────────────────────────
+
+test('#238-Nachlese B1: eine Phrase, die nur das Muster selbst ist, hebt nichts auf und wird gemeldet', () => {
+  // `erlaubteFormulierungen: ['rechtssicher']` enthielt das Muster und bestand deshalb die
+  // Ladeprüfung — und hob dann JEDEN Treffer auf: die Pfad-Ausnahme, nur über alle Seiten.
+  const f = pruefeErlaubteListe(['Rechtssicher'], GARANTIE_PRAEDIKATE);
+  assert.equal(f.length, 1, 'die Ladeprüfung meldet den Gleichheitsfall');
+  assert.ok(f[0].grund.includes('selbst ein verbotenes Muster'), f[0].grund);
+  const b = pruefeVerbotsliste('<html><body><p>Dies ist rechtssicher.</p></body></html>', seite, ['rechtssicher'], ['Rechtssicher']);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].aufgehobenDurch, undefined, 'und die Prüfung wendet ihn nicht an');
+  // GEGENPROBE: mit Kontext ist dieselbe Formulierung eine echte Satz-Ausnahme.
+  const g = pruefeVerbotsliste('<html><body><p>Dies ist rechtssicher.</p></body></html>', seite, ['rechtssicher'], ['ist rechtssicher']);
+  assert.equal(g[0].aufgehobenDurch, 'ist rechtssicher');
+});
+
+test('#238-Nachlese B2: ein aufgehobener kurzer Treffer verdeckt keinen längeren offenen an derselben Stelle', () => {
+  const html = '<html><body><p>keine rechtssichere Website garantiert</p></body></html>';
+  const L = ['rechtssicher', 'rechtssichere Website garantiert'];
+  for (const liste of [L, [...L].reverse()]) {
+    const b = pruefeVerbotsliste(html, seite, liste, ['keine rechtssichere']);
+    assert.ok(
+      b.some((x) => x.aufgehobenDurch === undefined && x.formulierung === 'rechtssichere Website garantiert'),
+      `Reihenfolge ${liste.join(' / ')}: ${JSON.stringify(b.map((x) => [x.formulierung, x.aufgehobenDurch ?? 'OFFEN']))}`,
+    );
+  }
+});
