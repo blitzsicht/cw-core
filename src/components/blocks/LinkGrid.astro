@@ -153,8 +153,11 @@ const kartenLabel = await Promise.all(
     font-size: 1.0625rem;
     margin-bottom: 0.375rem;
   }
-  /* Block, nicht inline: Bei Bildkarten trägt der Text einen seitlichen Innenabstand.
-     Als Inline-<span> rückte er nur die erste Zeile ein, jede umbrochene Zeile begann am
-     Kartenrand (spedition-steller.de, Handy 390 px, 07.11.2026). */
-  .link-card-desc { display: block; color: var(--color-muted, #4b5563); font-size: 0.9375rem; line-height: 1.5; }
+  .link-card-desc { color: var(--color-muted, #4b5563); font-size: 0.9375rem; line-height: 1.5; }
+  /* Block, nicht inline, aber nur bei Bildkarten: Dort trägt der Text einen seitlichen
+     Innenabstand. Als Inline-<span> rückte er nur die erste Zeile ein, jede umbrochene Zeile
+     begann am Kartenrand (spedition-steller.de, Handy 390 px, 07.11.2026). Bei Karten ohne
+     Bild bleibt es inline: als Block gälte dort line-height 1.5 auf 15 px (22,5 px) statt der
+     Zeilenhöhe des Body (1.6 auf 16 px, 25,6 px), die Karten würden enger (Review #245). */
+  .link-card.has-image .link-card-desc { display: block; }
 </style>
