@@ -20,10 +20,10 @@
  *     für immer stale.
  *   - `no-store`/`max-age=0` auf Asset-Pfaden: deaktiviert Caching komplett.
  *
- * @typedef {'vercel_json_unparseable'|'missing_asset_cache_control'|'missing_font_cache_control'|'immutable_on_mutable_path'|'no_store_on_assets'} CacheIssueType
+ * @typedef {'vercel_json_unparseable'|'missing_asset_cache_control'|'missing_font_cache_control'|'missing_images_cache_control'|'missing_videos_cache_control'|'immutable_on_mutable_path'|'no_store_on_assets'} CacheIssueType
  * @typedef {{ type: CacheIssueType, details: string }} CacheIssue
  * @typedef {{ source: string, cacheControl: string|null }} HeaderRule
- * @typedef {{ hasFontsDir?: boolean, hasImagesDir?: boolean }} CacheCheckOptions
+ * @typedef {{ hasFontsDir?: boolean, hasImagesDir?: boolean, hasVideosDir?: boolean }} CacheCheckOptions
  */
 
 /**
@@ -86,7 +86,7 @@ export function isAssetSource(source) {
  * @returns {CacheIssue[]}
  */
 export function checkCacheHeaders(rules, opts = {}) {
-  const { hasFontsDir = false, hasImagesDir = false } = opts;
+  const { hasFontsDir = false, hasImagesDir = false, hasVideosDir = false } = opts;
   /** @type {CacheIssue[]} */
   const issues = [];
 
@@ -145,6 +145,27 @@ export function checkCacheHeaders(rules, opts = {}) {
         details:
           'dist/images/ existiert (Bilder aus public/images/), aber keine Cache-Control-Regel deckt "/images/(.*)" ab — ' +
           'Vercel liefert sie mit max-age=0 aus. Empfehlung: { "source": "/images/(.*)", Cache-Control "public, max-age=86400" }.',
+      });
+    }
+  }
+
+  // 2c. public/videos/ wird ausgeliefert, aber keine Regel deckt es ab — dieselbe Lücke wie 2b.
+  //    Anlass 07.11.2026: blitzsicht.com bekam die ersten Videos. Die vorhandenen Regeln
+  //    (/images/, /og/, Logo) erfüllten Prüfung 1 schon; eine 1,3-MB-Datei wäre bei jedem
+  //    Abspielen mit max-age=0 neu geladen worden. Cluster-Scan am selben Tag: die drei Repos
+  //    mit public/videos/ (donau-profi, falzmarke, soleno) hatten die Regel, jeweils von Hand —
+  //    das Template kannte /videos/ nicht, der nächste Kunde hätte sie vergessen.
+  if (hasVideosDir) {
+    const videoRule = rules.find((r) => {
+      const src = r.source.toLowerCase();
+      return !!r.cacheControl && (/\/videos\//.test(src) || (src.startsWith('/(.*)') && /(mp4|webm)/.test(src)));
+    });
+    if (!videoRule) {
+      issues.push({
+        type: 'missing_videos_cache_control',
+        details:
+          'dist/videos/ existiert (Videos aus public/videos/), aber keine Cache-Control-Regel deckt "/videos/(.*)" ab — ' +
+          'Vercel liefert sie mit max-age=0 aus. Empfehlung: { "source": "/videos/(.*)", Cache-Control "public, max-age=86400" }.',
       });
     }
   }

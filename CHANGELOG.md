@@ -24,6 +24,47 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Feature:** `VideoClip` — selbst gehostetes Video ohne eigene Section, mit Seitenverhältnis; Video-Cache und Video-Budget im Build
+
+Kontext: Zwei Hochkant-Reels (1080×1920) sollten neben dem Text stehen, den sie erklären.
+`VideoEmbed` hatte `aspect-ratio: 16 / 9` und `width=1280 height=720` fest und `object-fit:
+cover` — ein 9:16-Video hätte darin nur das mittlere Drittel gezeigt. Und es ist immer eine
+ganze Section mit Überschrift; neben Text lässt es sich nicht setzen.
+
+Neu:
+
+- `VideoClip.astro` (`@cw/core/components/blocks/VideoClip.astro`): `<figure>` mit nativem
+  `<video controls preload="none" playsinline poster>`, kein Autoplay, kein Dritt-Request.
+  Props `src`, `title` (wird `aria-label`), `poster`, `seitenverhaeltnis`
+  (`16/9` Default, `9/16`, `4/5`, `1/1`, `4/3` — anderes bricht den Build mit Liste ab),
+  `beschriftung` (`<figcaption>`), `bildHerkunft`, `class`. Hochformat begrenzt sich auf
+  20 rem Breite. `.webm` bekommt `type="video/webm"`.
+- **KI-Kennzeichnung am Poster auch im `src`-Modus.** Bisher rendert das Label nur im
+  YouTube-Zweig, der Art.-50-Check zählt das `poster` eines `<video>` aber als Bild: bei
+  pflichtigem Poster wäre der Build rot geworden, ohne dass die Komponente es lösen konnte.
+  Das Label steht unter dem Video, weil unten links auf dem Bild die Steuerleiste liegt.
+- `VideoEmbed` rendert seinen `src`-Modus über `VideoClip` (eine Stelle für native Videos)
+  und reicht `seitenverhaeltnis` durch. Für 16:9 bleibt der Player gleich (1280×720,
+  56 rem, Radius, Schatten); neu ist das `aria-label`. Der YouTube-Modus ist unverändert.
+- Cache-Header-Guard: **`missing_videos_cache_control`**, sobald `dist/videos/` existiert
+  und keine Regel `/videos/(.*)` (oder `/(.*)\.(mp4|webm)`) mit Cache-Control da ist.
+  Fällt unter `strictCacheHeaders` (Default true). Cluster-Scan 07.11.2026: die drei Repos
+  mit `public/videos/` haben die Regel bereits — der Pin-Bump bricht keinen Build.
+- `vercel.template.json`: `/videos/(.*)` → `public, max-age=86400`.
+- **Video-Budget** (`checkVideoBudget`, `VIDEO_EXT`): warnt bei dist-Videos über
+  `maxVideoKb` (Default 5120). Nur Warnung, abschaltbar mit `checkVideoBudget: false`.
+  Größtes Flotten-Video am Stichtag: 4,3 MB.
+
+Migration: nichts zu tun, solange keine Videos ausgeliefert werden. Wer `public/videos/`
+hat und keine Regel, bekommt mit dem Pin-Bump einen roten Build — Regel aus dem Template
+übernehmen.
+
+Tests: `tests/blocks/video-clip.test.js` (10, echt gerendert),
+`tests/integrations/cache-header-check.test.js` 14–20 (Fixture: Header-Regeln von
+blitzsicht.com am 07.11.), `tests/integrations/perf-check.test.js` V1–V6. Sechs
+Sabotagen einzeln rot (Video-Prüfung aus, Cache-Control-Bedingung weg, Template-Regel weg,
+Budget-Grenze `>=`, Label im `src`-Zweig weg, Seitenverhältnis ignoriert).
+
 **Feature:** `erlaubteFormulierungen` — der Verbotslisten-Guard kennt jetzt Ausnahmen auf Satz-, nicht auf Seitenebene
 
 Kontext: Ein Muster traf bisher auch dort, wo der Satz das Gegenteil sagt — „ohne korrekte

@@ -1,4 +1,4 @@
-export type PerfIssueType = 'render_blocking_css' | 'dead_font_family' | 'image_over_budget';
+export type PerfIssueType = 'render_blocking_css' | 'dead_font_family' | 'image_over_budget' | 'video_over_budget';
 
 export interface PerfIssue {
   type: PerfIssueType;
@@ -8,6 +8,11 @@ export interface PerfIssue {
 export function checkRenderBlockingCss(html: string, pagePath?: string): PerfIssue[];
 export function checkImageBudget(
   images: { path: string; sizeBytes: number }[] | undefined,
+  maxKb?: number,
+): PerfIssue[];
+export const VIDEO_EXT: string[];
+export function checkVideoBudget(
+  videos: { path: string; sizeBytes: number }[] | undefined,
   maxKb?: number,
 ): PerfIssue[];
 export function extractReferencedFontFamilies(css: string): Set<string>;

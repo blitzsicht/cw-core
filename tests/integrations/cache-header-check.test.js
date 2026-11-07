@@ -16,6 +16,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   extractHeaderRulesFromVercelJson,
   checkCacheHeaders,
@@ -176,4 +177,66 @@ test('13. Endungs-Regel (.*)\\.(webp|png) deckt images-dir ebenfalls ab', () => 
   });
   const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(raw), { hasImagesDir: true });
   assert.ok(!types(issues).includes('missing_images_cache_control'));
+});
+
+// ── missing_videos_cache_control (07.11.2026) ────────────────────────────────
+// Header-Regeln von blitzsicht.com am ausgelieferten Stand vom 07.11.2026 (origin/main,
+// nur die Cache-Werte): Prüfung 1 ist erfüllt, /videos/ deckt keine Regel ab.
+const cc = (/** @type {string} */ v) => [{ key: 'Cache-Control', value: v }];
+const BLITZSICHT_0711 = {
+  headers: [
+    { source: '/(.*)', headers: [{ key: 'X-Content-Type-Options', value: 'nosniff' }] },
+    { source: '/images/(.*)', headers: cc('public, max-age=86400') },
+    { source: '/og/(.*)', headers: cc('public, max-age=86400') },
+    { source: '/(favicon|favicon-192|favicon-512|logo|logo-dark)\\.(svg|png|ico|webp)', headers: cc('public, max-age=86400') },
+  ],
+};
+const mitRegel = (/** @type {any} */ basis, /** @type {any} */ regel) =>
+  JSON.stringify({ headers: [...basis.headers, regel] });
+
+test('14. NEGATIV (blitzsicht 07.11.): videos-dir, Regeln ohne /videos/ → missing_videos_cache_control', () => {
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(JSON.stringify(BLITZSICHT_0711)), {
+    hasImagesDir: true,
+    hasVideosDir: true,
+  });
+  assert.deepEqual(types(issues), ['missing_videos_cache_control']);
+});
+
+test('15. Gegenprobe: dieselbe vercel.json ohne videos-dir → sauber', () => {
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(JSON.stringify(BLITZSICHT_0711)), {
+    hasImagesDir: true,
+    hasVideosDir: false,
+  });
+  assert.deepEqual(types(issues), []);
+});
+
+test('16. blitzsicht mit /videos/(.*)-Regel → sauber', () => {
+  const raw = mitRegel(BLITZSICHT_0711, { source: '/videos/(.*)', headers: cc('public, max-age=86400') });
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(raw), { hasImagesDir: true, hasVideosDir: true });
+  assert.deepEqual(types(issues), []);
+});
+
+test('17. /videos/-Regel OHNE Cache-Control zählt nicht', () => {
+  const raw = mitRegel(BLITZSICHT_0711, { source: '/videos/(.*)', headers: [{ key: 'X-Robots-Tag', value: 'noindex' }] });
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(raw), { hasVideosDir: true });
+  assert.ok(types(issues).includes('missing_videos_cache_control'));
+});
+
+test('18. Endungsregel /(.*)\\.(mp4|webm) deckt videos-dir; Bild-Endungsregel nicht', () => {
+  const mp4 = mitRegel(BLITZSICHT_0711, { source: '/(.*)\\.(mp4|webm)', headers: cc('public, max-age=86400') });
+  assert.ok(!types(checkCacheHeaders(extractHeaderRulesFromVercelJson(mp4), { hasVideosDir: true })).includes('missing_videos_cache_control'));
+  const bild = mitRegel(BLITZSICHT_0711, { source: '/(.*)\\.(webp|png)', headers: cc('public, max-age=86400') });
+  assert.ok(types(checkCacheHeaders(extractHeaderRulesFromVercelJson(bild), { hasVideosDir: true })).includes('missing_videos_cache_control'));
+});
+
+test('19. immutable auf /videos/ bleibt immutable_on_mutable_path, auch mit videos-dir', () => {
+  const raw = mitRegel(BLITZSICHT_0711, { source: '/videos/(.*)', headers: cc('public, max-age=31536000, immutable') });
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(raw), { hasVideosDir: true });
+  assert.deepEqual(types(issues), ['immutable_on_mutable_path']);
+});
+
+test('20. Template deckt videos-dir ab (der nächste Kunde vergisst die Regel nicht)', () => {
+  const raw = readFileSync(new URL('../../src/templates/vercel.template.json', import.meta.url), 'utf-8');
+  const issues = checkCacheHeaders(extractHeaderRulesFromVercelJson(raw), { hasImagesDir: true, hasFontsDir: true, hasVideosDir: true });
+  assert.deepEqual(types(issues), []);
 });

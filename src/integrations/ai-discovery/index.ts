@@ -53,6 +53,8 @@ import {
   checkDeadFontFamilies,
   checkRenderBlockingCss,
   checkImageBudget,
+  checkVideoBudget,
+  VIDEO_EXT,
   extractInlineStyles,
 } from './perf-check.js';
 import { checkEmbedConsent } from './embed-consent-check.js';
@@ -476,6 +478,13 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * erst nach Fleet-Lauf ohne False-Positives (blitzsicht-ops#541).
    */
   strictImageBudget?: boolean;
+  /**
+   * Default true. Video-Budget (07.11.2026): warnt bei einzelnen dist-Videos
+   * (`.mp4`/`.webm`/`.mov`/`.m4v`) über `maxVideoKb`. Nur Warnung, nie Abbruch.
+   */
+  checkVideoBudget?: boolean;
+  /** KB-Schwelle pro Video für den Video-Budget-Guard. Default 5120 (5 MB). */
+  maxVideoKb?: number;
 
   /**
    * Default true. Embed-Consent-Guard: meldet Buchungs-Embeds, die schon beim
@@ -3977,7 +3986,8 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             const rules = extractHeaderRulesFromVercelJson(readFileSync(vercelPath, 'utf-8'));
             const hasFontsDir = existsSync(join(distDir, 'fonts'));
             const hasImagesDir = existsSync(join(distDir, 'images'));
-            const cacheIssues = checkCacheHeaders(rules, { hasFontsDir, hasImagesDir });
+            const hasVideosDir = existsSync(join(distDir, 'videos'));
+            const cacheIssues = checkCacheHeaders(rules, { hasFontsDir, hasImagesDir, hasVideosDir });
             if (cacheIssues.length === 0) {
               logger.info('Cache-Header-Linter: ✓ vercel.json Cache-Politik ok.');
             } else {
@@ -4644,6 +4654,28 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               throw new Error(
                 `[ai-discovery] strictImageBudget=true: Build abgebrochen wegen ${budgetIssues.length} Bild(ern) über ${maxKb} KB.`,
               );
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Video-Budget: dist-Videos über KB-Budget (07.11.2026)
+        // -------------------------------------------------------------------
+        // Das Bild-Budget kennt nur Bildformate; ein 20-MB-Video ginge still durch.
+        // Gleicher Walk (walkImages mit eigener Endungsliste), nur Warnung.
+        if (options.checkVideoBudget !== false) {
+          const maxKb = options.maxVideoKb ?? 5120;
+          const videos = walkImages(distDir, [], VIDEO_EXT).map((p: string) => ({
+            path: p.slice(distDir.length).replace(/^\//, ''),
+            sizeBytes: statSync(p).size,
+          }));
+          if (videos.length > 0) {
+            const videoIssues = checkVideoBudget(videos, maxKb);
+            if (videoIssues.length === 0) {
+              logger.info(`Video-Budget: ✓ ${videos.length} Video(s) ≤ ${Math.round(maxKb / 1024)} MB.`);
+            } else {
+              logger.warn(`Video-Budget: ${videoIssues.length} Video(s) über ${Math.round(maxKb / 1024)} MB:`);
+              for (const vi of videoIssues) logger.warn(`  [${vi.type}] ${vi.details}`);
             }
           }
         }

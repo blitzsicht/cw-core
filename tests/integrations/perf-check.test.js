@@ -20,6 +20,8 @@ import {
   checkRenderBlockingCss,
   checkDeadFontFamilies,
   checkImageBudget,
+  checkVideoBudget,
+  VIDEO_EXT,
   extractReferencedFontFamilies,
   extractFontFaceFamilies,
   extractFontStacks,
@@ -178,4 +180,58 @@ test('14. Leere Liste + gemischte Liste (nur Über-Budget geflaggt)', () => {
 test('15. Robustheit: malformte Einträge / undefined → keine Crashes', () => {
   assert.deepEqual(checkImageBudget(undefined), []);
   assert.deepEqual(checkImageBudget([null, { path: 'x' }, { sizeBytes: 'big' }]), []);
+});
+
+// ── checkVideoBudget (07.11.2026) ────────────────────────────────────────────
+// Größen am 07.11. gemessen: BSFZ-Reel 1 303 498 B, größtes Flotten-Video 4 452 415 B.
+test('V1. Video über Default-Budget (5 MB) → video_over_budget, Meldung nennt Datei + MB', () => {
+  const issues = checkVideoBudget([{ path: 'videos/roh.mp4', sizeBytes: 21 * 1024 * KB }]);
+  assert.deepEqual(budgetTypes(issues), ['video_over_budget']);
+  assert.match(issues[0].details, /roh\.mp4: 21\.0 MB > 5\.0 MB/);
+});
+
+test('V2. Bestand der Flotte (4,3 MB) und das Reel (1,2 MB) → kein Issue', () => {
+  assert.deepEqual(
+    checkVideoBudget([
+      { path: 'videos/erklaervideo.mp4', sizeBytes: 4452415 },
+      { path: 'videos/bsfz-ablehnen.mp4', sizeBytes: 1303498 },
+    ]),
+    [],
+  );
+});
+
+test('V3. Grenze: exakt 5 MB kein Issue, ein Byte mehr schon', () => {
+  assert.deepEqual(checkVideoBudget([{ path: 'a.mp4', sizeBytes: 5120 * KB }]), []);
+  assert.deepEqual(budgetTypes(checkVideoBudget([{ path: 'a.mp4', sizeBytes: 5120 * KB + 1 }])), ['video_over_budget']);
+});
+
+test('V4. Custom maxKb wird respektiert', () => {
+  const v = [{ path: 'b.webm', sizeBytes: 1303498 }];
+  assert.deepEqual(budgetTypes(checkVideoBudget(v, 1024)), ['video_over_budget']);
+  assert.deepEqual(checkVideoBudget(v, 2048), []);
+});
+
+test('V5. Leere/undefinierte Liste wirft nicht', () => {
+  assert.deepEqual(checkVideoBudget([]), []);
+  assert.deepEqual(checkVideoBudget(undefined), []);
+});
+
+test('V6. Walk mit VIDEO_EXT findet Videos, keine Bilder, nichts unter og/', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs');
+  const { join } = await import('node:path');
+  const { tmpdir } = await import('node:os');
+  const { walkImages } = await import('../../src/integrations/ai-discovery/geotag-core.js');
+  const dist = mkdtempSync(join(tmpdir(), 'video-walk-'));
+  try {
+    mkdirSync(join(dist, 'videos'));
+    mkdirSync(join(dist, 'og'));
+    writeFileSync(join(dist, 'videos', 'reel.MP4'), 'x');
+    writeFileSync(join(dist, 'videos', 'reel-poster.webp'), 'x');
+    writeFileSync(join(dist, 'videos', 'clip.webm'), 'x');
+    writeFileSync(join(dist, 'og', 'teaser.mp4'), 'x');
+    const gefunden = walkImages(dist, [], VIDEO_EXT).map((p) => p.slice(dist.length + 1)).sort();
+    assert.deepEqual(gefunden, ['videos/clip.webm', 'videos/reel.MP4']);
+  } finally {
+    rmSync(dist, { recursive: true, force: true });
+  }
 });

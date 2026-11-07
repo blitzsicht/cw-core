@@ -1,0 +1,130 @@
+---
+/**
+ * @cw/core – VideoClip.astro
+ *
+ * Ein selbst gehostetes Video **ohne eigene Section**, zum Einsetzen neben Text: in eine
+ * Karte, eine Spalte, einen Abschnitt, der schon da ist. `VideoEmbed` ist der Abschnitt mit
+ * Überschrift und 16:9-Bühne; seinen `src`-Modus rendert er über diesen Baustein. Es gibt
+ * damit genau eine Stelle, an der ein natives `<video>` der Flotte entsteht.
+ *
+ * Anlass (07.11.2026): zwei Hochkant-Reels (1080×1920) sollten auf blitzsicht.com/forschung
+ * neben den Vorhaben stehen, die sie erklären. `VideoEmbed` hatte `aspect-ratio: 16 / 9`
+ * fest und `object-fit: cover` — ein 9:16-Video hätte darin nur das mittlere Drittel gezeigt.
+ *
+ * Verhalten, unverändert aus VideoEmbed übernommen: `controls`, `preload="none"`,
+ * `playsinline`, Posterbild, kein Autoplay, kein Dritt-Request (`media-src 'self'`).
+ *
+ * Neu gegenüber dem alten `src`-Zweig:
+ *   - `seitenverhaeltnis` steuert Rahmen und `width`/`height` (kein Beschnitt, kein CLS).
+ *   - `title` landet als `aria-label` am `<video>` (vorher ungenutzt im `src`-Modus).
+ *   - Das Poster bekommt seine KI-Kennzeichnung, wenn `bildHerkunft` sie verlangt — unter
+ *     dem Video, weil unten links auf dem Bild die Steuerleiste des Players liegt.
+ *
+ * @example Hochkant neben Text
+ *   <VideoClip src="/videos/reel.mp4" poster="/videos/reel-poster.webp"
+ *     title="Reel: So prüfen wir …" seitenverhaeltnis="9/16" bildHerkunft={siteData.bildHerkunft} />
+ */
+import AiLabelAmBild from './AiLabelAmBild.astro';
+import { bildLabel } from '../../utils/bildlabel.js';
+
+/** Längste Kante der `width`/`height`-Attribute. Nur das Verhältnis zählt für den Platzhalter. */
+const LANGE_KANTE = 1280;
+const VERHAELTNISSE = {
+  '16/9': [16, 9],
+  '9/16': [9, 16],
+  '4/5': [4, 5],
+  '1/1': [1, 1],
+  '4/3': [4, 3],
+} as const;
+type Seitenverhaeltnis = keyof typeof VERHAELTNISSE;
+
+interface Props {
+  /** Pfad zur selbst gehosteten Datei (`.mp4` oder `.webm`), z. B. `/videos/reel.mp4`. */
+  src: string;
+  /** Zugänglicher Name des Videos (`aria-label`). */
+  title: string;
+  /** Pfad zum selbst gehosteten Posterbild. */
+  poster: string;
+  /** Seitenverhältnis Breite/Höhe. Default `16/9`. */
+  seitenverhaeltnis?: Seitenverhaeltnis;
+  /** Optionale sichtbare Bildunterschrift (`<figcaption>`). */
+  beschriftung?: string;
+  /** `siteData.bildHerkunft` — für die Kennzeichnung des Posters. */
+  bildHerkunft?: unknown[];
+  /** Zusätzliche Klasse an der Wurzel (`<figure>`); im Kunden mit `:global()` ansprechen. */
+  class?: string;
+}
+
+const {
+  src,
+  title,
+  poster,
+  seitenverhaeltnis = '16/9',
+  beschriftung,
+  bildHerkunft,
+  class: klasse,
+} = Astro.props;
+
+const masse = VERHAELTNISSE[seitenverhaeltnis];
+if (!masse) {
+  throw new Error(
+    `[VideoClip] seitenverhaeltnis="${seitenverhaeltnis}" unbekannt — erlaubt: ${Object.keys(VERHAELTNISSE).join(', ')}.`,
+  );
+}
+const [b, h] = masse;
+const faktor = LANGE_KANTE / Math.max(b, h);
+const breite = Math.round(b * faktor);
+const hoehe = Math.round(h * faktor);
+const typ = /\.webm(?:[?#]|$)/i.test(src) ? 'video/webm' : 'video/mp4';
+
+const posterLabel = await bildLabel({ bildHerkunft }, poster);
+---
+<figure class:list={['video-clip', klasse]} data-seitenverhaeltnis={seitenverhaeltnis}>
+  <div class="video-clip-rahmen">
+    <video class="video-clip-video" controls preload="none" playsinline poster={poster} width={breite} height={hoehe} aria-label={title}>
+      <source src={src} type={typ} />
+    </video>
+  </div>
+  {posterLabel && <AiLabelAmBild ergebnis={posterLabel.ergebnis} theme={posterLabel.theme} platzierung="unter-bild" />}
+  {beschriftung && <figcaption class="video-clip-beschriftung">{beschriftung}</figcaption>}
+</figure>
+
+<style>
+  .video-clip {
+    margin: 0;
+    width: 100%;
+  }
+  /* Hochformat füllt eine Spalte nicht in voller Breite: 390 px breit wären 693 px hoch. */
+  .video-clip[data-seitenverhaeltnis='9/16'],
+  .video-clip[data-seitenverhaeltnis='4/5'] {
+    max-inline-size: 20rem;
+    margin-inline: auto;
+  }
+  .video-clip-rahmen {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    border-radius: 0.875rem;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    background: #000;
+  }
+  .video-clip[data-seitenverhaeltnis='9/16'] .video-clip-rahmen { aspect-ratio: 9 / 16; }
+  .video-clip[data-seitenverhaeltnis='4/5'] .video-clip-rahmen { aspect-ratio: 4 / 5; }
+  .video-clip[data-seitenverhaeltnis='1/1'] .video-clip-rahmen { aspect-ratio: 1 / 1; }
+  .video-clip[data-seitenverhaeltnis='4/3'] .video-clip-rahmen { aspect-ratio: 4 / 3; }
+  .video-clip-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    /* Rahmen und Datei haben dasselbe Verhältnis; contain schneidet nichts ab, falls nicht. */
+    object-fit: contain;
+    background: #000;
+    border: 0;
+  }
+  .video-clip-beschriftung {
+    margin-top: 0.75rem;
+    font-size: 0.9375rem;
+    color: var(--color-muted, #6b7280);
+  }
+</style>

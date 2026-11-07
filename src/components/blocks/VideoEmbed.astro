@@ -9,6 +9,8 @@
  *    `youtube-nocookie.com` nachgeladen. CSP-Voraussetzung: `frame-src https://www.youtube-nocookie.com`.
  * 2. **Self-hosted** (`src`): natives `<video controls preload="none" poster>` mit lokaler
  *    MP4-Quelle — KEIN Dritt-Request, kein iframe, nur `media-src 'self'` nötig. Mit Ton.
+ *    Gerendert über `VideoClip.astro` (die eine Stelle für native Videos); ohne eigene
+ *    Section neben Text steht derselbe Player als `<VideoClip>` direkt zur Verfügung.
  *
  * Genau EINES von `youtubeId` / `src` angeben. Kein Autoplay, kein Hero-Einsatz
  * (Blueprint v2.2: Video gehört in „Lösung/Prozess" oder „Proof", click-to-play).
@@ -20,6 +22,7 @@
  *   <VideoEmbed src="/videos/erklaervideo.mp4" title="Erklärvideo" poster="/videos/erklaervideo-poster.webp" heading="So arbeiten wir" />
  */
 import AiLabelAmBild from './AiLabelAmBild.astro';
+import VideoClip from './VideoClip.astro';
 import { bildLabel } from '../../utils/bildlabel.js';
 
 interface Props {
@@ -42,9 +45,11 @@ interface Props {
    * Ohne diese Prop aendert sich am gerenderten Ausgang nichts.
    */
   bildHerkunft?: unknown[];
+  /** Nur im `src`-Modus: Seitenverhältnis des Videos, siehe `VideoClip`. Default `16/9`. */
+  seitenverhaeltnis?: '16/9' | '9/16' | '4/5' | '1/1' | '4/3';
 }
 
-const { youtubeId, src, title, poster, heading, sub, bildHerkunft } = Astro.props;
+const { youtubeId, src, title, poster, heading, sub, bildHerkunft, seitenverhaeltnis } = Astro.props;
 
 const posterLabel = await bildLabel({ bildHerkunft }, poster);
 ---
@@ -57,12 +62,12 @@ const posterLabel = await bildLabel({ bildHerkunft }, poster);
       </div>
     )}
 
-    <div class="video-frame">
-      {src ? (
-        <video class="video-native" controls preload="none" playsinline poster={poster} width="1280" height="720">
-          <source src={src} type="video/mp4" />
-        </video>
-      ) : (
+    {src ? (
+      <div class="video-native-buehne">
+        <VideoClip src={src} title={title} poster={poster} bildHerkunft={bildHerkunft} seitenverhaeltnis={seitenverhaeltnis} />
+      </div>
+    ) : (
+      <div class="video-frame">
         <button
           type="button"
           class="video-facade"
@@ -79,8 +84,8 @@ const posterLabel = await bildLabel({ bildHerkunft }, poster);
             </svg>
           </span>
         </button>
-      )}
-    </div>
+      </div>
+    )}
   </div>
 </section>
 
@@ -176,14 +181,9 @@ const posterLabel = await bildLabel({ bildHerkunft }, poster);
     fill: #ff0000;
     fill-opacity: 1;
   }
-  .video-native {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    background: #000;
-    border: 0;
+  .video-native-buehne {
+    max-width: 56rem;
+    margin-inline: auto;
   }
   .video-iframe {
     position: absolute;
