@@ -100,6 +100,13 @@ const {
 
 const itempropName = productName ?? `${siteName} Website-Service`;
 const loop = [...items, ...items];
+
+/**
+ * Laufzeit der Bahn aus der Kartenzahl, 11,25 s je Karte. Mit fester Dauer wanderte eine
+ * Bahn mit zwölf Stimmen dreimal so schnell wie eine mit vier; lesbar war nur die kurze.
+ */
+const SEKUNDEN_JE_KARTE = 11.25;
+const laufbandDauer = `--cw-testimonials-dauer:${items.length * SEKUNDEN_JE_KARTE}s`;
 const avgRating = items.length > 0
   ? (items.reduce((s, t) => s + t.stars, 0) / items.length).toFixed(1)
   : '5.0';
@@ -143,7 +150,7 @@ const zeigePruefhinweis = reviewSource === 'google' && !hatPruefhinweis(subheadi
   </div>
 
   <div class="track-wrap" role="region" aria-label="Kundenbewertungen (scrollend)">
-    <div class="track">
+    <div class="track" style={laufbandDauer}>
       {loop.map((t, i) => (
         <div
           class="testimonial-card"
@@ -212,10 +219,17 @@ const zeigePruefhinweis = reviewSource === 'google' && !hatPruefhinweis(subheadi
   }
   .track {
     display: flex;
-    gap: 1.5rem;
+    /* Polster rechts = gap, links 0: die Bahn trägt die Stimmen doppelt, der Keyframe
+       läuft auf -50%. Nur so ist die halbe Spurbreite genau eine Periode
+       (n Karten + n Abstände) — mit `padding: 1rem 2rem` blieben 2rem − gap/2 = 20px
+       übrig, und die Bahn sprang bei jedem Durchlauf. Der optische Einzug kommt aus
+       margin-inline-start, das nicht in die Spurbreite zählt. */
+    --cw-gap: 1.5rem;
+    gap: var(--cw-gap);
     width: max-content;
-    padding: 1rem 2rem;
-    animation: cw-testimonials-slide 45s linear infinite;
+    padding: 1rem var(--cw-gap) 1rem 0;
+    margin-inline-start: 2rem;
+    animation: cw-testimonials-slide var(--cw-testimonials-dauer, 45s) linear infinite;
   }
   .track:hover,
   .track:focus-within { animation-play-state: paused; }
@@ -293,6 +307,7 @@ const zeigePruefhinweis = reviewSource === 'google' && !hatPruefhinweis(subheadi
       justify-content: center;
       width: 100%;
       padding-inline: 1.5rem;
+      margin-inline-start: 0;
     }
     .track-wrap {
       -webkit-mask-image: none;

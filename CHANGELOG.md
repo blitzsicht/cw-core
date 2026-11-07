@@ -24,6 +24,8 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+- [kunde:sichtbar] Die Kundenstimmen laufen jetzt so, dass jede Stimme gleich lange zu lesen ist — bei vielen Stimmen langsamer als vorher. Der kleine Rücksprung am Ende jeder Runde ist weg.
+
 **Feature:** `erlaubteFormulierungen` — der Verbotslisten-Guard kennt jetzt Ausnahmen auf Satz-, nicht auf Seitenebene
 
 Kontext: Ein Muster traf bisher auch dort, wo der Satz das Gegenteil sagt — „ohne korrekte
@@ -104,6 +106,32 @@ im Train ohnehin von Hand gehoben wird (#237).
   über **alle** Seiten des Ausnahme-Eintrags (vorher nur die, auf denen die Phrase greift),
   nur aus der **Kundenliste** (Flottentreffer bleiben ein Hinweis) und **entdoppelt** nach
   Fundstelle. Er nennt den Eintrag beim Namen und mit `strictVerbotsliste` den Abbruch.
+
+**Fix:** Laufband der Kundenstimmen — kein Rücksprung, Tempo aus der Kartenzahl (cw-core#249)
+
+Kontext: `Testimonials.astro` und `KundenfeedbackSection.astro` tragen die Stimmen doppelt und
+schieben die Bahn per Keyframe auf `-50%`. Damit das nahtlos ist, muss die halbe Spurbreite
+genau eine Periode sein (n Karten + n Abstände). Beide Bahnen hatten aber `padding: 1rem 2rem`
+bei `gap: 1.5rem`: es blieben `2rem − gap/2` = 20 px übrig, und die Bahn sprang bei jedem
+Durchlauf sichtbar zurück. Zweitens stand die Dauer fest (45 s bzw. 50 s) — eine Bahn mit elf
+Stimmen wanderte damit knapp dreimal so schnell wie eine mit vier, lesbar war nur die kurze.
+Die Kundenkopie in customer-blitzsicht hat beides seit blitzsicht#252 live; hier zieht die
+Flotte nach.
+
+- Polster rechts = `gap`, links 0; der optische Einzug kommt aus `margin-inline-start: 2rem`,
+  das nicht in die Spurbreite (`width: max-content`) zählt. Bei reduzierter Bewegung bricht die
+  Bahn um und mittet — der Einzug fällt dort weg.
+- Die Dauer kommt aus der Kartenzahl, **11,25 s je Karte**, als Custom Property am Spur-Element
+  (`--cw-testimonials-dauer`, `--cw-feedback-dauer`). Die alten Werte bleiben als CSS-Fallback.
+
+Betroffen in der Flotte (gemessen am lokal gespiegelten `origin/main`, ob die Bahn rendert,
+hängt zur Laufzeit an `items.length > 0`): `Testimonials` bei customer-digital-direkt (5
+Stimmen → 56,25 s), customer-donau-profi (6 → 67,5 s), customer-weinkontor-sinzing (11 →
+123,75 s); `KundenfeedbackSection` bei customer-soleno (6 → 67,5 s). customer-blitzsicht nutzt
+die eigene Kopie und ist nicht betroffen.
+
+**Migrations-Hinweis:** Keiner. Kein Prop, keine Pflichtangabe; wer die Dauer überschreiben
+will, setzt die Custom Property am Spur-Element.
 
 ---
 
