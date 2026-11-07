@@ -4269,7 +4269,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // mehr tut und nichts sagt, wäre der nächste stumme Schalter. Die Pfad-Ausnahme wirkt
           // deshalb weiter — sie abzuschalten würde die eine Seite, die sie heute nutzt, beim
           // nächsten Pin-Bump ohne Vorwarnung warnen lassen.
-          if (rohAusnahmen !== undefined) {
+          // Nur für eine gültige Liste: eine ungültige ist oben schon als ignoriert gemeldet, eine
+          // zweite Zeile „wirkt weiter" widerspräche ihr (Review cw-core#238, Befund 6).
+          if (istStringListe(rohAusnahmen)) {
             logger.warn(
               'Verbotslisten-Guard: `verbotslisteAusnahmen` ist veraltet (cw-core#236) — eine Pfad-Ausnahme stummt JEDES Muster auf der GANZEN Seite. Auf `erlaubteFormulierungen` umstellen: dort steht der eine Satz, der erlaubt ist, und der Rest der Seite bleibt messbar.',
             );
@@ -4299,7 +4301,11 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // Ladeprüfung, bevor eine Seite gelesen ist: eine Phrase ohne verbotenes Muster darin
           // kann niemals einen Treffer aufheben. Genau die Probe, die ein Ratverfahren
           // (Satzgrenze, N Zeichen) nicht hätte — der Schalter kann nicht stumm danebenliegen.
-          for (const f of pruefeErlaubteListe(erlaubte, formulierungen)) {
+          // Was die Ladeprüfung meldet, kann nie greifen; die Altlast-Warnung nach dem Lauf
+          // nennt es nicht noch einmal mit anderem Rat (Review cw-core#238, Befund 5).
+          const ladeBefunde = pruefeErlaubteListe(erlaubte, formulierungen);
+          const schonGemeldet = new Set(ladeBefunde.map((f) => f.phrase));
+          for (const f of ladeBefunde) {
             logger.warn(
               `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${f.phrase}" ${f.grund} — Eintrag streichen oder den Wortlaut auf den Satz ziehen, der die Formulierung enthält.`,
             );
@@ -4317,10 +4323,25 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Welche Ausnahme hat auf welchen Seiten gegriffen. Die Gegenrichtung ist der
             // Zweck: was NICHT hier landet, ist Altlast und wird unten gemeldet.
             const genutzteAusnahmen = new Map<string, Set<string>>();
+            // Wo eine Phrase NUR auf pfad-ausgenommenen Seiten greifen würde. Das ist der
+            // Zwischenstand beim Umstieg (Phrase eingetragen, Pfad-Ausnahme noch da); ohne diese
+            // Zählung hieß die Diagnose „Satz ist weg" und lud zum Streichen des richtigen
+            // Eintrags ein (Review cw-core#238, Befund 4). Nur gezählt, nie gemeldet als Treffer.
+            const nurAusgenommen = new Map<string, Set<string>>();
             let geprueft = 0;
             for (const file of walkHtml(distDir)) {
               const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
-              if (!istZuPruefen(rel, ausnahmen)) continue;
+              if (!istZuPruefen(rel, ausnahmen)) {
+                if (erlaubte.length > 0) {
+                  for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
+                    if (b.aufgehobenDurch === undefined) continue;
+                    const seiten = nurAusgenommen.get(b.aufgehobenDurch) ?? new Set<string>();
+                    seiten.add(rel);
+                    nurAusgenommen.set(b.aufgehobenDurch, seiten);
+                  }
+                }
+                continue;
+              }
               geprueft++;
               for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
                 if (b.aufgehobenDurch !== undefined) {
@@ -4350,7 +4371,14 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Satz ist weg, oder der Wortlaut stimmt nicht mehr. In beiden Fällen Altlast.
             if (geprueft > 0) {
               for (const [, phrase] of normalisierteListe(erlaubte)) {
-                if (genutzteAusnahmen.has(phrase)) continue;
+                if (genutzteAusnahmen.has(phrase) || schonGemeldet.has(phrase)) continue;
+                const ausgenommen = nurAusgenommen.get(phrase);
+                if (ausgenommen) {
+                  logger.warn(
+                    `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" greift nur auf ${[...ausgenommen].join(', ')} — diese Seite(n) nimmt \`verbotslisteAusnahmen\` ganz von der Prüfung aus. Die Pfad-Ausnahme streichen, dann greift der Eintrag.`,
+                  );
+                  continue;
+                }
                 logger.warn(
                   `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" hat auf keiner der ${geprueft} geprüften Seite(n) gegriffen — Satz ist weg oder der Wortlaut stimmt nicht mehr. Eintrag in astro.config nachziehen oder streichen.`,
                 );
