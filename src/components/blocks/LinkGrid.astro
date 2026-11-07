@@ -153,5 +153,8 @@ const kartenLabel = await Promise.all(
     font-size: 1.0625rem;
     margin-bottom: 0.375rem;
   }
-  .link-card-desc { color: var(--color-muted, #4b5563); font-size: 0.9375rem; line-height: 1.5; }
+  /* Block, nicht inline: Bei Bildkarten trägt der Text einen seitlichen Innenabstand.
+     Als Inline-<span> rückte er nur die erste Zeile ein, jede umbrochene Zeile begann am
+     Kartenrand (spedition-steller.de, Handy 390 px, 07.11.2026). */
+  .link-card-desc { display: block; color: var(--color-muted, #4b5563); font-size: 0.9375rem; line-height: 1.5; }
 </style>
