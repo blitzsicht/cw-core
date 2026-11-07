@@ -4328,16 +4328,29 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Zählung hieß die Diagnose „Satz ist weg" und lud zum Streichen des richtigen
             // Eintrags ein (Review cw-core#238, Befund 4). Nur gezählt, nie gemeldet als Treffer.
             const nurAusgenommen = new Map<string, Set<string>>();
+            // Offene Treffer auf pfad-ausgenommenen Seiten: wer dem Rat „Pfad-Ausnahme streichen"
+            // folgt, bekommt sie als WARN (mit strict als Abbruch). Der Rat nennt sie deshalb
+            // gleich mit (Review cw-core#242, Befund 4).
+            const offenAufAusgenommenen = new Map<string, number>();
+            const kurzliste = (seiten: Iterable<string>) => {
+              const liste = [...seiten];
+              return liste.length > 3 ? `${liste.slice(0, 3).join(', ')} + ${liste.length - 3} weitere` : liste.join(', ');
+            };
             let geprueft = 0;
             for (const file of walkHtml(distDir)) {
               const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
               if (!istZuPruefen(rel, ausnahmen)) {
                 if (erlaubte.length > 0) {
                   for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
-                    if (b.aufgehobenDurch === undefined) continue;
-                    const seiten = nurAusgenommen.get(b.aufgehobenDurch) ?? new Set<string>();
-                    seiten.add(rel);
-                    nurAusgenommen.set(b.aufgehobenDurch, seiten);
+                    if (b.aufgehobenDurch === undefined) {
+                      offenAufAusgenommenen.set(rel, (offenAufAusgenommenen.get(rel) ?? 0) + 1);
+                      continue;
+                    }
+                    for (const phrase of b.alleAufhebungen ?? [b.aufgehobenDurch]) {
+                      const seiten = nurAusgenommen.get(phrase) ?? new Set<string>();
+                      seiten.add(rel);
+                      nurAusgenommen.set(phrase, seiten);
+                    }
                   }
                 }
                 continue;
@@ -4345,9 +4358,12 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               geprueft++;
               for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
                 if (b.aufgehobenDurch !== undefined) {
-                  const seiten = genutzteAusnahmen.get(b.aufgehobenDurch) ?? new Set<string>();
-                  seiten.add(rel);
-                  genutzteAusnahmen.set(b.aufgehobenDurch, seiten);
+                  // Alle Phrasen, die hier aufheben, nicht nur die des Befunds (Review cw-core#242, B2).
+                  for (const phrase of b.alleAufhebungen ?? [b.aufgehobenDurch]) {
+                    const seiten = genutzteAusnahmen.get(phrase) ?? new Set<string>();
+                    seiten.add(rel);
+                    genutzteAusnahmen.set(phrase, seiten);
+                  }
                   continue;
                 }
                 const key = `${b.ort}\u0000${b.kontext}`;
@@ -4362,23 +4378,29 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Unterschied zwischen „Satz ist ehrlich" und „Guard sieht nichts mehr" von außen
             // nicht zu sehen (cw-core#236).
             for (const [phrase, seiten] of genutzteAusnahmen) {
-              const liste = [...seiten];
-              const wo = liste.length > 3 ? `${liste.slice(0, 3).join(', ')} + ${liste.length - 3} weitere` : liste.join(', ');
-              logger.info(`Verbotslisten-Guard: Ausnahme „${phrase}" greift auf ${wo}.`);
+              logger.info(`Verbotslisten-Guard: Ausnahme „${phrase}" greift auf ${kurzliste(seiten)}.`);
             }
             // Eine Ausnahme, die nie greift, spiegelt Sicherheit vor — nach dem Muster des
             // Pin-Drift-Checks als Warnung, nicht als Hinweis. Zwei Ursachen, eine Folge: der
             // Satz ist weg, oder der Wortlaut stimmt nicht mehr. In beiden Fällen Altlast.
-            if (geprueft > 0) {
+            // Auch bei 0 geprüften Seiten: nimmt die Pfad-Ausnahme ALLES aus, ist der Rat zum
+            // Umstieg gerade dann fällig (Review cw-core#242, Befund 8). Nur die Altlast-Zeile
+            // braucht geprüfte Seiten, sonst hieße sie „auf keiner der 0 Seiten".
+            {
               for (const [, phrase] of normalisierteListe(erlaubte)) {
                 if (genutzteAusnahmen.has(phrase) || schonGemeldet.has(phrase)) continue;
                 const ausgenommen = nurAusgenommen.get(phrase);
                 if (ausgenommen) {
+                  const offen = [...ausgenommen].reduce((n, s) => n + (offenAufAusgenommenen.get(s) ?? 0), 0);
+                  const vorsicht = offen > 0
+                    ? ` Vorsicht: dort stehen außerdem ${offen} offene Treffer, die danach als WARN erscheinen.`
+                    : '';
                   logger.warn(
-                    `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" greift nur auf ${[...ausgenommen].join(', ')} — diese Seite(n) nimmt \`verbotslisteAusnahmen\` ganz von der Prüfung aus. Die Pfad-Ausnahme streichen, dann greift der Eintrag.`,
+                    `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" greift nur auf ${kurzliste(ausgenommen)} — diese Seite(n) nimmt \`verbotslisteAusnahmen\` ganz von der Prüfung aus. Die Pfad-Ausnahme streichen, dann greift der Eintrag.${vorsicht}`,
                   );
                   continue;
                 }
+                if (geprueft === 0) continue;
                 logger.warn(
                   `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" hat auf keiner der ${geprueft} geprüften Seite(n) gegriffen — Satz ist weg oder der Wortlaut stimmt nicht mehr. Eintrag in astro.config nachziehen oder streichen.`,
                 );

@@ -76,6 +76,22 @@ im Train ohnehin von Hand gehoben wird (#237).
   Verfallswarnung mehr aus.
 - `VerbotslistenBefund` (JSDoc) kennt `aufgehobenDurch`; `tsc --checkJs` meldet 0 statt 1 Fehler.
 
+**Nachlese Review cw-core#242** (vor dem Tag, acht Befunde, sechs im Code):
+
+- Heben zwei Phrasen an **derselben Stelle** je einen Treffer auf, galt eine davon als
+  ungenutzt, und der Build riet „streichen". Wer folgte, hatte danach einen offenen Treffer.
+  Jetzt zählt jede Phrase, die im Endergebnis einen Treffer umschließt, unabhängig von der
+  Reihenfolge der Liste (`VerbotslistenBefund.alleAufhebungen`).
+- Eine Phrase, die ein Muster nur **beugt**, ohne ein eigenes Wort (`rechtssichere`,
+  `DSGVO-rechtssicher`, `Anfragen bringt.`), wirkte fast wie die Pfad-Ausnahme über alle
+  Seiten. Sie wird jetzt wie der Gleichheitsfall gemeldet und nicht angewandt. Ein Satz-Teil
+  braucht mindestens ein Wort mehr als das Muster (`keine rechtssichere` wirkt weiter).
+- Der Rat „Pfad-Ausnahme streichen" nennt die offenen Treffer auf den ausgenommenen Seiten,
+  die danach als WARN erscheinen. Er kommt auch, wenn die Pfad-Ausnahme **alle** Seiten
+  ausnimmt, und kürzt die Seitenliste wie die Info-Zeile (`+ N weitere`).
+- Ladeprüfung und Anwendung entscheiden über eine Phrase mit **einer** Regel (`freibrief()`),
+  vorher stand der Gleichheitsfall an zwei Stellen.
+
 ---
 
 ## v0.193.0 (2026-11-06)

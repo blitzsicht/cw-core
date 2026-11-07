@@ -440,3 +440,51 @@ test('#238-Nachlese B2: ein aufgehobener kurzer Treffer verdeckt keinen längere
     );
   }
 });
+
+// ── Nachlese Review cw-core#242 (07.11.2026) ────────────────────────────────────────────
+
+test('#242-Nachlese B2: zwei Aufhebungen an derselben Stelle zählen beide als genutzt, in jeder Reihenfolge', () => {
+  // Muster „rechtssicher" und „rechtssichere Texte" beginnen an derselben Stelle. Jede Phrase
+  // hebt einen der beiden auf; der Befund an der Stelle trug nur eine davon, die andere galt
+  // als ungenutzt, und der Build riet „streichen" — danach war der Treffer OFFEN.
+  const html = '<html><body><p>nicht rechtssichere Texte</p></body></html>';
+  const L = ['rechtssicher', 'rechtssichere Texte'];
+  const E = ['nicht rechtssicher', 'nicht rechtssichere Texte'];
+  for (const erlaubt of [E, [...E].reverse()]) {
+    const b = pruefeVerbotsliste(html, seite, L, erlaubt);
+    assert.equal(b.length, 1);
+    assert.deepEqual(
+      [...(b[0].alleAufhebungen ?? [])].sort(),
+      [...E].sort(),
+      `Reihenfolge ${erlaubt.join(' / ')}: ${JSON.stringify(b)}`,
+    );
+  }
+  // GEGENPROBE: dass beide gebraucht werden — ohne die lange Phrase bleibt ein Treffer offen.
+  const ohne = pruefeVerbotsliste(html, seite, L, ['nicht rechtssicher']);
+  assert.equal(ohne[0].aufgehobenDurch, undefined);
+});
+
+test('#242-Nachlese B2 GEGENPROBE: gewinnt an der Stelle ein offener Treffer, zählt keine Aufhebung', () => {
+  // Hier ändert das Streichen der Phrase nichts (ein offener Treffer so oder so), „ungenutzt" stimmt.
+  const html = '<html><body><p>keine rechtssichere Website garantiert</p></body></html>';
+  const b = pruefeVerbotsliste(html, seite, ['rechtssicher', 'rechtssichere Website garantiert'], ['keine rechtssichere']);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].aufgehobenDurch, undefined);
+  assert.equal(b[0].alleAufhebungen, undefined);
+});
+
+test('#242-Nachlese B3: eine gebeugte Form des Musters ohne eigenes Wort ist kein Satz und wird nicht angewandt', () => {
+  // „rechtssichere" umschließt jedes „rechtssicher" vor einem e — die Pfad-Ausnahme über alle
+  // Seiten, nur mit einem Buchstaben mehr als der Gleichheitsfall aus #238.
+  for (const phrase of ['rechtssichere', 'DSGVO-rechtssicher', 'Anfragen bringt.']) {
+    const f = pruefeErlaubteListe([phrase], [...GARANTIE_PRAEDIKATE, 'Anfragen bringt']);
+    assert.equal(f.length, 1, `Ladeprüfung meldet „${phrase}"`);
+    assert.ok(f[0].grund.includes('kein eigenes Wort'), f[0].grund);
+  }
+  const b = pruefeVerbotsliste('<html><body><p>Unsere rechtssichere Website.</p></body></html>', seite, ['rechtssicher'], ['rechtssichere']);
+  assert.equal(b[0].aufgehobenDurch, undefined, 'und die Prüfung wendet sie nicht an');
+  // GEGENPROBE: ein Wort davor macht daraus einen Satz-Teil — der wirkt weiter.
+  assert.deepEqual(pruefeErlaubteListe(['keine rechtssichere'], GARANTIE_PRAEDIKATE), []);
+  const g = pruefeVerbotsliste('<html><body><p>Wir versprechen keine rechtssichere Website.</p></body></html>', seite, ['rechtssicher'], ['keine rechtssichere']);
+  assert.equal(g[0].aufgehobenDurch, 'keine rechtssichere');
+});

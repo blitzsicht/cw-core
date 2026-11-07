@@ -22,6 +22,12 @@ export interface VerbotslistenBefund {
    * WAS eine Ausnahme zudeckt (cw-core#236).
    */
   aufgehobenDurch?: string;
+  /**
+   * Jede Phrase, die an dieser Stelle einen Treffer aufhebt (enthält `aufgehobenDurch`).
+   * Nur gesetzt, wenn der Befund aufgehoben ist; der Aufrufer zählt daraus, welche Ausnahmen
+   * gebraucht werden (Review cw-core#242, Befund 2).
+   */
+  alleAufhebungen?: readonly string[];
 }
 
 /** Flottendefault: `rechtssicher`, `abmahnsicher`, `anwaltlich geprüft`. */

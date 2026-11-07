@@ -56,7 +56,7 @@ const META_FELDER = Object.freeze(['description', 'keywords', 'og:description', 
 
 /**
  * @typedef {'text' | 'title' | 'meta:description' | 'meta:keywords' | 'meta:og:description' | 'meta:twitter:description'} VerbotslistenOrt
- * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string, aufgehobenDurch?: string }} VerbotslistenBefund
+ * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string, aufgehobenDurch?: string, alleAufhebungen?: string[] }} VerbotslistenBefund
  */
 
 /**
@@ -173,6 +173,27 @@ export function normalisierteListe(formulierungen) {
 }
 
 /**
+ * Ist eine erlaubte Phrase ein Freibrief statt eines Satz-Teils? Ja, wenn sie das Muster
+ * selbst ist (Review cw-core#238, Befund 1) ODER ein Muster enthält, ohne ein Wort mehr als
+ * dieses zu haben: `rechtssichere`, `DSGVO-rechtssicher`, `Anfragen bringt.` umschließen fast
+ * jeden Treffer ihres Musters — die Pfad-Ausnahme über alle Seiten, nur mit einem Buchstaben
+ * mehr (Review cw-core#242, Befund 3). Ein Satz-Teil braucht mindestens ein eigenes Wort.
+ *
+ * @param {string} n normalisierte Phrase
+ * @param {Iterable<string>} muster normalisierte Muster
+ * @returns {'gleich' | 'ohne-wort' | null}
+ */
+function freibrief(n, muster) {
+  const woerter = (t) => t.split(' ').length;
+  let art = null;
+  for (const m of muster) {
+    if (n === m) return 'gleich';
+    if (n.includes(m) && woerter(n) <= woerter(m)) art = 'ohne-wort';
+  }
+  return art;
+}
+
+/**
  * Prüft eine gebaute Seite gegen die Formulierungsliste.
  *
  * Gemeldet wird JEDES Vorkommen je Ort — dieselbe Verdeckungsfalle wie beim Platzhaltertext-
@@ -201,10 +222,12 @@ export function normalisierteListe(formulierungen) {
 export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
   const liste = normalisierteListe(formulierungen);
   if (liste.size === 0) return [];
-  // Eine Phrase, die nur das Muster selbst ist, wäre die Pfad-Ausnahme über alle Seiten: sie
-  // hebt JEDEN Treffer dieses Musters auf (Review cw-core#238, Befund 1). Sie wird nicht
+  // Eine Phrase, die nur das Muster selbst ist oder es ohne eigenes Wort beugt, wäre die
+  // Pfad-Ausnahme über alle Seiten (Review cw-core#238 B1, cw-core#242 B3). Sie wird nicht
   // angewandt; `pruefeErlaubteListe()` meldet sie beim Laden.
-  const erlaubtListe = new Map([...normalisierteListe(erlaubte)].filter(([n]) => !liste.has(n)));
+  const erlaubtListe = new Map(
+    [...normalisierteListe(erlaubte)].filter(([n]) => freibrief(n, liste.keys()) === null),
+  );
 
   // Einmal reinigen, dann beide Quellen daraus: nur so entfernt `replace(TITLE, ' ')` den
   // Titel, den `kopfInhalte()` auch als Titel gezählt hat. Auf rohem HTML konnten die zwei
@@ -237,6 +260,11 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
     }
     /** @type {Map<number, VerbotslistenBefund>} */
     const proPosition = new Map();
+    // Jede Phrase, die an einer Stelle einen Treffer aufhebt, auch wenn ein anderer Treffer
+    // dort den Befund stellt. Sonst trug der Befund nur eine von zwei nötigen Phrasen, die
+    // andere galt als ungenutzt, und der Build riet zum Streichen (Review cw-core#242, B2).
+    /** @type {Map<number, Set<string>>} */
+    const aufhebungen = new Map();
     for (const [n, original] of liste) {
       for (let i = klein.indexOf(n); i !== -1; i = klein.indexOf(n, i + 1)) {
         const ende = i + n.length;
@@ -244,6 +272,11 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
         // erlaubten Phrase liegen. Nur so trennt die Ausnahme „ohne korrekte Inhalte keine
         // Anfragen bringt" von „eine Website, die Anfragen bringt" im selben Dokument.
         const freigabe = freigaben.find((f) => f.von <= i && ende <= f.bis);
+        // ALLE umschließenden Phrasen, nicht nur die erste: sonst hinge an der Reihenfolge der
+        // Ausnahmeliste, welche als ungenutzt gemeldet wird.
+        for (const f of freigaben) {
+          if (f.von <= i && ende <= f.bis) aufhebungen.set(i, (aufhebungen.get(i) ?? new Set()).add(f.original));
+        }
         // Ein Befund je Startposition, der erste Listeneintrag gewinnt (die Kundenliste steht
         // vorn, ihr Treffer ist WARN). AUSSER der vorhandene ist aufgehoben und dieser nicht:
         // sonst verdeckte ein aufgehobenes kurzes Muster ein längeres, das die Phrase NICHT
@@ -261,6 +294,11 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
         if (freigabe) befund.aufgehobenDurch = freigabe.original;
         proPosition.set(i, befund);
       }
+    }
+    // Nur wenn an der Stelle KEIN offener Treffer gewinnt, war jede Aufhebung dort nötig:
+    // gewinnt ein offener, ändert das Streichen einer Phrase am Ergebnis nichts.
+    for (const [i, b] of proPosition) {
+      if (b.aufgehobenDurch !== undefined) b.alleAufhebungen = [...(aufhebungen.get(i) ?? [])];
     }
     befunde.push(...[...proPosition.entries()].sort((a, b) => a[0] - b[0]).map(([, b]) => b));
   }
@@ -290,10 +328,18 @@ export function pruefeErlaubteListe(erlaubte, formulierungen) {
     // Enthalten heißt nicht umschließen MIT Kontext: ist die Phrase das Muster selbst, hebt
     // sie jeden Treffer auf (Review cw-core#238, Befund 1). `pruefeVerbotsliste()` wendet
     // sie deshalb nicht an — hier steht, warum.
-    if (verboten.has(n)) {
+    const art = freibrief(n, muster);
+    if (art === 'gleich') {
       befunde.push({
         phrase: original,
         grund: 'ist selbst ein verbotenes Muster und würde jeden Treffer darauf aufheben, deshalb wird der Eintrag nicht angewandt',
+      });
+      continue;
+    }
+    if (art === 'ohne-wort') {
+      befunde.push({
+        phrase: original,
+        grund: 'beugt ein verbotenes Muster, hat aber kein eigenes Wort und würde fast jeden Treffer darauf aufheben, deshalb wird der Eintrag nicht angewandt',
       });
       continue;
     }
