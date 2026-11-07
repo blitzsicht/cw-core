@@ -39,7 +39,7 @@
  *   }
  *
  * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung, assetRefChecks NUR die
- * Asset-Referenzen (src/srcset/CSS-url()), eagerScriptChecks NUR die eager geladenen
+ * Asset-Referenzen (src/srcset/poster/CSS-url()), eagerScriptChecks NUR die eager geladenen
  * Drittanbieter-Skripte. Die drei sind getrennt, weil ein Repo das eine abschalten
  * wollen kann und das andere nicht: tote Verweise sind ein anderer Schaden als
  * Verweise, die zu frueh ins Ziel treffen. Der tel:/mailto:-Check bleibt davon
@@ -366,6 +366,11 @@ export function extractAssetRefs(source, origin, opts = {}) {
     for (const m of source.matchAll(ASSET_TAG_RE)) {
       const tag = m[0];
       push(tag.match(/\ssrc=["']([^"']+)["']/i)?.[1]);
+      // `poster` ist wie `src` immer eine Dateiadresse. Bis v0.193.0 fiel es durch:
+      // ein fehlendes Poster lief gruen, ein fehlendes MP4 im selben Player rot
+      // (gemessen 07.11.2026 an blitzsicht /forschung). Vormessung vor dem Einbau:
+      // 96 Live-Seiten mit 7 Postern (zwei Kunden), alle HTTP 200.
+      if (/^<video\b/i.test(tag)) push(tag.match(/\sposter=["']([^"']+)["']/i)?.[1]);
       const srcset = tag.match(/\ssrcset=["']([^"']+)["']/i)?.[1];
       if (srcset && !/^\s*data:/i.test(srcset)) {
         // "/a.webp 400w, /b.webp 800w" → URL ist der erste Token je Kandidat.

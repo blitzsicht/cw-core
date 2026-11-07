@@ -65,6 +65,23 @@ blitzsicht.com am 07.11.), `tests/integrations/perf-check.test.js` V1–V6. Sech
 Sabotagen einzeln rot (Video-Prüfung aus, Cache-Control-Bedingung weg, Template-Regel weg,
 Budget-Grenze `>=`, Label im `src`-Zweig weg, Seitenverhältnis ignoriert).
 
+**Fix:** Touchpoint-Audit prüft das `poster` eines `<video>` — ein fehlendes Poster lief bisher grün
+
+Kontext: `verify-touchpoints.mjs` liest Asset-Referenzen aus `src`/`srcset` an Tags und
+aus CSS-`url()`. Das `poster`-Attribut fiel durch. Gemessen am 07.11.2026 an einem Build
+mit zwei Reels: MP4 aus dem dist entfernt → `✗ Asset-Referenz …` und Exit 1, Poster
+entfernt → `✓ … alle auflösbar` und Exit 0. Seit `VideoClip` und `VideoEmbed` Poster
+ausliefern, wäre das ein 404 auf dem ersten Bild des Players, das kein PR zeigt.
+
+Neu: An `<video>` zählt `poster` wie `src` als Asset-Referenz (und nur dort, nicht an
+`data-poster` oder als Text). Vormessung vor dem Einbau: 96 Live-Seiten der zwei Kunden mit
+Videos, 7 Poster, alle HTTP 200 — der Pin-Bump macht keinen Build rot.
+
+Migration: nichts zu tun.
+
+Tests: `scripts/verify-touchpoints.test.mjs` — Unit (poster nur an `<video>`) und E2E
+(rot ohne Poster, grün mit). Sabotage (Zeile raus) macht genau diese drei Tests rot.
+
 **Feature:** `erlaubteFormulierungen` — der Verbotslisten-Guard kennt jetzt Ausnahmen auf Satz-, nicht auf Seitenebene
 
 Kontext: Ein Muster traf bisher auch dort, wo der Satz das Gegenteil sagt — „ohne korrekte
