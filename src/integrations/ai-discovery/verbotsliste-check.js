@@ -184,13 +184,32 @@ export function normalisierteListe(formulierungen) {
  * @returns {'gleich' | 'ohne-wort' | null}
  */
 function freibrief(n, muster) {
-  const woerter = (t) => t.split(' ').length;
+  // Ein Wort trägt mindestens einen Buchstaben oder eine Ziffer: „rechtssicher –" hat EIN
+  // Wort, nicht zwei — sonst hob der Gedankenstrich die Sperre auf (Review cw-core#248, B4).
+  const woerter = (t) => t.split(' ').filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+  /** @type {'gleich' | 'ohne-wort' | null} */
   let art = null;
   for (const m of muster) {
     if (n === m) return 'gleich';
-    if (n.includes(m) && woerter(n) <= woerter(m)) art = 'ohne-wort';
+    if (beugt(n, m) && woerter(n) <= woerter(m)) art = 'ohne-wort';
   }
   return art;
+}
+
+/**
+ * Enthält `n` das Muster `m` an einem Wortanfang? `rechtssichere` und `dsgvo-rechtssicher`
+ * ja (Beugung, Bindestrich-Vorsatz), `bestpreisgarantie` für `garantie` nein: eine
+ * Zusammensetzung deckt nur ihre eigenen Treffer, nicht fast jeden des Musters, und ist
+ * damit kein Freibrief (Review cw-core#248, B5).
+ *
+ * @param {string} n normalisierte Phrase
+ * @param {string} m normalisiertes Muster
+ */
+function beugt(n, m) {
+  for (let i = n.indexOf(m); i !== -1; i = n.indexOf(m, i + 1)) {
+    if (i === 0 || !/[\p{L}\p{N}]/u.test(n[i - 1])) return true;
+  }
+  return false;
 }
 
 /**
@@ -295,8 +314,11 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
         proPosition.set(i, befund);
       }
     }
-    // Nur wenn an der Stelle KEIN offener Treffer gewinnt, war jede Aufhebung dort nötig:
-    // gewinnt ein offener, ändert das Streichen einer Phrase am Ergebnis nichts.
+    // Nur wenn an der Stelle KEIN offener Treffer gewinnt, zählt jede umschließende Phrase als
+    // genutzt: gewinnt ein offener, ändert das Streichen einer Phrase am Ergebnis nichts.
+    // „Genutzt" heißt nicht „einzeln nötig": zwei Phrasen, die dieselbe Stelle decken, gelten
+    // beide als genutzt, obwohl jede allein reichte (Review cw-core#248, B6). Gewollt: ein
+    // Streich-Rat für eine von beiden ist ein Urteil über Wortlaut, nicht über Wirkung.
     for (const [i, b] of proPosition) {
       if (b.aufgehobenDurch !== undefined) b.alleAufhebungen = [...(aufhebungen.get(i) ?? [])];
     }

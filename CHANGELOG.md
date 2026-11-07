@@ -92,6 +92,19 @@ im Train ohnehin von Hand gehoben wird (#237).
 - Ladeprüfung und Anwendung entscheiden über eine Phrase mit **einer** Regel (`freibrief()`),
   vorher stand der Gleichheitsfall an zwei Stellen.
 
+**Nachlese Review cw-core#248** (vor dem Tag, sechs Befunde, fünf im Code, einer im Kommentar):
+
+- Ein **Satzzeichen** zählte als eigenes Wort: `rechtssicher –` umging die Freibrief-Sperre
+  und hob jeden Treffer mit Gedankenstrich auf. Ein Wort braucht jetzt einen Buchstaben oder
+  eine Ziffer.
+- Eine **Zusammensetzung** galt als Beugung: `Bestpreisgarantie` hob `garantie` nicht mehr auf.
+  Gesperrt ist nur noch ein Muster, das an einem Wortanfang steht (`rechtssichere`,
+  `DSGVO-rechtssicher` bleiben gesperrt).
+- Der Rat „Pfad-Ausnahme streichen" zählt offene Treffer jetzt so, wie sie danach kommen:
+  über **alle** Seiten des Ausnahme-Eintrags (vorher nur die, auf denen die Phrase greift),
+  nur aus der **Kundenliste** (Flottentreffer bleiben ein Hinweis) und **entdoppelt** nach
+  Fundstelle. Er nennt den Eintrag beim Namen und mit `strictVerbotsliste` den Abbruch.
+
 ---
 
 ## v0.193.0 (2026-11-06)
