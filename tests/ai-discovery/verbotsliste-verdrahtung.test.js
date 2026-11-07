@@ -369,3 +369,50 @@ test('#238-Nachlese B6: eine falsch getippte Pfad-Ausnahme löst keine Verfallsw
   assert.ok(e.warnungen.some((w) => w.includes('`verbotslisteAusnahmen` muss eine Liste von Strings sein')), e.warnungen.join(' | '));
   assert.ok(e.warnungen.every((w) => !w.includes('ist veraltet')), `zwei Meldungen, die sich widersprechen: ${e.warnungen.join(' | ')}`);
 });
+
+// ── Nachlese Review cw-core#242 (07.11.2026) ────────────────────────────────────────────
+
+test('#242-Nachlese B2: zwei nötige Phrasen an derselben Stelle — keine heißt „ungenutzt"', async () => {
+  // Vorher trug der Befund nur eine; die andere bekam „Satz ist weg … streichen". Wer dem Rat
+  // folgte, hatte danach einen offenen Treffer (Gegenprobe im Modultest).
+  const e = await lauf({
+    body: '<p>Das sind nicht rechtssichere Texte.</p>',
+    optionen: {
+      verboteneFormulierungen: ['rechtssichere Texte'],
+      erlaubteFormulierungen: ['nicht rechtssicher', 'nicht rechtssichere Texte'],
+    },
+  });
+  assert.equal(e.warnungen.filter((w) => w.includes('hat auf keiner')).length, 0, e.warnungen.join(' | '));
+  assert.equal(e.warnungen.filter((w) => w.includes('[verbotsliste_treffer]')).length, 0, 'und nichts bleibt offen');
+});
+
+test('#242-Nachlese B4/B5/B8: der Umstiegsrat nennt offene Treffer, kürzt die Liste und kommt auch ohne geprüfte Seite', async () => {
+  const weitere = {
+    'datenschutz/index.html': `${RECHTSGRUNDLAGE}<p>Alles abmahnsicher.</p>`,
+    'a/index.html': RECHTSGRUNDLAGE,
+    'b/index.html': RECHTSGRUNDLAGE,
+    'c/index.html': RECHTSGRUNDLAGE,
+  };
+  // ALLE Seiten ausgenommen, auch index.html: 0 geprüfte Seiten (B8).
+  const e = await lauf({
+    body: SAUBER,
+    weitere,
+    optionen: {
+      verbotslisteAusnahmen: ['index.html', 'datenschutz/index.html', 'a/index.html', 'b/index.html', 'c/index.html'],
+      erlaubteFormulierungen: ['an rechtssicherer Beweisführung'],
+    },
+  });
+  const w = e.warnungen.filter((x) => x.includes('„an rechtssicherer Beweisführung"'));
+  assert.equal(w.length, 1, `B8 — Rat fehlt bei 0 geprüften Seiten: ${e.warnungen.join(' | ')}`);
+  assert.ok(w[0].includes('+ 1 weitere'), `B5 — Liste ungekürzt: ${w[0]}`);
+  assert.ok(w[0].includes('1 offene Treffer'), `B4 — offener Treffer nicht genannt: ${w[0]}`);
+  // GEGENPROBE B4: ohne den offenen Satz kein „Vorsicht".
+  const g = await lauf({
+    body: SAUBER,
+    weitere: { 'datenschutz/index.html': RECHTSGRUNDLAGE },
+    optionen: { verbotslisteAusnahmen: ['datenschutz/index.html'], erlaubteFormulierungen: ['an rechtssicherer Beweisführung'] },
+  });
+  const gw = g.warnungen.filter((x) => x.includes('„an rechtssicherer Beweisführung"'));
+  assert.equal(gw.length, 1, gw.join(' | '));
+  assert.ok(!gw[0].includes('Vorsicht'), gw[0]);
+});
