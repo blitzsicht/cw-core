@@ -4292,6 +4292,13 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // konfiguriert"); jetzt läuft der Flottendefault weiter, und die Herkunftsangabe
           // in der ✓-Zeile darf dann nicht „Kundenliste + Flottendefault" behaupten.
           const eigeneListe = kundenListe.size > 0;
+          // Die Herkunft geht an den Checker, statt sie am Wortlaut jedes Befunds erneut
+          // nachzuschlagen; sie trägt dort zugleich die Rangfolge an einer Startposition
+          // (cw-core#247). Eigene Konstante, weil sie an zwei Aufrufstellen gebraucht wird.
+          // Ein Array, kein `.keys()`-Iterator: der Checker läuft je HTML-Datei erneut, und
+          // ein verbrauchter Iterator machte ab der zweiten Seite jeden Treffer zum
+          // Flottentreffer — ohne Fehlermeldung, also still.
+          const herkunftOption = { kundenListe: [...kundenListe.keys()] } as const;
           const formulierungen: readonly string[] = [...(eigene ?? []), ...GARANTIE_PRAEDIKATE];
           // Dieselbe Zahl, die der Checker wirklich prüft — vorher zählte `filter()` rohe
           // Einträge und meldete für ['rechtssicher','Rechtssicher'] zwei (Befund 7).
@@ -4348,10 +4355,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 if (erlaubte.length > 0) {
                   const eintraege = ausnahmen.filter((a) => !istZuPruefen(rel, [a]));
                   ausnahmenJeSeite.set(rel, eintraege);
-                  for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
+                  for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte, herkunftOption)) {
                     if (b.aufgehobenDurch === undefined) {
-                      const norm = b.formulierung.replace(/\s+/g, ' ').trim().toLowerCase();
-                      if (kundenListe.has(norm)) {
+                      if (b.herkunft === 'kunde') {
                         for (const a of eintraege) {
                           const stellen = offenJeAusnahme.get(a) ?? new Set<string>();
                           stellen.add(`${b.ort}\u0000${b.kontext}`);
@@ -4370,7 +4376,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 continue;
               }
               geprueft++;
-              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
+              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte, herkunftOption)) {
                 if (b.aufgehobenDurch !== undefined) {
                   // Alle Phrasen, die hier aufheben, nicht nur die des Befunds (Review cw-core#242, B2).
                   for (const phrase of b.alleAufhebungen ?? [b.aufgehobenDurch]) {
@@ -4381,8 +4387,10 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                   continue;
                 }
                 const key = `${b.ort}\u0000${b.kontext}`;
-                const norm = b.formulierung.replace(/\s+/g, ' ').trim().toLowerCase();
-                const ziel = kundenListe.has(norm) ? proKontextKunde : proKontextFlotte;
+                // Herkunft kommt aus dem Befund (cw-core#247) — vorher stand dieselbe
+                // Normalisierung hier ein zweites Mal, und sie konnte von der des Checkers
+                // abweichen, ohne dass es auffällt.
+                const ziel = b.herkunft === 'kunde' ? proKontextKunde : proKontextFlotte;
                 vermerkeFundstelle(ziel, key, rel, () => ({
                   kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel],
                 }));

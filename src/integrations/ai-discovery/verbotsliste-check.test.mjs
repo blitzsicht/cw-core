@@ -510,3 +510,109 @@ test('#248-Nachlese B5: eine Zusammensetzung beugt das Muster nicht — sie hebt
   assert.equal(pruefeErlaubteListe(['rechtssichere'], GARANTIE_PRAEDIKATE).length, 1);
   assert.equal(pruefeErlaubteListe(['DSGVO-rechtssicher'], GARANTIE_PRAEDIKATE).length, 1);
 });
+
+// ── cw-core#247: Rangfolge an einer Startposition ausgeschrieben ─────────────────────────
+//
+// Vorher entschied die Reihenfolge der Liste, wer an einer Stelle den Befund stellt. Das trug
+// die Herkunft (die Kundenliste steht vorn, ihr Treffer ist WARN) — aber ein längeres Muster
+// erschien dauerhaft als „trifft nie", obwohl es greift. Jetzt: offen > aufgehoben,
+// Kunde > Flotte, bei gleicher Herkunft länger > kürzer. Die Herkunft kommt als Angabe,
+// nicht mehr aus der Position in der Liste.
+
+const BESTEN = '<html><body><p>Wir sind die Besten in Regensburg, ganz sicher.</p></body></html>';
+
+test('#247: bei gleicher Herkunft gewinnt das längere Muster — in BEIDEN Listenreihenfolgen', () => {
+  for (const liste of [['die Besten', 'die Besten in Regensburg'], ['die Besten in Regensburg', 'die Besten']]) {
+    const b = pruefeVerbotsliste(BESTEN, seite, liste);
+    assert.equal(b.length, 1, `eine Startposition, ein Befund (${liste[0]} zuerst)`);
+    assert.equal(b[0].formulierung, 'die Besten in Regensburg', `Reihenfolge entscheidet nicht (${liste[0]} zuerst)`);
+    assert.equal(b[0].treffer, 'die Besten in Regensburg', 'Treffer in der Schreibweise der Seite');
+  }
+});
+
+test('#247: offen schlägt aufgehoben, auch wenn der aufgehobene Treffer kürzer ist', () => {
+  // „sind die Besten in" umschließt `die Besten`, aber nicht `die Besten in Regensburg`.
+  const b = pruefeVerbotsliste(BESTEN, seite, ['die Besten', 'die Besten in Regensburg'], ['sind die Besten in']);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].formulierung, 'die Besten in Regensburg');
+  assert.equal(b[0].aufgehobenDurch, undefined, 'der Gewinner ist offen');
+  assert.equal(b[0].alleAufhebungen, undefined, 'und zählt keine Aufhebung');
+  // GEGENPROBE: steht nur das kurze Muster in der Liste, hebt dieselbe Phrase es auf.
+  const g = pruefeVerbotsliste(BESTEN, seite, ['die Besten'], ['sind die Besten in']);
+  assert.equal(g[0].aufgehobenDurch, 'sind die Besten in');
+});
+
+test('#247: Kundenliste schlägt Flottendefault, auch wenn ihr Muster kürzer ist', () => {
+  const liste = ['die Besten', 'die Besten in Regensburg'];
+  const mit = pruefeVerbotsliste(BESTEN, seite, liste, [], { kundenListe: ['die Besten'] });
+  assert.equal(mit.length, 1);
+  assert.equal(mit[0].formulierung, 'die Besten', 'kurzes Kundenmuster schlägt langes Flottenmuster');
+  assert.equal(mit[0].herkunft, 'kunde');
+  // GEGENPROBE 1: dasselbe Muster als Flotteneintrag — dann gewinnt wieder das längere.
+  const umgekehrt = pruefeVerbotsliste(BESTEN, seite, liste, [], { kundenListe: ['die Besten in Regensburg'] });
+  assert.equal(umgekehrt[0].formulierung, 'die Besten in Regensburg');
+  assert.equal(umgekehrt[0].herkunft, 'kunde');
+  // GEGENPROBE 2: ohne die Angabe gibt es keine Herkunft, dann entscheidet die Länge.
+  const ohne = pruefeVerbotsliste(BESTEN, seite, liste);
+  assert.equal(ohne[0].formulierung, 'die Besten in Regensburg');
+  assert.equal(ohne[0].herkunft, undefined, 'keine erfundene Herkunft');
+});
+
+test('#247: Herkunft wird normalisiert verglichen, nicht am Wortlaut', () => {
+  // Die Angabe kommt in anderer Schreibweise und mit doppeltem Leerzeichen als die Liste.
+  const b = pruefeVerbotsliste(BESTEN, seite, ['die Besten'], [], { kundenListe: ['DIE  besten'] });
+  assert.equal(b[0].herkunft, 'kunde');
+  const f = pruefeVerbotsliste(BESTEN, seite, ['die Besten'], [], { kundenListe: ['ganz andere Phrase'] });
+  assert.equal(f[0].herkunft, 'flotte');
+});
+
+test('#247: dieselbe Angabe trägt über mehrere Seiten — ein Iterator täte es nicht', () => {
+  // Der Checker läuft je HTML-Datei erneut, mit demselben Optionen-Objekt. Deshalb nimmt
+  // `kundenListe` nur Array oder Set (so auch in der .d.ts), und `index.ts` übergibt
+  // `[...kundenListe.keys()]`.
+  const option = { kundenListe: ['die Besten'] };
+  for (const durchgang of [1, 2, 3]) {
+    const b = pruefeVerbotsliste(BESTEN, `seite-${durchgang}.html`, ['die Besten'], [], option);
+    assert.equal(b[0].herkunft, 'kunde', `Durchgang ${durchgang}`);
+  }
+  // GEGENPROBE, die den Grund zeigt: ein verbrauchter Iterator macht jeden Treffer ab der
+  // zweiten Seite still zum Flottentreffer.
+  const kaputt = { kundenListe: new Set(['die Besten']).keys() };
+  assert.equal(pruefeVerbotsliste(BESTEN, 'a.html', ['die Besten'], [], kaputt)[0].herkunft, 'kunde');
+  assert.equal(pruefeVerbotsliste(BESTEN, 'b.html', ['die Besten'], [], kaputt)[0].herkunft, 'flotte');
+});
+
+test('#247: alleAufhebungen ist in beiden Listenreihenfolgen gleich', () => {
+  // Zwei Phrasen decken dieselbe Stelle; beide müssen als genutzt gelten, egal wie die
+  // Musterliste sortiert ist (der Punkt war im Issue-Kommentar nur durchdacht, nicht gemessen).
+  const erlaubte = ['sind die Besten in Regensburg, ganz', 'die Besten in Regensburg, ganz sicher'];
+  const ergebnisse = [['die Besten', 'die Besten in Regensburg'], ['die Besten in Regensburg', 'die Besten']]
+    .map((liste) => pruefeVerbotsliste(BESTEN, seite, liste, erlaubte));
+  for (const b of ergebnisse) {
+    assert.equal(b.length, 1);
+    assert.ok(b[0].aufgehobenDurch !== undefined, 'der Treffer ist aufgehoben');
+    assert.deepEqual([...(b[0].alleAufhebungen ?? [])].sort(), [...erlaubte].sort());
+  }
+  assert.deepEqual(ergebnisse[0][0].alleAufhebungen, ergebnisse[1][0].alleAufhebungen);
+});
+
+test('#247: ein aufgehobener Kundentreffer verdeckt keinen offenen Flottentreffer', () => {
+  // Die trennscharfe Stelle für Stufe 1. Ohne sie zöge Stufe 2 (Kunde vor Flotte) den
+  // AUFGEHOBENEN Kundentreffer vor und schluckte den offenen Flottentreffer mit — die
+  // Ausnahme des Kunden wäre dann ein stummer Schalter für den Flottendefault.
+  // Gemessen: ohne Stufe 1 wird genau diese Probe rot, alle anderen 55 bleiben grün.
+  const liste = ['die Besten', 'die Besten in Regensburg'];
+  const erlaubte = ['sind die Besten in']; // umschließt nur das kurze Muster
+  for (const sortiert of [liste, [...liste].reverse()]) {
+    const b = pruefeVerbotsliste(BESTEN, seite, sortiert, erlaubte, { kundenListe: ['die Besten'] });
+    assert.equal(b.length, 1, `eine Startposition (${sortiert[0]} zuerst)`);
+    assert.equal(b[0].formulierung, 'die Besten in Regensburg', `der offene Treffer gewinnt (${sortiert[0]} zuerst)`);
+    assert.equal(b[0].aufgehobenDurch, undefined);
+    assert.equal(b[0].herkunft, 'flotte');
+  }
+  // GEGENPROBE: ohne das längere Flottenmuster bleibt der aufgehobene Kundentreffer stehen —
+  // er wird nicht verschluckt, nur überstimmt.
+  const g = pruefeVerbotsliste(BESTEN, seite, ['die Besten'], erlaubte, { kundenListe: ['die Besten'] });
+  assert.equal(g[0].herkunft, 'kunde');
+  assert.equal(g[0].aufgehobenDurch, 'sind die Besten in');
+});
