@@ -488,3 +488,25 @@ test('#242-Nachlese B3: eine gebeugte Form des Musters ohne eigenes Wort ist kei
   const g = pruefeVerbotsliste('<html><body><p>Wir versprechen keine rechtssichere Website.</p></body></html>', seite, ['rechtssicher'], ['keine rechtssichere']);
   assert.equal(g[0].aufgehobenDurch, 'keine rechtssichere');
 });
+
+// ── Nachlese Review cw-core#248 (07.11.2026) ────────────────────────────────────────────
+
+test('#248-Nachlese B4: ein Satzzeichen ist kein eigenes Wort — „rechtssicher –" bleibt ein Freibrief', () => {
+  const html = '<html><body><p>Texte sind rechtssicher – und Punkt. Auch rechtssicher – nochmal.</p></body></html>';
+  // Vorher: Ladeprüfung [] und 2 von 2 Treffern aufgehoben.
+  assert.equal(pruefeErlaubteListe(['rechtssicher –'], GARANTIE_PRAEDIKATE).length, 1);
+  assert.equal(pruefeErlaubteListe(['rechtssicher, ja'], GARANTIE_PRAEDIKATE).length, 0, 'mit echtem Wort ein Satz-Teil');
+  const b = pruefeVerbotsliste(html, seite, ['rechtssicher'], ['rechtssicher –']);
+  assert.equal(b.length, 2);
+  assert.equal(b.filter((x) => x.aufgehobenDurch !== undefined).length, 0, 'nichts aufgehoben');
+});
+
+test('#248-Nachlese B5: eine Zusammensetzung beugt das Muster nicht — sie hebt ihren Treffer auf', () => {
+  const b = pruefeVerbotsliste('<html><body><p>Mit Bestpreisgarantie für alle.</p></body></html>', seite, ['garantie'], ['Bestpreisgarantie']);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].aufgehobenDurch, 'Bestpreisgarantie');
+  assert.deepEqual(pruefeErlaubteListe(['Bestpreisgarantie'], ['garantie']), []);
+  // GEGENPROBE: Beugung am Wortende und Bindestrich-Vorsatz bleiben gesperrt.
+  assert.equal(pruefeErlaubteListe(['rechtssichere'], GARANTIE_PRAEDIKATE).length, 1);
+  assert.equal(pruefeErlaubteListe(['DSGVO-rechtssicher'], GARANTIE_PRAEDIKATE).length, 1);
+});

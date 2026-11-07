@@ -388,7 +388,7 @@ test('#242-Nachlese B2: zwei nötige Phrasen an derselben Stelle — keine heiß
 
 test('#242-Nachlese B4/B5/B8: der Umstiegsrat nennt offene Treffer, kürzt die Liste und kommt auch ohne geprüfte Seite', async () => {
   const weitere = {
-    'datenschutz/index.html': `${RECHTSGRUNDLAGE}<p>Alles abmahnsicher.</p>`,
+    'datenschutz/index.html': `${RECHTSGRUNDLAGE}<p>Wir erreichen 100 Punkte.</p>`,
     'a/index.html': RECHTSGRUNDLAGE,
     'b/index.html': RECHTSGRUNDLAGE,
     'c/index.html': RECHTSGRUNDLAGE,
@@ -400,12 +400,13 @@ test('#242-Nachlese B4/B5/B8: der Umstiegsrat nennt offene Treffer, kürzt die L
     optionen: {
       verbotslisteAusnahmen: ['index.html', 'datenschutz/index.html', 'a/index.html', 'b/index.html', 'c/index.html'],
       erlaubteFormulierungen: ['an rechtssicherer Beweisführung'],
+      verboteneFormulierungen: ['100 Punkte'],
     },
   });
   const w = e.warnungen.filter((x) => x.includes('„an rechtssicherer Beweisführung"'));
   assert.equal(w.length, 1, `B8 — Rat fehlt bei 0 geprüften Seiten: ${e.warnungen.join(' | ')}`);
   assert.ok(w[0].includes('+ 1 weitere'), `B5 — Liste ungekürzt: ${w[0]}`);
-  assert.ok(w[0].includes('1 offene Treffer'), `B4 — offener Treffer nicht genannt: ${w[0]}`);
+  assert.ok(w[0].includes('1 offene Fundstelle(n) aus der Kundenliste'), `B4 — offener Treffer nicht genannt: ${w[0]}`);
   // GEGENPROBE B4: ohne den offenen Satz kein „Vorsicht".
   const g = await lauf({
     body: SAUBER,
@@ -415,4 +416,62 @@ test('#242-Nachlese B4/B5/B8: der Umstiegsrat nennt offene Treffer, kürzt die L
   const gw = g.warnungen.filter((x) => x.includes('„an rechtssicherer Beweisführung"'));
   assert.equal(gw.length, 1, gw.join(' | '));
   assert.ok(!gw[0].includes('Vorsicht'), gw[0]);
+});
+
+// ── Nachlese Review cw-core#248 (07.11.2026) ────────────────────────────────────────────
+
+/** Der Umstiegsrat zur Phrase „an rechtssicherer Beweisführung“. */
+const rat = (/** @type {{warnungen: string[]}} */ e) =>
+  e.warnungen.filter((x) => x.includes('„an rechtssicherer Beweisführung"') && x.includes('greift nur auf'));
+
+test('#248-Nachlese B1: der Rat zählt offene Treffer auf ALLEN Seiten des Ausnahme-Eintrags', async () => {
+  const optionen = {
+    verbotslisteAusnahmen: ['rechtliches/'],
+    erlaubteFormulierungen: ['an rechtssicherer Beweisführung'],
+    verboteneFormulierungen: ['100 Punkte'],
+    strictVerbotsliste: true,
+  };
+  const e = await lauf({
+    body: SAUBER,
+    weitere: { 'rechtliches/a/index.html': RECHTSGRUNDLAGE, 'rechtliches/b/index.html': '<p>Wir erreichen 100 Punkte.</p>' },
+    optionen,
+  });
+  const w = rat(e);
+  assert.equal(w.length, 1, e.warnungen.join(' | '));
+  assert.ok(w[0].includes('1 offene Fundstelle(n)'), `Treffer auf der Nachbarseite fehlt: ${w[0]}`);
+  assert.ok(w[0].includes('Build ab'), `strict nicht genannt: ${w[0]}`);
+  assert.ok(w[0].includes('„rechtliches/"'), `Eintrag nicht genannt: ${w[0]}`);
+  // GEGENPROBE: Nachbarseite unter einem ANDEREN Eintrag zählt nicht.
+  const g = await lauf({
+    body: SAUBER,
+    weitere: { 'rechtliches/a/index.html': RECHTSGRUNDLAGE, 'anders/index.html': '<p>Wir erreichen 100 Punkte.</p>' },
+    optionen: { ...optionen, verbotslisteAusnahmen: ['rechtliches/', 'anders/'] },
+  });
+  assert.ok(!rat(g)[0].includes('Vorsicht'), rat(g)[0]);
+});
+
+test('#248-Nachlese B2: ein Flottentreffer ist kein „WARN danach“', async () => {
+  const e = await lauf({
+    body: SAUBER,
+    weitere: { 'datenschutz/index.html': `${RECHTSGRUNDLAGE}<p>Alles abmahnsicher.</p>` },
+    optionen: {
+      verbotslisteAusnahmen: ['datenschutz/'],
+      erlaubteFormulierungen: ['an rechtssicherer Beweisführung'],
+      verboteneFormulierungen: ['100 Punkte'],
+      strictVerbotsliste: true,
+    },
+  });
+  assert.equal(rat(e).length, 1, e.warnungen.join(' | '));
+  assert.ok(!rat(e)[0].includes('Vorsicht'), rat(e)[0]);
+});
+
+test('#248-Nachlese B3: derselbe Satz auf fünf Seiten ist eine Fundstelle', async () => {
+  const weitere = { 'r/a/index.html': RECHTSGRUNDLAGE };
+  for (const s of ['b', 'c', 'd', 'e', 'f']) weitere[`r/${s}/index.html`] = '<p>Wir erreichen 100 Punkte.</p>';
+  const e = await lauf({
+    body: SAUBER,
+    weitere,
+    optionen: { verbotslisteAusnahmen: ['r/'], erlaubteFormulierungen: ['an rechtssicherer Beweisführung'], verboteneFormulierungen: ['100 Punkte'] },
+  });
+  assert.ok(rat(e)[0].includes('1 offene Fundstelle(n)'), rat(e)[0]);
 });

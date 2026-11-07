@@ -4330,8 +4330,13 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             const nurAusgenommen = new Map<string, Set<string>>();
             // Offene Treffer auf pfad-ausgenommenen Seiten: wer dem Rat „Pfad-Ausnahme streichen"
             // folgt, bekommt sie als WARN (mit strict als Abbruch). Der Rat nennt sie deshalb
-            // gleich mit (Review cw-core#242, Befund 4).
-            const offenAufAusgenommenen = new Map<string, number>();
+            // gleich mit (Review cw-core#242, Befund 4). Gezählt wird so, wie es danach kommt
+            // (Review cw-core#248, B1–B3): je Ausnahme-EINTRAG über alle seine Seiten, nicht nur
+            // über die, auf denen die Phrase greift (der Rat streicht den ganzen Eintrag); nur
+            // Treffer der Kundenliste (ein Flottentreffer bleibt auch mit strict ein Hinweis);
+            // entdoppelt nach Ort + Kontext wie der Bericht unten.
+            const offenJeAusnahme = new Map<string, Set<string>>();
+            const ausnahmenJeSeite = new Map<string, string[]>();
             const kurzliste = (seiten: Iterable<string>) => {
               const liste = [...seiten];
               return liste.length > 3 ? `${liste.slice(0, 3).join(', ')} + ${liste.length - 3} weitere` : liste.join(', ');
@@ -4341,9 +4346,18 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               const rel = file.slice(distDir.length).replace(/^\//, '') || 'index.html';
               if (!istZuPruefen(rel, ausnahmen)) {
                 if (erlaubte.length > 0) {
+                  const eintraege = ausnahmen.filter((a) => !istZuPruefen(rel, [a]));
+                  ausnahmenJeSeite.set(rel, eintraege);
                   for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
                     if (b.aufgehobenDurch === undefined) {
-                      offenAufAusgenommenen.set(rel, (offenAufAusgenommenen.get(rel) ?? 0) + 1);
+                      const norm = b.formulierung.replace(/\s+/g, ' ').trim().toLowerCase();
+                      if (kundenListe.has(norm)) {
+                        for (const a of eintraege) {
+                          const stellen = offenJeAusnahme.get(a) ?? new Set<string>();
+                          stellen.add(`${b.ort}\u0000${b.kontext}`);
+                          offenJeAusnahme.set(a, stellen);
+                        }
+                      }
                       continue;
                     }
                     for (const phrase of b.alleAufhebungen ?? [b.aufgehobenDurch]) {
@@ -4391,12 +4405,15 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 if (genutzteAusnahmen.has(phrase) || schonGemeldet.has(phrase)) continue;
                 const ausgenommen = nurAusgenommen.get(phrase);
                 if (ausgenommen) {
-                  const offen = [...ausgenommen].reduce((n, s) => n + (offenAufAusgenommenen.get(s) ?? 0), 0);
+                  const eintraege = [...new Set([...ausgenommen].flatMap((s) => ausnahmenJeSeite.get(s) ?? []))];
+                  const offen = new Set(eintraege.flatMap((a) => [...(offenJeAusnahme.get(a) ?? [])])).size;
+                  const abbruch = options.strictVerbotsliste === true ? ' und brechen mit `strictVerbotsliste` den Build ab' : '';
                   const vorsicht = offen > 0
-                    ? ` Vorsicht: dort stehen außerdem ${offen} offene Treffer, die danach als WARN erscheinen.`
+                    ? ` Vorsicht: unter dieser Pfad-Ausnahme stehen außerdem ${offen} offene Fundstelle(n) aus der Kundenliste, die danach als WARN erscheinen${abbruch}.`
                     : '';
+                  const welche = eintraege.map((a) => `„${a}"`).join(', ');
                   logger.warn(
-                    `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" greift nur auf ${kurzliste(ausgenommen)} — diese Seite(n) nimmt \`verbotslisteAusnahmen\` ganz von der Prüfung aus. Die Pfad-Ausnahme streichen, dann greift der Eintrag.${vorsicht}`,
+                    `Verbotslisten-Guard: \`erlaubteFormulierungen\`-Eintrag „${phrase}" greift nur auf ${kurzliste(ausgenommen)} — diese Seite(n) nimmt \`verbotslisteAusnahmen\` ganz von der Prüfung aus. Die Pfad-Ausnahme ${welche} streichen, dann greift der Eintrag.${vorsicht}`,
                   );
                   continue;
                 }
