@@ -48,11 +48,20 @@ nur **Abweichungen**. Entschieden am 07.11.2026 (Operator), erster Fall: spediti
 3. **DMARC mit `p=none`.** Nur beobachten, keine Mail wird abgewiesen:
    `v=DMARC1; p=none; rua=mailto:dmarc-reports@blitzsicht.com` plus den Freigabe-Eintrag oben.
 4. **MTA-STS mit `mode: testing` und TLS-RPT.** Über cw-mta-sts. Reihenfolge laut dessen
-   `CLAUDE.md`: Route und Deploy, Policy abrufen, `_smtp._tls`-TXT, `_mta-sts`-TXT **zuletzt**.
+   `README.md` („Domain-Pflege“): Route und Deploy, Policy abrufen, `_smtp._tls`-TXT, `_mta-sts`-TXT
+   **zuletzt**. Kein CNAME für `mta-sts.<domain>` von Hand: `custom_domain = true` legt den Eintrag selbst an.
    Ohne TLS-RPT meldet `testing` seine Fehler nirgendwohin.
-5. **Nach mindestens vier Wochen sauberer Berichte verschärfen:** DMARC auf `p=quarantine`,
-   MTA-STS auf `enforce`. Vorher alle MX samt STARTTLS-Zertifikat prüfen (cw-mta-sts
+5. **Frühestens vier Wochen nach der DKIM-Aktivierung, mit sauberen Berichten, verschärfen:**
+   DMARC auf `p=quarantine`, MTA-STS auf `enforce`. Ohne DKIM trägt SPF allein die Ausrichtung,
+   und SPF bricht bei Weiterleitungen. Live-MX vorher gegen die Policy abgleichen. Vorher alle MX samt STARTTLS-Zertifikat prüfen (cw-mta-sts
    `CLAUDE.md`, „Häufige Gotchas“).
+
+## Stand der Erprobung
+
+Erster Fall spedition-steller.de, 07.11.2026: gelaufen sind die Schritte 3 und 4 (DMARC `p=none`,
+MTA-STS `testing` mit TLS-RPT). **Nicht erprobt:** Schritt 1 (die SPF-Rückfrage ist gestellt,
+die Antwort steht aus), Schritt 2 (DKIM wartet auf die Selektoren) und ob `dmarc-reports-reader`
+TLS-RPT-Berichte (JSON) auswertet. Diesen Abschnitt nachführen, sobald einer davon belegt ist.
 
 ## Was der Kunde erfährt
 
