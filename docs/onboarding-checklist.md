@@ -48,7 +48,7 @@ Audit-Drift-Vermeidung: Beim ersten Deploy direkt einen cw-audit-Run gegen die L
 ## 5. Mail / DNS
 
 - [ ] **SPF + DMARC** in DNS setzen (Audit-Check `mail.auth.spf-dmarc`). Reihenfolge,
-  Berichtsadresse (`dmarc@blitzsicht.com`) und Freigabe-Eintrag: [standard-mail-dns.md](standard-mail-dns.md)
+  Berichtsadresse (`dmarc-reports@blitzsicht.com`) und Freigabe-Eintrag: [standard-mail-dns.md](standard-mail-dns.md)
 - [ ] **DKIM-Selector** dokumentieren (Google Workspace, Postmark, Resend etc.)
 - [ ] MX-Records, falls eigene Domain Mail-empfangend
 

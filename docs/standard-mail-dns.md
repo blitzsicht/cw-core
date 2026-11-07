@@ -10,10 +10,13 @@ nur **Abweichungen**. Entschieden am 07.11.2026 (Operator), erster Fall: spediti
 
 | Eintrag | Wert |
 |---|---|
-| DMARC `rua` | `mailto:dmarc@blitzsicht.com` |
-| TLS-RPT `rua` | `mailto:dmarc@blitzsicht.com` |
+| DMARC `rua` | `mailto:dmarc-reports@blitzsicht.com` |
+| TLS-RPT `rua` | `mailto:dmarc-reports@blitzsicht.com` |
 | DMARC `ruf` | **nicht setzen** |
 
+- **Postfach:** `dmarc-reports@blitzsicht.com` ist das bestehende Berichtspostfach der Flotte
+  (u. a. allstargirls.de). Es liest die App `dmarc-reports-reader`, nur dieses Postfach
+  (Handoff customer-zink-baeckerei 2026-09-29). Keine zweite Adresse anlegen.
 - **Der Kunde bekommt keine Berichtsmails.** Die Berichte sind XML-Dateien, er kann damit
   nichts anfangen, und wir werten sie ohnehin aus. Ein Postfach beim Kunden, das niemand liest,
   bringt nichts.
@@ -43,7 +46,7 @@ nur **Abweichungen**. Entschieden am 07.11.2026 (Operator), erster Fall: spediti
    Format-List Selector1CNAME,Selector2CNAME` oder das Defender-Portal. Erst die CNAMEs
    eintragen, dann im Mailsystem einschalten.
 3. **DMARC mit `p=none`.** Nur beobachten, keine Mail wird abgewiesen:
-   `v=DMARC1; p=none; rua=mailto:dmarc@blitzsicht.com` plus den Freigabe-Eintrag oben.
+   `v=DMARC1; p=none; rua=mailto:dmarc-reports@blitzsicht.com` plus den Freigabe-Eintrag oben.
 4. **MTA-STS mit `mode: testing` und TLS-RPT.** Über cw-mta-sts. Reihenfolge laut dessen
    `CLAUDE.md`: Route und Deploy, Policy abrufen, `_smtp._tls`-TXT, `_mta-sts`-TXT **zuletzt**.
    Ohne TLS-RPT meldet `testing` seine Fehler nirgendwohin.
