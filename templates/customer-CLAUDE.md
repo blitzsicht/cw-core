@@ -11,7 +11,8 @@ Dieses Template in `cw-core/templates/customer-CLAUDE.md` wird in jedes neue Cus
 Standard und die Abnahmekriterien. Die markierten Blöcke darin werden aus dem Intake
 erzeugt (`customer-websites/scripts/cw-site-projekt.mjs`) — dort ändern, nicht hier.
 Was bei allen Kunden gleich ist, steht in cw-core: `docs/standard-ablaeufe.md`
-(Formular-Erfolg/-Fehler) und `docs/standard-datenfluss.md` (wohin Anfragen gehen).
+(Formular-Erfolg/-Fehler), `docs/standard-datenfluss.md` (wohin Anfragen gehen) und
+`docs/standard-mail-dns.md` (SPF, DKIM, DMARC, MTA-STS; Berichte an Blitzsicht).
 Ein Wunsch außerhalb des Umfangs ist ein Änderungswunsch
 (`customer-websites/docs/aenderungswuensche.md`), kein stiller Umbau.
 
