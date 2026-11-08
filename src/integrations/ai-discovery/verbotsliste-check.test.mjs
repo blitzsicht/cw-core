@@ -616,3 +616,29 @@ test('#247: ein aufgehobener Kundentreffer verdeckt keinen offenen Flottentreffe
   assert.equal(g[0].herkunft, 'kunde');
   assert.equal(g[0].aufgehobenDurch, 'sind die Besten in');
 });
+
+test('#261-Nachlese B7: `optionen: null` zählt wie fehlende Angabe statt zu werfen', () => {
+  // Der Parameter-Default `optionen = {}` greift nur bei `undefined`. Vorher warf der Zugriff
+  // auf `.kundenListe` einen TypeError — und `null` ist genau das, was ein Aufrufer übergibt,
+  // der die Angabe aus einer Konfiguration liest.
+  const b = pruefeVerbotsliste(BESTEN, seite, ['die Besten'], [], null);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].herkunft, undefined, 'ohne Kundenliste gibt es keine Herkunft');
+  // GEGENPROBE: alle drei Formen müssen dasselbe liefern, sonst ist `null` ein stiller
+  // Sonderfall statt eines Synonyms für „keine Angabe".
+  assert.deepEqual(b, pruefeVerbotsliste(BESTEN, seite, ['die Besten']));
+  assert.deepEqual(b, pruefeVerbotsliste(BESTEN, seite, ['die Besten'], [], {}));
+});
+
+test('#261-Nachlese B8: zwei gleich lange Muster an derselben Stelle sind ein Eintrag', () => {
+  // Die gestrichene Zusage „bei gleicher Länge bleibt der erste Eintrag" setzte zwei
+  // VERSCHIEDENE Muster gleicher Länge an derselben Startposition voraus. Die gibt es nicht:
+  // gleich lang und gleiche Position heißt gleicher String, und die Liste ist entdoppelt.
+  const b = pruefeVerbotsliste(BESTEN, seite, ['die Besten', 'DIE BESTEN'], []);
+  assert.equal(b.length, 1, 'zwei Schreibweisen, ein Befund');
+  // GEGENPROBE: zwei Muster UNTERSCHIEDLICHER Länge an derselben Position werden sehr wohl
+  // gegeneinander abgewogen — dort greift Stufe 3, und sie bleibt wirksam.
+  const lang = pruefeVerbotsliste(BESTEN, seite, ['die Besten', 'die Besten in Regensburg'], []);
+  assert.equal(lang.length, 1);
+  assert.equal(lang[0].formulierung, 'die Besten in Regensburg');
+});

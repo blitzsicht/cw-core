@@ -137,7 +137,8 @@ hätte einen WARN-Treffer der Kundenliste still zu einem Flotten-Hinweis gemacht
   `herkunft: 'kunde' | 'flotte'`; ohne die Angabe bleibt das Feld undefiniert.
 - Die Rangfolge steht als eine Funktion da, in drei Stufen: **offen** schlägt aufgehoben,
   **Kundenliste** schlägt Flottendefault, bei gleicher Herkunft gewinnt der **längere**
-  Treffer. Bei gleicher Länge bleibt der erste Eintrag wie bisher.
+  Treffer. Ein Gleichstand kann nicht auftreten: gleich lange Treffer an derselben
+  Startposition sind derselbe String, und die Liste ist entdoppelt.
 - `ai-discovery` liest die Herkunft aus dem Befund, statt sie am Wortlaut jedes Treffers
   erneut nachzuschlagen — dieselbe Normalisierung stand vorher zweimal da und konnte
   auseinanderlaufen, ohne dass es auffällt.
@@ -219,6 +220,18 @@ die eigene Kopie und ist nicht betroffen.
 setzt `--cw-testimonials-dauer` bzw. `--cw-feedback-dauer` an der Spur oder an einem Vorfahren;
 das schlägt den berechneten Wert. (Im ersten Stand stand der berechnete Wert unter genau diesem
 Namen im `style`-Attribut, eine Kundenregel kam nie durch — Review #251, B1–B3.)
+
+**Fix:** Nachlese Review #252 — `herkunft` im JSDoc-Typ, `optionen: null`, unerreichbare Zusage (cw-core#261)
+
+Kontext: Drei Restbefunde aus dem Review des Herkunft-PR. Der JSDoc-Typ `VerbotslistenBefund`
+kannte `herkunft` nicht, obwohl die Funktion es setzt — `tsc --checkJs` meldete deshalb zwei
+TS2339 an den eigenen Zugriffen. `optionen: null` warf einen TypeError, weil ein
+Parameter-Default nur bei `undefined` greift; `null` liest jetzt wie „keine Angabe". Und die
+Zusage „bei gleicher Länge bleibt der erste Eintrag" beschrieb einen Fall, den es nicht geben
+kann: gleich lange Treffer an derselben Startposition sind derselbe String, und die Liste ist
+entdoppelt. Der Satz ist aus Kommentar und Changelog gestrichen, statt ihn weiter zu versprechen.
+
+**Migrations-Hinweis:** Keiner.
 
 ---
 

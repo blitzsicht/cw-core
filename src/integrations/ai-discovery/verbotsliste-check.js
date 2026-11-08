@@ -56,7 +56,7 @@ const META_FELDER = Object.freeze(['description', 'keywords', 'og:description', 
 
 /**
  * @typedef {'text' | 'title' | 'meta:description' | 'meta:keywords' | 'meta:og:description' | 'meta:twitter:description'} VerbotslistenOrt
- * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string, aufgehobenDurch?: string, alleAufhebungen?: string[] }} VerbotslistenBefund
+ * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string, aufgehobenDurch?: string, alleAufhebungen?: string[], herkunft?: 'kunde' | 'flotte' }} VerbotslistenBefund
  */
 
 /**
@@ -224,7 +224,10 @@ function beugt(n, m) {
  *    dauerhaft als „trifft nie" erscheinen (cw-core#247). Ohne `optionen.kundenListe` gibt es
  *    keine Herkunft, dann entscheidet Stufe 3.
  * 3. **bei gleicher Herkunft gewinnt der längere Treffer** — das längere Muster ist das
- *    genauere. Bei gleicher Länge bleibt der erste Eintrag, wie bisher.
+ *    genauere. Ein Gleichstand ist hier nicht erreichbar: zwei Treffer gleicher Länge an
+ *    derselben Startposition sind derselbe String, und `normalisierteListe()` entdoppelt
+ *    ihn. Die frühere Zusage „bei gleicher Länge bleibt der erste Eintrag" beschrieb
+ *    einen Fall, den es nicht gibt (Review cw-core#261, B8).
  *
  * @param {VerbotslistenBefund} neu
  * @param {VerbotslistenBefund | undefined} vorher
@@ -266,18 +269,24 @@ function schlaegt(neu, vorher) {
  * @param {{ kundenListe?: readonly string[] | ReadonlySet<string> }} [optionen] `kundenListe`:
  *   die Muster, die aus der Liste des Kunden stammen (Schreibweise beliebig, wird
  *   normalisiert). Damit trägt jeder Befund seine `herkunft`, und der Aufrufer muss sie nicht
- *   am Wortlaut nachschlagen. Fehlt die Angabe, bleibt `herkunft` undefiniert.
+ *   am Wortlaut nachschlagen. Fehlt die Angabe, bleibt `herkunft` undefiniert; `null` zählt
+ *   dabei wie „fehlt".
  *   **Kein Iterator:** die Funktion wird je Seite erneut gerufen, ein `.keys()` wäre nach dem
  *   ersten Aufruf leer und jede Herkunft danach `'flotte'` — ohne Fehlermeldung.
  * @returns {VerbotslistenBefund[]} erst der sichtbare Text, dann Titel und Metas; je Ort nach Position
  */
 export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = [], optionen = {}) {
+  // `null` ist kein `undefined`: der Parameter-Default greift dann nicht, und der Zugriff
+  // auf `.kundenListe` wirft einen TypeError, statt die Angabe als fehlend zu lesen
+  // (Review cw-core#261, B7). Genau so ein `null` übergibt ein Aufrufer, der die Optionen
+  // aus einer Konfiguration zieht.
+  const opt = optionen ?? {};
   const liste = normalisierteListe(formulierungen);
   if (liste.size === 0) return [];
   // Herkunft aus derselben Normalisierung wie die Muster — sonst trifft `has()` nie.
-  const kundenMuster = optionen.kundenListe === undefined
+  const kundenMuster = opt.kundenListe === undefined
     ? undefined
-    : new Set(normalisierteListe([...optionen.kundenListe]).keys());
+    : new Set(normalisierteListe([...opt.kundenListe]).keys());
   // Eine Phrase, die nur das Muster selbst ist oder es ohne eigenes Wort beugt, wäre die
   // Pfad-Ausnahme über alle Seiten (Review cw-core#238 B1, cw-core#242 B3). Sie wird nicht
   // angewandt; `pruefeErlaubteListe()` meldet sie beim Laden.
