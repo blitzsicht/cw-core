@@ -78,6 +78,9 @@ export function spurMasse(quelle, klasse) {
     const m = block.match(new RegExp(`(?:^|;|\\n)\\s*${eigenschaft}\\s*:\\s*([^;]+);`));
     return m ? aufloesen(m[1]).trim() : '';
   };
+  // Nur die Kurzform wird gelesen. Eine Langform darunter (`padding-inline: 2rem`) brächte
+  // den Sprung zurück, ohne dass die Kurzform sich ändert — deshalb verboten (Review #251, B10).
+  assert.doesNotMatch(block, /padding-(?:inline|left|right)/, `.${klasse}: Polster nur als Kurzform erlaubt`);
   const padding = lies('padding').split(/\s+/).filter(Boolean);
   assert.ok(padding.length >= 1 && padding.length <= 4, `padding unlesbar in .${klasse}: ${lies('padding')}`);
   const rechts = padding[padding.length >= 2 ? 1 : 0];
@@ -99,21 +102,26 @@ for (const bahn of BAHNEN) {
     assert.match(quelle, new RegExp(`\\.${bahn.klasse}\\s*\\{[^}]*margin-inline-start:\\s*2rem`));
     // Bei reduzierter Bewegung bricht die Bahn um und mittet; der Einzug muss dann weg.
     const reduziert = (quelle.match(/@media \(prefers-reduced-motion: reduce\)([\s\S]*?)\n  \}\n/) ?? [])[1] ?? '';
-    assert.match(reduziert, /margin-inline-start:\s*0/, 'Einzug bleibt bei reduzierter Bewegung stehen');
+    // An der Spur selbst, nicht irgendwo im Block (Review #251, B9).
+    const spurReduziert = (reduziert.match(new RegExp(`\\.${bahn.klasse}\\s*\\{([^}]*)\\}`)) ?? [])[1] ?? '';
+    assert.match(spurReduziert, /margin-inline-start:\s*0/, 'Einzug bleibt bei reduzierter Bewegung stehen');
   });
 
   test(`${bahn.klasse}: Dauer kommt aus der Kartenzahl (4 → 45 s, 8 → 90 s)`, async () => {
     const r = await renderer();
     const html4 = normalize(await r.render(bahn.datei, bahn.props(4)));
     const html8 = normalize(await r.render(bahn.datei, bahn.props(8)));
-    assert.match(html4, new RegExp(`--${bahn.variable}:\\s*45s`), `4 Karten: 45s fehlt`);
-    assert.match(html8, new RegExp(`--${bahn.variable}:\\s*90s`), `8 Karten: 90s fehlt`);
+    assert.match(html4, new RegExp(`--${bahn.variable}-auto:\\s*45s`), `4 Karten: 45s fehlt`);
+    assert.match(html8, new RegExp(`--${bahn.variable}-auto:\\s*90s`), `8 Karten: 90s fehlt`);
+    // Der Name zum Überschreiben darf NICHT im style-Attribut stehen, sonst kommt keine
+    // Kundenregel durch (Review #251, B1).
+    assert.doesNotMatch(html4, new RegExp(`--${bahn.variable}:`), 'Überschreib-Name steht im style-Attribut');
     // Trennschärfe: die Dauer muss aus der Variablen kommen. Vorher stand sie als
     // fester Wert in der Kurzform (`animation: cw-…-slide 45s linear infinite`) —
     // dann greift kein style-Attribut, und diese Probe wird rot.
     const regel = (quelle.match(new RegExp(`\\n[ \\t]*\\.${bahn.klasse}\\s*\\{([^}]*)\\}`)) ?? [])[1] ?? '';
     const animation = (regel.match(/animation:\s*([^;]+);/) ?? [])[1] ?? '';
-    assert.match(animation, new RegExp(`var\\(--${bahn.variable}`), `Dauer nicht aus der Variablen: ${animation}`);
+    assert.match(animation, new RegExp(`var\\(--${bahn.variable},\\s*var\\(--${bahn.variable}-auto`), `Dauer nicht aus der Variablen: ${animation}`);
   });
 
   test(`${bahn.klasse}: ohne Stimmen rendert die Bahn gar nicht`, async () => {

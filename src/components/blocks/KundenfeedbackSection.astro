@@ -46,7 +46,9 @@ const loop = [...items, ...items];
  * Bahn mit zwölf Stimmen dreimal so schnell wie eine mit vier; lesbar war nur die kurze.
  */
 const SEKUNDEN_JE_KARTE = 11.25;
-const laufbandDauer = `--cw-feedback-dauer:${items.length * SEKUNDEN_JE_KARTE}s`;
+// Berechneter Wert unter eigenem Namen: so schlägt eine gesetzte --cw-feedback-dauer
+// (am Spur-Element oder an einem Vorfahren) das style-Attribut (Review #251, B2).
+const laufbandDauer = `--cw-feedback-dauer-auto:${items.length * SEKUNDEN_JE_KARTE}s`;
 ---
 {items.length > 0 && (
 <section class="feedback-section">
@@ -114,12 +116,12 @@ const laufbandDauer = `--cw-feedback-dauer:${items.length * SEKUNDEN_JE_KARTE}s`
        (n Karten + n Abstände) — mit `padding: 1rem 2rem` blieben 2rem − gap/2 = 20px
        übrig, und die Bahn sprang bei jedem Durchlauf. Der optische Einzug kommt aus
        margin-inline-start, das nicht in die Spurbreite zählt. */
-    --cw-gap: 1.5rem;
-    gap: var(--cw-gap);
+    --cw-feedback-gap: 1.5rem;
+    gap: var(--cw-feedback-gap);
     width: max-content;
-    padding: 1rem var(--cw-gap) 1rem 0;
+    padding: 1rem var(--cw-feedback-gap) 1rem 0;
     margin-inline-start: 2rem;
-    animation: cw-feedback-slide var(--cw-feedback-dauer, 50s) linear infinite;
+    animation: cw-feedback-slide var(--cw-feedback-dauer, var(--cw-feedback-dauer-auto, 50s)) linear infinite;
   }
   .feedback-track:hover,
   .feedback-track:focus-within { animation-play-state: paused; }

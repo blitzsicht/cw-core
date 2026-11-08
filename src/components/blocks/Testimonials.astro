@@ -106,7 +106,9 @@ const loop = [...items, ...items];
  * Bahn mit zwölf Stimmen dreimal so schnell wie eine mit vier; lesbar war nur die kurze.
  */
 const SEKUNDEN_JE_KARTE = 11.25;
-const laufbandDauer = `--cw-testimonials-dauer:${items.length * SEKUNDEN_JE_KARTE}s`;
+// Berechneter Wert unter eigenem Namen: so schlägt eine gesetzte --cw-testimonials-dauer
+// (am Spur-Element oder an einem Vorfahren) das style-Attribut (Review #251, B1).
+const laufbandDauer = `--cw-testimonials-dauer-auto:${items.length * SEKUNDEN_JE_KARTE}s`;
 const avgRating = items.length > 0
   ? (items.reduce((s, t) => s + t.stars, 0) / items.length).toFixed(1)
   : '5.0';
@@ -224,12 +226,12 @@ const zeigePruefhinweis = reviewSource === 'google' && !hatPruefhinweis(subheadi
        (n Karten + n Abstände) — mit `padding: 1rem 2rem` blieben 2rem − gap/2 = 20px
        übrig, und die Bahn sprang bei jedem Durchlauf. Der optische Einzug kommt aus
        margin-inline-start, das nicht in die Spurbreite zählt. */
-    --cw-gap: 1.5rem;
-    gap: var(--cw-gap);
+    --cw-testimonials-gap: 1.5rem;
+    gap: var(--cw-testimonials-gap);
     width: max-content;
-    padding: 1rem var(--cw-gap) 1rem 0;
+    padding: 1rem var(--cw-testimonials-gap) 1rem 0;
     margin-inline-start: 2rem;
-    animation: cw-testimonials-slide var(--cw-testimonials-dauer, 45s) linear infinite;
+    animation: cw-testimonials-slide var(--cw-testimonials-dauer, var(--cw-testimonials-dauer-auto, 45s)) linear infinite;
   }
   .track:hover,
   .track:focus-within { animation-play-state: paused; }

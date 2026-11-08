@@ -24,7 +24,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
-- [kunde:sichtbar] Die Kundenstimmen laufen jetzt so, dass jede Stimme gleich lange zu lesen ist — bei vielen Stimmen langsamer als vorher. Der kleine Rücksprung am Ende jeder Runde ist weg.
+- [kunde:sichtbar] Die Kundenstimmen laufen jetzt so, dass jede Stimme gleich lange zu lesen ist — bei vielen Stimmen langsamer als vorher, bei sehr wenigen (unter vier) schneller. Der kleine Rücksprung am Ende jeder Runde ist weg.
 
 **Feature:** `VideoClip` — selbst gehostetes Video ohne eigene Section, mit Seitenverhältnis; Video-Cache und Video-Budget im Build
 
@@ -203,7 +203,9 @@ Flotte nach.
   das nicht in die Spurbreite (`width: max-content`) zählt. Bei reduzierter Bewegung bricht die
   Bahn um und mittet — der Einzug fällt dort weg.
 - Die Dauer kommt aus der Kartenzahl, **11,25 s je Karte**, als Custom Property am Spur-Element
-  (`--cw-testimonials-dauer`, `--cw-feedback-dauer`). Die alten Werte bleiben als CSS-Fallback.
+  (`--cw-testimonials-dauer-auto`, `--cw-feedback-dauer-auto`). Die alten Werte (45 s, 50 s)
+  bleiben als CSS-Fallback. Der Abstand heißt `--cw-testimonials-gap` bzw. `--cw-feedback-gap`
+  statt des allgemeinen `--cw-gap`.
 
 Betroffen in der Flotte (gemessen am lokal gespiegelten `origin/main`, ob die Bahn rendert,
 hängt zur Laufzeit an `items.length > 0`): `Testimonials` bei customer-digital-direkt (5
@@ -211,8 +213,10 @@ Stimmen → 56,25 s), customer-donau-profi (6 → 67,5 s), customer-weinkontor-s
 123,75 s); `KundenfeedbackSection` bei customer-soleno (6 → 67,5 s). customer-blitzsicht nutzt
 die eigene Kopie und ist nicht betroffen.
 
-**Migrations-Hinweis:** Keiner. Kein Prop, keine Pflichtangabe; wer die Dauer überschreiben
-will, setzt die Custom Property am Spur-Element.
+**Migrations-Hinweis:** Keiner. Kein Prop, keine Pflichtangabe. Wer die Dauer festlegen will,
+setzt `--cw-testimonials-dauer` bzw. `--cw-feedback-dauer` an der Spur oder an einem Vorfahren;
+das schlägt den berechneten Wert. (Im ersten Stand stand der berechnete Wert unter genau diesem
+Namen im `style`-Attribut, eine Kundenregel kam nie durch — Review #251, B1–B3.)
 
 ---
 

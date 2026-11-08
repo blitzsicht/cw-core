@@ -54,14 +54,14 @@ function ohneMicrodata(html) {
 }
 
 /**
- * Entfernt das style-Attribut der Bahn (`--cw-testimonials-dauer`, cw-core#249: die Dauer
+ * Entfernt das style-Attribut der Bahn (`--cw-testimonials-dauer-auto`, cw-core#249: die Dauer
  * kommt seit v0.194.0 aus der Kartenzahl). Der Schnappschuss stammt aus v0.159.1 und kennt
  * es nicht — alles andere bleibt Byte für Byte vergleichbar. Dass das Attribut im Render
  * überhaupt steht, belegt die Gegenprobe darunter und `tests/blocks/laufband-spur.test.js`.
  * @param {string} html
  */
 function ohneLaufbandDauer(html) {
-  return html.replace(/ style="--cw-testimonials-dauer:[\d.]+s"/g, '');
+  return html.replace(/ style="--cw-testimonials-dauer-auto:[\d.]+s"/g, '');
 }
 
 /** @param {string} html */
@@ -81,7 +81,7 @@ test('ohne productName: sichtbares Markup gleich v0.159.1 minus Microdata', asyn
 
 test('Gegenprobe: das Render trägt die Laufband-Dauer (sonst wäre die Normalisierung blind)', async () => {
   const html = await render({});
-  assert.match(html, / style="--cw-testimonials-dauer:22\.5s"/);
+  assert.match(html, / style="--cw-testimonials-dauer-auto:22\.5s"/);
   assert.notEqual(html, ohneLaufbandDauer(html));
 });
 
