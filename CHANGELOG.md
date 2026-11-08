@@ -86,6 +86,12 @@ Tests: `scripts/verify-touchpoints.test.mjs` — Unit (poster nur an `<video>`) 
 angepassten src-Test); Sabotage „Einschränkung auf `<video>` weg“ macht den Unit-Test rot
 (`<img poster>`-Fall, nachgetragen nach dem Review von #256).
 
+- [kunde:sichtbar] Bei Kacheln mit Bild beginnen umbrochene Textzeilen nicht mehr am Kartenrand, sondern bündig unter der ersten.
+
+**Fix:** LinkGrid — Kartentext bei Bildkarten als Block (cw-core#245). `.link-card-desc` war ein
+Inline-`<span>` mit seitlichem Innenabstand; nur die erste Zeile rückte ein. Karten ohne Bild
+bleiben unverändert (inline), damit sich ihre Zeilenhöhe nicht ändert.
+
 **Feature:** `erlaubteFormulierungen` — der Verbotslisten-Guard kennt jetzt Ausnahmen auf Satz-, nicht auf Seitenebene
 
 Kontext: Ein Muster traf bisher auch dort, wo der Satz das Gegenteil sagt — „ohne korrekte
