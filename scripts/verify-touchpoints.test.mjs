@@ -651,6 +651,30 @@ test('extractAssetRefs: srcset liefert die URLs ohne Deskriptor', () => {
   assert.deepEqual(refs.sort(), ['/a.webp', '/b.webp', '/c.webp']);
 });
 
+test('extractAssetRefs: Entities im Attribut werden aufgelöst — `&#38;` ist kein Fragment', () => {
+  // Der Befund (Review #256, cw-core#260): Astro schreibt `&` als `&#38;`. Das `#` darin traf
+  // `split('#')` in push(), und aus `/v/a&#38;b.webp` wurde `/v/a&` — eine Datei, die es nicht
+  // gibt, während die echte daneben liegt. Derselbe Schnitt galt für src und srcset.
+  const html = `
+    <img src="/bild?a&#38;b.webp" srcset="/s?x&amp;y.webp 400w">
+    <video src="/v/clip&#38;1.mp4" poster="/v/a&#38;b.webp"></video>
+    <meta property="og:image" content="/og?v&#38;2.png">`;
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/bild?a&b.webp', '/og?v&2.png', '/s?x&y.webp', '/v/a&b.webp', '/v/clip&1.mp4']);
+  // GEGENPROBE 1 — Trennschärfe: in <style> und <script> ist der Inhalt ein ROHER Textknoten,
+  // den kein Parser dekodiert. Ein `&amp;` ist dort buchstäblich gemeint und bleibt stehen,
+  // sonst erfände der Guard eine Referenz, die der Browser nie lädt.
+  const roh = extractAssetRefs('<style>.a{background:url(/css?x&amp;y.png)}</style>', null);
+  assert.deepEqual(roh.refs, ['/css?x&amp;y.png']);
+  // GEGENPROBE 2 — ein Codepoint außerhalb des Unicode-Bereichs wird U+FFFD, wie im Parser.
+  // Beides hängt daran: kein RangeError, und kein `#` bleibt stehen, das push() abschneiden
+  // würde (ohne diese Zeile meldete der Lauf `/x&` statt des ganzen Namens).
+  const kaputt = extractAssetRefs('<img src="/x&#99999999;y.webp">', null);
+  assert.deepEqual(kaputt.refs, ['/x\uFFFDy.webp']);
+  // GEGENPROBE 3 — ein echtes Fragment wird weiter abgeschnitten.
+  assert.deepEqual(extractAssetRefs('<img src="/sprite.svg#icon">', null).refs, ['/sprite.svg']);
+});
+
 test('extractAssetRefs: url() im <style> zählt, new URL() im <script> NICHT', () => {
   // Die gemessene Falschpositiv-Klasse: über rohes HTML trifft der url()-Regex
   // JavaScript. 502 von 554 Treffern der Flotte waren `new URL(t.href)` &Co.
@@ -1104,4 +1128,29 @@ test('GEGENPROBE: ein normales <script> wird weiterhin NICHT im Koerper gelesen'
   const html = '<script>const bild = "/images/nur-ein-string.png";</script>';
   const { refs } = extractAssetRefs(html, null);
   assert.deepEqual(refs, []);
+});
+
+test('verify-touchpoints: ein Poster mit `&` im Namen läuft grün, obwohl Astro es als `&#38;` schreibt', () => {
+  // Ende zu Ende, nicht nur an der Extraktion: vorher endete derselbe Baum mit Exit 1 und der
+  // Meldung „Asset-Referenz /v/a&", also einem Pfad, den niemand gebaut hatte.
+  const player = '<video controls poster="/v/a&#38;b.webp"><source src="/v/clip.mp4" type="video/mp4"></video>';
+  const r = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/').replace('<body>', `<body>${player}`),
+      'v/clip.mp4': 'MP4',
+      'v/a&b.webp': 'WEBP',
+    },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(r.code, 0, `out:\n${r.out}`);
+  // GEGENPROBE: fehlt die Datei wirklich, meldet der Lauf den DEKODIERTEN Pfad — nicht `/v/a&`.
+  const rot = runTree({
+    files: {
+      'index.html': PAGE('https://kunde.de/').replace('<body>', `<body>${player}`),
+      'v/clip.mp4': 'MP4',
+    },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /\/v\/a&b\.webp/);
 });

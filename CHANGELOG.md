@@ -239,6 +239,23 @@ entdoppelt. Der Satz ist aus Kommentar und Changelog gestrichen, statt ihn weite
 
 **Migrations-Hinweis:** Keiner.
 
+**Fix:** `verify-touchpoints` liest HTML-Entities in Attributwerten (cw-core#260, Punkt 1)
+
+Kontext: Astro schreibt ein `&` im Dateinamen als `&#38;`. Das `#` darin traf den
+Fragment-Schnitt in `extractAssetRefs`, und aus `poster="/v/a&#38;b.webp"` wurde `/v/a&` —
+eine Datei, die niemand gebaut hat, während die echte daneben lag. Der Lauf endete mit
+Exit 1 und nannte einen Pfad, der im Repo nicht vorkommt. Attributwerte (`src`, `poster`,
+`srcset`, `meta content`) werden jetzt vor dem Fragment-Schnitt dekodiert; ein Codepoint
+außerhalb des Unicode-Bereichs wird U+FFFD, wie im Parser.
+
+Bewusst **nicht** dekodiert werden `url()` im `<style>` und die Bildfelder im JSON-LD: der
+Inhalt von `<style>` und `<script>` ist im HTML ein roher Textknoten, den kein Parser
+entitätsdekodiert. Ein `&amp;` ist dort buchstäblich gemeint — es aufzulösen würde eine
+Referenz erfinden, die der Browser nie lädt. In 32 lokalen Kunden-Builds kommt der Fall
+0-mal vor; der Befund ist einer des Guards, nicht der Kundenseiten.
+
+**Migrations-Hinweis:** Keiner.
+
 ---
 
 ## v0.193.0 (2026-11-06)
