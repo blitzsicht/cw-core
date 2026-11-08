@@ -40,6 +40,15 @@ const {
 } = Astro.props;
 
 const loop = [...items, ...items];
+
+/**
+ * Laufzeit der Bahn aus der Kartenzahl, 11,25 s je Karte. Mit fester Dauer wanderte eine
+ * Bahn mit zwölf Stimmen dreimal so schnell wie eine mit vier; lesbar war nur die kurze.
+ */
+const SEKUNDEN_JE_KARTE = 11.25;
+// Berechneter Wert unter eigenem Namen: so schlägt eine gesetzte --cw-feedback-dauer
+// (am Spur-Element oder an einem Vorfahren) das style-Attribut (Review #251, B2).
+const laufbandDauer = `--cw-feedback-dauer-auto:${items.length * SEKUNDEN_JE_KARTE}s`;
 ---
 {items.length > 0 && (
 <section class="feedback-section">
@@ -51,7 +60,7 @@ const loop = [...items, ...items];
   </div>
 
   <div class="feedback-track-wrap" role="region" aria-label="Kundenstimmen (scrollend)">
-    <div class="feedback-track">
+    <div class="feedback-track" style={laufbandDauer}>
       {loop.map((f, i) => (
         <blockquote
           class="feedback-card"
@@ -102,10 +111,17 @@ const loop = [...items, ...items];
   }
   .feedback-track {
     display: flex;
-    gap: 1.5rem;
+    /* Polster rechts = gap, links 0: die Bahn trägt die Stimmen doppelt, der Keyframe
+       läuft auf -50%. Nur so ist die halbe Spurbreite genau eine Periode
+       (n Karten + n Abstände) — mit `padding: 1rem 2rem` blieben 2rem − gap/2 = 20px
+       übrig, und die Bahn sprang bei jedem Durchlauf. Der optische Einzug kommt aus
+       margin-inline-start, das nicht in die Spurbreite zählt. */
+    --cw-feedback-gap: 1.5rem;
+    gap: var(--cw-feedback-gap);
     width: max-content;
-    padding: 1rem 2rem;
-    animation: cw-feedback-slide 50s linear infinite;
+    padding: 1rem var(--cw-feedback-gap) 1rem 0;
+    margin-inline-start: 2rem;
+    animation: cw-feedback-slide var(--cw-feedback-dauer, var(--cw-feedback-dauer-auto, 50s)) linear infinite;
   }
   .feedback-track:hover,
   .feedback-track:focus-within { animation-play-state: paused; }
@@ -152,6 +168,7 @@ const loop = [...items, ...items];
       justify-content: center;
       width: 100%;
       padding-inline: 1.5rem;
+      margin-inline-start: 0;
     }
     .feedback-track-wrap {
       -webkit-mask-image: none;

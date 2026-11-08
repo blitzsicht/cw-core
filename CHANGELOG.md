@@ -24,6 +24,8 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+- [kunde:sichtbar] Die Kundenstimmen laufen jetzt so, dass jede Stimme gleich lange zu lesen ist — bei vielen Stimmen langsamer als vorher, bei sehr wenigen (unter vier) schneller. Der kleine Rücksprung am Ende jeder Runde ist weg.
+
 **Feature:** `VideoClip` — selbst gehostetes Video ohne eigene Section, mit Seitenverhältnis; Video-Cache und Video-Budget im Build
 
 Kontext: Zwei Hochkant-Reels (1080×1920) sollten neben dem Text stehen, den sie erklären.
@@ -187,6 +189,36 @@ ersten Seite leer und machte jede weitere Herkunft still zu `'flotte'`.
   über **alle** Seiten des Ausnahme-Eintrags (vorher nur die, auf denen die Phrase greift),
   nur aus der **Kundenliste** (Flottentreffer bleiben ein Hinweis) und **entdoppelt** nach
   Fundstelle. Er nennt den Eintrag beim Namen und mit `strictVerbotsliste` den Abbruch.
+
+**Fix:** Laufband der Kundenstimmen — kein Rücksprung, Tempo aus der Kartenzahl (cw-core#249)
+
+Kontext: `Testimonials.astro` und `KundenfeedbackSection.astro` tragen die Stimmen doppelt und
+schieben die Bahn per Keyframe auf `-50%`. Damit das nahtlos ist, muss die halbe Spurbreite
+genau eine Periode sein (n Karten + n Abstände). Beide Bahnen hatten aber `padding: 1rem 2rem`
+bei `gap: 1.5rem`: es blieben `2rem − gap/2` = 20 px übrig, und die Bahn sprang bei jedem
+Durchlauf sichtbar zurück. Zweitens stand die Dauer fest (45 s bzw. 50 s) — eine Bahn mit elf
+Stimmen wanderte damit knapp dreimal so schnell wie eine mit vier, lesbar war nur die kurze.
+Die Kundenkopie in customer-blitzsicht hat beides seit blitzsicht#252 live; hier zieht die
+Flotte nach.
+
+- Polster rechts = `gap`, links 0; der optische Einzug kommt aus `margin-inline-start: 2rem`,
+  das nicht in die Spurbreite (`width: max-content`) zählt. Bei reduzierter Bewegung bricht die
+  Bahn um und mittet — der Einzug fällt dort weg.
+- Die Dauer kommt aus der Kartenzahl, **11,25 s je Karte**, als Custom Property am Spur-Element
+  (`--cw-testimonials-dauer-auto`, `--cw-feedback-dauer-auto`). Die alten Werte (45 s, 50 s)
+  bleiben als CSS-Fallback. Der Abstand heißt `--cw-testimonials-gap` bzw. `--cw-feedback-gap`
+  statt des allgemeinen `--cw-gap`.
+
+Betroffen in der Flotte (gemessen am lokal gespiegelten `origin/main`, ob die Bahn rendert,
+hängt zur Laufzeit an `items.length > 0`): `Testimonials` bei customer-digital-direkt (5
+Stimmen → 56,25 s), customer-donau-profi (6 → 67,5 s), customer-weinkontor-sinzing (11 →
+123,75 s); `KundenfeedbackSection` bei customer-soleno (6 → 67,5 s). customer-blitzsicht nutzt
+die eigene Kopie und ist nicht betroffen.
+
+**Migrations-Hinweis:** Keiner. Kein Prop, keine Pflichtangabe. Wer die Dauer festlegen will,
+setzt `--cw-testimonials-dauer` bzw. `--cw-feedback-dauer` an der Spur oder an einem Vorfahren;
+das schlägt den berechneten Wert. (Im ersten Stand stand der berechnete Wert unter genau diesem
+Namen im `style`-Attribut, eine Kundenregel kam nie durch — Review #251, B1–B3.)
 
 ---
 

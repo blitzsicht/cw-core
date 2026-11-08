@@ -53,6 +53,17 @@ function ohneMicrodata(html) {
     .replace(/\s+item(?:type|prop)="[^"]*"/g, '');
 }
 
+/**
+ * Entfernt das style-Attribut der Bahn (`--cw-testimonials-dauer-auto`, cw-core#249: die Dauer
+ * kommt seit v0.194.0 aus der Kartenzahl). Der Schnappschuss stammt aus v0.159.1 und kennt
+ * es nicht — alles andere bleibt Byte für Byte vergleichbar. Dass das Attribut im Render
+ * überhaupt steht, belegt die Gegenprobe darunter und `tests/blocks/laufband-spur.test.js`.
+ * @param {string} html
+ */
+function ohneLaufbandDauer(html) {
+  return html.replace(/ style="--cw-testimonials-dauer-auto:[\d.]+s"/g, '');
+}
+
 /** @param {string} html */
 const zaehle = (html, re) => (html.match(re) ?? []).length;
 
@@ -65,7 +76,13 @@ test('ohne productName: 0 itemprop, 0 itemscope, 0 itemtype', async () => {
 
 test('ohne productName: sichtbares Markup gleich v0.159.1 minus Microdata', async () => {
   const html = await render({});
-  assert.equal(html, ohneMicrodata(FIXTURE.ohneProductName));
+  assert.equal(ohneLaufbandDauer(html), ohneMicrodata(FIXTURE.ohneProductName));
+});
+
+test('Gegenprobe: das Render trägt die Laufband-Dauer (sonst wäre die Normalisierung blind)', async () => {
+  const html = await render({});
+  assert.match(html, / style="--cw-testimonials-dauer-auto:22\.5s"/);
+  assert.notEqual(html, ohneLaufbandDauer(html));
 });
 
 test('Gegenprobe: der Schnappschuss v0.159.1 trug Microdata (sonst wäre der Vergleich oben leer)', () => {
@@ -74,17 +91,17 @@ test('Gegenprobe: der Schnappschuss v0.159.1 trug Microdata (sonst wäre der Ver
 });
 
 test('mit productName: Markup Byte für Byte wie v0.159.1', async () => {
-  assert.equal(await render({ productName: 'Testkunde Website-Service' }), FIXTURE.mitProductName);
+  assert.equal(ohneLaufbandDauer(await render({ productName: 'Testkunde Website-Service' })), FIXTURE.mitProductName);
 });
 
 test('schema={true} ohne productName: Markup wie v0.159.1 (Default-Name)', async () => {
-  assert.equal(await render({ schema: true }), FIXTURE.ohneProductName);
+  assert.equal(ohneLaufbandDauer(await render({ schema: true })), FIXTURE.ohneProductName);
 });
 
 test('schema={false} mit productName: kein Markup', async () => {
   const html = await render({ productName: 'Testkunde Website-Service', schema: false });
   assert.equal(zaehle(html, /itemprop|itemscope|itemtype/g), 0);
-  assert.equal(html, ohneMicrodata(FIXTURE.mitProductName));
+  assert.equal(ohneLaufbandDauer(html), ohneMicrodata(FIXTURE.mitProductName));
 });
 
 // ---------------------------------------------------------------------------
