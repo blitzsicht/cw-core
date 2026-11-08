@@ -16,7 +16,7 @@
  *     ohne jegliches @font-face/woff2 im Repo → stiller System-Fallback,
  *     toter Verweis, den nie jemand bemerkt hat.
  *
- * @typedef {'render_blocking_css'|'dead_font_family'|'image_over_budget'} PerfIssueType
+ * @typedef {'render_blocking_css'|'dead_font_family'|'image_over_budget'|'video_over_budget'} PerfIssueType
  * @typedef {{ type: PerfIssueType, details: string }} PerfIssue
  */
 
@@ -70,6 +70,37 @@ export function checkImageBudget(images, maxKb = 200) {
         details:
           `${img.path || 'Bild'}: ${kb} KB > ${maxKb} KB — via optimize-images verkleinern ` +
           '(oder AVIF-Variante). Große Bilder verschlechtern LCP + Bandbreite.',
+      });
+    }
+  }
+  return issues;
+}
+
+/** Endungen, die der Video-Budget-Guard misst. */
+export const VIDEO_EXT = ['.mp4', '.webm', '.mov', '.m4v'];
+
+/**
+ * Video-Budget (07.11.2026): flaggt dist-Videos über dem KB-Budget. Ein Video lädt erst
+ * auf Klick (`preload="none"`), deshalb trifft es nicht den LCP, sondern das Datenvolumen
+ * mobiler Besucher — und es fällt durch das Bild-Budget, das nur Bildformate kennt.
+ * Größter Fall der Flotte am Tag der Einführung: 4,3 MB (Erklärvideo, 1280×720). Das
+ * Budget liegt mit 5 MB darüber, damit der Start keinen Bestand meldet.
+ * @param {{ path: string, sizeBytes: number }[]} videos  dist-Videos mit Größe.
+ * @param {number} [maxKb=5120] Schwelle pro Datei in KB.
+ * @returns {PerfIssue[]}
+ */
+export function checkVideoBudget(videos, maxKb = 5120) {
+  /** @type {PerfIssue[]} */
+  const issues = [];
+  const limitBytes = maxKb * 1024;
+  for (const v of videos ?? []) {
+    if (v && typeof v.sizeBytes === 'number' && v.sizeBytes > limitBytes) {
+      const mb = (v.sizeBytes / 1024 / 1024).toFixed(1);
+      issues.push({
+        type: 'video_over_budget',
+        details:
+          `${v.path || 'Video'}: ${mb} MB > ${(maxKb / 1024).toFixed(1)} MB — neu kodieren ` +
+          '(H.264, CRF 26–28, Breite ≤ 1280 bzw. Höhe ≤ 1920 bei Hochformat, `-movflags +faststart`).',
       });
     }
   }

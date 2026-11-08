@@ -53,6 +53,8 @@ import {
   checkDeadFontFamilies,
   checkRenderBlockingCss,
   checkImageBudget,
+  checkVideoBudget,
+  VIDEO_EXT,
   extractInlineStyles,
 } from './perf-check.js';
 import { checkEmbedConsent } from './embed-consent-check.js';
@@ -476,6 +478,13 @@ export interface AiDiscoveryOptions<T extends AiDiscoverySiteData = AiDiscoveryS
    * erst nach Fleet-Lauf ohne False-Positives (blitzsicht-ops#541).
    */
   strictImageBudget?: boolean;
+  /**
+   * Default true. Video-Budget (07.11.2026): warnt bei einzelnen dist-Videos
+   * (`.mp4`/`.webm`/`.mov`/`.m4v`) über `maxVideoKb`. Nur Warnung, nie Abbruch.
+   */
+  checkVideoBudget?: boolean;
+  /** KB-Schwelle pro Video für den Video-Budget-Guard. Default 5120 (5 MB). */
+  maxVideoKb?: number;
 
   /**
    * Default true. Embed-Consent-Guard: meldet Buchungs-Embeds, die schon beim
@@ -3977,7 +3986,8 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             const rules = extractHeaderRulesFromVercelJson(readFileSync(vercelPath, 'utf-8'));
             const hasFontsDir = existsSync(join(distDir, 'fonts'));
             const hasImagesDir = existsSync(join(distDir, 'images'));
-            const cacheIssues = checkCacheHeaders(rules, { hasFontsDir, hasImagesDir });
+            const hasVideosDir = existsSync(join(distDir, 'videos'));
+            const cacheIssues = checkCacheHeaders(rules, { hasFontsDir, hasImagesDir, hasVideosDir });
             if (cacheIssues.length === 0) {
               logger.info('Cache-Header-Linter: ✓ vercel.json Cache-Politik ok.');
             } else {
@@ -4292,6 +4302,13 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // konfiguriert"); jetzt läuft der Flottendefault weiter, und die Herkunftsangabe
           // in der ✓-Zeile darf dann nicht „Kundenliste + Flottendefault" behaupten.
           const eigeneListe = kundenListe.size > 0;
+          // Die Herkunft geht an den Checker, statt sie am Wortlaut jedes Befunds erneut
+          // nachzuschlagen; sie trägt dort zugleich die Rangfolge an einer Startposition
+          // (cw-core#247). Eigene Konstante, weil sie an zwei Aufrufstellen gebraucht wird.
+          // Ein Array, kein `.keys()`-Iterator: der Checker läuft je HTML-Datei erneut, und
+          // ein verbrauchter Iterator machte ab der zweiten Seite jeden Treffer zum
+          // Flottentreffer — ohne Fehlermeldung, also still.
+          const herkunftOption = { kundenListe: [...kundenListe.keys()] } as const;
           const formulierungen: readonly string[] = [...(eigene ?? []), ...GARANTIE_PRAEDIKATE];
           // Dieselbe Zahl, die der Checker wirklich prüft — vorher zählte `filter()` rohe
           // Einträge und meldete für ['rechtssicher','Rechtssicher'] zwei (Befund 7).
@@ -4348,10 +4365,9 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 if (erlaubte.length > 0) {
                   const eintraege = ausnahmen.filter((a) => !istZuPruefen(rel, [a]));
                   ausnahmenJeSeite.set(rel, eintraege);
-                  for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
+                  for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte, herkunftOption)) {
                     if (b.aufgehobenDurch === undefined) {
-                      const norm = b.formulierung.replace(/\s+/g, ' ').trim().toLowerCase();
-                      if (kundenListe.has(norm)) {
+                      if (b.herkunft === 'kunde') {
                         for (const a of eintraege) {
                           const stellen = offenJeAusnahme.get(a) ?? new Set<string>();
                           stellen.add(`${b.ort}\u0000${b.kontext}`);
@@ -4370,7 +4386,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 continue;
               }
               geprueft++;
-              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte)) {
+              for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte, herkunftOption)) {
                 if (b.aufgehobenDurch !== undefined) {
                   // Alle Phrasen, die hier aufheben, nicht nur die des Befunds (Review cw-core#242, B2).
                   for (const phrase of b.alleAufhebungen ?? [b.aufgehobenDurch]) {
@@ -4381,8 +4397,10 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                   continue;
                 }
                 const key = `${b.ort}\u0000${b.kontext}`;
-                const norm = b.formulierung.replace(/\s+/g, ' ').trim().toLowerCase();
-                const ziel = kundenListe.has(norm) ? proKontextKunde : proKontextFlotte;
+                // Herkunft kommt aus dem Befund (cw-core#247) — vorher stand dieselbe
+                // Normalisierung hier ein zweites Mal, und sie konnte von der des Checkers
+                // abweichen, ohne dass es auffällt.
+                const ziel = b.herkunft === 'kunde' ? proKontextKunde : proKontextFlotte;
                 vermerkeFundstelle(ziel, key, rel, () => ({
                   kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel],
                 }));
@@ -4644,6 +4662,28 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               throw new Error(
                 `[ai-discovery] strictImageBudget=true: Build abgebrochen wegen ${budgetIssues.length} Bild(ern) über ${maxKb} KB.`,
               );
+            }
+          }
+        }
+
+        // -------------------------------------------------------------------
+        // Video-Budget: dist-Videos über KB-Budget (07.11.2026)
+        // -------------------------------------------------------------------
+        // Das Bild-Budget kennt nur Bildformate; ein 20-MB-Video ginge still durch.
+        // Gleicher Walk (walkImages mit eigener Endungsliste), nur Warnung.
+        if (options.checkVideoBudget !== false) {
+          const maxKb = options.maxVideoKb ?? 5120;
+          const videos = walkImages(distDir, [], VIDEO_EXT).map((p: string) => ({
+            path: p.slice(distDir.length).replace(/^\//, ''),
+            sizeBytes: statSync(p).size,
+          }));
+          if (videos.length > 0) {
+            const videoIssues = checkVideoBudget(videos, maxKb);
+            if (videoIssues.length === 0) {
+              logger.info(`Video-Budget: ✓ ${videos.length} Video(s) ≤ ${Math.round(maxKb / 1024)} MB.`);
+            } else {
+              logger.warn(`Video-Budget: ${videoIssues.length} Video(s) über ${Math.round(maxKb / 1024)} MB:`);
+              for (const vi of videoIssues) logger.warn(`  [${vi.type}] ${vi.details}`);
             }
           }
         }

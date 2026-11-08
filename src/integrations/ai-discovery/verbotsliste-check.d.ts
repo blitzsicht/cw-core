@@ -28,6 +28,13 @@ export interface VerbotslistenBefund {
    * gebraucht werden (Review cw-core#242, Befund 2).
    */
   alleAufhebungen?: readonly string[];
+  /**
+   * Woher das getroffene Muster stammt — nur gesetzt, wenn `optionen.kundenListe` übergeben
+   * wurde. `'kunde'` ist WARN und bricht mit `strictVerbotsliste` ab, `'flotte'` ist ein
+   * Hinweis. Trägt zugleich die zweite Stufe der Rangfolge an einer Startposition
+   * (cw-core#247): Kundentreffer schlägt Flottentreffer, erst danach entscheidet die Länge.
+   */
+  herkunft?: 'kunde' | 'flotte';
 }
 
 /** Flottendefault: `rechtssicher`, `abmahnsicher`, `anwaltlich geprüft`. */
@@ -40,6 +47,7 @@ export function pruefeVerbotsliste(
   seite: string,
   formulierungen: readonly string[],
   erlaubte?: readonly string[],
+  optionen?: { kundenListe?: readonly string[] | ReadonlySet<string> },
 ): VerbotslistenBefund[];
 
 /**
