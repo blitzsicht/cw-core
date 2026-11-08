@@ -22,6 +22,45 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+- [kunde:sichtbar] Bei Kacheln mit Bild beginnen umbrochene Textzeilen nicht mehr am Kartenrand, sondern bündig unter der ersten.
+
+**Fix:** LinkGrid — Kartentext bei Bildkarten als Block (cw-core#245). `.link-card-desc` war ein
+Inline-`<span>` mit seitlichem Innenabstand; nur die erste Zeile rückte ein. Karten ohne Bild
+bleiben unverändert (inline), damit sich ihre Zeilenhöhe nicht ändert.
+
+**Fix:** Nachlese Review #252 — `herkunft` im JSDoc-Typ, `optionen: null`, unerreichbare Zusage (cw-core#261)
+
+Kontext: Drei Restbefunde aus dem Review des Herkunft-PR. Der JSDoc-Typ `VerbotslistenBefund`
+kannte `herkunft` nicht, obwohl die Funktion es setzt — `tsc --checkJs` meldete deshalb zwei
+TS2339 an den eigenen Zugriffen. `optionen: null` warf einen TypeError, weil ein
+Parameter-Default nur bei `undefined` greift; `null` liest jetzt wie „keine Angabe". Und die
+Zusage „bei gleicher Länge bleibt der erste Eintrag" beschrieb einen Fall, den es nicht geben
+kann: gleich lange Treffer an derselben Startposition sind derselbe String, und die Liste ist
+entdoppelt. Der Satz ist aus Kommentar und Changelog gestrichen, statt ihn weiter zu versprechen.
+
+**Migrations-Hinweis:** Keiner.
+
+**Fix:** `verify-touchpoints` liest HTML-Entities in Attributwerten (cw-core#260, Punkt 1)
+
+Kontext: Astro schreibt ein `&` im Dateinamen als `&#38;`. Das `#` darin traf den
+Fragment-Schnitt in `extractAssetRefs`, und aus `poster="/v/a&#38;b.webp"` wurde `/v/a&` —
+eine Datei, die niemand gebaut hat, während die echte daneben lag. Der Lauf endete mit
+Exit 1 und nannte einen Pfad, der im Repo nicht vorkommt. Attributwerte (`src`, `poster`,
+`srcset`, `meta content`) werden jetzt vor dem Fragment-Schnitt dekodiert; ein Codepoint
+außerhalb des Unicode-Bereichs wird U+FFFD, wie im Parser.
+
+Bewusst **nicht** dekodiert werden `url()` im `<style>` und die Bildfelder im JSON-LD: der
+Inhalt von `<style>` und `<script>` ist im HTML ein roher Textknoten, den kein Parser
+entitätsdekodiert. Ein `&amp;` ist dort buchstäblich gemeint — es aufzulösen würde eine
+Referenz erfinden, die der Browser nie lädt. In 32 lokalen Kunden-Builds kommt der Fall
+0-mal vor; der Befund ist einer des Guards, nicht der Kundenseiten.
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.194.0 (2026-11-08)
 
 - [kunde:sichtbar] Die Kundenstimmen laufen jetzt so, dass jede Stimme gleich lange zu lesen ist — bei vielen Stimmen langsamer als vorher, bei sehr wenigen (unter vier) schneller. Der kleine Rücksprung am Ende jeder Runde ist weg.
@@ -85,12 +124,6 @@ Tests: `scripts/verify-touchpoints.test.mjs` — Unit (poster nur an `<video>`) 
 (rot ohne Poster, grün mit). Sabotage „Zeile raus“ macht 3 Tests rot (die zwei neuen und den
 angepassten src-Test); Sabotage „Einschränkung auf `<video>` weg“ macht den Unit-Test rot
 (`<img poster>`-Fall, nachgetragen nach dem Review von #256).
-
-- [kunde:sichtbar] Bei Kacheln mit Bild beginnen umbrochene Textzeilen nicht mehr am Kartenrand, sondern bündig unter der ersten.
-
-**Fix:** LinkGrid — Kartentext bei Bildkarten als Block (cw-core#245). `.link-card-desc` war ein
-Inline-`<span>` mit seitlichem Innenabstand; nur die erste Zeile rückte ein. Karten ohne Bild
-bleiben unverändert (inline), damit sich ihre Zeilenhöhe nicht ändert.
 
 **Feature:** `erlaubteFormulierungen` — der Verbotslisten-Guard kennt jetzt Ausnahmen auf Satz-, nicht auf Seitenebene
 
@@ -226,36 +259,6 @@ die eigene Kopie und ist nicht betroffen.
 setzt `--cw-testimonials-dauer` bzw. `--cw-feedback-dauer` an der Spur oder an einem Vorfahren;
 das schlägt den berechneten Wert. (Im ersten Stand stand der berechnete Wert unter genau diesem
 Namen im `style`-Attribut, eine Kundenregel kam nie durch — Review #251, B1–B3.)
-
-**Fix:** Nachlese Review #252 — `herkunft` im JSDoc-Typ, `optionen: null`, unerreichbare Zusage (cw-core#261)
-
-Kontext: Drei Restbefunde aus dem Review des Herkunft-PR. Der JSDoc-Typ `VerbotslistenBefund`
-kannte `herkunft` nicht, obwohl die Funktion es setzt — `tsc --checkJs` meldete deshalb zwei
-TS2339 an den eigenen Zugriffen. `optionen: null` warf einen TypeError, weil ein
-Parameter-Default nur bei `undefined` greift; `null` liest jetzt wie „keine Angabe". Und die
-Zusage „bei gleicher Länge bleibt der erste Eintrag" beschrieb einen Fall, den es nicht geben
-kann: gleich lange Treffer an derselben Startposition sind derselbe String, und die Liste ist
-entdoppelt. Der Satz ist aus Kommentar und Changelog gestrichen, statt ihn weiter zu versprechen.
-
-**Migrations-Hinweis:** Keiner.
-
-**Fix:** `verify-touchpoints` liest HTML-Entities in Attributwerten (cw-core#260, Punkt 1)
-
-Kontext: Astro schreibt ein `&` im Dateinamen als `&#38;`. Das `#` darin traf den
-Fragment-Schnitt in `extractAssetRefs`, und aus `poster="/v/a&#38;b.webp"` wurde `/v/a&` —
-eine Datei, die niemand gebaut hat, während die echte daneben lag. Der Lauf endete mit
-Exit 1 und nannte einen Pfad, der im Repo nicht vorkommt. Attributwerte (`src`, `poster`,
-`srcset`, `meta content`) werden jetzt vor dem Fragment-Schnitt dekodiert; ein Codepoint
-außerhalb des Unicode-Bereichs wird U+FFFD, wie im Parser.
-
-Bewusst **nicht** dekodiert werden `url()` im `<style>` und die Bildfelder im JSON-LD: der
-Inhalt von `<style>` und `<script>` ist im HTML ein roher Textknoten, den kein Parser
-entitätsdekodiert. Ein `&amp;` ist dort buchstäblich gemeint — es aufzulösen würde eine
-Referenz erfinden, die der Browser nie lädt. In 32 lokalen Kunden-Builds kommt der Fall
-0-mal vor; der Befund ist einer des Guards, nicht der Kundenseiten.
-
-**Migrations-Hinweis:** Keiner.
-
 ---
 
 ## v0.193.0 (2026-11-06)
