@@ -639,9 +639,10 @@ test('extractAssetRefs: poster zählt nur an <video>, nicht als Wort anderswo', 
   const html = `
     <video controls preload="none" poster='/videos/a-poster.webp'><source src="/videos/a.mp4" type="video/mp4"></video>
     <img src="/b.webp" data-poster="/kein-asset.webp">
+    <img src="/c.webp" poster="/auch-kein-asset.webp">
     <p>poster="/nur-text.webp"</p>`;
   const { refs } = extractAssetRefs(html, null);
-  assert.deepEqual(refs.sort(), ['/b.webp', '/videos/a-poster.webp', '/videos/a.mp4']);
+  assert.deepEqual(refs.sort(), ['/b.webp', '/c.webp', '/videos/a-poster.webp', '/videos/a.mp4']);
 });
 
 test('extractAssetRefs: srcset liefert die URLs ohne Deskriptor', () => {

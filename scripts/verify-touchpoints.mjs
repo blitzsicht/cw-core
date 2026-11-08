@@ -279,7 +279,7 @@ export function extractInternalLinks(html, origin) {
   return [...out];
 }
 
-/** Tags, deren src/srcset auf eine ausgelieferte Datei zeigt. */
+/** Tags, deren src/srcset (und poster an <video>) auf eine ausgelieferte Datei zeigt. */
 const ASSET_TAG_RE = /<(?:img|source|script|video|audio|track|embed|iframe)\b[^>]*>/gi;
 
 /**
@@ -907,7 +907,7 @@ async function main() {
       else console.log(`ℹ️  ${linkSeen.size} interne Links im dist geprüft — ${bad} davon nicht auflösbar (oben gemeldet).`);
     }
 
-    // ── Asset-Referenzen: src/srcset/CSS-url() gegen das gebaute dist ──
+    // ── Asset-Referenzen: src/srcset/poster/CSS-url() gegen das gebaute dist ──
     //
     // blitzsicht-ops#656: bis v0.110.0 sah die Extraktion nur `href=`. Zwei tote
     // Bildverweise liefen dadurch seit jeher live in einen 404, ohne dass je ein

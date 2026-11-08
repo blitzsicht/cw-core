@@ -80,7 +80,9 @@ Videos, 7 Poster, alle HTTP 200 — der Pin-Bump macht keinen Build rot.
 Migration: nichts zu tun.
 
 Tests: `scripts/verify-touchpoints.test.mjs` — Unit (poster nur an `<video>`) und E2E
-(rot ohne Poster, grün mit). Sabotage (Zeile raus) macht genau diese drei Tests rot.
+(rot ohne Poster, grün mit). Sabotage „Zeile raus“ macht 3 Tests rot (die zwei neuen und den
+angepassten src-Test); Sabotage „Einschränkung auf `<video>` weg“ macht den Unit-Test rot
+(`<img poster>`-Fall, nachgetragen nach dem Review von #256).
 
 **Feature:** `erlaubteFormulierungen` — der Verbotslisten-Guard kennt jetzt Ausnahmen auf Satz-, nicht auf Seitenebene
 
