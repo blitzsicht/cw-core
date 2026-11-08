@@ -632,8 +632,16 @@ test('extractAssetRefs: src an img/source/script/video wird erfasst', () => {
     <video src="/clip.mp4" poster="/poster.webp"></video>
     <iframe src="/eingebettet/"></iframe>`;
   const { refs } = extractAssetRefs(html, 'https://kunde.de');
-  assert.deepEqual(refs.sort(), ['/clip.mp4', '/eingebettet/', '/hero.avif', '/js/nav.js', '/logo.webp']);
-  // poster= ist bewusst NICHT dabei — enger Geltungsbereich, s. Doc-Kommentar.
+  assert.deepEqual(refs.sort(), ['/clip.mp4', '/eingebettet/', '/hero.avif', '/js/nav.js', '/logo.webp', '/poster.webp']);
+});
+
+test('extractAssetRefs: poster zählt nur an <video>, nicht als Wort anderswo', () => {
+  const html = `
+    <video controls preload="none" poster='/videos/a-poster.webp'><source src="/videos/a.mp4" type="video/mp4"></video>
+    <img src="/b.webp" data-poster="/kein-asset.webp">
+    <p>poster="/nur-text.webp"</p>`;
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/b.webp', '/videos/a-poster.webp', '/videos/a.mp4']);
 });
 
 test('extractAssetRefs: srcset liefert die URLs ohne Deskriptor', () => {
@@ -742,6 +750,22 @@ test('E2E Gegenbeweis blitzsicht-ops#656 (c): blumen-schmid — .png verlinkt, n
   });
   assert.equal(code, 1, `out:\n${out}`);
   assert.match(out, /Asset-Referenz \/signet-white\.png/);
+});
+
+test('E2E Gegenbeweis: fehlendes Video-Poster wird gefangen, nicht nur das fehlende MP4', () => {
+  // Realer Fall 07.11.2026 (blitzsicht /forschung): MP4 entfernt → rot, Poster entfernt → grün.
+  const player = '<video controls preload="none" poster="/videos/r-poster.webp"><source src="/videos/r.mp4" type="video/mp4"></video>';
+  const files = (mitPoster) => ({
+    'index.html': PAGE('https://kunde.de/').replace('<body>', `<body>${player}`),
+    'videos/r.mp4': 'MP4',
+    ...(mitPoster ? { 'videos/r-poster.webp': 'WEBP' } : {}),
+  });
+  const rot = runTree({ files: files(false), config: { assetRefChecks: 'fail' } });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /Asset-Referenz \/videos\/r-poster\.webp/);
+
+  const gruen = runTree({ files: files(true), config: { assetRefChecks: 'fail' } });
+  assert.equal(gruen.code, 0, `out:\n${gruen.out}`);
 });
 
 test('E2E: Plausible-Proxy /js/script.js lebt per Rewrite — kein Befund', () => {
