@@ -120,6 +120,29 @@ Commit streichen. Bleibt sie stehen, meldet der Guard, dass die Phrase nur auf d
 ausgenommenen Seite greift. Gemessen 07.11.2026: einziges Repo ist customer-blitzsicht, das
 im Train ohnehin von Hand gehoben wird (#237).
 
+**Fix:** Rangfolge an einer Fundstelle ausgeschrieben, Herkunft kommt als Angabe (cw-core#247)
+
+Kontext: Treffen zwei Muster an derselben Stelle, meldet der Guard einen Befund. Wer ihn
+stellte, entschied bis v0.193.0 die Reihenfolge der Musterliste — und die trug die Herkunft,
+weil die Kundenliste vorn steht und ihr Treffer WARN ist. Nebenwirkung: ein längeres Muster
+erschien dauerhaft als „trifft nie", obwohl es greift. Der naive Fix („längster gewinnt")
+hätte einen WARN-Treffer der Kundenliste still zu einem Flotten-Hinweis gemacht.
+
+- `pruefeVerbotsliste(html, seite, formulierungen, erlaubte, optionen)` nimmt neu
+  `optionen.kundenListe` (Array oder Set, Schreibweise beliebig). Jeder Befund trägt dann
+  `herkunft: 'kunde' | 'flotte'`; ohne die Angabe bleibt das Feld undefiniert.
+- Die Rangfolge steht als eine Funktion da, in drei Stufen: **offen** schlägt aufgehoben,
+  **Kundenliste** schlägt Flottendefault, bei gleicher Herkunft gewinnt der **längere**
+  Treffer. Bei gleicher Länge bleibt der erste Eintrag wie bisher.
+- `ai-discovery` liest die Herkunft aus dem Befund, statt sie am Wortlaut jedes Treffers
+  erneut nachzuschlagen — dieselbe Normalisierung stand vorher zweimal da und konnte
+  auseinanderlaufen, ohne dass es auffällt.
+
+**Migrations-Hinweis:** Keiner. Der fünfte Parameter ist optional; ohne ihn ändert sich nur die
+Wahl bei zwei Treffern gleicher Startposition (jetzt der längere statt des ersten). Wer die
+Angabe nutzt, übergibt eine wiederverwendbare Sammlung — ein `.keys()`-Iterator wäre nach der
+ersten Seite leer und machte jede weitere Herkunft still zu `'flotte'`.
+
 **Nachlese Review cw-core#238** (vor dem Tag, sieben Befunde, sechs im Code):
 
 - Eine erlaubte Phrase, die **nur das Muster selbst** ist (`['rechtssicher']`), bestand die

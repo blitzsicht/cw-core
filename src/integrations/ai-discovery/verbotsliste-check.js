@@ -213,6 +213,33 @@ function beugt(n, m) {
 }
 
 /**
+ * Wer an einer Startposition den Befund stellt. Drei Stufen, in dieser Reihenfolge:
+ *
+ * 1. **offen schlägt aufgehoben** — sonst verdeckte ein aufgehobenes kurzes Muster ein
+ *    längeres, das die erlaubte Phrase NICHT umschließt (Review cw-core#238, B2).
+ * 2. **Kundenliste schlägt Flottendefault** — ein Treffer aus der Kundenliste ist WARN und
+ *    bricht mit `strictVerbotsliste` den Build ab, ein Flottentreffer ist nur ein Hinweis.
+ *    Bis v0.193.0 war diese Stufe implizit: es gewann der erste Listeneintrag, und die
+ *    Kundenliste steht vorn. Das trug zwar die Herkunft, ließ aber ein längeres Muster
+ *    dauerhaft als „trifft nie" erscheinen (cw-core#247). Ohne `optionen.kundenListe` gibt es
+ *    keine Herkunft, dann entscheidet Stufe 3.
+ * 3. **bei gleicher Herkunft gewinnt der längere Treffer** — das längere Muster ist das
+ *    genauere. Bei gleicher Länge bleibt der erste Eintrag, wie bisher.
+ *
+ * @param {VerbotslistenBefund} neu
+ * @param {VerbotslistenBefund | undefined} vorher
+ * @returns {boolean} true = `neu` ersetzt `vorher`
+ */
+function schlaegt(neu, vorher) {
+  if (!vorher) return true;
+  const offen = (/** @type {VerbotslistenBefund} */ b) => (b.aufgehobenDurch === undefined ? 1 : 0);
+  if (offen(neu) !== offen(vorher)) return offen(neu) > offen(vorher);
+  const kunde = (/** @type {VerbotslistenBefund} */ b) => (b.herkunft === 'kunde' ? 1 : 0);
+  if (kunde(neu) !== kunde(vorher)) return kunde(neu) > kunde(vorher);
+  return neu.treffer.length > vorher.treffer.length;
+}
+
+/**
  * Prüft eine gebaute Seite gegen die Formulierungsliste.
  *
  * Gemeldet wird JEDES Vorkommen je Ort — dieselbe Verdeckungsfalle wie beim Platzhaltertext-
@@ -236,11 +263,21 @@ function beugt(n, m) {
  * @param {string} seite relativer Pfad für die Meldung, z. B. `blog/dsgvo/index.html`
  * @param {readonly string[]} formulierungen Teilstrings, Groß-/Kleinschreibung egal; leer → keine Befunde
  * @param {readonly string[]} [erlaubte] Phrasen, die einen umschlossenen Treffer aufheben
+ * @param {{ kundenListe?: readonly string[] | ReadonlySet<string> }} [optionen] `kundenListe`:
+ *   die Muster, die aus der Liste des Kunden stammen (Schreibweise beliebig, wird
+ *   normalisiert). Damit trägt jeder Befund seine `herkunft`, und der Aufrufer muss sie nicht
+ *   am Wortlaut nachschlagen. Fehlt die Angabe, bleibt `herkunft` undefiniert.
+ *   **Kein Iterator:** die Funktion wird je Seite erneut gerufen, ein `.keys()` wäre nach dem
+ *   ersten Aufruf leer und jede Herkunft danach `'flotte'` — ohne Fehlermeldung.
  * @returns {VerbotslistenBefund[]} erst der sichtbare Text, dann Titel und Metas; je Ort nach Position
  */
-export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
+export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = [], optionen = {}) {
   const liste = normalisierteListe(formulierungen);
   if (liste.size === 0) return [];
+  // Herkunft aus derselben Normalisierung wie die Muster — sonst trifft `has()` nie.
+  const kundenMuster = optionen.kundenListe === undefined
+    ? undefined
+    : new Set(normalisierteListe([...optionen.kundenListe]).keys());
   // Eine Phrase, die nur das Muster selbst ist oder es ohne eigenes Wort beugt, wäre die
   // Pfad-Ausnahme über alle Seiten (Review cw-core#238 B1, cw-core#242 B3). Sie wird nicht
   // angewandt; `pruefeErlaubteListe()` meldet sie beim Laden.
@@ -296,12 +333,6 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
         for (const f of freigaben) {
           if (f.von <= i && ende <= f.bis) aufhebungen.set(i, (aufhebungen.get(i) ?? new Set()).add(f.original));
         }
-        // Ein Befund je Startposition, der erste Listeneintrag gewinnt (die Kundenliste steht
-        // vorn, ihr Treffer ist WARN). AUSSER der vorhandene ist aufgehoben und dieser nicht:
-        // sonst verdeckte ein aufgehobenes kurzes Muster ein längeres, das die Phrase NICHT
-        // umschließt, und das Ergebnis hinge an der Reihenfolge der Liste (Review #238, B2).
-        const vorher = proPosition.get(i);
-        if (vorher && !(vorher.aufgehobenDurch !== undefined && !freigabe)) continue;
         /** @type {VerbotslistenBefund} */
         const befund = {
           seite,
@@ -311,6 +342,10 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = []) {
           kontext: anzeige.slice(Math.max(0, i - 45), ende + 45).trim(),
         };
         if (freigabe) befund.aufgehobenDurch = freigabe.original;
+        if (kundenMuster !== undefined) befund.herkunft = kundenMuster.has(n) ? 'kunde' : 'flotte';
+        // Ein Befund je Startposition; wer ihn stellt, entscheidet `schlaegt()` — und zwar
+        // ausgeschrieben, statt über die Reihenfolge der Liste (cw-core#247).
+        if (!schlaegt(befund, proPosition.get(i))) continue;
         proPosition.set(i, befund);
       }
     }
