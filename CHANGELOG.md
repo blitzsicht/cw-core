@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.194.0 (2026-11-08)
 
 - [kunde:sichtbar] Die Kundenstimmen laufen jetzt so, dass jede Stimme gleich lange zu lesen ist — bei vielen Stimmen langsamer als vorher, bei sehr wenigen (unter vier) schneller. Der kleine Rücksprung am Ende jeder Runde ist weg.
 
