@@ -28,6 +28,14 @@ const REGELZEILE = /^\s*\{\s*(pathPrefix|stem):\s*'((?:[^'\\]|\\.)*)'/;
 const SIEHT_AUS_WIE_REGEL = /^\s*\{.*\},\s*$/;
 
 /**
+ * Schlüssel auf eigener Zeile: eine mehrzeilige Regel (siluri.de pflegt 295 davon von Hand,
+ * gemessen 09.11.2026). Der Zeilenleser sähe sie nicht und hielte sie für Kommentar — beim
+ * Mischen stünde die neue Regel dann zusätzlich in der Datei, und die alte gewänne zur
+ * Laufzeit weiter (gleicher Präfix, die erste bleibt). Deshalb: laut abbrechen.
+ */
+const SCHLUESSEL_OHNE_KLAMMER = /^\s*(pathPrefix|stem)\s*:/;
+
+/**
  * Schlüssel und Wert einer einzelnen Regelzeile.
  *
  * Der Wert kommt durch die Umkehrung von `alsLiteral()` (bildherkunft-arbeitsliste.mjs):
@@ -65,6 +73,13 @@ export function schluesselListe(quelle) {
   for (const z of zeilen) {
     const s = schluesselAusZeile(z);
     if (s) { treffer.push(s); continue; }
+    if (SCHLUESSEL_OHNE_KLAMMER.test(z)) {
+      throw new Error(
+        `Mehrzeilige Regel: ${z.trim().slice(0, 120)}\n` +
+        'Dieser Leser kennt nur einzeilige Regeln. Von Hand pflegen oder die Datei vorher auf ' +
+        'einzeilige Regeln umstellen — sonst stünde eine Regel doppelt und die alte gewönne.',
+      );
+    }
     if (SIEHT_AUS_WIE_REGEL.test(z)) {
       throw new Error(
         `Regelzeile ohne erkennbaren Schlüssel: ${z.trim().slice(0, 120)}\n` +
@@ -144,3 +159,158 @@ export function verlustVergleich(bestehenderInhalt, neueZeilen) {
 
   return { verloren, neuAngelegt, unveraendert };
 }
+
+// ── Mischen statt Überschreiben (customer-blitzsicht#269, Nachlese #264) ─────────────────
+//
+// Der Verlust-Guard oben hat den Totalverlust verhindert, aber den Generator damit praktisch
+// stillgelegt: bild-einbauen.mjs ergänzt die Datei bei jedem Bild, die Arbeitsliste (Stand im
+// localStorage eines Browsers) erfährt davon nie. Gemessen am 09.11.2026 trug blitzsicht 125
+// Regeln, die Arbeitsliste kannte 38, und jeder Schreiblauf hätte mit Exit 2 geendet. Jetzt
+// ist der Bestand die Grundlage: Regeln, die der Lauf nicht kennt, bleiben stehen, und für
+// ein Bild, das er kennt, gilt seine Einordnung — an derselben Stelle der Datei, damit der
+// Diff klein bleibt. Abgebrochen wird nur noch, wenn dabei eine Kennzeichnung wegfiele.
+
+const ERZEUGTER_KOPF = /^\/\/ (ERZEUGTE DATEI|Angelegt von cw-core\/scripts\/bildherkunft-übernehmen\.mjs)/;
+const OEFFNUNG = /^export const bildHerkunft\b.*=\s*\[\s*$/;
+/** Leere Liste auf einer Zeile (customer-notar-huber, gemessen 09.11.2026). */
+const LEER = /^(export const bildHerkunft\b.*=\s*\[)\s*\];\s*$/;
+
+/**
+ * Stammt der Kopf vom Generator? Nur dann darf `--kopf` ihn anfassen — und nur dann muss
+ * er die Datei überhaupt lesen können. Eine Datei mit eigenem Kopf (bild-einbauen.mjs, von
+ * Hand) bleibt unberührt, auch wenn ihr Rumpf eine Form hat, die dieser Leser nicht kennt.
+ * @param {string} inhalt
+ */
+export const hatErzeugtenKopf = (inhalt) => ERZEUGTER_KOPF.test(String(inhalt ?? '').split('\n')[0]);
+
+/**
+ * Kennzeichnungspflichtig nach Art. 50 Abs. 4: KI-Herkunft UND als Deepfake eingeordnet.
+ * @param {string} zeile
+ */
+export function istKennzeichnungspflichtig(zeile) {
+  const h = /herkunft:\s*'([^']*)'/.exec(String(zeile ?? ''))?.[1];
+  const d = /deepfake:\s*'([^']*)'/.exec(String(zeile ?? ''))?.[1];
+  return (h === 'ki-erzeugt' || h === 'ki-veraendert') && d === 'ja';
+}
+
+/**
+ * Teilt eine Deklarationsdatei in Vorspann (bis einschließlich `export const bildHerkunft
+ * … = [`), Rumpf (Regeln, Kommentare, Leerzeilen) und Schluss (ab dem letzten `];`).
+ * Wirft, wenn Öffnung oder Schluss fehlen: dann ist über den Bestand nichts gesagt, und
+ * „nichts gesagt" ist nicht „nichts da".
+ *
+ * @param {string} inhalt
+ * @returns {{ vorspann: string[], rumpf: string[], schluss: string[] }}
+ */
+export function teileDatei(inhalt) {
+  const zeilen = String(inhalt ?? '').split('\n');
+  // `= [];` wird zu `= [` + `];` aufgefaltet: ein leerer Rumpf, in den sich mischen lässt.
+  const leer = zeilen.findIndex((z) => LEER.test(z));
+  if (leer > -1) zeilen.splice(leer, 1, zeilen[leer].replace(LEER, '$1'), '];');
+  const auf = zeilen.findIndex((z) => OEFFNUNG.test(z));
+  let zu = -1;
+  for (let i = zeilen.length - 1; i > auf; i--) if (/^\];\s*$/.test(zeilen[i])) { zu = i; break; }
+  if (auf === -1 || zu === -1) {
+    throw new Error('Deklarationsdatei ohne `export const bildHerkunft … = [` oder ohne `];` — von Hand prüfen.');
+  }
+  return { vorspann: zeilen.slice(0, auf + 1), rumpf: zeilen.slice(auf + 1, zu), schluss: zeilen.slice(zu) };
+}
+
+/**
+ * Ersetzt eine neue Regel die alte vollständig? Nur dann darf die alte Zeile weichen.
+ *
+ * - gleiche Adresse (Art und Wert);
+ * - alter Pfad, neuer Stem desselben Bildes: der Pfad schlüge den Stem zur Laufzeit
+ *   (Rang 1 vor Rang 0), bliebe er stehen, hätte die neue Einordnung keine Wirkung.
+ *
+ * Umgekehrt (alter Stem, neuer Pfad) bleibt der Stem: er deckt weitere Dateien desselben
+ * Namens, und der neue Pfad gewinnt für seine Datei ohnehin. Ebenso ein alter Präfix,
+ * unter dem ein neuer, längerer Pfad liegt.
+ */
+function ersetzt(alt, neu) {
+  if (alt.art === neu.art && alt.wert === neu.wert) return true;
+  return alt.art === 'pathPrefix' && neu.art === 'stem' && stammVonPfad(alt.wert) === neu.wert;
+}
+
+/**
+ * Überstimmt die neue Regel die alte für mindestens eine Datei? Das ist die Menge, an der
+ * eine wegfallende Kennzeichnung geprüft wird — weiter als `ersetzt`, weil auch ein neuer
+ * Pfad unter einem alten Stem oder Präfix die Aussage für seine Datei ändert.
+ */
+function ueberstimmt(alt, neu) {
+  if (ersetzt(alt, neu)) return true;
+  if (neu.art !== 'pathPrefix') return false;
+  if (alt.art === 'stem') return stammVonPfad(neu.wert) === alt.wert;
+  return neu.wert.length > alt.wert.length && neu.wert.startsWith(alt.wert);
+}
+
+/**
+ * Mischt die Regelzeilen eines Generatorlaufs in den Rumpf einer bestehenden Datei.
+ *
+ * @param {string[]} rumpf       bestehende Rumpfzeilen (aus `teileDatei`), `[]` beim Erstlauf
+ * @param {string[]} neueZeilen  Regelzeilen aus der Arbeitsliste
+ * @returns {{ zeilen: string[], behalten: string[], ersetzt: string[], geaendert: string[],
+ *             neu: string[], kennzeichnungWeg: string[] }}
+ *   `behalten`: Bestand, den der Lauf nicht berührt · `ersetzt`: Bestand, dessen Zeile der
+ *   Lauf stellt (gleich oder geändert) · `geaendert`: davon die mit anderem Wortlaut ·
+ *   `neu`: Zeilen, die am Ende angehängt werden · `kennzeichnungWeg`: Bestand mit
+ *   Kennzeichnung, die für mindestens eine Datei entfiele — der einzige Abbruchgrund
+ */
+export function mischeRegeln(rumpf, neueZeilen) {
+  const neu = neueZeilen.map((z) => ({ z, s: schluesselAusZeile(z) }));
+  for (const n of neu) {
+    if (!n.s) throw new Error(`Generatorzeile ohne Schlüssel: ${String(n.z).trim().slice(0, 120)}`);
+  }
+  // Schlüssel des Bestands vorab, damit eine unbekannte Zeilenform wirft, bevor irgendetwas
+  // gemischt ist (dieselbe Begründung wie bei `schluesselListe`).
+  schluesselListe(rumpf);
+
+  /** @type {Set<number>} */
+  const verbraucht = new Set();
+  const e = { zeilen: [], behalten: [], ersetzt: [], geaendert: [], neu: [], kennzeichnungWeg: [] };
+
+  for (const zeile of rumpf) {
+    const alt = schluesselAusZeile(zeile);
+    if (alt && istKennzeichnungspflichtig(zeile)
+      && neu.some((n) => ueberstimmt(alt, n.s) && !istKennzeichnungspflichtig(n.z))) {
+      e.kennzeichnungWeg.push(adresse(alt));
+    }
+    if (!alt) { e.zeilen.push(zeile); continue; }
+    const i = neu.findIndex((n) => ersetzt(alt, n.s));
+    if (i === -1) { e.zeilen.push(zeile); e.behalten.push(adresse(alt)); continue; }
+    e.ersetzt.push(adresse(alt));
+    if (neu[i].z.trim() !== zeile.trim()) e.geaendert.push(adresse(alt));
+    // Zwei alte Pfade desselben Stamms, ein neuer Stem: die neue Zeile steht einmal, an der
+    // Stelle des ersten.
+    if (!verbraucht.has(i)) { e.zeilen.push(neu[i].z); verbraucht.add(i); }
+  }
+  neu.forEach((n, i) => {
+    if (verbraucht.has(i)) return;
+    e.zeilen.push(n.z);
+    e.neu.push(adresse(n.s));
+  });
+  return e;
+}
+
+/**
+ * Ersetzt den Kopf, den der Generator geschrieben hat (erste Zeile bis einschließlich
+ * `// Site: …`), durch `neuerKopf`. Was danach steht, bleibt — auch handgeschriebene
+ * „Ergänzt …"-Vermerke. Ein Kopf von bild-einbauen.mjs oder von Hand bleibt unberührt:
+ * er behauptet keine Regelzahl.
+ *
+ * @param {string[]} vorspann  aus `teileDatei`
+ * @param {string} neuerKopf   endet mit der Zeile `// Site: …`
+ * @returns {{ vorspann: string[], ersetzt: boolean }}
+ */
+export function kopfErsetzen(vorspann, neuerKopf) {
+  if (!ERZEUGTER_KOPF.test(vorspann[0] ?? '')) return { vorspann, ersetzt: false };
+  const site = vorspann.findIndex((z) => /^\/\/ Site: /.test(z));
+  if (site === -1) throw new Error('Erzeugter Kopf ohne Zeile `// Site: …` — von Hand prüfen.');
+  return { vorspann: [...neuerKopf.replace(/\n+$/, '').split('\n'), ...vorspann.slice(site + 1)], ersetzt: true };
+}
+
+/**
+ * Zahl der Regelzeilen in einem Rumpf.
+ * @param {string[]} rumpf
+ */
+export const regelZahl = (rumpf) => schluesselListe(rumpf).length;
