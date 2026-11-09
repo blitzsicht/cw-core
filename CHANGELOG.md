@@ -22,8 +22,9 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.194.1 (2026-11-09)
 
+- [kunde:sichtbar] Bei Kacheln mit Bild beginnen umbrochene Textzeilen nicht mehr am Kartenrand, sondern bündig unter der ersten.
 - [kunde] Bilder in den Leistungskacheln und im Ablauf laden in der Größe, in der sie angezeigt werden; auf dem Handy wird dadurch weniger übertragen.
 
 **Perf:** Bild-`sizes` nach echter Spaltenbreite, ScrollProgress ohne erzwungenen Umbruch
@@ -34,8 +35,6 @@ Container 72rem, Rand 1.5rem und Gap; `widths` bekommt je eine 640er-Stufe, dami
 eine passende Stufe existiert. Retina bleibt scharf: der Browser multipliziert `sizes` weiter mit
 der Pixeldichte. ScrollProgress liest `scrollHeight` beim Start nicht mehr synchron, sondern im
 nächsten Frame (vorher 51 ms „Erzwungener dynamischer Umbruch“).
-
-- [kunde:sichtbar] Bei Kacheln mit Bild beginnen umbrochene Textzeilen nicht mehr am Kartenrand, sondern bündig unter der ersten.
 
 **Fix:** LinkGrid — Kartentext bei Bildkarten als Block (cw-core#245). `.link-card-desc` war ein
 Inline-`<span>` mit seitlichem Innenabstand; nur die erste Zeile rückte ein. Karten ohne Bild
