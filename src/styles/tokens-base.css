@@ -344,6 +344,21 @@ h1, h2, h3, h4, h5, h6 {
   pointer-events: none;
 }
 
+/* Wo der Browser Scroll-Zeitleisten kann, fährt CSS den Balken, ScrollProgress.astro steigt
+   dann vor dem ersten Lesen aus. Kein `scrollHeight` beim Laden heißt kein erzwungener
+   Umbruch (Lighthouse spedition-steller.de 09.11.2026: 51 ms, nach dem rAF-Versuch in
+   v0.194.1 noch 27 ms in 1 von 3 Läufen). Die Reduced-Motion-Regel unten blendet ihn weiter aus. */
+@keyframes motion-scroll-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@supports (animation-timeline: scroll()) {
+  .motion-scroll-progress {
+    animation: motion-scroll-progress linear both;
+    animation-timeline: scroll(root block);
+  }
+}
+
 /* Custom cursor utility — hidden on touch devices. */
 .motion-cursor {
   position: fixed;

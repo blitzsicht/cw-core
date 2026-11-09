@@ -22,6 +22,28 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+**Perf:** ScrollProgress liest beim Laden nichts mehr — CSS fährt den Balken
+
+Kontext: v0.194.1 hatte das Lesen von `scrollHeight` beim Start in ein `requestAnimationFrame`
+verschoben. Das reicht nicht: ein rAF-Callback läuft vor dem Layout des Frames, das Lesen
+erzwingt den Umbruch trotzdem. Lighthouse auf spedition-steller.de meldete danach noch 27 ms
+in 1 von 3 Läufen (vorher 51 ms).
+
+- `tokens-base.css`: wo der Browser `animation-timeline: scroll()` kann, läuft der Balken als
+  CSS-Animation an der Scroll-Zeitleiste der Seite, ohne JavaScript. Reduced Motion blendet ihn
+  wie bisher aus.
+- `ScrollProgress.astro`: steigt in diesen Browsern sofort aus. Sonst Rückfall wie bisher, aber
+  ohne Lesen beim Start; der erste Wert kommt mit dem ersten `scroll`-Ereignis. Eine Sperre
+  verhindert, dass `astro:page-load` nach `DOMContentLoaded` ein zweites Paar Listener anhängt.
+- Neuer Browser-Test `e2e/scroll-progress.spec.ts` (3 Fälle, CI-Zähler im Job e2e 7 → 10).
+  Gegenprobe: mit Komponente und CSS aus v0.194.1 sind beide Lade-Fälle rot („beim Laden gelesen“).
+
+**Migrations-Hinweis:** Keiner.
+
+---
+
 ## v0.194.1 (2026-11-09)
 
 - [kunde:sichtbar] Bei Kacheln mit Bild beginnen umbrochene Textzeilen nicht mehr am Kartenrand, sondern bündig unter der ersten.

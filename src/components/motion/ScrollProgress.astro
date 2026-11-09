@@ -24,9 +24,13 @@ const style = [
 
 <script>
   const init = () => {
+    // Scroll-Zeitleiste vorhanden: CSS fährt den Balken (tokens-base.css), hier gibt es nichts zu tun.
+    if (CSS.supports('animation-timeline: scroll()')) return;
     const bar = document.querySelector<HTMLElement>('[data-motion-progress]');
-    if (!bar) return;
+    if (!bar || bar.dataset.motionInit) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // `astro:page-load` folgt auf `DOMContentLoaded`: ohne Sperre hingen zwei Paar Listener dran.
+    bar.dataset.motionInit = '1';
     let ticking = false;
     const update = () => {
       const h = document.documentElement;
@@ -41,10 +45,10 @@ const style = [
         ticking = true;
       }
     };
-    // Erster Stand über requestAnimationFrame statt synchron: `scrollHeight`
-    // mitten im Seitenaufbau zu lesen erzwang einen Layout-Durchlauf
-    // (Lighthouse „Erzwungener dynamischer Umbruch“, 51 ms, spedition-steller.de 09.11.2026).
-    onScroll();
+    // Rückfall ohne Scroll-Zeitleiste: beim Laden nichts lesen. Der Balken steht laut CSS auf
+    // scaleX(0); den ersten Wert bringt das erste `scroll`-Ereignis, auch die Wiederherstellung
+    // der Scroll-Position beim Zurück-Navigieren. Ein Lesen beim Start, auch im
+    // requestAnimationFrame, erzwang einen Umbruch (Lighthouse spedition-steller.de 09.11.2026).
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
   };
