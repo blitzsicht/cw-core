@@ -45,9 +45,11 @@ export function kopfInhalte(html: string): { ort: VerbotslistenOrt; inhalt: stri
 export function pruefeVerbotsliste(
   html: string,
   seite: string,
-  formulierungen: readonly string[],
-  erlaubte?: readonly string[],
-  optionen?: { kundenListe?: readonly string[] | ReadonlySet<string> },
+  formulierungen: readonly string[] | ReadonlySet<string> | null | undefined,
+  erlaubte?: readonly string[] | ReadonlySet<string> | null,
+  // `null` heißt überall „keine Angabe" (Review cw-core#261, zweite Nachlese B3). Ein String
+  // oder Iterator wirft zur Laufzeit einen TypeError.
+  optionen?: { kundenListe?: readonly string[] | ReadonlySet<string> | null } | null,
 ): VerbotslistenBefund[];
 
 /**

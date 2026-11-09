@@ -49,6 +49,28 @@ ausgeliefert in v0.194.1 und v0.194.2. Kein Werkzeug hat etwas davon gemeldet.
 
 **Migrations-Hinweis:** Keiner. Neue Einträge gehören wie bisher unter `## [Unreleased]`.
 
+**Fix:** `pruefeVerbotsliste` nimmt `null` in jeder optionalen Eingabe an und weist Strings und Iteratoren ab (cw-core#261, zweite Nachlese)
+
+Kontext: Der Fix aus #262 fing nur `optionen: null` ab. `{ kundenListe: null }`, `erlaubte: null`
+und `formulierungen: null` warfen weiter einen TypeError, an einer Stelle, die den Grund nicht
+nennt. Ein String als `kundenListe` wurde in Einzelbuchstaben zerlegt, und jeder Kundentreffer lief
+still als Flottentreffer, also nur als Hinweis statt WARN.
+
+- `verbotsliste-check.js`: Alle optionalen Eingaben laufen durch einen neuen Helfer `alsListe`.
+  `null` und `undefined` heißen „keine Angabe“, Array und Set gehen durch, alles andere wirft einen
+  `TypeError` mit dem Parameternamen. Die doppelte Absicherung (Parameter-Default plus `?? {}`) ist
+  weg. Ein Iterator wie `map.keys()` wird jetzt beim ersten Aufruf abgewiesen. Vorher war er ab der
+  zweiten Seite leer, und das ohne Meldung.
+- `verbotsliste-check.d.ts`: `null` ist für `formulierungen`, `erlaubte`, `optionen` und
+  `optionen.kundenListe` erlaubt. Unter `strictNullChecks` lieferte genau der zugesagte Fall vorher
+  3 Typfehler, jetzt 0.
+- Proben 58 → 60. Die Probe zu B8 zählte nur Befunde je Startposition und blieb grün, wenn das
+  Kleinschreiben oder das Entdoppeln fehlte. Die neue Probe misst beides. Gegenprobe: Sabotage an
+  `== null`, `.toLowerCase()` oder `!liste.has(n)` macht jeweils genau die gemeinte Probe rot.
+
+**Migrations-Hinweis:** Keiner. Der einzige Aufrufer (`index.ts`) übergibt ein Array. Wer einen
+String oder Iterator übergibt, bekommt jetzt einen Fehler, wo vorher still falsch gezählt wurde.
+
 ---
 
 ## v0.194.2 (2026-11-09)

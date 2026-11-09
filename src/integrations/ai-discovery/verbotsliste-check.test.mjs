@@ -5,6 +5,7 @@ import {
   pruefeErlaubteListe,
   kopfInhalte,
   GARANTIE_PRAEDIKATE,
+  normalisierteListe,
 } from './verbotsliste-check.js';
 import { istZuPruefen } from './platzhaltertext-check.js';
 
@@ -575,11 +576,14 @@ test('#247: dieselbe Angabe trägt über mehrere Seiten — ein Iterator täte e
     const b = pruefeVerbotsliste(BESTEN, `seite-${durchgang}.html`, ['die Besten'], [], option);
     assert.equal(b[0].herkunft, 'kunde', `Durchgang ${durchgang}`);
   }
-  // GEGENPROBE, die den Grund zeigt: ein verbrauchter Iterator macht jeden Treffer ab der
-  // zweiten Seite still zum Flottentreffer.
+  // GEGENPROBE, die den Grund zeigt: ein verbrauchter Iterator machte jeden Treffer ab der
+  // zweiten Seite still zum Flottentreffer. Seit der zweiten Nachlese zu #261 (B5) wird er
+  // gleich beim ersten Aufruf abgewiesen — laut statt still.
   const kaputt = { kundenListe: new Set(['die Besten']).keys() };
-  assert.equal(pruefeVerbotsliste(BESTEN, 'a.html', ['die Besten'], [], kaputt)[0].herkunft, 'kunde');
-  assert.equal(pruefeVerbotsliste(BESTEN, 'b.html', ['die Besten'], [], kaputt)[0].herkunft, 'flotte');
+  assert.throws(
+    () => pruefeVerbotsliste(BESTEN, 'a.html', ['die Besten'], [], kaputt),
+    { name: 'TypeError', message: /optionen\.kundenListe muss ein Array oder Set sein, nicht Set Iterator/ },
+  );
 });
 
 test('#247: alleAufhebungen ist in beiden Listenreihenfolgen gleich', () => {
@@ -630,15 +634,51 @@ test('#261-Nachlese B7: `optionen: null` zählt wie fehlende Angabe statt zu wer
   assert.deepEqual(b, pruefeVerbotsliste(BESTEN, seite, ['die Besten'], [], {}));
 });
 
-test('#261-Nachlese B8: zwei gleich lange Muster an derselben Stelle sind ein Eintrag', () => {
-  // Die gestrichene Zusage „bei gleicher Länge bleibt der erste Eintrag" setzte zwei
-  // VERSCHIEDENE Muster gleicher Länge an derselben Startposition voraus. Die gibt es nicht:
-  // gleich lang und gleiche Position heißt gleicher String, und die Liste ist entdoppelt.
-  const b = pruefeVerbotsliste(BESTEN, seite, ['die Besten', 'DIE BESTEN'], []);
-  assert.equal(b.length, 1, 'zwei Schreibweisen, ein Befund');
-  // GEGENPROBE: zwei Muster UNTERSCHIEDLICHER Länge an derselben Position werden sehr wohl
-  // gegeneinander abgewogen — dort greift Stufe 3, und sie bleibt wirksam.
-  const lang = pruefeVerbotsliste(BESTEN, seite, ['die Besten', 'die Besten in Regensburg'], []);
-  assert.equal(lang.length, 1);
-  assert.equal(lang[0].formulierung, 'die Besten in Regensburg');
+test('#261-Nachlese B8: zwei Schreibweisen sind ein Eintrag — das Original des ersten bleibt', () => {
+  // Die frühere Gleichstand-Zusage setzte zwei VERSCHIEDENE Muster gleicher Länge an derselben
+  // Startposition voraus. Die gibt es nicht, weil die Liste klein geschrieben und entdoppelt
+  // wird. Die Vorgängerprobe zählte nur Befunde je Startposition und blieb deshalb grün, auch
+  // wenn genau diese zwei Schritte fehlten (zweite Nachlese B4/B6). Diese hier misst beide.
+  //
+  // (a) Kleinschreibung: Ein Muster in Großbuchstaben trifft den klein geschriebenen Seitentext.
+  //     Ohne `.toLowerCase()` in `normalisierteListe` sucht der Checker „DIE BESTEN" in der
+  //     Kleinfassung der Seite und findet nichts.
+  const gross = pruefeVerbotsliste(BESTEN, seite, ['DIE BESTEN']);
+  assert.equal(gross.length, 1, 'Großschreibung im Muster darf den Treffer nicht verlieren');
+  assert.equal(gross[0].formulierung, 'DIE BESTEN', 'gemeldet in der Schreibweise der Liste');
+  // (b) Entdoppeln: zwei Schreibweisen → ein Schlüssel, und das ERSTE Original bleibt. Ohne
+  //     `!liste.has(n)` überschreibt der zweite Eintrag den ersten.
+  const liste = normalisierteListe(['die Besten', 'DIE  BESTEN']);
+  assert.equal(liste.size, 1, 'ein Schlüssel für beide Schreibweisen');
+  assert.equal(liste.get('die besten'), 'die Besten', 'das erste Vorkommen bleibt das Original');
+});
+
+test('#261-Nachlese B1/B2: `null` in jeder optionalen Eingabe heißt „keine Angabe"', () => {
+  // Der Fix B7 fing nur `optionen: null`. `{ kundenListe: null }` warf weiter
+  // „opt.kundenListe is not iterable", `erlaubte: null` und `formulierungen: null` warfen in
+  // `normalisierteListe` — an einer Stelle, die den Grund nicht verrät.
+  const ohne = pruefeVerbotsliste(BESTEN, seite, ['die Besten']);
+  assert.equal(ohne.length, 1);
+  assert.deepEqual(pruefeVerbotsliste(BESTEN, seite, ['die Besten'], [], { kundenListe: null }), ohne);
+  assert.deepEqual(pruefeVerbotsliste(BESTEN, seite, ['die Besten'], null), ohne);
+  assert.deepEqual(pruefeVerbotsliste(BESTEN, seite, ['die Besten'], null, null), ohne);
+  // „leer → keine Befunde" gilt auch für `null`.
+  assert.deepEqual(pruefeVerbotsliste(BESTEN, seite, null), []);
+  // GEGENPROBE: eine echte Kundenliste wirkt weiter, `null` ist kein Ausschalter für alles.
+  assert.equal(pruefeVerbotsliste(BESTEN, seite, ['die Besten'], null, { kundenListe: ['die Besten'] })[0].herkunft, 'kunde');
+});
+
+test('#261-Nachlese B5: Listen nur als Array oder Set — ein String wirft statt Buchstaben zu zählen', () => {
+  // `kundenListe: 'die Besten'` wurde in Einzelbuchstaben gespreizt; der Treffer lief still als
+  // `herkunft: 'flotte'`, also nur Hinweis statt WARN.
+  assert.throws(
+    () => pruefeVerbotsliste(BESTEN, seite, ['die Besten'], [], { kundenListe: 'die Besten' }),
+    { name: 'TypeError', message: /optionen\.kundenListe muss ein Array oder Set sein, nicht String/ },
+  );
+  assert.throws(() => pruefeVerbotsliste(BESTEN, seite, 'die Besten'), { name: 'TypeError', message: /formulierungen/ });
+  assert.throws(() => pruefeVerbotsliste(BESTEN, seite, ['die Besten'], 'die Besten'), { name: 'TypeError', message: /erlaubte/ });
+  // GEGENPROBE: ein Set ist erlaubt und trägt die Herkunft.
+  const b = pruefeVerbotsliste(BESTEN, seite, new Set(['die Besten']), [], { kundenListe: new Set(['die Besten']) });
+  assert.equal(b.length, 1);
+  assert.equal(b[0].herkunft, 'kunde');
 });
