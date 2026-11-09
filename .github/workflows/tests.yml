@@ -114,6 +114,11 @@ jobs:
       # Zusaetzlich geprueft: im Projekt desktop taucht KEINE andere Spec auf — sonst liefe
       # mobile-audit dort doppelt und a11y-audit mit einem Viewport, fuer den sie nie
       # kalibriert wurde.
+      # badge-diff/badge.spec.ts zählt hier NICHT mit: es hat eine eigene Config und wird
+      # von `testIgnore` in playwright.config.ts ausgeschlossen. Gemessen am 09.11.2026 mit
+      # demselben Befehl, einmal ohne und einmal mit der Zeile: 25 gegen 21. Dieser Zählwert
+      # ist damit auch der Wächter darüber, dass der Pixelvergleich nicht in die
+      # Kundenläufe rutscht.
       - name: Specs aufzaehlen (21 Tests erwartet — Kern-Rueckfall ohne DIST_DIR)
         working-directory: checks
         run: |
@@ -145,13 +150,14 @@ jobs:
       # 7 „not ok“ ohne Chromium), seit #219 in keinem Job (Review nach dem Merge, Befund 4). Hier laufen sie als
       # eigener Schritt: check-slop (npx impeccable, braucht Netz), formular-kontrast und screenshot-gescrollt
       # (beide Chromium). Die Wurzel-Globs von `pnpm test` erfassen checks/ nicht.
-      - name: node:test in checks/ (check-slop, formular-kontrast, screenshot-gescrollt)
+      - name: node:test in checks/ (check-slop, formular-kontrast, screenshot-gescrollt, badge-diff)
         working-directory: checks
         run: |
           pnpm exec playwright install chromium --with-deps
           pnpm test:slop
           pnpm test:formular
           pnpm test:screens
+          pnpm test:badges
 
   # Formulare im Browser wirklich absenden (blitzsicht-ops#900): Klick →
   # Client-Skript in ContactForm.astro → echter createContactHandler → Erfolgs-

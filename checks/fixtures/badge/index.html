@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8"><title>Badge-Fixture Startseite</title>
+<style>
+  /* Fixture fuer die Badge-Werkzeuge. Keine Webfonts, keine externen Bilder:
+     ein Pixelvergleich darf nicht daran scheitern, dass eine Schrift spaeter
+     eintrifft. Die Masse spiegeln customer-blitzsicht ProcessSteps.astro
+     (Kreis 3.25rem, SVG 1.625rem, Akzent #EF7612, Glyphe #1D1E3B). */
+  html { -webkit-font-smoothing: none; }
+  body { margin: 0; background: #fff; font: 16px/1.4 system-ui, sans-serif; }
+  .steps { display: flex; gap: 2rem; padding: 2rem; flex-wrap: wrap; }
+  .step-badge {
+    width: 3.25rem; height: 3.25rem; border-radius: 50%;
+    background: #EF7612; color: #1D1E3B;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-badge svg { width: 1.625rem; height: 1.625rem; }
+  /* Abstand nach unten, damit scrollIntoView etwas zu tun hat. */
+  .luft { height: 1200px; }
+</style></head><body>
+<h1>Badge-Fixture Startseite</h1>
+<div class="steps">
+  <div class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 12h16"/><path d="M12 4v16"/></svg></div>
+  <div class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg></div>
+  <div class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><path d="M4 20L20 4"/><path d="M4 4l16 16"/></svg></div>
+  <div class="step-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true"><rect x="5" y="5" width="14" height="14"/></svg></div>
+</div>
+<div class="luft"></div>
+</body></html>
