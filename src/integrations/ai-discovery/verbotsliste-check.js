@@ -173,6 +173,29 @@ export function normalisierteListe(formulierungen) {
 }
 
 /**
+ * Eine optionale Listenangabe in genau eine Form bringen. `null` und `undefined` heißen
+ * „keine Angabe" und werden zur leeren Liste — beide, nicht nur `undefined`: ein Parameter-
+ * Default greift bei `null` nicht, und ein Spread wirft dann `… is not iterable` an einer
+ * irreführenden Stelle (Review cw-core#261, zweite Nachlese B1/B2).
+ *
+ * Angenommen werden nur Array und Set. Ein String ist zwar iterierbar, ergäbe aber eine Liste
+ * aus Einzelbuchstaben: `kundenListe: 'die Besten'` lief so still als `herkunft: 'flotte'`
+ * (B5). Ein Iterator wie `map.keys()` ist nach dem ersten Durchlauf leer, und die Funktion
+ * wird je Seite erneut gerufen. Beides wirft jetzt, statt still falsch zu zählen.
+ *
+ * @param {unknown} wert
+ * @param {string} name Parametername für die Fehlermeldung
+ * @returns {readonly string[]}
+ */
+function alsListe(wert, name) {
+  if (wert == null) return [];
+  if (Array.isArray(wert)) return wert;
+  if (wert instanceof Set) return [...wert];
+  const art = typeof wert === 'string' ? 'String' : Object.prototype.toString.call(wert).slice(8, -1);
+  throw new TypeError(`pruefeVerbotsliste: ${name} muss ein Array oder Set sein, nicht ${art}`);
+}
+
+/**
  * Ist eine erlaubte Phrase ein Freibrief statt eines Satz-Teils? Ja, wenn sie das Muster
  * selbst ist (Review cw-core#238, Befund 1) ODER ein Muster enthält, ohne ein Wort mehr als
  * dieses zu haben: `rechtssichere`, `DSGVO-rechtssicher`, `Anfragen bringt.` umschließen fast
@@ -226,8 +249,8 @@ function beugt(n, m) {
  * 3. **bei gleicher Herkunft gewinnt der längere Treffer** — das längere Muster ist das
  *    genauere. Ein Gleichstand ist hier nicht erreichbar: zwei Treffer gleicher Länge an
  *    derselben Startposition sind derselbe String, und `normalisierteListe()` entdoppelt
- *    ihn. Die frühere Zusage „bei gleicher Länge bleibt der erste Eintrag" beschrieb
- *    einen Fall, den es nicht gibt (Review cw-core#261, B8).
+ *    ihn. Die frühere Gleichstand-Zusage beschrieb einen Fall, den es nicht gibt
+ *    (Review cw-core#261, B8).
  *
  * @param {VerbotslistenBefund} neu
  * @param {VerbotslistenBefund | undefined} vorher
@@ -264,34 +287,39 @@ function schlaegt(neu, vorher) {
  *
  * @param {string} html roher HTML-Inhalt der Seite
  * @param {string} seite relativer Pfad für die Meldung, z. B. `blog/dsgvo/index.html`
- * @param {readonly string[]} formulierungen Teilstrings, Groß-/Kleinschreibung egal; leer → keine Befunde
- * @param {readonly string[]} [erlaubte] Phrasen, die einen umschlossenen Treffer aufheben
- * @param {{ kundenListe?: readonly string[] | ReadonlySet<string> }} [optionen] `kundenListe`:
- *   die Muster, die aus der Liste des Kunden stammen (Schreibweise beliebig, wird
- *   normalisiert). Damit trägt jeder Befund seine `herkunft`, und der Aufrufer muss sie nicht
- *   am Wortlaut nachschlagen. Fehlt die Angabe, bleibt `herkunft` undefiniert; `null` zählt
- *   dabei wie „fehlt".
- *   **Kein Iterator:** die Funktion wird je Seite erneut gerufen, ein `.keys()` wäre nach dem
- *   ersten Aufruf leer und jede Herkunft danach `'flotte'` — ohne Fehlermeldung.
+ * Jede optionale Angabe darf fehlen oder `null` sein, beides heißt „keine Angabe". Listen
+ * nur als Array oder Set; ein String oder Iterator wirft einen `TypeError` (siehe `alsListe`).
+ *
+ * @param {string} html roher HTML-Inhalt der Seite
+ * @param {string} seite relativer Pfad für die Meldung, z. B. `blog/dsgvo/index.html`
+ * @param {readonly string[] | ReadonlySet<string> | null | undefined} formulierungen Teilstrings,
+ *   Groß-/Kleinschreibung egal; leer oder `null` → keine Befunde
+ * @param {readonly string[] | ReadonlySet<string> | null} [erlaubte] Phrasen, die einen
+ *   umschlossenen Treffer aufheben
+ * @param {{ kundenListe?: readonly string[] | ReadonlySet<string> | null } | null} [optionen]
+ *   `kundenListe`: die Muster, die aus der Liste des Kunden stammen (Schreibweise beliebig,
+ *   wird normalisiert). Damit trägt jeder Befund seine `herkunft`, und der Aufrufer muss sie
+ *   nicht am Wortlaut nachschlagen. Fehlt die Angabe (oder ist sie `null`), bleibt `herkunft`
+ *   undefiniert.
  * @returns {VerbotslistenBefund[]} erst der sichtbare Text, dann Titel und Metas; je Ort nach Position
  */
-export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte = [], optionen = {}) {
-  // `null` ist kein `undefined`: der Parameter-Default greift dann nicht, und der Zugriff
-  // auf `.kundenListe` wirft einen TypeError, statt die Angabe als fehlend zu lesen
-  // (Review cw-core#261, B7). Genau so ein `null` übergibt ein Aufrufer, der die Optionen
-  // aus einer Konfiguration zieht.
-  const opt = optionen ?? {};
-  const liste = normalisierteListe(formulierungen);
+export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte, optionen) {
+  // Eine Stelle für alle optionalen Eingaben. Vorher gab es zwei Schichten (Parameter-Default
+  // plus `?? {}`), und je Eingabe eine andere Lücke: `optionen: null` war abgefangen,
+  // `{ kundenListe: null }`, `erlaubte: null` und `formulierungen: null` warfen weiter
+  // (Review cw-core#261, zweite Nachlese B1/B2/B8).
+  const { kundenListe } = optionen ?? {};
+  const liste = normalisierteListe(alsListe(formulierungen, 'formulierungen'));
   if (liste.size === 0) return [];
   // Herkunft aus derselben Normalisierung wie die Muster — sonst trifft `has()` nie.
-  const kundenMuster = opt.kundenListe === undefined
+  const kundenMuster = kundenListe == null
     ? undefined
-    : new Set(normalisierteListe([...opt.kundenListe]).keys());
+    : new Set(normalisierteListe(alsListe(kundenListe, 'optionen.kundenListe')).keys());
   // Eine Phrase, die nur das Muster selbst ist oder es ohne eigenes Wort beugt, wäre die
   // Pfad-Ausnahme über alle Seiten (Review cw-core#238 B1, cw-core#242 B3). Sie wird nicht
   // angewandt; `pruefeErlaubteListe()` meldet sie beim Laden.
   const erlaubtListe = new Map(
-    [...normalisierteListe(erlaubte)].filter(([n]) => freibrief(n, liste.keys()) === null),
+    [...normalisierteListe(alsListe(erlaubte, 'erlaubte'))].filter(([n]) => freibrief(n, liste.keys()) === null),
   );
 
   // Einmal reinigen, dann beide Quellen daraus: nur so entfernt `replace(TITLE, ' ')` den
