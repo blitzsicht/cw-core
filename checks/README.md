@@ -165,6 +165,70 @@ Wegwerf-Servers aussah (der Plausible-Proxy ist ein Vercel-Rewrite). Tatsächlic
 Ein 404 unter `serve` erzeugt keinen `script-error` (Chromium führt 404-Antworten nicht aus).
 impeccable meldet je Seite nur den ersten Skriptfehler; die Regel steht deshalb in der Behebung vorn.
 
+## badge-diff — Pixelvergleich eines wiederkehrenden Icon-Elements
+
+Vier Werkzeuge, die zusammen eine Frage beantworten: **hat diese Änderung die Badges angefasst?**
+Nicht „sieht gut aus", sondern ein Bildvergleich mit `maxDiffPixels: 0` zwischen zwei
+Bauzuständen derselben Seite.
+
+| Datei | Was sie tut |
+|---|---|
+| `badge-diff.config.ts` + `badge-diff/badge.spec.ts` | Der Vergleich. Erst gegen den Baseline-Server aufnehmen (`--update-snapshots`), dann dasselbe gegen den Kandidaten |
+| `badge-shots.mjs` | Dieselben Element-Screenshots als PNG-Dateien zum Ansehen (zwei Aufnahmen müssen byteidentisch sein, sonst Wiederholung) |
+| `badge-styles.mjs` | Die berechneten SVG-Stile als Text — `strokeWidth`, `fill`, `stroke`, `aria-hidden` |
+
+Herkunft: ops#1051 Befund 7, gebaut am 04.11.2026 im Gate-Worktree `v0.189.0`. Sie lagen dort
+unversioniert und waren der einzige Grund, diesen Worktree zu behalten.
+
+```bash
+cd cw-core/checks && pnpm install
+pnpm exec serve <kundenrepo>/dist/client -l 4399 &          # Baseline-Build
+BADGE_SEITEN="/,/branchen/maler/" pnpm exec playwright test --config badge-diff.config.ts --update-snapshots
+# … Kandidaten bauen, Server neu starten …
+BADGE_SEITEN="/,/branchen/maler/" pnpm exec playwright test --config badge-diff.config.ts
+
+BADGE_SEITEN="/" node badge-shots.mjs  http://127.0.0.1:4399 /tmp/badge-shots
+BADGE_SEITEN="/" node badge-styles.mjs http://127.0.0.1:4399
+```
+
+Schalter, alle über Umgebungsvariablen: `BADGE_SEITEN` (Routen, Komma), `BADGE_BREITEN`
+(Vorgabe `390,1400`), `BADGE_SELEKTOR` (Vorgabe `.step-badge`), `BADGE_PORT`/`BADGE_BASE_URL`,
+`BADGE_SNAPSHOT_DIR` (Vorgabe unter `$TMPDIR`, bewusst **nicht** im Repo — die Bilder halten
+zwei Bauzustände auseinander und sind danach wertlos).
+
+**`.step-badge` ist heute eine Blitzsicht-Klasse, keine cw-core-Klasse.** Gemessen am
+09.11.2026: sie steht in `customer-blitzsicht/src/components/ProcessSteps.astro` und
+`src/data/ablauf-icons.ts`, in cw-core an keiner Stelle, und in `digital-direkt`,
+`steller-sanierungen`, `hausamlago`, `weinkontor-sinzing` ebenfalls nicht. Die Werkzeuge liegen
+trotzdem hier, aus demselben Grund wie `check-slop.mjs` und `screenshot-gescrollt.mjs`: wegen
+`checks/node_modules`. Chromium und `@playwright/test` sollen einmal installiert sein, in
+derselben Version wie die Flotten-Guards. Für jedes andere Element ist `BADGE_SELEKTOR` der
+Schalter — die Vorgabe ist eine Vorgabe, keine Annahme über die Flotte.
+
+Drei Dinge waren an der Vorfassung falsch und sind es in der Abnahme wert, festgehalten zu werden:
+
+- **Die Seitenliste stand im Quelltext** (`['/', '/websites/']`). Im Build von customer-blitzsicht
+  vom 09.11.2026 tragen **12 Seiten** ein `.step-badge`, und `/websites/` gibt es gar nicht mehr
+  (HTTP 404). Das Werkzeug hätte 1 von 12 Seiten verglichen und wäre auf der zweiten abgebrochen.
+  Derselbe Fehler, den `seiten.ts` beschreibt.
+- **Vier Badges waren Pflicht** (`if (anzahl !== 4) exit 1`). Jetzt zählt der Lauf, was da ist,
+  und bricht nur ab, wenn er auf **keiner** Seite eines gefunden hat.
+- **Der Slug ließ Schrägstriche weg** (`replace(/\//g, '')`), `/branchen/maler/` wurde
+  `branchenmaler` — zwei Routen konnten denselben Dateinamen erzeugen und sich im Vergleich
+  gegenseitig überschreiben. Jetzt `branchen-maler`.
+
+`testIgnore: /badge-diff\//` in `playwright.config.ts` hält den Spec aus den Flotten-Guards
+heraus. Ohne die Zeile sammelt `testDir: '.'` ihn rekursiv mit ein — gemessen: 18 Tests in
+3 Dateien werden zu 22 in 4, in den Projekten `mobile` UND `tablet`. Jedes Kundenrepo hätte bei
+`pnpm test` Badge-Screenshots gegen ein nicht vorhandenes Baseline-Verzeichnis geprüft.
+
+`pnpm test:badges` (10 Proben, ≈ 31 s) fährt alles gegen `fixtures/badge/`: zwei Routen mit je
+vier Badges, eine Route ohne. Die Route ohne Badges muss **jedes** der drei Werkzeuge rot machen,
+und eine vertauschte Baseline muss den Vergleich rot machen — sonst belegt „grün" nur, dass der
+Lauf durchlief. Zwei Sabotagen am Quelltext, gefahren am 09.11.2026, mit disjunkten
+Fehlermengen: `testIgnore` entfernt → nur die testIgnore-Probe rot (9/1); den Schluss-Assert
+`gesamt > 0` aus dem Spec entfernt → nur die Gegenprobe „NICHTS verglichen" rot (9/1).
+
 ## Lokal fahren
 
 ```bash

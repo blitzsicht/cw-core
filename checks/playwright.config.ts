@@ -29,6 +29,13 @@ const PORT = Number(process.env.PORT ?? 4321);
 export default defineConfig({
   // Die Specs liegen neben dieser Datei.
   testDir: '.',
+  // badge-diff/ gehört NICHT zu den Flotten-Guards: es ist ein Pixelvergleich mit
+  // eigener Config (badge-diff.config.ts) und eigenem Snapshot-Verzeichnis. Ohne
+  // diese Zeile sammelt `testDir: '.'` den Spec rekursiv mit ein — gemessen am
+  // 09.11.2026: 18 Tests in 3 Dateien vorher, 22 in 4 danach, in den Projekten
+  // mobile UND tablet. Jedes Kundenrepo hätte dann bei `pnpm test` versucht,
+  // Badge-Screenshots gegen ein nicht vorhandenes Baseline-Verzeichnis zu prüfen.
+  testIgnore: /badge-diff\//,
   // Nur die *.spec.ts sind Playwright-Specs — als Positivliste. Die node:test-Dateien
   // (*.test.mjs zu check-slop.mjs, screenshot-gescrollt.mjs, formular-kontrast.mjs) liegen
   // im selben Ordner und passen auf Playwrights Standard-testMatch; ohne Eingrenzung

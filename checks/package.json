@@ -16,7 +16,8 @@
     "test:screens": "node --test screenshot-gescrollt.test.mjs",
     "check:slop": "node check-slop.mjs",
     "test:slop": "node --test check-slop.test.mjs",
-    "test:formular": "node --test formular-kontrast.test.mjs"
+    "test:formular": "node --test formular-kontrast.test.mjs",
+    "test:badges": "node --test badge.test.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.2",
