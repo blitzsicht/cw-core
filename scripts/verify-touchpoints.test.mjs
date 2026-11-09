@@ -1203,3 +1203,20 @@ test('#260 E2E: `&#38;` im href und `\'` im src laufen grün — und fehlen sie,
   assert.match(rot.out, /\/preise&konditionen\.pdf/);
   assert.match(rot.out, /\/it's\.webp/);
 });
+
+// ─── Nachlese #278: Regressionen gegenüber dem Regex-Leser bis v0.195.0 ─────────────────
+// Beide Fälle gemessen am 09.11.2026: b2fe3497^ lieferte den Wert in der Gegenprobe,
+// b2fe3497 nicht.
+
+test('Nachlese #278: ein srcset, der mit data: beginnt, liefert keine erfundenen Pfade', () => {
+  const html = `<img srcset="data:image/svg+xml;utf8,%3Csvg a='1 2,/x.webp' 1x">`;
+  assert.deepEqual(extractAssetRefs(html, null).refs, []);
+  // Gegenprobe: ein gewöhnlicher srcset wird weiter gelesen.
+  assert.deepEqual(extractAssetRefs('<img srcset="/x.webp 1x">', null).refs, ['/x.webp']);
+});
+
+test('Nachlese #278: ein leeres property= verdeckt name="og:image" nicht', () => {
+  assert.deepEqual(extractAssetRefs('<meta property="" name="og:image" content="/og.png">', null).refs, ['/og.png']);
+  // Gegenprobe: property gewinnt, wenn es einen Wert hat (og:title ist Freitext, kein Bild).
+  assert.deepEqual(extractAssetRefs('<meta property="og:title" name="og:image" content="/og.png">', null).refs, []);
+});

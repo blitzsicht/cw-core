@@ -257,9 +257,17 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   gesamtWeg += m.kennzeichnungWeg.length;
 
   if (hatFlag('--schreiben')) {
-    if (befunde.length) { console.error(`  ! ${slug}: ${befunde.length} Befunde — NICHT geschrieben`); continue; }
+    // `zurueckgehalten` markiert die Site auch für die Verdrahtung unten (Nachlese #277): vorher
+    // übersprang die nur `fehler`/`befunde`, eine wegen wegfallender Kennzeichnung nicht
+    // geschriebene Site bekam trotzdem den Import in site-data.ts — halb angewandt.
+    if (befunde.length) {
+      console.error(`  ! ${slug}: ${befunde.length} Befunde — NICHT geschrieben`);
+      bericht.at(-1).zurueckgehalten = true;
+      continue;
+    }
     if (m.kennzeichnungWeg.length && !hatFlag('--kennzeichnung-weg-ok')) {
       console.error(`  ! ${slug}: ${m.kennzeichnungWeg.length} Kennzeichnungen fielen weg — NICHT geschrieben`);
+      bericht.at(-1).zurueckgehalten = true;
       continue;
     }
     writeFileSync(ziel, inhalt, 'utf8');
@@ -300,7 +308,7 @@ if (!hatFlag('--schreiben')) {
 if (hatFlag('--schreiben') && hatFlag('--verdrahten')) {
   console.log('\nVerdrahtung:');
   for (const b of bericht) {
-    if (b.fehler || b.befunde?.length) continue;
+    if (b.fehler || b.befunde?.length || b.zurueckgehalten) continue;
     const sd = join(repoPfad[b.slug], 'src/data/site-data.ts');
     if (!existsSync(sd)) { console.log(`  ! ${b.slug}: site-data.ts nicht gefunden`); continue; }
     let s = readFileSync(sd, 'utf8');
@@ -329,6 +337,10 @@ if (hatFlag('--schreiben') && hatFlag('--verdrahten')) {
 // Gemessen am 05.11.2026: ohne Code 3 endete ein Lauf gegen eine unlesbare Zieldatei mit
 // Exit 0 und der Meldung mitten in einer Tabelle. Dasselbe galt schon vorher für
 // „repo_path fehlt" — eine Site stillschweigend zu überspringen ist kein Erfolg.
-const uebersprungen = bericht.filter((b) => b.fehler).length;
+//
+// Nachlese #277 (09.11.2026): Befunde des eigenen Regelprüfers am gemischten Ergebnis zählen
+// ebenso. Vorher meldete ein `--schreiben`-Lauf „NICHT geschrieben" und endete mit 0. Seit dem
+// Mischen prüft der Lauf auch den Bestand, ein Altfehler darin hält also jeden Schreiblauf an.
+const uebersprungen = bericht.filter((b) => b.fehler || b.befunde?.length).length;
 if (uebersprungen) process.exit(3);
 if (gesamtWeg && !hatFlag('--kennzeichnung-weg-ok')) process.exit(2);

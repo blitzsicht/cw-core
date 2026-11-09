@@ -87,6 +87,30 @@ separat.
 
 **Migrations-Hinweis:** Keiner.
 
+**Fix:** Nachlese zu #277 und #278 aus den Reviews vom 09.11.2026, vor dem Train
+
+Drei Regressionen des gemeinsamen Attribut-Lesers aus #278, je gemessen gegen den Stand davor
+(bis v0.195.0 richtig, mit #278 falsch). Keiner der Fälle entsteht aus normaler Astro-Ausgabe:
+- og-audit: Ein leeres `og:image` (`content` ohne Wert) vor dem echten belegte den Schlüssel, das
+  echte Bild galt als fehlend. Leere Werte belegen jetzt keinen Schlüssel, wie beim alten Regex.
+- og-audit und verify-touchpoints: `property=""` verdeckte `name="og:image"` (`??` statt `||`).
+- verify-touchpoints: Aus einem srcset, der mit `data:` beginnt, zerlegte der Spezifikations-Parser
+  Kommas und Leerzeichen der data:-URL zu erfundenen Pfaden wie `/x.webp'`. Mit
+  `assetRefChecks: 'fail'` wäre das ein falsch roter Build. Ein solcher srcset bleibt wieder ungelesen.
+
+Dazu `bildherkunft-uebernehmen.mjs` (#277):
+- Befunde des eigenen Regelprüfers am gemischten Ergebnis enden mit Exit 3 statt 0. Vorher meldete
+  ein `--schreiben`-Lauf „NICHT geschrieben“ und galt trotzdem als Erfolg.
+- `--verdrahten` lässt jede Site aus, die nicht geschrieben wurde. Vorher bekam eine wegen
+  wegfallender Kennzeichnung zurückgehaltene Site den Import in `site-data.ts` trotzdem.
+
+Je Fix eine Probe; jeder Fix einzeln zurückgenommen macht genau seine Probe rot (6 Sabotagen).
+Weitere Review-Befunde ohne Wirkung auf die heutige Flotte (Verzeichnis-Präfixe: 0 von 236
+`pathPrefix`-Regeln in 21 Dateien) stehen im Nachlese-Issue.
+
+**Migrations-Hinweis:** Keiner. Wer den Exit-Code von `bildherkunft-uebernehmen.mjs` auswertet,
+sieht bei Befunden jetzt 3.
+
 ---
 
 ## v0.195.0 (2026-11-09)
