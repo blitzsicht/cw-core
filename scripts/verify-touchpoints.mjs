@@ -64,6 +64,7 @@ import { join, extname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { AUFSICHTS_MAILTO_ALLOWLIST } from '../src/utils/legal/aufsichtsbehoerde.js';
+import { attribute, dekodiereEntities, srcsetUrls } from '../src/utils/html-attribute.js';
 
 // ─── Pure Helpers (exportiert für node --test) ──────────────────────────────
 
@@ -266,8 +267,10 @@ export function auditHtml(html, ssot, cfg = {}) {
  */
 export function extractInternalLinks(html, origin) {
   const out = new Set();
-  for (const m of html.matchAll(/href=["']([^"']+)["']/gi)) {
-    const href = m[1].split('#')[0];
+  // Quote-korrekt und dekodiert wie die Asset-Attribute (cw-core#260, T3): vorher schnitt
+  // `&#38;` hier weiter als Fragment ab (`/preise&#38;konditionen.pdf` → `/preise&`).
+  for (const m of html.matchAll(/href=(?:"([^"]*)"|'([^']*)')/gi)) {
+    const href = dekodiereEntities(m[1] ?? m[2] ?? '').split('#')[0];
     if (!href) continue; // reiner Seitenanker (href="#kontakt") — kein eigenes Ziel
     if (/^(mailto:|tel:|javascript:|data:)/i.test(href)) continue;
     if (/^https?:\/\//i.test(href)) {
@@ -331,43 +334,16 @@ function sammleJsonLdBilder(knoten, push, inBild = false) {
   }
 }
 
-/**
- * Ein Zeichen aus einer numerischen Entity. Liegt die Zahl außerhalb des Unicode-Bereichs,
- * kommt U+FFFD heraus — genau das, was ein HTML-Parser aus einem kaputten `&#99999999;`
- * macht (WHATWG HTML, „numeric character reference outside unicode range"). Zwei Dinge
- * hängen daran: `String.fromCodePoint` würde sonst mit einem RangeError den ganzen Lauf
- * anhalten, und ein stehengelassener Literal-Treffer trüge weiter ein `#`, das `push()`
- * als Fragment abschneidet — der Pfad im Befund wäre dann wieder kürzer als der echte.
- */
-const entityZeichen = (nr) =>
-  Number.isInteger(nr) && nr >= 0 && nr <= 0x10ffff ? String.fromCodePoint(nr) : '\uFFFD';
-
-/**
- * HTML-Entities in einem ATTRIBUTWERT auflösen. `undefined` bleibt `undefined`.
- *
- * Astro schreibt `&` als `&#38;`. Das `#` darin schnitt `split('#')` in `push()` als Fragment
- * ab: aus `poster="/v/a&#38;b.webp"` wurde `/v/a&`, und der Lauf meldete eine fehlende Datei,
- * obwohl `v/a&b.webp` im Build liegt (Review #256, cw-core#260 Punkt 1). In 32 lokalen
- * Kunden-Builds kommt der Fall 0-mal vor — er fällt also laut auf statt still durchzurutschen,
- * aber es ist ein Befund des Guards, nicht des Kunden.
- *
- * Bewusst NUR an Attributen: der Inhalt von `<style>` und `<script>` ist im HTML ein roher
- * Textknoten, den kein Parser entitätsdekodiert. Ein `&amp;` in einer CSS-`url()` oder im
- * JSON-LD ist dort buchstäblich gemeint — es hier aufzulösen würde eine Referenz erfinden,
- * die der Browser nie lädt.
- */
-function dekodiereEntities(wert) {
-  if (wert === undefined || wert === null) return wert;
-  return wert
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => entityZeichen(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dez) => entityZeichen(Number(dez)))
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&'); // zuletzt, sonst läse `&amp;#38;` zweimal
-}
-
+// Attributwerte liest `attribute()` aus `src/utils/html-attribute.js`: quote-korrekt und in
+// EINEM Durchgang dekodiert. Bis cw-core#260 (Nachlese zu #263) standen hier ein eigener
+// Decoder in mehreren Durchgängen (`&#38;amp;` wurde zweimal aufgelöst) und ein Regex
+// `["']([^"']+)["']`, der am ersten Anführungszeichen jeder Art endete: aus `src="/it's.webp"`
+// wurde `/it`.
+//
+// Bewusst NUR an Attributen: der Inhalt von `<style>` und `<script>` ist im HTML ein roher
+// Textknoten, den kein Parser entitätsdekodiert. Ein `&amp;` in einer CSS-`url()` oder im
+// JSON-LD ist dort buchstäblich gemeint. Es hier aufzulösen, würde eine Referenz erfinden,
+// die der Browser nie lädt.
 export function extractAssetRefs(source, origin, opts = {}) {
   const refs = new Set();
   let skippedRelative = 0;
@@ -401,18 +377,16 @@ export function extractAssetRefs(source, origin, opts = {}) {
 
   if (!opts.cssOnly) {
     for (const m of source.matchAll(ASSET_TAG_RE)) {
-      const tag = m[0];
-      push(dekodiereEntities(tag.match(/\ssrc=["']([^"']+)["']/i)?.[1]));
+      const attr = attribute(m[0]);
+      push(attr.src);
       // `poster` ist wie `src` immer eine Dateiadresse. Bis v0.193.0 fiel es durch:
       // ein fehlendes Poster lief gruen, ein fehlendes MP4 im selben Player rot
       // (gemessen 07.11.2026 an blitzsicht /forschung). Vormessung vor dem Einbau:
       // 96 Live-Seiten mit 7 Postern (zwei Kunden), alle HTTP 200.
-      if (/^<video\b/i.test(tag)) push(dekodiereEntities(tag.match(/\sposter=["']([^"']+)["']/i)?.[1]));
-      const srcset = dekodiereEntities(tag.match(/\ssrcset=["']([^"']+)["']/i)?.[1]);
-      if (srcset && !/^\s*data:/i.test(srcset)) {
-        // "/a.webp 400w, /b.webp 800w" → URL ist der erste Token je Kandidat.
-        for (const cand of srcset.split(',')) push(cand.trim().split(/\s+/)[0]);
-      }
+      if (/^<video\b/i.test(m[0])) push(attr.poster);
+      // Nach WHATWG zerlegt: ein Komma IN der URL trennt nicht (`/a&#44;b.webp 1x` → `/a,b.webp`,
+      // das naive `split(',')` lieferte `/a`). data:-URLs fallen in push() heraus.
+      if (attr.srcset) for (const url of srcsetUrls(attr.srcset)) push(url);
     }
   }
 
@@ -437,12 +411,12 @@ export function extractAssetRefs(source, origin, opts = {}) {
   // sonst beliebig lange unbemerkt — im konkreten Fall Wochen.
   if (!opts.cssOnly) {
     for (const m of source.matchAll(/<meta\b[^>]*>/gi)) {
-      const tag = m[0];
-      const feld = (tag.match(/\s(?:property|name)=["']([^"']+)["']/i)?.[1] ?? '').toLowerCase();
+      const attr = attribute(m[0]);
+      const feld = (attr.property ?? attr.name ?? '').toLowerCase();
       // Eng gehalten: `description`, `og:title` und Konsorten tragen Freitext. Ohne
       // die Liste meldete der Guard jeden Beschreibungstext als fehlende Datei.
       if (!/^(og:image(:secure_url|:url)?|twitter:image(:src)?)$/.test(feld)) continue;
-      push(dekodiereEntities(tag.match(/\scontent=["']([^"']+)["']/i)?.[1]));
+      push(attr.content);
     }
     // Nur `application/ld+json` — das ist Daten, kein Code. Die Zusicherung dieses
     // Moduls, Skriptkoerper nie zu lesen (siehe eagerThirdPartyScripts), gilt
