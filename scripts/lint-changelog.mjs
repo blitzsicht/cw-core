@@ -11,6 +11,11 @@
  *   node scripts/lint-changelog.mjs [<pfad>]        # Standard: <repo>/CHANGELOG.md
  *   node scripts/lint-changelog.mjs --unreleased    # zusätzlich: GENAU EIN [Unreleased]-Block
  *
+ * Ohne Pfadangabe vergleicht der Lint zusätzlich jeden Versionsblock mit seinem Tag
+ * (changelog-tag-gleich.mjs, cw-core#267): ein Eintrag unter einer schon getaggten Version wird
+ * rot, bevor cw-release umbenennt. Mit Pfad (Kopie, historischer Stand) entfällt der Vergleich —
+ * die Tags gehören zu diesem Repo, nicht zur Kopie — und das steht in der Ausgabe.
+ *
  * Exit-Codes:
  *   0  in Form
  *   1  Befunde (je Zeile einer, mit Zeilennummer)
@@ -25,13 +30,18 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { istDirektAufruf } from './lib/direkt-aufruf.mjs';
 import { pruefeChangelogKopfform, formatiereBefunde } from './lib/changelog-kopfform.mjs';
+import {
+  ALTLASTEN, MINDESTENS_TAGS, pruefeTagGleichheit, formatiereTagBefunde, zaehlzeile,
+} from './lib/changelog-tag-gleich.mjs';
+import { tagBloeckeLesen } from './lib/changelog-tag-quelle.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 function main() {
   const args = process.argv.slice(2);
   const unreleasedPflicht = args.includes('--unreleased');
-  const pfad = args.find((a) => !a.startsWith('--')) ?? join(ROOT, 'CHANGELOG.md');
+  const eigenerPfad = args.find((a) => !a.startsWith('--'));
+  const pfad = eigenerPfad ?? join(ROOT, 'CHANGELOG.md');
 
   let md;
   try {
@@ -57,7 +67,28 @@ function main() {
     }
   }
 
-  if (befunde.length > 0 || fehlt) process.exit(1);
+  let tagRot = false;
+  if (eigenerPfad) {
+    console.log('lint-changelog: Tag-Vergleich übersprungen (eigener Pfad, die Tags gehören zu diesem Repo).');
+  } else {
+    const { bloecke, tags, ohneBlock } = tagBloeckeLesen(ROOT);
+    if (bloecke.size < MINDESTENS_TAGS) {
+      tagRot = true;
+      console.error(
+        `lint-changelog: nur ${bloecke.size} Tags mit eigenem Block (${tags} Tags), erwartet ≥ ${MINDESTENS_TAGS} — `
+        + 'Tags fehlen? git fetch --tags origin',
+      );
+    } else {
+      const ergebnis = pruefeTagGleichheit(md, bloecke, ALTLASTEN, ohneBlock);
+      if (ergebnis.befunde.length > 0) {
+        tagRot = true;
+        console.error(formatiereTagBefunde(ergebnis, pfad));
+      }
+      console.log(`lint-changelog: ${zaehlzeile(ergebnis)}.`);
+    }
+  }
+
+  if (befunde.length > 0 || fehlt || tagRot) process.exit(1);
   console.log(`lint-changelog: ✓ ${md.split('\n').filter((z) => z.startsWith('## ')).length} Kopfzeile(n) in Normform.`);
 }
 

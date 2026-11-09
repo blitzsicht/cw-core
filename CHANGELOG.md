@@ -22,6 +22,35 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+**Changelog-Guard:** Kein Eintrag mehr unter einer schon getaggten Version, keine versteckte Setext-Überschrift (#267)
+
+Kontext: #262, #245 und #263 schrieben ihre Einträge unter `## v0.194.0`, als v0.194.0 schon
+getaggt war. #264 schob sie von Hand zurück, nahm dabei die Leerzeile vor dem `---` am Blockende
+mit und ließ einen umformulierten Satz stehen. Der Migrations-Hinweis wurde so zur `<h2>`,
+ausgeliefert in v0.194.1 und v0.194.2. Kein Werkzeug hat etwas davon gemeldet.
+
+- `CHANGELOG.md`: Der v0.194.0-Block steht wieder byte-gleich wie im Tag, mit Leerzeile vor `---`
+  und dem damals ausgelieferten Satz „Bei gleicher Länge bleibt der erste Eintrag wie bisher.“
+  Berichtigung zu v0.194.1: Dort heißt es, der Satz sei „aus Kommentar und Changelog gestrichen“.
+  Gestrichen ist er im Kommentar. Im v0.194.0-Block steht er, weil v0.194.0 ihn so ausgeliefert hat.
+- Neu `scripts/lib/changelog-tag-gleich.mjs` (Logik) und `changelog-tag-quelle.mjs` (git): Jeder
+  Versionsblock muss seinem Tag `release/cw-core/vX.Y.Z` byte-gleich sein (176 Blöcke). 14 alte
+  Abweichungen (v0.94–v0.190) stehen namentlich mit dem Hash ihres heutigen Wortlauts in
+  `ALTLASTEN`: eingefroren, nicht freigegeben. Die Liste kann nur schrumpfen. Ein Tag nach v0.62.0
+  ohne eigenen Block ist rot. Unter 170 verglichenen Tags ist der Test rot („Tags fehlen“), nicht
+  still grün.
+- `changelog-kopfform.mjs`: `---` oder `===` direkt unter einer Textzeile ist ein Befund
+  (Setext-Überschrift), außer im Code-Zaun und nach Überschrift, Listenpunkt, Zitat oder Tabelle.
+- `lint-changelog.mjs` fährt den Tag-Vergleich mit, wenn kein eigener Pfad angegeben ist.
+  Damit sieht ihn auch cw-release in Schritt 4, vor dem Umbenennen.
+- `tests.yml`: Der Job `test` checkt mit `fetch-depth: 0` aus, damit die Tags im Lauf da sind.
+
+**Migrations-Hinweis:** Keiner. Neue Einträge gehören wie bisher unter `## [Unreleased]`.
+
+---
+
 ## v0.194.2 (2026-11-09)
 
 **Perf:** ScrollProgress liest beim Laden nichts mehr — CSS fährt den Balken
@@ -208,8 +237,7 @@ hätte einen WARN-Treffer der Kundenliste still zu einem Flotten-Hinweis gemacht
   `herkunft: 'kunde' | 'flotte'`; ohne die Angabe bleibt das Feld undefiniert.
 - Die Rangfolge steht als eine Funktion da, in drei Stufen: **offen** schlägt aufgehoben,
   **Kundenliste** schlägt Flottendefault, bei gleicher Herkunft gewinnt der **längere**
-  Treffer. Ein Gleichstand kann nicht auftreten: gleich lange Treffer an derselben
-  Startposition sind derselbe String, und die Liste ist entdoppelt.
+  Treffer. Bei gleicher Länge bleibt der erste Eintrag wie bisher.
 - `ai-discovery` liest die Herkunft aus dem Befund, statt sie am Wortlaut jedes Treffers
   erneut nachzuschlagen — dieselbe Normalisierung stand vorher zweimal da und konnte
   auseinanderlaufen, ohne dass es auffällt.
@@ -291,6 +319,7 @@ die eigene Kopie und ist nicht betroffen.
 setzt `--cw-testimonials-dauer` bzw. `--cw-feedback-dauer` an der Spur oder an einem Vorfahren;
 das schlägt den berechneten Wert. (Im ersten Stand stand der berechnete Wert unter genau diesem
 Namen im `style`-Attribut, eine Kundenregel kam nie durch — Review #251, B1–B3.)
+
 ---
 
 ## v0.193.0 (2026-11-06)

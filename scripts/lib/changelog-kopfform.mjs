@@ -34,6 +34,9 @@
  *
  * `### `-Zeilen (`### Fixed`) sind davon nicht berührt — nur `## `.
  *
+ * Dazu seit cw-core#267 die versteckte Kopfzeile: `---` (oder `===`) direkt unter einer
+ * Textzeile ist eine Setext-Überschrift. Siehe `setextBefunde()` unten.
+ *
  * Reine Logik, kein FS. Tests: scripts/lib/changelog-kopfform.test.mjs
  */
 
@@ -101,6 +104,57 @@ export function pruefeChangelogKopfform(md) {
     });
   });
 
+  befunde.push(...setextBefunde(zeilen));
+  return befunde.sort((a, b) => a.zeile - b.zeile);
+}
+
+/** Unterstreichung einer Setext-Überschrift: nur `-` oder nur `=`, höchstens 3 Leerzeichen Einzug. */
+const SETEXT_LINIE_RE = /^ {0,3}(?:-{2,}|={2,})[ \t]*$/;
+
+/** Ein Code-Zaun öffnet oder schließt (``` oder ~~~, höchstens 3 Leerzeichen Einzug). */
+const ZAUN_RE = /^ {0,3}(?:```|~~~)/;
+
+/**
+ * Zeilen, nach denen eine Strich- oder Gleichheitszeile KEINE Setext-Überschrift ergibt,
+ * sondern eine Trennlinie: ATX-Überschrift, Listenpunkt, Zitat, Tabellenzeile, eingerückte
+ * Fortsetzung (gehört zu einem Listenpunkt; eine Unterstreichung kann nach CommonMark nicht
+ * „lazy“ in den Punkt hineinragen) und eine Trennlinie selbst.
+ */
+const KEIN_ABSATZ_RE = /^(?:\s|#|[-*+] |\d+[.)] |>|\||(?:---+|\*\*\*+|___+)\s*$)/;
+
+/**
+ * Setext-Falle (cw-core#267): `---` direkt unter einer Textzeile macht nach CommonMark den
+ * ganzen Absatz darüber zur `<h2>`, und die Trennlinie fällt weg. Gemessen am 09.11.2026:
+ * PR #264 schnitt beim Verschieben die Leerzeile vor dem `---` am Ende des v0.194.0-Blocks
+ * mit weg — der Migrations-Hinweis wurde zur Überschrift, ausgeliefert in v0.194.1 und
+ * v0.194.2. Die Kopfzeilen-Prüfung oben sah es nicht, sie liest nur `## `-Zeilen; eine
+ * Setext-Überschrift ist aber genau das: eine Kopfzeile, die nicht nach einer aussieht.
+ *
+ * Bewusste Lücke: ein Absatz, dessen letzte Zeile mit 1–3 Leerzeichen beginnt, gilt hier als
+ * Fortsetzung und wird nicht gemeldet. In CHANGELOG.md beginnen Absätze in Spalte 0.
+ *
+ * @param {string[]} zeilen
+ * @returns {KopfformBefund[]}
+ */
+function setextBefunde(zeilen) {
+  /** @type {KopfformBefund[]} */
+  const befunde = [];
+  let imZaun = false;
+  zeilen.forEach((text, i) => {
+    if (ZAUN_RE.test(text)) {
+      imZaun = !imZaun;
+      return;
+    }
+    if (imZaun || i === 0 || !SETEXT_LINIE_RE.test(text)) return;
+    const davor = zeilen[i - 1];
+    if (davor.trim() === '' || KEIN_ABSATZ_RE.test(davor)) return;
+    befunde.push({
+      zeile: i + 1,
+      text,
+      grund: `Setext-Überschrift: \`${text.trim()}\` direkt unter Text macht den Absatz darüber zur `
+        + `${text.includes('=') ? '<h1>' : '<h2>'} und die Trennlinie fällt weg — Leerzeile davor setzen`,
+    });
+  });
   return befunde;
 }
 
