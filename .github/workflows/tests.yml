@@ -186,13 +186,14 @@ jobs:
 
       - run: pnpm --dir examples build
 
-      - name: Formulare absenden (7 Tests erwartet)
+      # 7 Formular-Tests + 3 ScrollProgress (kein scrollHeight beim Laden, 09.11.2026)
+      - name: Formulare absenden und ScrollProgress (10 Tests erwartet)
         working-directory: e2e
         run: |
           set -euo pipefail
           pnpm exec playwright test | tee ausgabe.txt
           ANZAHL=$(grep -oE '[0-9]+ passed' ausgabe.txt | grep -oE '[0-9]+' || echo 0)
-          if [ "${ANZAHL:-0}" -ne 7 ]; then
-            echo "::error::Erwartet waren 7 bestandene Tests, gezaehlt: $ANZAHL"
+          if [ "${ANZAHL:-0}" -ne 10 ]; then
+            echo "::error::Erwartet waren 10 bestandene Tests, gezaehlt: $ANZAHL"
             exit 1
           fi
