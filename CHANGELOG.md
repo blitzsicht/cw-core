@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.194.2 (2026-11-09)
 
 **Perf:** ScrollProgress liest beim Laden nichts mehr — CSS fährt den Balken
 
