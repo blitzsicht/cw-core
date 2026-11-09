@@ -45,12 +45,15 @@ const style = [
         ticking = true;
       }
     };
-    // Rückfall ohne Scroll-Zeitleiste: beim Laden nichts lesen. Der Balken steht laut CSS auf
-    // scaleX(0); den ersten Wert bringt das erste `scroll`-Ereignis, auch die Wiederherstellung
-    // der Scroll-Position beim Zurück-Navigieren. Ein Lesen beim Start, auch im
-    // requestAnimationFrame, erzwang einen Umbruch (Lighthouse spedition-steller.de 09.11.2026).
+    // Rückfall ohne Scroll-Zeitleiste: während des Ladens nichts lesen. Ein Lesen beim Start,
+    // auch im requestAnimationFrame, erzwang einen Umbruch (Lighthouse spedition-steller.de
+    // 09.11.2026). Den Startwert holt ein einziges Lesen nach `load`: Wurde schon gescrollt,
+    // bevor dieser Listener hing (Sprung zu einem #Anker, wiederhergestellte Position), käme
+    // sonst kein `scroll`-Ereignis mehr, und der Balken stünde bis zum ersten Scrollen auf 0.
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
+    if (document.readyState === 'complete') onScroll();
+    else window.addEventListener('load', onScroll, { once: true });
   };
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

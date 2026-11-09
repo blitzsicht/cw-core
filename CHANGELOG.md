@@ -24,6 +24,24 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** ScrollProgress-Rückfall hat wieder einen Startwert
+
+- [kunde:sichtbar] Der Lesefortschritts-Balken oben zeigt auch dann den richtigen Stand, wenn die Seite schon beim Öffnen weiter unten steht (Sprung zu einem Abschnitt), in Browsern ohne Scroll-Zeitleiste.
+
+Kontext: Review zu #270. Seit v0.194.2 liest der Rückfall (Browser ohne `animation-timeline`)
+erst beim Scrollen. Fallen alle `scroll`-Ereignisse vor dem Anhängen des Listeners an (Sprung zu
+einem #Anker, wiederhergestellte Position, weiches Scrollen während das Modul-Skript wartet),
+stand der Balken bis zum ersten eigenen Scrollen auf 0. Jetzt liest das Skript einmal nach
+`load`; während des Ladens liest es weiter nichts. Chrome nimmt den CSS-Weg und ist nicht betroffen.
+
+- `ScrollProgress.astro`: ein `onScroll()` nach `load` (bzw. sofort, wenn `readyState` complete ist)
+- `tokens-base.css`: `animation-duration: 1ms` an der Scroll-Zeitleiste, damit keine Engine mit
+  0s sofort ans Ende springt (MDN-Empfehlung; Wirkung nicht an einem betroffenen Browser gemessen)
+- `e2e/scroll-progress.spec.ts`: neuer Fall „schon gescrollt, bevor der Listener hängt“ (1500 ms
+  Parser-Pause). Gegenprobe ohne Fix: 3 von 3 rot (Balken 0), mit Fix 5 von 5 grün. „Beim Laden“
+  heißt im Rückfall jetzt „vor `readyState` complete“
+- `tests.yml`: 11 statt 10 E2E-Tests erwartet; „gezählt“ statt „gezaehlt“
+
 **Changelog-Guard:** Kein Eintrag mehr unter einer schon getaggten Version, keine versteckte Setext-Überschrift (#267)
 
 Kontext: #262, #245 und #263 schrieben ihre Einträge unter `## v0.194.0`, als v0.194.0 schon

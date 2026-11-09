@@ -355,6 +355,9 @@ h1, h2, h3, h4, h5, h6 {
 @supports (animation-timeline: scroll()) {
   .motion-scroll-progress {
     animation: motion-scroll-progress linear both;
+    /* Ohne Dauer setzen manche Engines 0s und springen sofort ans Ende (MDN: 1ms genügt,
+       an einer Scroll-Zeitleiste wird die Dauer auf den Scrollweg umgerechnet). */
+    animation-duration: 1ms;
     animation-timeline: scroll(root block);
   }
 }

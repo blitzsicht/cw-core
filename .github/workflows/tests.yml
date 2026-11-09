@@ -126,9 +126,9 @@ jobs:
           AUSGABE=$(pnpm exec playwright test --project=mobile --project=tablet --project=desktop --list)
           echo "$AUSGABE"
           ANZAHL=$(echo "$AUSGABE" | grep -oE 'Total: [0-9]+ test' | grep -oE '[0-9]+' || echo 0)
-          echo "gezaehlt: $ANZAHL"
+          echo "gezählt: $ANZAHL"
           if [ "${ANZAHL:-0}" -ne 21 ]; then
-            echo "::error::Erwartet waren 21 Tests (mobile+tablet je 9, desktop 3), gezaehlt: $ANZAHL"
+            echo "::error::Erwartet waren 21 Tests (mobile+tablet je 9, desktop 3), gezählt: $ANZAHL"
             exit 1
           fi
           FREMD=$(echo "$AUSGABE" | grep -E '\[desktop\]' | grep -vc 'layout-audit.spec.ts' || true)
@@ -197,14 +197,14 @@ jobs:
 
       - run: pnpm --dir examples build
 
-      # 7 Formular-Tests + 3 ScrollProgress (kein scrollHeight beim Laden, 09.11.2026)
-      - name: Formulare absenden und ScrollProgress (10 Tests erwartet)
+      # 7 Formular-Tests + 4 ScrollProgress (kein scrollHeight beim Laden, Startwert im Rückfall, 09.11.2026)
+      - name: Formulare absenden und ScrollProgress (11 Tests erwartet)
         working-directory: e2e
         run: |
           set -euo pipefail
           pnpm exec playwright test | tee ausgabe.txt
           ANZAHL=$(grep -oE '[0-9]+ passed' ausgabe.txt | grep -oE '[0-9]+' || echo 0)
-          if [ "${ANZAHL:-0}" -ne 10 ]; then
-            echo "::error::Erwartet waren 10 bestandene Tests, gezaehlt: $ANZAHL"
+          if [ "${ANZAHL:-0}" -ne 11 ]; then
+            echo "::error::Erwartet waren 11 bestandene Tests, gezählt: $ANZAHL"
             exit 1
           fi
