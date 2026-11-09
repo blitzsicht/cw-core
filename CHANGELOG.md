@@ -22,6 +22,43 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
+## [Unreleased]
+
+**Fix:** `bildherkunft-uebernehmen.mjs` mischt den Export in den Bestand, statt die Datei neu zu schreiben (customer-blitzsicht#269, Nachlese #264)
+
+Kontext: `src/data/bild-herkunft.ts` hat zwei Schreiber. `bild-einbauen.mjs` ergänzt die Datei bei
+jedem Bild, die Bild-Arbeitsliste erfährt davon nie. Seit dem Verlust-Guard (#210) brach der
+Generator deshalb bei jeder ergänzten Datei mit Exit 2 ab. Bei blitzsicht standen am 09.11. 125
+Regeln im Bestand und 38 in der Arbeitsliste. Der Kopf der Datei nannte weiter „38 Bilder“.
+
+- Der Bestand ist jetzt die Grundlage. Regeln, die der Export nicht kennt, bleiben mit ihren
+  Kommentaren und an ihrer Stelle. Für ein Bild, das der Export kennt, gilt seine Einordnung,
+  in der Zeile der alten Regel. Neue Bilder kommen ans Ende.
+- Exit 2 gibt es nur noch, wenn für ein Bild eine Kennzeichnung nach Art. 50 Abs. 4 wegfiele.
+  Das gilt auch, wenn ein neuer Pfad unter einem alten Stem oder Präfix liegt. Der Ausweg heißt
+  `--kennzeichnung-weg-ok`. `--verlust-ok` wird mit Exit 1 abgelehnt und nicht still umgedeutet.
+- Neu ist `--kopf [--schreiben]`. Damit wird der Kopf erzeugter Dateien mit der echten Regelzahl
+  neu geschrieben („`N Regeln`“ statt „`N Bilder`“), ohne Export. Ein Datum allein löst keinen
+  Schreiblauf aus. Köpfe von `bild-einbauen.mjs` oder von Hand bleiben unberührt, ebenso die
+  „Ergänzt …“-Vermerke darunter.
+- Mehrzeilige Regeln (siluri.de, 295 Schlüssel) lassen Lesen, Mischen und den Verlustvergleich
+  laut abbrechen. Vorher galten sie als Kommentar: Ein Export hätte die Regel doppelt
+  geschrieben, und die alte hätte zur Laufzeit weiter gewonnen. `--kopf` prüft den Kopf vor dem
+  Lesen und lässt solche Dateien ohne Abbruch stehen. `= [];` auf einer Zeile (notar-huber)
+  gilt als leere Liste.
+- Tests: `scripts/lib/bildherkunft-mischen.test.mjs` (13 Proben, darunter der echte
+  blitzsicht-Bestand: 108 + 38 → 110, keine Regel verloren) und
+  `scripts/bildherkunft-uebernehmen.test.mjs` (5 Läufe des echten Skripts gegen ein Temp-Repo).
+  Dreizehn Sabotagen, jede macht mindestens eine Probe rot. Flottenprobelauf `--kopf` am 09.11.:
+  13 Köpfe neu, 9 eigene unberührt, Exit 0.
+
+**Migrations-Hinweis:** Wer `--verlust-ok` in einem Aufruf stehen hat, ersetzt es durch
+`--kennzeichnung-weg-ok`. Die Köpfe der Flotte zieht ein Lauf
+`node scripts/bildherkunft-uebernehmen.mjs --kopf --schreiben` nach. Er schreibt in die
+Haupt-Checkouts aus der Registry und ist Sache des Operators.
+
+---
+
 ## v0.195.0 (2026-11-09)
 
 - [kunde:sichtbar] Der Lesefortschritts-Balken oben zeigt auch dann den richtigen Stand, wenn die Seite schon beim Öffnen weiter unten steht (Sprung zu einem Abschnitt), in Browsern ohne Scroll-Zeitleiste.

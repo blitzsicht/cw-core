@@ -17,8 +17,9 @@
  * Warum ein Skript und keine Handarbeit an 92 Dateien: Die Einordnung, die heute im
  * Bestand steht, ist aus der versionierten Kette nicht reproduzierbar — weder der Export
  * noch die Vorschlagsdatei tragen ein einziges `'ja'` (gemessen 25.08.2026). Ein erneuter
- * Lauf von `bildherkunft-übernehmen.mjs` würde sie verlieren. Dieses Skript erzeugt die
- * Vorschlagsdatei vollständig, damit die Kette wieder trägt.
+ * Lauf von `bildherkunft-übernehmen.mjs` hätte sie damals verloren; seit er mischt (#269),
+ * bricht er stattdessen mit Exit 2 ab, wo die Quelle eine Kennzeichnung überstimmen würde.
+ * Dieses Skript erzeugt die Vorschlagsdatei vollständig, damit die Kette wieder trägt.
  *
  * Eingabe:  Ausgabe von `bildherkunft-verwendung.mjs --out …` (alle Bilder, nicht nur die
  *           pflichtigen) — sie liefert je Bild die Fundstelle als Nachweis.
