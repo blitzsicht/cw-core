@@ -22,11 +22,11 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
-
-**Fix:** ScrollProgress-Rückfall hat wieder einen Startwert
+## v0.195.0 (2026-11-09)
 
 - [kunde:sichtbar] Der Lesefortschritts-Balken oben zeigt auch dann den richtigen Stand, wenn die Seite schon beim Öffnen weiter unten steht (Sprung zu einem Abschnitt), in Browsern ohne Scroll-Zeitleiste.
+
+**Fix:** ScrollProgress-Rückfall hat wieder einen Startwert
 
 Kontext: Review zu #270. Seit v0.194.2 liest der Rückfall (Browser ohne `animation-timeline`)
 erst beim Scrollen. Fallen alle `scroll`-Ereignisse vor dem Anhängen des Listeners an (Sprung zu
@@ -88,6 +88,16 @@ still als Flottentreffer, also nur als Hinweis statt WARN.
 
 **Migrations-Hinweis:** Keiner. Der einzige Aufrufer (`index.ts`) übergibt ein Array. Wer einen
 String oder Iterator übergibt, bekommt jetzt einen Fehler, wo vorher still falsch gezählt wurde.
+
+**Workflow:** Pixelvergleich der Ablauf-Badges in `checks/` aufgenommen (#269)
+
+Kontext: Die Werkzeuge aus ops#1051 (Befund 7) lagen seit 04.11. unversioniert in einem
+Gate-Worktree. Übernommen mit drei Korrekturen: Die Seitenliste kommt aus `BADGE_SEITEN` statt aus
+dem Quelltext, die Zahl der Badges ist nicht mehr fest 4, und der Dateiname behält die
+Pfadtrenner (`branchen-maler`). Dazu `load` statt `networkidle` und `BADGE_PORT` statt Port 4399.
+`.step-badge` ist heute eine customer-blitzsicht-Klasse; andere Elemente über `BADGE_SELEKTOR`.
+
+**Migrations-Hinweis:** Keiner. Agentur-Werkzeug, kein Kunde merkt etwas.
 
 ---
 
