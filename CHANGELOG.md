@@ -57,6 +57,36 @@ Regeln im Bestand und 38 in der Arbeitsliste. Der Kopf der Datei nannte weiter �
 `node scripts/bildherkunft-uebernehmen.mjs --kopf --schreiben` nach. Er schreibt in die
 Haupt-Checkouts aus der Registry und ist Sache des Operators.
 
+**Fix:** verify-touchpoints und og-audit lesen Attribute wie der Browser: ein gemeinsamer Leser, ein Decoder, srcset nach Spezifikation (cw-core#260, Nachlese zu #263)
+
+Kontext: Der Decoder aus #263 lief in mehreren Durchgängen und löste `&#38;amp;` deshalb zweimal
+auf. Der Attribut-Regex endete am ersten Anführungszeichen jeder Art: aus `src="/it's.webp"` wurde
+`/it`. `href` wurde gar nicht dekodiert und `&#38;` dort weiter als Fragment abgeschnitten. Ein
+Komma in einer srcset-URL galt als Trenner. In cw-core gab es drei eigene Decoder mit drei
+verschiedenen Teilmengen.
+
+- Neu `src/utils/html-attribute.js` (mit `.d.ts`, exportiert als `@cw/core/utils/html-attribute`): `attribute()` (quote-korrekt, erstes Vorkommen gewinnt),
+  `dekodiereEntities()` (ein Durchgang, numerisch auch ohne `;`, WHATWG-Sonderfälle: 0, Surrogate
+  und Werte über 0x10FFFF werden U+FFFD, 0x80–0x9F gehen über Windows-1252) und `srcsetUrls()`
+  (WHATWG-Zerlegung).
+- `verify-touchpoints.mjs`: `src`, `poster`, `srcset`, `meta content` und `href` laufen über den
+  Helfer. Der eigene Decoder ist weg. Wie bisher werden `<style>` und JSON-LD nicht dekodiert,
+  weil der Inhalt dort ein roher Textknoten ist.
+- `og-audit.mjs`: der eigene Attributleser mit Vier-Entities-Decoder ist durch denselben Helfer ersetzt.
+- Proben: 6 neue in `verify-touchpoints.test.mjs`, alle Fälle im Pfad statt in der Query, dazu
+  `tests/utils/html-attribute.test.js` (6). Gegenprobe: Mit der alten `verify-touchpoints.mjs`
+  sind genau die 6 neuen rot. Drei Sabotagen am Helfer (Semikolon-Pflicht, naives srcset,
+  Quote-Regex) machen jeweils die gemeinten Proben rot.
+- Vormessung an 32 lokalen Kunden-Builds (590 Seiten, 2214 Referenzen): 2 Referenzen ändern
+  sich, beide nur im Query-Teil eines UTM-Links, den die Prüfung ohnehin abschneidet. Kein neuer
+  Befund.
+
+Offen in #260: Der Titel-Decoder in ai-discovery dekodiert absichtlich doppelt (doppelt escapte
+Titel) und ist noch eigen. Punkt 2 (Umstellung auf `html-resources.js`, inline-`style`) folgt
+separat.
+
+**Migrations-Hinweis:** Keiner.
+
 ---
 
 ## v0.195.0 (2026-11-09)

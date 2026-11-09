@@ -1154,3 +1154,52 @@ test('verify-touchpoints: ein Poster mit `&` im Namen läuft grün, obwohl Astro
   assert.equal(rot.code, 1, `out:\n${rot.out}`);
   assert.match(rot.out, /\/v\/a&b\.webp/);
 });
+
+// ─── cw-core#260, Nachlese zu #263: Fälle im PFAD, nicht in der Query (T8) ─────────────
+//
+// Drei der fünf alten Fixtures standen hinter `?`, wo `normalizeUrlPath` ohnehin abschneidet.
+// Ein Dekodierfehler dort konnte die Probe nicht rot machen. Jeder Fall unten steht im Pfad.
+
+test('#260 T1: `&#38;amp;` wird EINMAL dekodiert, das Ergebnis nicht erneut', () => {
+  const { refs } = extractAssetRefs('<img src="/a&#38;amp;b.webp">', null);
+  assert.deepEqual(refs, ['/a&amp;b.webp'], 'die Datei heißt wörtlich a&amp;b.webp');
+});
+
+test('#260 T2: ein `\'` in einem doppelt gequoteten Wert gehört zum Wert', () => {
+  const html = `<img src="/it's.webp" srcset="/it's-2x.webp 2x"><video poster='/sag "hallo".webp'></video>`;
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/it\'s-2x.webp', '/it\'s.webp', '/sag "hallo".webp']);
+});
+
+test('#260 T3: href wird dekodiert wie die Asset-Attribute — `&#38;` ist kein Fragment', () => {
+  const links = extractInternalLinks('<a href="/preise&#38;konditionen.pdf">PDF</a><a href=\'/it\'s/\'>x</a>', 'https://kunde.de');
+  assert.ok(links.includes('https://kunde.de/preise&konditionen.pdf'), String(links));
+  // GEGENPROBE: ein echtes Fragment wird weiter abgeschnitten.
+  assert.deepEqual(extractInternalLinks('<a href="/kontakt#formular">x</a>', 'https://kunde.de'), ['https://kunde.de/kontakt']);
+});
+
+test('#260 T4: numerische Entities auch ohne Semikolon, wie im Browser', () => {
+  assert.deepEqual(extractAssetRefs('<img src="/a&#38b.webp">', null).refs, ['/a&b.webp']);
+  // Hex frisst alle Hexziffern, wie im Parser: `&#x26b` ist U+026B, nicht `&` + `b`.
+  assert.deepEqual(extractAssetRefs('<img src="/a&#x26b.webp">', null).refs, ['/aɫ.webp']);
+});
+
+test('#260 T6: srcset nach Spezifikation — ein Komma in der URL trennt nicht', () => {
+  const { refs } = extractAssetRefs('<img srcset="/a&#44;b.webp 1x, /c.webp 2x">', null);
+  assert.deepEqual(refs.sort(), ['/a,b.webp', '/c.webp']);
+});
+
+test('#260 E2E: `&#38;` im href und `\'` im src laufen grün — und fehlen sie, nennt der Befund den ganzen Pfad', () => {
+  const body = '<a href="/preise&#38;konditionen.pdf">PDF</a><img src="/it\'s.webp" alt="">';
+  const seite = PAGE('https://kunde.de/').replace('<body>', `<body>${body}`);
+  const gruen = runTree({
+    files: { 'index.html': seite, 'preise&konditionen.pdf': 'PDF', "it's.webp": 'WEBP' },
+    config: { assetRefChecks: 'fail', distLinkChecks: 'fail' },
+  });
+  assert.equal(gruen.code, 0, `out:\n${gruen.out}`);
+  // GEGENPROBE: ohne die Dateien rot, mit den dekodierten Namen statt `/preise&` und `/it`.
+  const rot = runTree({ files: { 'index.html': seite }, config: { assetRefChecks: 'fail', distLinkChecks: 'fail' } });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /\/preise&konditionen\.pdf/);
+  assert.match(rot.out, /\/it's\.webp/);
+});

@@ -50,6 +50,7 @@ import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { bildMasse } from '../src/utils/bild-masse.js';
+import { attribute } from '../src/utils/html-attribute.js';
 import { pickDistRoot, normalizeUrlPath } from './verify-touchpoints.mjs';
 
 /** Obergrenze je Vorschaubild, wie in quality-checks (`maxOgBytes`). */
@@ -60,25 +61,9 @@ export const STANDARD_MASSE = Object.freeze({ width: 1200, height: 630 });
 
 // ─── Reine Helfer (exportiert für node --test) ─────────────────────────────
 
-/** Die paar Entities, die Astro in Attributwerten tatsächlich schreibt. */
-function entitiesDekodieren(s) {
-  return s
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0*39;|&#x0*27;/gi, "'")
-    .replace(/&#0*47;|&#x0*2f;/gi, '/');
-}
-
-/** Attribute eines Tags als Map (Schlüssel klein). */
-function attribute(tag) {
-  /** @type {Record<string, string>} */
-  const out = {};
-  for (const m of tag.matchAll(/([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g)) {
-    const name = m[1].toLowerCase();
-    if (!(name in out)) out[name] = entitiesDekodieren(m[2] ?? m[3] ?? m[4] ?? '');
-  }
-  return out;
-}
+// Attribute liest `attribute()` aus `src/utils/html-attribute.js`, derselbe Leser wie in
+// verify-touchpoints. Bis cw-core#260 (T7) stand hier ein eigener Decoder für vier Entities,
+// der dritte von drei in cw-core, jeder mit einer anderen Teilmenge.
 
 /**
  * Vorschau-relevante Meta-Angaben einer Seite. Je Schlüssel gilt das ERSTE

@@ -51,6 +51,10 @@
       "types": "./src/utils/bild-masse.d.ts",
       "default": "./src/utils/bild-masse.js"
     },
+    "./utils/html-attribute": {
+      "types": "./src/utils/html-attribute.d.ts",
+      "default": "./src/utils/html-attribute.js"
+    },
     "./utils/bildlabel": {
       "types": "./src/utils/bildlabel.d.ts",
       "default": "./src/utils/bildlabel.js"
