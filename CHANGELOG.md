@@ -49,7 +49,7 @@ Regeln im Bestand und 38 in der Arbeitsliste. Der Kopf der Datei nannte weiter �
 - Tests: `scripts/lib/bildherkunft-mischen.test.mjs` (13 Proben, darunter der echte
   blitzsicht-Bestand: 108 + 38 → 110, keine Regel verloren) und
   `scripts/bildherkunft-uebernehmen.test.mjs` (5 Läufe des echten Skripts gegen ein Temp-Repo).
-  Zwölf Sabotagen, jede macht mindestens eine Probe rot. Flottenprobelauf `--kopf` am 09.11.:
+  Dreizehn Sabotagen, jede macht mindestens eine Probe rot. Flottenprobelauf `--kopf` am 09.11.:
   13 Köpfe neu, 9 eigene unberührt, Exit 0.
 
 **Migrations-Hinweis:** Wer `--verlust-ok` in einem Aufruf stehen hat, ersetzt es durch
