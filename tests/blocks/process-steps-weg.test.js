@@ -62,7 +62,8 @@ test('layout="weg" mit Bild: großes Bild, KI-Label mit bildHerkunft, übrige be
   assert.equal((html.match(/class="weg-symbol"/g) ?? []).length, 3);
   const tag = html.match(/<img [^>]*class="weg-img"[^>]*>/)?.[0] ?? '';
   assert.match(tag, /alt="Wartebank"/);
-  assert.match(tag, /sizes="\(max-width: 759px\) 100vw, 55vw"/);
+  // sizes nach echter Spaltenbreite (1.25fr von Container 72rem minus Gap 4rem), nicht 55vw
+  assert.match(tag, /sizes="\(min-width: 1152px\) 580px, \(min-width: 760px\) calc\(\(100vw - 7rem\) \* 0\.555\), calc\(100vw - 3rem\)"/);
   const kachel = html.slice(html.indexOf('class="weg-bild"><img'), html.indexOf('<h3>Warten'));
   assert.match(kachel, /ai-label-am-bild/);
 });

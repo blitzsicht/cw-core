@@ -24,6 +24,17 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+- [kunde] Bilder in den Leistungskacheln und im Ablauf laden in der Größe, in der sie angezeigt werden; auf dem Handy wird dadurch weniger übertragen.
+
+**Perf:** Bild-`sizes` nach echter Spaltenbreite, ScrollProgress ohne erzwungenen Umbruch
+(Lighthouse spedition-steller.de 09.11.2026). LeistungenSection sagte `100vw / 50vw / 33vw` an,
+ProcessSteps (Variante `weg`) `100vw / 55vw`; beide ignorierten Container-Rand und Gap. Bei 412 px
+dargestellt 362–364 px, angesagt 412 px, geladen 800w bzw. 960w. Die `sizes` rechnen jetzt mit
+Container 72rem, Rand 1.5rem und Gap; `widths` bekommt je eine 640er-Stufe, damit mobil mit DPR 1,75
+eine passende Stufe existiert. Retina bleibt scharf: der Browser multipliziert `sizes` weiter mit
+der Pixeldichte. ScrollProgress liest `scrollHeight` beim Start nicht mehr synchron, sondern im
+nächsten Frame (vorher 51 ms „Erzwungener dynamischer Umbruch“).
+
 - [kunde:sichtbar] Bei Kacheln mit Bild beginnen umbrochene Textzeilen nicht mehr am Kartenrand, sondern bündig unter der ersten.
 
 **Fix:** LinkGrid — Kartentext bei Bildkarten als Block (cw-core#245). `.link-card-desc` war ein

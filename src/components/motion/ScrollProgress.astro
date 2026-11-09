@@ -41,7 +41,10 @@ const style = [
         ticking = true;
       }
     };
-    update();
+    // Erster Stand über requestAnimationFrame statt synchron: `scrollHeight`
+    // mitten im Seitenaufbau zu lesen erzwang einen Layout-Durchlauf
+    // (Lighthouse „Erzwungener dynamischer Umbruch“, 51 ms, spedition-steller.de 09.11.2026).
+    onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
   };

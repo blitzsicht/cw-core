@@ -126,6 +126,14 @@ const lightboxGross = await Promise.all(
   ),
 );
 const hatLightbox = lightboxGross.some(Boolean);
+
+/* sizes nach echter Spaltenbreite: Container 72rem minus 2 × 1.5rem Rand, Gap 1.5rem.
+   Vorher „100vw / 50vw / 33vw“: mobil 412 statt 362 px angesagt, der Browser zog 800w
+   statt 640w (Lighthouse „Bildübermittlung“, spedition-steller.de 09.11.2026).
+   Ab 1152 px Viewport ist der Container voll, die Spalte hat dann eine feste Breite. */
+const spaltenGapRem = (columns - 1) * 1.5;
+const spalteMaxPx = Math.round((1104 - (columns - 1) * 24) / columns);
+const leistungSizes = `(max-width: 640px) calc(100vw - 3rem), (min-width: 1152px) ${spalteMaxPx}px, calc((100vw - 3rem - ${spaltenGapRem}rem) / ${columns})`;
 ---
 
 {items.length > 0 && (
@@ -137,7 +145,7 @@ const hatLightbox = lightboxGross.some(Boolean);
         {items.map((item, idx) => item.ctaPhone ? (
           <div class="leistung-card leistung-card-cta">
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 640, 800]} sizes={leistungSizes} loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -155,7 +163,7 @@ const hatLightbox = lightboxGross.some(Boolean);
         ) : item.href ? (
           <a href={item.href} class="leistung-card leistung-card-link" {...ctaAttrs(item.href, `leistung-card:${item.title}`)}>
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 640, 800]} sizes={leistungSizes} loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
@@ -171,7 +179,7 @@ const hatLightbox = lightboxGross.some(Boolean);
           </a>
         ) : lightboxGross[idx] ? (
           <div class="leistung-card leistung-card-lightbox">
-            <div class="leistung-image"><Image src={item.imageSrc!} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
+            <div class="leistung-image"><Image src={item.imageSrc!} alt={item.imageAlt ?? item.title} widths={[400, 640, 800]} sizes={leistungSizes} loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
             <h3>{item.title}</h3>
             {item.description && <p set:html={linkifyPhones(item.description)} />}
             <button type="button" class="leistung-lightbox-trigger" data-lightbox-src={lightboxGross[idx]} data-lightbox-alt={item.imageAlt ?? item.title} data-lightbox-titel={item.title} data-lightbox-idx={idx} aria-haspopup="dialog"><span class="leistung-link">Bild vergrößern<span class="sr-only">: {item.title}</span></span></button>
@@ -179,7 +187,7 @@ const hatLightbox = lightboxGross.some(Boolean);
         ) : (
           <div class="leistung-card">
             {cardStyle === 'image' && item.imageSrc
-              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 600, 800]} sizes="(max-width: 640px) 100vw, (max-width: 900px) 50vw, 33vw" loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
+              ? <div class="leistung-image"><Image src={item.imageSrc} alt={item.imageAlt ?? item.title} widths={[400, 640, 800]} sizes={leistungSizes} loading="lazy" />{kartenLabel[idx] && <AiLabelAmBild ergebnis={kartenLabel[idx]!.ergebnis} theme={kartenLabel[idx]!.theme} />}</div>
               : item.iconSvg
                 ? <div class:list={["leistung-icon leistung-icon-svg", `style-${iconStyle}`]} style={containerStyle} aria-hidden="true"><img src={item.iconSvg} alt="" aria-hidden="true" loading="lazy" decoding="async" /></div>
                 : item.icon && <div class="leistung-icon" aria-hidden="true">{item.icon}</div>
