@@ -34,7 +34,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # fetch-depth: 0 holt die Tags mit. Der Test changelog-tag-gleich vergleicht jeden
+      # Versionsblock in CHANGELOG.md mit seinem Tag (cw-core#267); ohne Tags waere das ein
+      # Vergleich gegen nichts. Der Test wird dann rot, nicht still gruen.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:

@@ -100,3 +100,56 @@ test('formatiereBefunde nennt Datei, Zeile, Grund und den Wortlaut', () => {
   assert.match(t, /^CHANGELOG\.md:3: /);
   assert.match(t, /\n {2}## Unreleased$/);
 });
+
+// ── Setext-Falle (cw-core#267). Der echte Fall: PR #264 nahm beim Verschieben die Leerzeile
+//    vor dem `---` am Ende des v0.194.0-Blocks mit — der Migrations-Hinweis wurde zur <h2>.
+//    Nachstellen: `git show 0dd634cf:CHANGELOG.md | sed -n '270,273p'`
+
+test('GEGENPROBE Setext: `---` direkt unter Text wird rot, mit Zeilennummer (der echte Fall aus #264)', () => {
+  const md = [
+    '# C', '', '## v0.194.0 (2026-11-08)', '',
+    '**Migrations-Hinweis:** Keiner. (Im ersten Stand stand der berechnete Wert unter genau diesem',
+    'Namen im `style`-Attribut, eine Kundenregel kam nie durch — Review #251, B1–B3.)',
+    '---', '', '## v0.193.0 (2026-11-06)', '',
+  ].join('\n');
+  const b = pruefeChangelogKopfform(md);
+  assert.equal(b.length, 1);
+  assert.equal(b[0].zeile, 7);
+  assert.equal(b[0].text, '---');
+  assert.match(b[0].grund, /Setext-Überschrift.*<h2>.*Leerzeile davor setzen/);
+  // Gegenprobe: mit der Leerzeile ist es eine Trennlinie und in Ordnung.
+  assert.deepEqual(pruefeChangelogKopfform(md.replace('B1–B3.)\n---', 'B1–B3.)\n\n---')), []);
+});
+
+test('GEGENPROBE Setext: auch `===` und kürzere Linien, mit Einzug bis 3 Leerzeichen', () => {
+  for (const linie of ['===', '--', '   ---', '------  ']) {
+    const b = pruefeChangelogKopfform(`# C\n\nEin Absatz.\n${linie}\n`);
+    assert.equal(b.length, 1, `${JSON.stringify(linie)} unter Text muss rot werden`);
+    assert.equal(b[0].zeile, 4);
+  }
+  assert.match(pruefeChangelogKopfform('# C\n\nText\n===\n')[0].grund, /<h1>/);
+});
+
+test('Setext: keine Meldung, wo CommonMark eine Trennlinie macht', () => {
+  const inForm = [
+    '## v0.1.0 (2026-01-01)\n---',          // nach ATX-Überschrift
+    '- Listenpunkt\n---',                    // nach Listenpunkt
+    '- Punkt\n  Fortsetzung eingerückt\n---',// eingerückte Fortsetzung eines Punkts
+    '1. Punkt\n---',
+    '> Zitat\n---',
+    '| a | b |\n---',
+    '---\n---',                              // zwei Trennlinien
+    'Absatz\n\n---',                         // Leerzeile davor
+    'Text\n    ---',                         // 4 Leerzeichen: Fortsetzung, keine Linie
+    'Text\n- - -',                           // Leerzeichen dazwischen: keine Setext-Linie
+    '```\nCode\n---\n```',                   // im Code-Zaun
+  ];
+  for (const stueck of inForm) {
+    assert.deepEqual(pruefeChangelogKopfform(`# C\n\n${stueck}\n`), [], JSON.stringify(stueck));
+  }
+});
+
+test('Setext- und Kopfform-Befunde kommen nach Zeile sortiert', () => {
+  const b = pruefeChangelogKopfform('# C\n\nText\n---\n\n## Unreleased\n');
+  assert.deepEqual(b.map((x) => x.zeile), [4, 6]);
+});
