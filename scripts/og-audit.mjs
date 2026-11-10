@@ -81,8 +81,13 @@ export function extractOgMeta(html) {
   const meta = {};
   for (const m of html.matchAll(/<meta\b[^>]*>/gi)) {
     const a = attribute(m[0]);
-    const key = (a.property ?? a.name ?? '').toLowerCase();
-    if (key && a.content !== undefined && !(key in meta)) meta[key] = a.content.trim();
+    // `||` statt `??` und ein leerer `content` belegt keinen Schlüssel (Nachlese #278): ein
+    // wertloses `property`/`content` ist für den Browser „nicht da“. Mit `??` nahm ein leeres
+    // erstes og:image den Platz ein, das echte danach galt als fehlend. Der Regex-Leser bis
+    // v0.195.0 (`[^"']+`) übersprang leere Werte, das bleibt so.
+    const key = (a.property || a.name || '').toLowerCase();
+    const inhalt = a.content?.trim();
+    if (key && inhalt && !(key in meta)) meta[key] = inhalt;
   }
   let canonical = null;
   for (const m of html.matchAll(/<link\b[^>]*>/gi)) {

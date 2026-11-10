@@ -386,7 +386,10 @@ export function extractAssetRefs(source, origin, opts = {}) {
       if (/^<video\b/i.test(m[0])) push(attr.poster);
       // Nach WHATWG zerlegt: ein Komma IN der URL trennt nicht (`/a&#44;b.webp 1x` → `/a,b.webp`,
       // das naive `split(',')` lieferte `/a`). data:-URLs fallen in push() heraus.
-      if (attr.srcset) for (const url of srcsetUrls(attr.srcset)) push(url);
+      // Ein srcset, der mit `data:` beginnt, bleibt ganz ungelesen (wie bis v0.195.0): eine
+      // data:-URL darf Leerzeichen und Kommas tragen, die Zerlegung erfände daraus Pfade wie
+      // `/x.webp'` (Nachlese #278).
+      if (attr.srcset && !/^\s*data:/i.test(attr.srcset)) for (const url of srcsetUrls(attr.srcset)) push(url);
     }
   }
 
@@ -412,7 +415,8 @@ export function extractAssetRefs(source, origin, opts = {}) {
   if (!opts.cssOnly) {
     for (const m of source.matchAll(/<meta\b[^>]*>/gi)) {
       const attr = attribute(m[0]);
-      const feld = (attr.property ?? attr.name ?? '').toLowerCase();
+      // `||`: ein leeres `property=""` verdeckt sonst `name="og:image"` (Nachlese #278).
+      const feld = (attr.property || attr.name || '').toLowerCase();
       // Eng gehalten: `description`, `og:title` und Konsorten tragen Freitext. Ohne
       // die Liste meldete der Guard jeden Beschreibungstext als fehlende Datei.
       if (!/^(og:image(:secure_url|:url)?|twitter:image(:src)?)$/.test(feld)) continue;

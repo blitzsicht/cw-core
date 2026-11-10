@@ -334,3 +334,21 @@ test('auditDist: zählt geprüfte Seiten und HTML-Dateien getrennt', async () =>
     rmSync(dist, { recursive: true, force: true });
   }
 });
+
+// ─── Nachlese #278: Regressionen des gemeinsamen Attribut-Lesers ─────────────────────────
+// Bis v0.195.0 las ein Regex `[^"']+` die Werte und übersprang damit leere. Der gemeinsame
+// Leser liefert `''` für ein wertloses Attribut; `??` nahm das als Wert. Gemessen gegen
+// b2fe3497^ (alt: `/og.png`) und b2fe3497 (neu: null) am 09.11.2026.
+
+test('Nachlese #278: ein leeres og:image vor dem echten belegt den Schlüssel nicht', () => {
+  const m = extractOgMeta('<meta property="og:image" content><meta property="og:image" content="/og.png">');
+  assert.equal(m.ogImage, '/og.png');
+  // Nur Leerzeichen ist ebenso leer.
+  assert.equal(extractOgMeta('<meta property="og:image" content="  "><meta property="og:image" content="/b.png">').ogImage, '/b.png');
+  // Gegenprobe: das erste nicht-leere gewinnt weiter.
+  assert.equal(extractOgMeta('<meta property="og:image" content="/a.png"><meta property="og:image" content="/b.png">').ogImage, '/a.png');
+});
+
+test('Nachlese #278: ein leeres property= verdeckt name="og:image" nicht', () => {
+  assert.equal(extractOgMeta('<meta property="" name="og:image" content="/og.png">').ogImage, '/og.png');
+});

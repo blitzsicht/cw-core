@@ -144,3 +144,35 @@ test('I5. --kopf: eigener Kopf mit mehrzeiligen Regeln bricht nicht ab', () => {
   assert.match(s.stdout, /eigener Kopf/);
   assert.equal(readFileSync(ziel, 'utf8'), siluri);
 });
+
+// ─── Nachlese #277 (Review 09.11.2026) ──────────────────────────────────────────────────
+
+test('I6. Befund am gemischten Ergebnis: Exit 3, nichts geschrieben, nichts verdrahtet', () => {
+  // Altfehler im Bestand: derselbe Stem zweimal (pruefeBildHerkunftRegeln meldet ihn).
+  const stem = (h) => regelZeile('stem', 'hero', { h, d: 'nein', b: B });
+  const vorher = ERZEUGT([stem('ki-erzeugt'), stem('ki-erzeugt')]);
+  const { ziel, exp, lauf } = aufbau(vorher, [['c.webp', 'ki-erzeugt', 'nein']]);
+  const sd = join(dirname(ziel), 'site-data.ts');
+  const sdVorher = 'export const siteData = {\n  name: "x",\n};\n';
+  writeFileSync(sd, sdVorher);
+  const s = lauf('--export', exp, '--schreiben', '--verdrahten');
+  assert.equal(s.status, 3, s.stdout + s.stderr);
+  assert.match(s.stderr, /Befunde — NICHT geschrieben/);
+  assert.equal(readFileSync(ziel, 'utf8'), vorher);
+  assert.equal(readFileSync(sd, 'utf8'), sdVorher);
+});
+
+test('I7. Kennzeichnung fiele weg + --verdrahten: site-data.ts bleibt unberührt', () => {
+  const vorher = ERZEUGT([r('a.webp', 'ki-erzeugt', 'ja')]);
+  const { ziel, exp, lauf } = aufbau(vorher, [['a.webp', 'ki-erzeugt', 'nein']]);
+  const sd = join(dirname(ziel), 'site-data.ts');
+  const sdVorher = 'export const siteData = {\n  name: "x",\n};\n';
+  writeFileSync(sd, sdVorher);
+  const s = lauf('--export', exp, '--schreiben', '--verdrahten');
+  assert.equal(s.status, 2, s.stdout);
+  assert.equal(readFileSync(sd, 'utf8'), sdVorher, 'nicht geschriebene Site darf nicht verdrahtet werden');
+  // Gegenprobe: mit Ausweg geschrieben UND verdrahtet.
+  const ok = lauf('--export', exp, '--schreiben', '--verdrahten', '--kennzeichnung-weg-ok');
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.match(readFileSync(sd, 'utf8'), /from '\.\/bild-herkunft'/);
+});
