@@ -124,6 +124,14 @@ export function attribute(tag) {
  * Kommas am Ende trennen. Deskriptoren laufen bis zum nächsten Komma außerhalb von
  * Klammern. Das naive `split(',')` machte aus `/a,b.webp 1x` die Adresse `/a` (T6).
  *
+ * Ein Kandidat mit ungültigem Deskriptor fällt weg, wie im Browser („if error is still
+ * no, append"). Das ist der Weg, auf dem eine data:-URL mit Leerzeichen zerfällt:
+ * `data:…%3Csvg xmlns='…'%3E 1x` wird zu URL `data:…%3Csvg` mit Deskriptor `xmlns='…'%3E`
+ * und verworfen, der nächste Kandidat nach dem Komma gilt weiter. Bis zur Nachlese der
+ * Reviews #283/#284 stand dafür ein Sonderfall in html-resources.js: ein srcset, das mit
+ * `data:` begann, war EINE Adresse. Damit fielen alle späteren Kandidaten aus der
+ * CSP-Prüfung (`data:… 1w, /bilder/hero-800.webp 800w`).
+ *
  * @param {string | null | undefined} wert
  * @returns {string[]}
  */
@@ -144,14 +152,48 @@ export function srcsetUrls(wert) {
       if (url) urls.push(url);
       continue; // keine Deskriptoren
     }
-    urls.push(roh);
+    // Deskriptoren bis zum nächsten Komma außerhalb von Klammern, je Token an Leerzeichen
+    // außerhalb von Klammern getrennt.
+    /** @type {string[]} */
+    const deskriptoren = [];
+    let token = '';
     let tiefe = 0;
     while (i < s.length) {
       const c = s[i++];
+      if (c === ',' && tiefe === 0) break;
+      if (leer(c) && tiefe === 0) {
+        if (token) deskriptoren.push(token);
+        token = '';
+        continue;
+      }
       if (c === '(') tiefe++;
       else if (c === ')') tiefe = Math.max(0, tiefe - 1);
-      else if (c === ',' && tiefe === 0) break;
+      token += c;
     }
+    if (token) deskriptoren.push(token);
+    if (deskriptorenGueltig(deskriptoren)) urls.push(roh);
   }
   return urls;
+}
+
+/**
+ * WHATWG „parse a srcset attribute", Schritt Deskriptoren: höchstens je ein `<Ganzzahl>w`,
+ * `<Zahl>x`, `<Ganzzahl>h`; `w` und `x` nicht zusammen, `h` nur mit `w`. Alles andere ist
+ * ein Fehler, und der Browser verwirft den Kandidaten.
+ * @param {string[]} deskriptoren
+ * @returns {boolean}
+ */
+function deskriptorenGueltig(deskriptoren) {
+  let w = 0;
+  let x = 0;
+  let h = 0;
+  for (const d of deskriptoren) {
+    const zahl = d.slice(0, -1);
+    const art = d.slice(-1);
+    if (art === 'w' && /^\d+$/.test(zahl) && Number(zahl) > 0) w++;
+    else if (art === 'h' && /^\d+$/.test(zahl) && Number(zahl) > 0) h++;
+    else if (art === 'x' && /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(zahl) && Number(zahl) >= 0) x++;
+    else return false;
+  }
+  return w <= 1 && x <= 1 && h <= 1 && !(w && x) && !(h && !w);
 }

@@ -20,6 +20,8 @@
  *   0  in Form
  *   1  Befunde (je Zeile einer, mit Zeilennummer)
  *   2  Aufruffehler (Datei nicht lesbar)
+ *   3  nicht vollständig geprüft: der Markdown-Parser fehlt (kein `pnpm install`), die
+ *      Setext-Prüfung lief nicht. Alle übrigen Prüfungen liefen und sind ohne Befund.
  *
  * `--unreleased` ist der Schalter für cw-release: beim Release MUSS genau ein
  * `## [Unreleased]`-Block da sein, der umbenannt wird. Ohne den Schalter ist null Blöcke in
@@ -29,7 +31,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { istDirektAufruf } from './lib/direkt-aufruf.mjs';
-import { pruefeChangelogKopfform, formatiereBefunde } from './lib/changelog-kopfform.mjs';
+import { pruefeChangelogKopfform, formatiereBefunde, SETEXT_NICHT_GEPRUEFT } from './lib/changelog-kopfform.mjs';
 import {
   ALTLASTEN, MINDESTENS_TAGS, pruefeTagGleichheit, formatiereTagBefunde, zaehlzeile,
 } from './lib/changelog-tag-gleich.mjs';
@@ -89,6 +91,11 @@ function main() {
   }
 
   if (befunde.length > 0 || fehlt || tagRot) process.exit(1);
+  // Erst nach allen anderen Prüfungen: deren Befunde sollen auch ohne Parser sichtbar sein.
+  if (SETEXT_NICHT_GEPRUEFT) {
+    console.error(`lint-changelog: ${SETEXT_NICHT_GEPRUEFT}. Kein Grün: die übrigen Prüfungen liefen, diese nicht.`);
+    process.exit(3);
+  }
   console.log(`lint-changelog: ✓ ${md.split('\n').filter((z) => z.startsWith('## ')).length} Kopfzeile(n) in Normform.`);
 }
 

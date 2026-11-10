@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { extractResources, extractCssUrls, parseAttrs } from '../../src/integrations/ai-discovery/html-resources.js';
+import { extractResources, extractCssUrls, parseAttrs, maskiere } from '../../src/integrations/ai-discovery/html-resources.js';
 import { auditHtml, formatFinding } from '../../src/integrations/ai-discovery/csp-audit.js';
 
 const ORIGIN = 'https://gympanzen.com';
@@ -187,15 +187,49 @@ test('#260 parseAttrs: dekodiert, erstes Vorkommen gewinnt, Quote im Wert bleibt
   assert.equal(parseAttrs(` href="/s?a=1&ampel=2"`).href, '/s?a=1&ampel=2');
 });
 
-test('#260 extractResources: srcset nach WHATWG, data:-srcset bleibt eine Adresse', () => {
+test('#260 extractResources: srcset nach WHATWG, je Kandidat wie der Browser', () => {
   const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
   assert.deepEqual(urls('<img srcset="/a,b.webp 1x, /c.webp 2x">'), ['/a,b.webp', '/c.webp']);
+  // data:-SVG mit Leerzeichen: der Browser verwirft den Kandidaten (ungültiger Deskriptor), kein
+  // erfundener Host aus dem SVG-Namensraum.
   const svg = `<img srcset="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E 1x">`;
-  const r = urls(svg);
-  assert.equal(r.length, 1, `eine Adresse, nicht zerlegt: ${JSON.stringify(r)}`);
-  assert.match(r[0], /^data:/);
-  // Gegenprobe: kein erfundener Host aus dem SVG-Namensraum.
-  assert.ok(!r.some((u) => u.startsWith('http://www.w3.org')));
+  assert.deepEqual(urls(svg), []);
+  // Nachlese der Reviews #283/#284: bis dahin war ein srcset, das mit data: begann, EINE Adresse,
+  // und jeder spätere Kandidat fehlte der CSP-Prüfung (falsch grün).
+  assert.deepEqual(
+    urls(`<img srcset="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E 1x, https://cdn.example.com/x.webp 2x">`),
+    ['https://cdn.example.com/x.webp'],
+  );
+  assert.deepEqual(
+    urls('<img srcset="data:image/webp;base64,UklGRg== 1w, /bilder/hero-800.webp 800w">'),
+    ['data:image/webp;base64,UklGRg==', '/bilder/hero-800.webp'],
+  );
+});
+
+// ─── Nachlese der Reviews #283/#284: Tags in Kommentaren und Script-Körpern ──────────────
+test('maskiere: Kommentare und Script-/Style-Körper leer, Länge und Zeilen gleich', () => {
+  const html = '<p>a</p><!-- <img src="/k.webp">\n --><script>x="<img src=/s.webp>"\n</script><style>b{}</style>';
+  const m = maskiere(html);
+  assert.equal(m.length, html.length);
+  assert.equal(m.split('\n').length, html.split('\n').length);
+  assert.ok(!m.includes('/k.webp') && !m.includes('/s.webp') && !m.includes('b{}'));
+  // Die Tags selbst bleiben sichtbar.
+  assert.ok(m.includes('<script>') && m.includes('</script>') && m.includes('<style>') && m.includes('<p>a</p>'));
+  // Ein offener Kommentar läuft bis zum Ende; `<!--` in einem Script ist kein Kommentar.
+  assert.equal(maskiere('<p>x</p><!-- <img src=/a.webp>').trimEnd(), '<p>x</p>');
+  assert.ok(maskiere('<script>s="<!--"</script><img src="/echt.webp">').includes('/echt.webp'));
+});
+
+test('extractResources: Tags in Kommentar und Script zählen nicht, echte Tags weiter', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  assert.deepEqual(urls(`<script>el.innerHTML='<div style="background:url(/img/'+n+'.webp)"></div>'</script>`), []);
+  assert.deepEqual(urls('<!-- <div style="background:url(/alt.png)"> <img src="/k.webp"> -->'), []);
+  // Ein auskommentiertes Inline-Script ist keins.
+  assert.deepEqual(extractResources('<!-- <script>alert(1)</script> -->').filter((r) => r.type === 'inline'), []);
+  // GEGENPROBE: derselbe Tag außerhalb wird gelesen, mit richtiger Zeilennummer hinter einem
+  // mehrzeiligen Kommentar.
+  const r = extractResources('<!--\n\n-->\n<div style="background:url(/fehlt.webp)"></div>', 'x.html');
+  assert.deepEqual(r.filter((x) => x.type === 'url').map((x) => `${x.url} ${x.where}`), ['/fehlt.webp x.html:4']);
 });
 
 test('#260 extractResources: url() im style-Attribut wird dekodiert gelesen', () => {

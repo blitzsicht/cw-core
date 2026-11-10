@@ -1208,11 +1208,44 @@ test('#260 E2E: `&#38;` im href und `\'` im src laufen grün — und fehlen sie,
 // Beide Fälle gemessen am 09.11.2026: b2fe3497^ lieferte den Wert in der Gegenprobe,
 // b2fe3497 nicht.
 
-test('Nachlese #278: ein srcset, der mit data: beginnt, liefert keine erfundenen Pfade', () => {
+test('Nachlese #278 → #283/#284: ein data:-srcset mit Leerzeichen zerfällt wie im Browser', () => {
+  // Bis zur Nachlese #283/#284 galt dieser Pfad als „erfunden“ und das ganze srcset als eine
+  // Adresse. Chromium lädt hier aber tatsächlich `/x.webp'` (gemessen 10.11.2026, currentSrc bei
+  // DPR 1): `data:…%3Csvg` hat den Deskriptor `a='1 2` und fällt weg, `/x.webp' 1x` ist gültig.
+  // Der Befund ist also ein echter 404.
   const html = `<img srcset="data:image/svg+xml;utf8,%3Csvg a='1 2,/x.webp' 1x">`;
-  assert.deepEqual(extractAssetRefs(html, null).refs, []);
+  assert.deepEqual(extractAssetRefs(html, null).refs, ["/x.webp'"]);
   // Gegenprobe: ein gewöhnlicher srcset wird weiter gelesen.
   assert.deepEqual(extractAssetRefs('<img srcset="/x.webp 1x">', null).refs, ['/x.webp']);
+});
+
+// ─── Nachlese der Reviews #283/#284: Regressionen aus #283, vor dem Train-Tag ─────────────
+// Gemessen am 10.11.2026 gegen 2a18c543 (release/cw-core) und v0.195.0.
+
+test('Nachlese #283/#284: Tags in Script-Körper und Kommentar sind keine Asset-Referenzen', () => {
+  // 2a18c543: ["/img/'+n+'.webp"] und ["/alt.png"]; v0.195.0: [] und [].
+  assert.deepEqual(extractAssetRefs(`<script>el.innerHTML='<div style="background:url(/img/'+n+'.webp)"></div>'</script>`, null).refs, []);
+  assert.deepEqual(extractAssetRefs('<!-- <div style="background:url(/alt.png)"> -->', null).refs, []);
+  // GEGENPROBE: derselbe Tag im Dokument bleibt eine Referenz (#260 Punkt 2).
+  assert.deepEqual(extractAssetRefs('<div style="background:url(/fehlt.webp)"></div>', null).refs, ['/fehlt.webp']);
+});
+
+test('Nachlese #283/#284: LQIP-srcset verliert den echten Kandidaten nicht', () => {
+  // 2a18c543: [] — das ganze srcset galt als eine data:-Adresse (falsch grün).
+  assert.deepEqual(extractAssetRefs('<img srcset="data:image/webp;base64,UklGRg== 1w, /bilder/hero-800.webp 800w">', null).refs, ['/bilder/hero-800.webp']);
+});
+
+test('Nachlese #283/#284 E2E: preload-fetch-Route, Script und Kommentar ohne canonical grün, echter Tag rot', () => {
+  const seite = (extra) => '<!doctype html><html><head><link rel="preload" as="fetch" href="/api/kontakt"></head><body>'
+    + `<script>el.innerHTML='<div style="background:url(/img/'+n+'.webp)"></div>'</script>`
+    + '<!-- <img src="/alt.png"> -->' + extra + '</body></html>';
+  const gruen = runTree({ files: { 'index.html': seite('') }, config: { assetRefChecks: 'fail' } });
+  assert.equal(gruen.code, 0, `out:\n${gruen.out}`);
+  assert.doesNotMatch(gruen.out, /\/api\/kontakt|\/alt\.png|\.webp/);
+  // GEGENPROBE: ein echter Tag mit fehlender Datei macht denselben Lauf rot, mit Namen.
+  const rot = runTree({ files: { 'index.html': seite('<div style="background:url(/fehlt.webp)"></div>') }, config: { assetRefChecks: 'fail' } });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /Asset-Referenz \/fehlt\.webp/);
 });
 
 test('Nachlese #278: ein leeres property= verdeckt name="og:image" nicht', () => {

@@ -63,7 +63,30 @@ test('srcsetUrls: nach WHATWG — Komma in der URL trennt nicht, Deskriptoren mi
   assert.deepEqual(srcsetUrls('/a,b.webp 1x'), ['/a,b.webp']);
   assert.deepEqual(srcsetUrls('/a.webp 400w, /b.webp 800w,/c.webp 2x'), ['/a.webp', '/b.webp', '/c.webp']);
   assert.deepEqual(srcsetUrls('/a.webp,, /b.webp,'), ['/a.webp', '/b.webp'], 'Kommas am Ende trennen');
-  assert.deepEqual(srcsetUrls('/a.webp (foo, bar) 1x, /b.webp'), ['/a.webp', '/b.webp'], 'Komma in Klammern trennt nicht');
+  // Komma in Klammern trennt nicht. `(foo, bar)` ist aber kein gültiger Deskriptor: der Browser
+  // verwirft /a.webp (Chromium gemessen 10.11.2026: currentSrc /b.webp).
+  assert.deepEqual(srcsetUrls('/a.webp (foo, bar) 1x, /b.webp'), ['/b.webp'], 'Komma in Klammern trennt nicht');
   assert.deepEqual(srcsetUrls(''), []);
   assert.deepEqual(srcsetUrls(undefined), []);
+});
+
+// Nachlese der Reviews #283/#284: Ein Kandidat mit ungültigem Deskriptor fällt weg, wie im Browser.
+// Jeder Fall unten im echten Chromium nachgemessen (10.11.2026, currentSrc bei DPR 1).
+test('srcsetUrls: ungültiger Deskriptor verwirft nur seinen Kandidaten (WHATWG)', () => {
+  // data:-SVG mit Leerzeichen: zerfällt in URL + Unsinn-Deskriptor, der Kandidat fällt, der nächste gilt.
+  assert.deepEqual(
+    srcsetUrls("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E 1x, https://cdn.example.com/x.webp 2x"),
+    ['https://cdn.example.com/x.webp'],
+  );
+  // LQIP: base64 ohne Leerzeichen ist ein gültiger Kandidat, der zweite auch.
+  assert.deepEqual(
+    srcsetUrls('data:image/webp;base64,UklGRg== 1w, /bilder/hero-800.webp 800w'),
+    ['data:image/webp;base64,UklGRg==', '/bilder/hero-800.webp'],
+  );
+  assert.deepEqual(srcsetUrls('/a.webp 1X, /b.webp 2x'), ['/b.webp'], 'Deskriptor ist case-sensitiv');
+  assert.deepEqual(srcsetUrls('/a.webp 1x 2x'), [], 'zwei Dichten');
+  assert.deepEqual(srcsetUrls('/a.webp 100w 1x'), [], 'w und x zusammen');
+  assert.deepEqual(srcsetUrls('/a.webp 50h'), [], 'h ohne w');
+  // GEGENPROBE: gültige Deskriptoren bleiben.
+  assert.deepEqual(srcsetUrls('/a.webp 1.5x, /b.webp 100w 50h, /c.webp'), ['/a.webp', '/b.webp', '/c.webp']);
 });

@@ -39,7 +39,8 @@
  *   }
  *
  * distLinkChecks steuert NUR die dist-Link-/Ads-Auflösung, assetRefChecks NUR die
- * Asset-Referenzen (src/srcset/poster/CSS-url()), eagerScriptChecks NUR die eager geladenen
+ * Asset-Referenzen (alles, was die CSP-Prüfung als ladbare Adresse sieht: src/srcset/poster,
+ * CSS-url() in <style> und style-Attribut, <object data>, <link href>), eagerScriptChecks NUR die eager geladenen
  * Drittanbieter-Skripte. Die drei sind getrennt, weil ein Repo das eine abschalten
  * wollen kann und das andere nicht: tote Verweise sind ein anderer Schaden als
  * Verweise, die zu frueh ins Ziel treffen. Der tel:/mailto:-Check bleibt davon
@@ -297,11 +298,13 @@ const ASSET_TAG_RE = /<(?:img|source|script|video|audio|track|embed|iframe)\b[^>
  * v0.110.0 bei JEDEM Build in einen 404, ohne dass ein PR rot wurde
  * (blumen-schmid `/signet-white.png`, allstargirls `url(/star.png)`).
  *
- * 🔴 CSS-`url()` wird NUR in `<style>`-Blöcken gelesen, nie über rohes HTML.
- * Über die ganze Datei trifft der Regex JavaScript statt CSS: `new URL(t.href)`
+ * 🔴 CSS-`url()` wird NUR in `<style>`-Blöcken und `style`-Attributen gelesen, nie über
+ * rohes HTML. Über die ganze Datei trifft der Regex JavaScript statt CSS: `new URL(t.href)`
  * → `url(t.href)`. Gemessen am 12.08.2026 über 518 Seiten der Flotte waren das
- * 502 von 554 Treffern — die Eingrenzung auf `<style>` lässt exakt null davon
- * übrig. Für `.css`-Dateien des dist ruft der Aufrufer mit `cssOnly` auf.
+ * 502 von 554 Treffern. Seit cw-core#260 (Punkt 2) liest der gemeinsame Leser
+ * `extractResources` auch `style`-Attribute; Tags in Kommentaren und Script-Körpern sieht
+ * er nicht (`maskiere`, Nachlese der Reviews #283/#284). Für `.css`-Dateien des dist ruft
+ * der Aufrufer mit `cssOnly` auf.
  *
  * Origin ist optional: fast alle Asset-Refs sind root-relativ, und ohne
  * `<link rel="canonical">` fällt der Link-Check sonst komplett aus (Beleg:
@@ -385,13 +388,17 @@ export function extractAssetRefs(source, origin, opts = {}) {
   // Repos, 35 neu gesehene Referenzen (alle `style`-Attribut, blitzsicht 28), 35× HTTP
   // 200; dieselben Pfade verfälscht 35× 404. `<object data>` kam 0-mal vor.
   //
-  // `form-action` ist eine Route, keine Datei. `<link href>` liefert extractResources
-  // mit; der Link-Check sieht dieselben Pfade und meldet sie (Dedup über `linkSeen`).
+  // `form-action` ist eine Route, keine Datei, ebenso `connect-src` (`<link rel=preload
+  // as=fetch href=/api/…>`): ein fetch-Ziel ist meist eine Serverless-Route, die `judge`
+  // nicht kennt. Ohne canonical oder mit distLinkChecks 'off' bleibt `linkSeen` leer, und
+  // die Route würde als „toter Link“ gemeldet (Nachlese der Reviews #283/#284). Übrige
+  // `<link href>` (Stylesheet, Icon, Manifest) sind Dateien und bleiben drin; wo der
+  // Link-Check läuft, meldet er sie, und das Dedup über `linkSeen` verhindert die zweite Zeile.
   if (opts.cssOnly) {
     for (const r of extractCssUrls(source, '')) push(r.url);
   } else {
     for (const r of extractResources(source)) {
-      if (r.type !== 'url' || r.directive === 'form-action') continue;
+      if (r.type !== 'url' || r.directive === 'form-action' || r.directive === 'connect-src') continue;
       push(r.url);
     }
   }
