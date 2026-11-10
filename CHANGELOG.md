@@ -24,6 +24,24 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Verbotslisten-Guard rät nicht mehr, eine wirksame Ausnahme zu streichen (cw-core#261, B1 und B3)
+
+Kontext: Eine erlaubte Phrase kann einen Kundentreffer aufheben, während an derselben Stelle ein
+längerer Flottentreffer offen gewinnt. Text „nicht anwaltlich geprüft“, Kundenmuster `anwaltlich`,
+Flottenmuster `anwaltlich geprüft`, Phrase `nicht anwaltlich`: Der Befund war ein Flottenhinweis,
+die Phrase galt als ungenutzt, und der Build riet zum Streichen. Wer strich, bekam einen
+Kunden-WARN, mit `strictVerbotsliste` den Abbruch.
+
+- `pruefeVerbotsliste` setzt am offenen Flottenbefund `herabgestuftDurch`: die Phrasen, ohne die
+  der Kundentreffer gewänne. Der Hook zählt sie als genutzt, auf geprüften wie auf
+  pfad-ausgenommenen Seiten. Maßstab ist die Schwere: Verschiebt eine Phrase nur, welches
+  Flottenmuster gemeldet wird, bleibt sie ungenutzt.
+- Ein Befund ohne `herkunft` bricht den Build mit Meldung ab, statt still als Flottentreffer zu
+  zählen (B3). Beide Aufrufe geben die Kundenliste mit, der Abbruch fängt einen
+  Programmierfehler.
+- B6 (Kundenliste je Seite neu normalisiert) bleibt, wie es ist: gemessen 0,023 ms je Seite,
+  1,1 % des Aufrufs.
+
 **Fix:** `bildherkunft-uebernehmen.mjs` löscht keine Handabsätze im Kopf mehr (cw-core#280)
 
 Kontext: Der Kopf-Sweep vom 10.11. ersetzte in `bild-herkunft.ts` alles von Zeile 1 bis

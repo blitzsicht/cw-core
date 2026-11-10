@@ -4309,6 +4309,16 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // ein verbrauchter Iterator machte ab der zweiten Seite jeden Treffer zum
           // Flottentreffer — ohne Fehlermeldung, also still.
           const herkunftOption = { kundenListe: [...kundenListe.keys()] } as const;
+          // Ohne `herkunft` wäre ein Kundentreffer nicht vom Flottentreffer zu trennen; vorher
+          // landete er still im Flottentopf, und `strictVerbotsliste` griff nie (Review
+          // cw-core#261, B3). Beide Aufrufe geben `herkunftOption` mit, also ist das ein
+          // Programmierfehler und kein Seiteninhalt: laut abbrechen statt raten.
+          const herkunftVon = (b: { herkunft?: 'kunde' | 'flotte'; formulierung: string; seite: string }) => {
+            if (b.herkunft === undefined) {
+              throw new Error(`Verbotslisten-Guard: Befund „${b.formulierung}" auf ${b.seite} ohne herkunft — pruefeVerbotsliste lief ohne kundenListe.`);
+            }
+            return b.herkunft;
+          };
           const formulierungen: readonly string[] = [...(eigene ?? []), ...GARANTIE_PRAEDIKATE];
           // Dieselbe Zahl, die der Checker wirklich prüft — vorher zählte `filter()` rohe
           // Einträge und meldete für ['rechtssicher','Rechtssicher'] zwei (Befund 7).
@@ -4367,7 +4377,12 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                   ausnahmenJeSeite.set(rel, eintraege);
                   for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte, herkunftOption)) {
                     if (b.aufgehobenDurch === undefined) {
-                      if (b.herkunft === 'kunde') {
+                      for (const phrase of b.herabgestuftDurch ?? []) {
+                        const seiten = nurAusgenommen.get(phrase) ?? new Set<string>();
+                        seiten.add(rel);
+                        nurAusgenommen.set(phrase, seiten);
+                      }
+                      if (herkunftVon(b) === 'kunde') {
                         for (const a of eintraege) {
                           const stellen = offenJeAusnahme.get(a) ?? new Set<string>();
                           stellen.add(`${b.ort}\u0000${b.kontext}`);
@@ -4396,11 +4411,18 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                   }
                   continue;
                 }
+                // Hebt eine Phrase hier einen Kundentreffer auf, während ein Flottentreffer offen
+                // gewinnt, ist sie genutzt: ohne sie gewänne der Kundentreffer (Review cw-core#261, B1).
+                for (const phrase of b.herabgestuftDurch ?? []) {
+                  const seiten = genutzteAusnahmen.get(phrase) ?? new Set<string>();
+                  seiten.add(rel);
+                  genutzteAusnahmen.set(phrase, seiten);
+                }
                 const key = `${b.ort}\u0000${b.kontext}`;
                 // Herkunft kommt aus dem Befund (cw-core#247) — vorher stand dieselbe
                 // Normalisierung hier ein zweites Mal, und sie konnte von der des Checkers
                 // abweichen, ohne dass es auffällt.
-                const ziel = b.herkunft === 'kunde' ? proKontextKunde : proKontextFlotte;
+                const ziel = herkunftVon(b) === 'kunde' ? proKontextKunde : proKontextFlotte;
                 vermerkeFundstelle(ziel, key, rel, () => ({
                   kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel],
                 }));
