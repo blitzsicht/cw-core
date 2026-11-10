@@ -44,7 +44,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { regelZeile } from './bildherkunft-arbeitsliste.mjs';
 import {
-  verlustVergleich, mischeRegeln, kopfErsetzen, teileDatei, regelZahl, hatErzeugtenKopf,
+  verlustVergleich, mischeRegeln, kopfErsetzen, KOPF_ZEILEN, teileDatei, regelZahl, hatErzeugtenKopf,
 } from './lib/bildherkunft-verlust.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
 import { registryPfad } from './registry-pfad.mjs';
@@ -112,23 +112,7 @@ if (repoOverride) {
   repoPfad[nurSlug] = repoOverride;
 }
 
-const KOPF = (slug, anzahl, stand) => `// Angelegt von cw-core/scripts/bildherkunft-übernehmen.mjs aus der Bild-Arbeitsliste,
-// seitdem ergänzt von cw-core/scripts/bild-einbauen.mjs bei jedem weiteren Bild.
-// Beide Wege sind vorgesehen, Änderungen von Hand ebenso. Der Generator mischt: Regeln,
-// die die Arbeitsliste nicht kennt, bleiben stehen, für ein Bild, das sie kennt, gilt ihre
-// Einordnung. Fiele dabei eine Kennzeichnung weg, bricht er ab.
-//
-// Bild-Herkunft nach Art. 50 Abs. 4 UAbs. 1 AI Act (VO (EU) 2024/1689).
-// Die Norm verlangt vom Betreiber eine Offenlegung nur für KI-Inhalte, die ein Deepfake
-// sind — und die Legaldefinition (Art. 3 Nr. 60) verlangt zwei Merkmale zusammen: der
-// Inhalt ähnelt wirklichen Personen, Gegenständen, Orten, Einrichtungen oder Ereignissen
-// UND würde fälschlicherweise als echt erscheinen. Deshalb stehen Herkunft und
-// Deepfake-Einordnung getrennt, und die Begründung ist der Nachweis.
-//
-// Rechtstext: cw-recht → texte/eu/ai-act/ai-act.md, Abschnitt "## Artikel 50".
-// Bewertung:  cw-legal → 04-betroffenheit/D1-art50-ki-kennzeichnung.md.
-// Keine amtliche Fassung, keine Rechtsberatung.
-//
+const KOPF = (slug, anzahl, stand) => `${KOPF_ZEILEN.join('\n')}
 // Site: ${slug} · ${anzahl} Regeln · Stand ${stand}
 `;
 const NEUE_DATEI = (slug, zeilen, stand) => KOPF(slug, zeilen.length, stand)
@@ -228,7 +212,9 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
       // doch etwas, ist das Mischen falsch und nicht der Bestand — dann gar nicht schreiben.
       const rest = verlustVergleich(t.rumpf.join('\n'), m.zeilen).verloren;
       if (rest.length) throw new Error(`Mischen verlöre ${rest.length} Regeln (${rest[0]} …) — Fehler im Generator`);
-      const k = neuerVorspann(slug, { vorspann: t.vorspann, rumpf: m.zeilen }, stand);
+      let k;
+      // Eigenes Etikett: die Datei ist lesbar, nur ihr Kopf trägt fremden Text (cw-core#280).
+      try { k = neuerVorspann(slug, { vorspann: t.vorspann, rumpf: m.zeilen }, stand); } catch (e) { e.kopf = true; throw e; }
       inhalt = [...k.vorspann, ...m.zeilen, ...t.schluss].join('\n');
     } else {
       m = mischeRegeln([], zeilen);
@@ -237,7 +223,7 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   } catch (e) {
     // Unbekannte Zeilenform oder Datei ohne Rahmen. Nicht schreiben: ohne verlässliche
     // Lesung ist über den Bestand nichts ausgesagt, und „nichts ausgesagt" ist nicht „nichts da".
-    bericht.push({ slug, fehler: `Zieldatei nicht lesbar — ${e.message.split('\n')[0]}` });
+    bericht.push({ slug, fehler: e.kopf ? e.message : `Zieldatei nicht lesbar — ${e.message.split('\n')[0]}` });
     continue;
   }
 

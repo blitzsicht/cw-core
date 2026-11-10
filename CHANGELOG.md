@@ -24,6 +24,25 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** `bildherkunft-uebernehmen.mjs` löscht keine Handabsätze im Kopf mehr (cw-core#280)
+
+Kontext: Der Kopf-Sweep vom 10.11. ersetzte in `bild-herkunft.ts` alles von Zeile 1 bis
+`// Site:`. Bei customer-falzmarke standen dort zwei Absätze von Hand (SVG-Ausnahme #102,
+EU-Symbole), der Lauf löschte sie still: −17 statt −4 Zeilen, im PR von Hand gerettet.
+
+- `kopfErsetzen` ersetzt nur noch einen Kopf, dessen Zeilen der Reihe nach in einer bekannten
+  Generator-Fassung stehen (heute plus `b749dd7a` und `51c4431f`, wörtlich aus git). Eine
+  eingeschobene oder umformulierte Zeile bricht den Lauf mit Exit 3 ab, die Meldung nennt sie.
+  Fehlende Zeilen sind harmlos und werden wiederhergestellt.
+- Die heutige Kopfvorlage steht als `KOPF_ZEILEN` in `scripts/lib/bildherkunft-verlust.mjs`, das
+  Skript baut seinen Kopf daraus. Schreiber und Prüfung können nicht auseinanderlaufen.
+- Drift-Schutz: Test K9 hält jede je ausgelieferte Fassung per Hash fest. Wer `KOPF_ZEILEN`
+  ändert, ohne die alte Fassung nach `FRUEHERE_KOEPFE` zu legen, bekommt einen roten Test statt
+  einer Flotte mit Exit 3.
+- Im Exportlauf heißt der Abbruch jetzt „Kopf weicht ab …“, nicht mehr „Zieldatei nicht lesbar“.
+- Gegenprobe: falzmarke `e8264fd` (vor #81) → Exit 3, „ab Zeile 5 … AUSNAHME falzmarke“. Der alte
+  Code meldete „neu“ mit Exit 0. Flotte ab origin/main: 13× „aktuell“, 11× eigener Kopf, 0 Fehler.
+
 **Fix:** `bildherkunft-uebernehmen.mjs` mischt den Export in den Bestand, statt die Datei neu zu schreiben (customer-blitzsicht#269, Nachlese #264)
 
 Kontext: `src/data/bild-herkunft.ts` hat zwei Schreiber. `bild-einbauen.mjs` ergänzt die Datei bei
