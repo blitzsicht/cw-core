@@ -26,6 +26,11 @@
  *   K2  der Kopf von bild-einbauen.mjs bleibt unberührt
  *   K3  teileDatei: Rundlauf verlustfrei, ohne `];` wirft es
  *   K4  teileDatei: `= [];` auf einer Zeile ist ein leerer Rumpf (notar-huber)
+ *   K5  Handabsatz zwischen Zeile 1 und `// Site:` bricht ab und nennt die Zeile (cw-core#280)
+ *   K6  jede bekannte Fassung, vollständig, gekürzt oder mit Leerzeichen am Ende, wird ersetzt
+ *   K7  umformulierte Generatorzeile und eingeschobene Leerzeile brechen ebenfalls ab
+ *   K8  Handabsätze hinter `// Site:` bleiben stehen (falzmarke nach #81)
+ *   K9  jede je ausgelieferte Kopffassung bleibt erkannt (Hash-Liste, Drift-Schutz)
  */
 
 import { test } from 'node:test';
@@ -220,13 +225,14 @@ test('K6. jede bekannte Fassung, vollständig oder gekürzt, wird ersetzt', () =
     assert.equal(fremdeKopfZeile(fassung.map((z) => `${z}  `)), null, 'Leerzeichen am Zeilenende zählen nicht');
     assert.equal(kopfErsetzen([...fassung, SITE], NEU).ersetzt, true);
   }
-  assert.equal(new Set([KOPF_ZEILEN, ...FRUEHERE_KOEPFE].map((f) => f[0])).size, 2, 'zwei Anfänge, drei Fassungen');
 });
 
-test('K7. eine von Hand umformulierte Generatorzeile bricht ebenfalls ab', () => {
+test('K7. umformulierte Generatorzeile und eingeschobene Leerzeile brechen ebenfalls ab', () => {
   const geaendert = KOPF_ZEILEN.map((z, i) => (i === 2 ? z.replace('ebenso', 'auch') : z));
   assert.deepEqual(fremdeKopfZeile(geaendert), { nr: 3, text: geaendert[2].slice(0, 80) });
-  assert.throws(() => kopfErsetzen([...geaendert, SITE], NEU), /ab Zeile 3/);
+  assert.throws(() => kopfErsetzen([...geaendert, SITE], NEU), /ab Zeile 3 .*zurücksetzen/);
+  const leer = [...KOPF_ZEILEN.slice(0, 5), '', ...KOPF_ZEILEN.slice(5)];
+  assert.throws(() => kopfErsetzen([...leer, SITE], NEU), /ab Zeile 6 .*\(leere Zeile\)/);
 });
 
 test('K8. Handabsätze hinter `// Site:` (falzmarke nach #81) bleiben stehen', () => {
@@ -234,4 +240,25 @@ test('K8. Handabsätze hinter `// Site:` (falzmarke nach #81) bleiben stehen', (
   const k = kopfErsetzen(vorspann, NEU);
   assert.equal(k.ersetzt, true);
   assert.deepEqual(k.vorspann.slice(2), ['//', ...HAND, '']);
+});
+
+// Hash je Fassung, sha256 der mit \n verbundenen Zeilen, erste 16 Zeichen. Gemessen 10.11.2026.
+// Jede Fassung, die je in einer Flottendatei stand, muss erkannt bleiben, sonst bricht `--kopf`
+// dort mit Exit 3 ab. Neue Fassung: Hash hier anhängen. Nie einen Eintrag streichen.
+const AUSGELIEFERT = [
+  ['71b4b52d229640eb', 'b749dd7a „ERZEUGTE DATEI"'],
+  ['e37c88e448695526', '51c4431f „Angelegt von …", --verlust-ok'],
+  ['ca9359f8ab34f8d2', '21990bda „Der Generator mischt"'],
+];
+test('K9. jede je ausgelieferte Kopffassung bleibt erkannt', async () => {
+  const { createHash } = await import('node:crypto');
+  const h = (zeilen) => createHash('sha256').update(zeilen.join('\n')).digest('hex').slice(0, 16);
+  const bekannt = new Set([KOPF_ZEILEN, ...FRUEHERE_KOEPFE].map(h));
+  for (const [hash, woher] of AUSGELIEFERT) {
+    assert.ok(bekannt.has(hash), `Fassung ${woher} (${hash}) wird nicht mehr erkannt. Wer KOPF_ZEILEN ändert, `
+      + 'legt die bisherige Fassung wörtlich nach FRUEHERE_KOEPFE.');
+  }
+  assert.ok(AUSGELIEFERT.some(([hash]) => hash === h(KOPF_ZEILEN)),
+    `KOPF_ZEILEN ist neu (${h(KOPF_ZEILEN)}): Hash mit Herkunft in AUSGELIEFERT anhängen.`);
+  assert.ok(Object.isFrozen(KOPF_ZEILEN) && FRUEHERE_KOEPFE.every(Object.isFrozen));
 });

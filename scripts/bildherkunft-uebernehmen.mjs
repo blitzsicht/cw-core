@@ -212,7 +212,9 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
       // doch etwas, ist das Mischen falsch und nicht der Bestand — dann gar nicht schreiben.
       const rest = verlustVergleich(t.rumpf.join('\n'), m.zeilen).verloren;
       if (rest.length) throw new Error(`Mischen verlöre ${rest.length} Regeln (${rest[0]} …) — Fehler im Generator`);
-      const k = neuerVorspann(slug, { vorspann: t.vorspann, rumpf: m.zeilen }, stand);
+      let k;
+      // Eigenes Etikett: die Datei ist lesbar, nur ihr Kopf trägt fremden Text (cw-core#280).
+      try { k = neuerVorspann(slug, { vorspann: t.vorspann, rumpf: m.zeilen }, stand); } catch (e) { e.kopf = true; throw e; }
       inhalt = [...k.vorspann, ...m.zeilen, ...t.schluss].join('\n');
     } else {
       m = mischeRegeln([], zeilen);
@@ -221,7 +223,7 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   } catch (e) {
     // Unbekannte Zeilenform oder Datei ohne Rahmen. Nicht schreiben: ohne verlässliche
     // Lesung ist über den Bestand nichts ausgesagt, und „nichts ausgesagt" ist nicht „nichts da".
-    bericht.push({ slug, fehler: `Zieldatei nicht lesbar — ${e.message.split('\n')[0]}` });
+    bericht.push({ slug, fehler: e.kopf ? e.message : `Zieldatei nicht lesbar — ${e.message.split('\n')[0]}` });
     continue;
   }
 

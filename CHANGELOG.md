@@ -36,6 +36,10 @@ EU-Symbole), der Lauf löschte sie still: −17 statt −4 Zeilen, im PR von Han
   Fehlende Zeilen sind harmlos und werden wiederhergestellt.
 - Die heutige Kopfvorlage steht als `KOPF_ZEILEN` in `scripts/lib/bildherkunft-verlust.mjs`, das
   Skript baut seinen Kopf daraus. Schreiber und Prüfung können nicht auseinanderlaufen.
+- Drift-Schutz: Test K9 hält jede je ausgelieferte Fassung per Hash fest. Wer `KOPF_ZEILEN`
+  ändert, ohne die alte Fassung nach `FRUEHERE_KOEPFE` zu legen, bekommt einen roten Test statt
+  einer Flotte mit Exit 3.
+- Im Exportlauf heißt der Abbruch jetzt „Kopf weicht ab …“, nicht mehr „Zieldatei nicht lesbar“.
 - Gegenprobe: falzmarke `e8264fd` (vor #81) → Exit 3, „ab Zeile 5 … AUSNAHME falzmarke“. Der alte
   Code meldete „neu“ mit Exit 0. Flotte ab origin/main: 13× „aktuell“, 11× eigener Kopf, 0 Fehler.
 

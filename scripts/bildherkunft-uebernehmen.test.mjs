@@ -14,6 +14,7 @@
  *   I3  der alte Ausweg `--verlust-ok` wird abgelehnt (Exit 1), nicht still umgedeutet
  *   I4  `--kopf`: schreibt die Zahl, zweiter Lauf ändert nichts, fremder Kopf bleibt
  *   I5  `--kopf` an einer Datei mit eigenem Kopf und mehrzeiligen Regeln: kein Abbruch
+ *   I8  Handabsatz im erzeugten Kopf: `--kopf` und Export brechen ab (Exit 3), Datei unverändert
  */
 
 import { test } from 'node:test';
@@ -175,4 +176,24 @@ test('I7. Kennzeichnung fiele weg + --verdrahten: site-data.ts bleibt unberührt
   const ok = lauf('--export', exp, '--schreiben', '--verdrahten', '--kennzeichnung-weg-ok');
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(readFileSync(sd, 'utf8'), /from '\.\/bild-herkunft'/);
+});
+
+// ─── cw-core#280: Handabsatz im erzeugten Kopf ─────────────────────────────────────────
+
+test('I8. Handabsatz im erzeugten Kopf: --kopf und Export brechen ab, Datei unverändert', () => {
+  const vorher = ERZEUGT([r('a.webp')]).replace('\n// Site:', '\n// AUSNAHME probe: von Hand, steht im Kopf.\n// Site:');
+  const { ziel, exp, lauf } = aufbau(vorher, [['a.webp', 'ki-erzeugt', 'nein'], ['c.webp', 'ki-erzeugt', 'nein']]);
+  for (const args of [['--kopf', '--schreiben'], ['--export', exp, '--schreiben']]) {
+    const s = lauf(...args);
+    assert.equal(s.status, 3, `${args[0]}: ${s.stdout}${s.stderr}`);
+    assert.match(s.stdout + s.stderr, /Kopf weicht ab Zeile 2 .*AUSNAHME probe/, args[0]);
+    assert.doesNotMatch(s.stdout + s.stderr, /nicht lesbar/, args[0]);
+    assert.equal(readFileSync(ziel, 'utf8'), vorher, args[0]);
+  }
+  // Gegenprobe: derselbe Absatz hinter `// Site:` läuft durch.
+  const dahinter = ERZEUGT([r('a.webp')]).replace('\n//\n// Ergänzt', '\n// AUSNAHME probe: von Hand.\n//\n// Ergänzt');
+  const g = aufbau(dahinter, []);
+  const k = g.lauf('--kopf', '--schreiben');
+  assert.equal(k.status, 0, k.stdout);
+  assert.match(readFileSync(g.ziel, 'utf8'), /AUSNAHME probe: von Hand\./);
 });
