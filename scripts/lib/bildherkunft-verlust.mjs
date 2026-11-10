@@ -171,6 +171,72 @@ export function verlustVergleich(bestehenderInhalt, neueZeilen) {
 // Diff klein bleibt. Abgebrochen wird nur noch, wenn dabei eine Kennzeichnung wegfiele.
 
 const ERZEUGTER_KOPF = /^\/\/ (ERZEUGTE DATEI|Angelegt von cw-core\/scripts\/bildherkunft-übernehmen\.mjs)/;
+/**
+ * Der Kopf, den bildherkunft-übernehmen.mjs heute schreibt: alle Zeilen VOR `// Site: …`.
+ * Das Skript baut seinen Kopf aus dieser Konstante, damit Schreiber und Prüfung dieselbe
+ * Quelle haben. Wer den Text ändert, legt die bisherige Fassung nach FRUEHERE_KOEPFE —
+ * sonst bricht `--kopf` an jeder Datei ab, die noch den alten Text trägt.
+ */
+export const KOPF_ZEILEN = `// Angelegt von cw-core/scripts/bildherkunft-übernehmen.mjs aus der Bild-Arbeitsliste,
+// seitdem ergänzt von cw-core/scripts/bild-einbauen.mjs bei jedem weiteren Bild.
+// Beide Wege sind vorgesehen, Änderungen von Hand ebenso. Der Generator mischt: Regeln,
+// die die Arbeitsliste nicht kennt, bleiben stehen, für ein Bild, das sie kennt, gilt ihre
+// Einordnung. Fiele dabei eine Kennzeichnung weg, bricht er ab.
+//
+// Bild-Herkunft nach Art. 50 Abs. 4 UAbs. 1 AI Act (VO (EU) 2024/1689).
+// Die Norm verlangt vom Betreiber eine Offenlegung nur für KI-Inhalte, die ein Deepfake
+// sind — und die Legaldefinition (Art. 3 Nr. 60) verlangt zwei Merkmale zusammen: der
+// Inhalt ähnelt wirklichen Personen, Gegenständen, Orten, Einrichtungen oder Ereignissen
+// UND würde fälschlicherweise als echt erscheinen. Deshalb stehen Herkunft und
+// Deepfake-Einordnung getrennt, und die Begründung ist der Nachweis.
+//
+// Rechtstext: cw-recht → texte/eu/ai-act/ai-act.md, Abschnitt "## Artikel 50".
+// Bewertung:  cw-legal → 04-betroffenheit/D1-art50-ki-kennzeichnung.md.
+// Keine amtliche Fassung, keine Rechtsberatung.
+//`.split('\n');
+
+/**
+ * Frühere Fassungen desselben Kopfs, wörtlich aus git (`git show <sha>:scripts/bildherkunft-uebernehmen.mjs`).
+ * Nur was hier oder in KOPF_ZEILEN steht, darf `kopfErsetzen` überschreiben.
+ */
+export const FRUEHERE_KOEPFE = [
+  // b749dd7a (v0.128.0): „ERZEUGTE DATEI"
+  `// ERZEUGTE DATEI — nicht von Hand bearbeiten.
+// Erzeugt von cw-core/scripts/bildherkunft-übernehmen.mjs aus der Bild-Arbeitsliste.
+// Änderungen gehen beim nächsten Lauf verloren; einordnen in der Arbeitsliste.
+//
+// Bild-Herkunft nach Art. 50 Abs. 4 UAbs. 1 AI Act (VO (EU) 2024/1689).
+// Die Norm verlangt vom Betreiber eine Offenlegung nur für KI-Inhalte, die ein Deepfake
+// sind — und die Legaldefinition (Art. 3 Nr. 60) verlangt zwei Merkmale zusammen: der
+// Inhalt ähnelt wirklichen Personen, Gegenständen, Orten, Einrichtungen oder Ereignissen
+// UND würde fälschlicherweise als echt erscheinen. Deshalb stehen Herkunft und
+// Deepfake-Einordnung getrennt, und die Begründung ist der Nachweis.
+//
+// Rechtstext: cw-recht → texte/eu/ai-act/ai-act.md, Abschnitt "## Artikel 50".
+// Bewertung:  cw-legal → 04-betroffenheit/D1-art50-ki-kennzeichnung.md.
+// Keine amtliche Fassung, keine Rechtsberatung.
+//`.split('\n'),
+  // 51c4431f (#210): „Angelegt von …", Abbruch mit `--verlust-ok`
+  `// Angelegt von cw-core/scripts/bildherkunft-übernehmen.mjs aus der Bild-Arbeitsliste,
+// seitdem ergänzt von cw-core/scripts/bild-einbauen.mjs bei jedem weiteren Bild.
+// Beide Wege sind vorgesehen, und Änderungen von Hand sind erlaubt: der Generator
+// überschreibt eine ergänzte Datei nicht mehr, sondern bricht ab und nennt, welche
+// Deklarationen fehlen würden (nur \`--verlust-ok\` überstimmt das). Neue Einordnungen
+// gehören trotzdem auch in die Arbeitsliste, sonst kennt sie der nächste Lauf nicht.
+//
+// Bild-Herkunft nach Art. 50 Abs. 4 UAbs. 1 AI Act (VO (EU) 2024/1689).
+// Die Norm verlangt vom Betreiber eine Offenlegung nur für KI-Inhalte, die ein Deepfake
+// sind — und die Legaldefinition (Art. 3 Nr. 60) verlangt zwei Merkmale zusammen: der
+// Inhalt ähnelt wirklichen Personen, Gegenständen, Orten, Einrichtungen oder Ereignissen
+// UND würde fälschlicherweise als echt erscheinen. Deshalb stehen Herkunft und
+// Deepfake-Einordnung getrennt, und die Begründung ist der Nachweis.
+//
+// Rechtstext: cw-recht → texte/eu/ai-act/ai-act.md, Abschnitt "## Artikel 50".
+// Bewertung:  cw-legal → 04-betroffenheit/D1-art50-ki-kennzeichnung.md.
+// Keine amtliche Fassung, keine Rechtsberatung.
+//`.split('\n'),
+];
+
 const OEFFNUNG = /^export const bildHerkunft\b.*=\s*\[\s*$/;
 /** Leere Liste auf einer Zeile (customer-notar-huber, gemessen 09.11.2026). */
 const LEER = /^(export const bildHerkunft\b.*=\s*\[)\s*\];\s*$/;
@@ -298,6 +364,11 @@ export function mischeRegeln(rumpf, neueZeilen) {
  * „Ergänzt …"-Vermerke. Ein Kopf von bild-einbauen.mjs oder von Hand bleibt unberührt:
  * er behauptet keine Regelzahl.
  *
+ * Steht zwischen Zeile 1 und `// Site:` etwas, das in keiner bekannten Fassung steht, wirft
+ * die Funktion, statt es mitzulöschen. Gemessen am Kopf-Sweep 10.11.2026 (cw-core#280):
+ * customer-falzmarke hatte dort zwei Absätze von Hand (SVG-Ausnahme #102, EU-Symbole), der
+ * Lauf löschte sie still, −17 statt −4 Zeilen.
+ *
  * @param {string[]} vorspann  aus `teileDatei`
  * @param {string} neuerKopf   endet mit der Zeile `// Site: …`
  * @returns {{ vorspann: string[], ersetzt: boolean }}
@@ -306,7 +377,38 @@ export function kopfErsetzen(vorspann, neuerKopf) {
   if (!ERZEUGTER_KOPF.test(vorspann[0] ?? '')) return { vorspann, ersetzt: false };
   const site = vorspann.findIndex((z) => /^\/\/ Site: /.test(z));
   if (site === -1) throw new Error('Erzeugter Kopf ohne Zeile `// Site: …` — von Hand prüfen.');
+  const fremd = fremdeKopfZeile(vorspann.slice(0, site));
+  if (fremd) {
+    throw new Error(`Kopf weicht ab Zeile ${fremd.nr} von jeder erzeugten Fassung ab („${fremd.text}“) — `
+      + 'Absätze von Hand gehören hinter `// Site: …`, sonst löscht der Lauf sie. Von Hand verschieben, dann neu laufen.');
+  }
   return { vorspann: [...neuerKopf.replace(/\n+$/, '').split('\n'), ...vorspann.slice(site + 1)], ersetzt: true };
+}
+
+/**
+ * Erste Zeile des alten Kopfs, die keine bekannte Fassung erklärt, oder `null`.
+ *
+ * Erklärt heißt: die Zeilen kommen der Reihe nach in einer Fassung vor (Teilfolge). Fehlende
+ * Zeilen sind harmlos, das Ersetzen stellt sie wieder her. Eingeschobene oder von Hand
+ * umformulierte Zeilen nicht: sie stehen in keiner Fassung und gingen verloren.
+ * Gemeldet wird die Zeile, bis zu der die beste Fassung gekommen ist.
+ * @param {string[]} kopf  Zeilen vor `// Site: …`
+ */
+export function fremdeKopfZeile(kopf) {
+  const ist = kopf.map((z) => z.trimEnd());
+  let beste = 0;
+  for (const fassung of [KOPF_ZEILEN, ...FRUEHERE_KOEPFE]) {
+    let j = 0;
+    let i = 0;
+    for (; i < ist.length; i++) {
+      while (j < fassung.length && fassung[j] !== ist[i]) j++;
+      if (j === fassung.length) break;
+      j++;
+    }
+    if (i === ist.length) return null;
+    beste = Math.max(beste, i);
+  }
+  return { nr: beste + 1, text: ist[beste].slice(0, 80) };
 }
 
 /**

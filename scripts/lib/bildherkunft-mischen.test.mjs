@@ -34,7 +34,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  mischeRegeln, kopfErsetzen, teileDatei, regelZahl, istKennzeichnungspflichtig, hatErzeugtenKopf,
+  mischeRegeln, kopfErsetzen, fremdeKopfZeile, KOPF_ZEILEN, FRUEHERE_KOEPFE, teileDatei, regelZahl, istKennzeichnungspflichtig, hatErzeugtenKopf,
   verlustVergleich, stammVonPfad,
 } from './bildherkunft-verlust.mjs';
 import { regelZeile } from '../bildherkunft-arbeitsliste.mjs';
@@ -143,7 +143,7 @@ test('M8. eine unbekannte Zeilenform im Bestand wirft', () => {
 
 const ERZEUGT = [
   '// ERZEUGTE DATEI — nicht von Hand bearbeiten.',
-  '// Bild-Herkunft …',
+  '// Bild-Herkunft nach Art. 50 Abs. 4 UAbs. 1 AI Act (VO (EU) 2024/1689).',
   '// Site: blitzsicht · 38 Bilder · Stand 24.8.2026',
   '//',
   '// Ergänzt 04.11.2026 (#187): sechs Hero-Bilder.',
@@ -192,4 +192,46 @@ test('K4. `= [];` auf einer Zeile ist ein leerer Rumpf, in den sich mischen läs
   assert.deepEqual(t.schluss, ['];', '']);
   assert.equal(hatErzeugtenKopf(inhalt), false);
   assert.equal(hatErzeugtenKopf(ERZEUGT.join('\n')), true);
+});
+
+// --- cw-core#280: Handabsätze im erzeugten Kopf -------------------------------------
+// Nachgebaut aus customer-falzmarke e8264fd (main vor #81): Fassung b749dd7a mit zwei
+// Absätzen von Hand zwischen Zeile 4 und dem Rechtsblock.
+const SITE = '// Site: falzmarke · 27 Bilder · Stand 28.8.2026';
+const HAND = [
+  '// AUSNAHME falzmarke, 28.08.2026: Diese Datei ist von Hand geschrieben. Die Arbeitsliste',
+  '// kennt nur Rasterbilder (BILD_EXT in bildherkunft-arbeitsliste.mjs ohne `svg`).',
+  '//',
+];
+const NEU = '// Neu\n// Site: falzmarke · 28 Regeln · Stand 10.11.2026\n';
+
+test('K5. Handabsatz zwischen Zeile 1 und `// Site:` bricht ab und nennt die Zeile', () => {
+  const alt = FRUEHERE_KOEPFE[0];
+  const vorspann = [...alt.slice(0, 4), ...HAND, ...alt.slice(4), SITE, ''];
+  assert.throws(() => kopfErsetzen(vorspann, NEU), /ab Zeile 5 .*AUSNAHME falzmarke/);
+  // Gegenprobe: dieselbe Datei ohne die Handzeilen wird ersetzt.
+  assert.equal(kopfErsetzen([...alt, SITE, ''], NEU).ersetzt, true);
+});
+
+test('K6. jede bekannte Fassung, vollständig oder gekürzt, wird ersetzt', () => {
+  for (const fassung of [KOPF_ZEILEN, ...FRUEHERE_KOEPFE]) {
+    assert.equal(fremdeKopfZeile(fassung), null);
+    assert.equal(fremdeKopfZeile(fassung.slice(0, 1)), null);
+    assert.equal(fremdeKopfZeile(fassung.map((z) => `${z}  `)), null, 'Leerzeichen am Zeilenende zählen nicht');
+    assert.equal(kopfErsetzen([...fassung, SITE], NEU).ersetzt, true);
+  }
+  assert.equal(new Set([KOPF_ZEILEN, ...FRUEHERE_KOEPFE].map((f) => f[0])).size, 2, 'zwei Anfänge, drei Fassungen');
+});
+
+test('K7. eine von Hand umformulierte Generatorzeile bricht ebenfalls ab', () => {
+  const geaendert = KOPF_ZEILEN.map((z, i) => (i === 2 ? z.replace('ebenso', 'auch') : z));
+  assert.deepEqual(fremdeKopfZeile(geaendert), { nr: 3, text: geaendert[2].slice(0, 80) });
+  assert.throws(() => kopfErsetzen([...geaendert, SITE], NEU), /ab Zeile 3/);
+});
+
+test('K8. Handabsätze hinter `// Site:` (falzmarke nach #81) bleiben stehen', () => {
+  const vorspann = [...KOPF_ZEILEN, SITE, '//', ...HAND, ''];
+  const k = kopfErsetzen(vorspann, NEU);
+  assert.equal(k.ersetzt, true);
+  assert.deepEqual(k.vorspann.slice(2), ['//', ...HAND, '']);
 });
