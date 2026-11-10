@@ -21,6 +21,12 @@
  * Rein (keine I/O) → per `node:test` prüfbar.
  */
 
+import {
+  resolveBildHerkunft,
+  istKennzeichnungspflichtig as pflichtigZurLaufzeit,
+} from '../../src/utils/bildherkunft.js';
+import { BILD_EXT } from '../bildherkunft-arbeitsliste.mjs';
+
 /** Eine Regelzeile, wie `regelZeile()` sie baut: `  { pathPrefix: '…', herkunft: '…' },` */
 const REGELZEILE = /^\s*\{\s*(pathPrefix|stem):\s*'((?:[^'\\]|\\.)*)'/;
 
@@ -411,6 +417,48 @@ export function fremdeKopfZeile(kopf) {
     beste = Math.max(beste, i);
   }
   return { nr: beste + 1, text: ist[beste].slice(0, 80) };
+}
+
+/**
+ * Die Pfade, unter denen die Laufzeit nach der Herkunft einer Bilddatei fragt.
+ *
+ * - `public/x/y.webp` → `x/y.webp` (dist-relativ, so stehen die Präfixe in der Datei);
+ * - `src/…/y.webp` → der Repo-Pfad selbst und `_astro/y.webp`: Die Assetpipeline legt das Bild
+ *   als `_astro/y.<hash>.webp` ab, zur Laufzeit trifft es nur über den Stem.
+ *
+ * @param {Iterable<string>} dateien  Repo-relative Pfade (Schrägstriche)
+ * @returns {string[]}
+ */
+export function laufzeitPfade(dateien) {
+  const out = new Set();
+  for (const roh of dateien) {
+    const d = String(roh ?? '').replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!BILD_EXT.test(d)) continue;
+    if (d.startsWith('public/')) out.add(d.slice('public/'.length));
+    else if (d.startsWith('src/')) { out.add(d); out.add(`_astro/${d.split('/').pop()}`); }
+  }
+  return [...out];
+}
+
+/**
+ * Für welche Bilder entfiele die Kennzeichnung, wenn die alten Regeln durch die gemischten
+ * ersetzt werden? Die Antwort kommt von der Laufzeit selbst (`resolveBildHerkunft`), nicht
+ * aus einem Nachbau ihrer Rangfolge.
+ *
+ * Anlass (cw-core#280, Punkt 1): `ueberstimmt` erkannte einen neuen Präfix über einem
+ * gekennzeichneten Stem nur, wenn der Präfix genau auf diesen Stamm endete. Zur Laufzeit schlägt
+ * aber jeder Pfad-Treffer jeden Stem-Treffer: `pathPrefix: 'images/'` mit `herkunft: 'mensch'`
+ * hob die Kennzeichnung von `stem: 'hero-ki'` für `images/hero-ki.webp` still auf. Heute
+ * latent: 0 von 236 `pathPrefix`-Regeln in 21 Kundendateien sind Verzeichnisse (09.11.2026).
+ *
+ * @param {object[]} altRegeln  der Bestand, ausgewertet
+ * @param {object[]} neuRegeln  das Ergebnis des Mischens, ausgewertet
+ * @param {Iterable<string>} pfade  Laufzeitpfade der Bilder (`laufzeitPfade`)
+ * @returns {string[]}  die Pfade, die vorher kennzeichnungspflichtig waren und es danach nicht sind
+ */
+export function kennzeichnungWegZurLaufzeit(altRegeln, neuRegeln, pfade) {
+  const pflichtig = (regeln, p) => pflichtigZurLaufzeit(resolveBildHerkunft({ bildHerkunft: regeln }, p));
+  return [...new Set(pfade)].filter((p) => pflichtig(altRegeln, p) && !pflichtig(neuRegeln, p)).sort();
 }
 
 /**

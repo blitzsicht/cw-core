@@ -40,11 +40,12 @@
  * Ohne `--schreiben` passiert nichts — es wird nur berichtet, was passieren würde.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { regelZeile } from './bildherkunft-arbeitsliste.mjs';
 import {
   verlustVergleich, mischeRegeln, kopfErsetzen, KOPF_ZEILEN, teileDatei, regelZahl, hatErzeugtenKopf,
+  laufzeitPfade, kennzeichnungWegZurLaufzeit,
 } from './lib/bildherkunft-verlust.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
 import { registryPfad } from './registry-pfad.mjs';
@@ -56,6 +57,26 @@ function argWert(name, fallback = null) {
   return i > -1 && process.argv[i + 1] ? process.argv[i + 1] : fallback;
 }
 const hatFlag = (n) => process.argv.includes(n);
+
+/**
+ * Repo-relative Pfade aller Dateien unter `public/` und `src/` einer Site, ohne node_modules
+ * und Punktordner. Eingabe für das Laufzeit-Orakel (cw-core#280): Es fragt für jedes echte
+ * Bild, ob die Kennzeichnung nach dem Mischen noch gilt.
+ * @param {string} repo
+ */
+function siteDateien(repo) {
+  const out = [];
+  const lauf = (dir) => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name === 'node_modules' || e.name.startsWith('.')) continue;
+      const p = join(dir, e.name);
+      if (e.isDirectory()) lauf(p);
+      else out.push(relative(repo, p).split(sep).join('/'));
+    }
+  };
+  for (const ordner of ['public', 'src']) if (existsSync(join(repo, ordner))) lauf(join(repo, ordner));
+  return out;
+}
 
 // Der alte Ausweg hieß `--verlust-ok` und überstimmte einen Totalverlust. Den gibt es nicht
 // mehr; ein Aufruf mit dem alten Namen soll nicht still etwas anderes bedeuten.
@@ -203,10 +224,13 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   const ziel = ZIEL(slug);
   let inhalt;
   let m;
+  /** @type {string[]} */
+  let altRumpf = [];
   try {
     if (existsSync(ziel)) {
       const alt = readFileSync(ziel, 'utf8');
       const t = teileDatei(alt);
+      altRumpf = t.rumpf;
       m = mischeRegeln(t.rumpf, zeilen);
       // Gegenprobe mit dem alten Guard: nach dem Mischen darf er nichts finden. Findet er
       // doch etwas, ist das Mischen falsch und nicht der Bestand — dann gar nicht schreiben.
@@ -230,17 +254,24 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   // Gegenprobe vor dem Schreiben: der eigene Regelprüfer muss das Ergebnis durchwinken,
   // und zwar das gemischte, nicht nur den Export.
   let befunde;
+  /** @type {string[]} */
+  let wegBilder;
   try {
-    const regeln = new Function('return [' + m.zeilen.join('\n') + '];')();
+    const auswerten = (/** @type {string[]} */ z) => new Function('return [' + z.join('\n') + '];')();
+    const regeln = auswerten(m.zeilen);
     befunde = pruefeBildHerkunftRegeln({ bildHerkunft: regeln });
+    // Laufzeit-Orakel (cw-core#280): Jedes echte Bild der Site geht mit dem Bestand und mit
+    // dem Ergebnis durch resolveBildHerkunft. Das fängt auch, was `ueberstimmt` am Zeilentext
+    // nicht sieht, etwa einen Verzeichnis-Präfix über einem gekennzeichneten Stem.
+    wegBilder = kennzeichnungWegZurLaufzeit(auswerten(altRumpf), regeln, laufzeitPfade(siteDateien(repo)));
   } catch (e) {
     bericht.push({ slug, fehler: `gemischte Regeln nicht auswertbar — ${e.message.split('\n')[0]}` });
     continue;
   }
 
-  bericht.push({ slug, regeln: regelZahl(m.zeilen), offen, pflicht, befunde, m });
+  bericht.push({ slug, regeln: regelZahl(m.zeilen), offen, pflicht, befunde, m, wegBilder });
   gesamtPflicht += pflicht;
-  gesamtWeg += m.kennzeichnungWeg.length;
+  gesamtWeg += m.kennzeichnungWeg.length + wegBilder.length;
 
   if (hatFlag('--schreiben')) {
     // `zurueckgehalten` markiert die Site auch für die Verdrahtung unten (Nachlese #277): vorher
@@ -251,8 +282,8 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
       bericht.at(-1).zurueckgehalten = true;
       continue;
     }
-    if (m.kennzeichnungWeg.length && !hatFlag('--kennzeichnung-weg-ok')) {
-      console.error(`  ! ${slug}: ${m.kennzeichnungWeg.length} Kennzeichnungen fielen weg — NICHT geschrieben`);
+    if ((m.kennzeichnungWeg.length || wegBilder.length) && !hatFlag('--kennzeichnung-weg-ok')) {
+      console.error(`  ! ${slug}: ${m.kennzeichnungWeg.length} Regeln, ${wegBilder.length} Bilder verlören die Kennzeichnung — NICHT geschrieben`);
       bericht.at(-1).zurueckgehalten = true;
       continue;
     }
@@ -264,11 +295,13 @@ console.log(`\n${'Site'.padEnd(24)} ${'Regeln'.padStart(7)} ${'neu'.padStart(5)}
 for (const b of bericht) {
   if (b.fehler) { console.log(`${b.slug.padEnd(24)} ${b.fehler}`); continue; }
   const bf = b.befunde.length ? `${b.befunde.length} ✗` : '—';
-  const weg = b.m.kennzeichnungWeg.length ? `${b.m.kennzeichnungWeg.length} ✗` : '—';
+  const wegZahl = b.m.kennzeichnungWeg.length + b.wegBilder.length;
+  const weg = wegZahl ? `${wegZahl} ✗` : '—';
   console.log(`${b.slug.padEnd(24)} ${String(b.regeln).padStart(7)} ${String(b.m.neu.length).padStart(5)} ${String(b.m.geaendert.length).padStart(7)} ${String(b.offen).padStart(6)} ${String(b.pflicht).padStart(6)} ${weg.padStart(5)}  ${bf}`);
   for (const f of b.befunde.slice(0, 3)) console.log(`    ${f.field}: ${f.detail}`);
   // Der Probelauf ist die Stelle, an der es auffallen soll — nicht erst der Schreiblauf.
   for (const p of b.m.kennzeichnungWeg) console.log(`    Kennzeichnung fiele weg: ${p}`);
+  for (const p of b.wegBilder) console.log(`    Kennzeichnung fiele weg für Bild: ${p}`);
   for (const p of b.m.geaendert.slice(0, 5)) console.log(`    geändert: ${p}`);
   // Eine Adresse, die nur die Arbeitsliste kennt, ist nicht automatisch richtig — bei einem
   // gelöschten Bild legt der Lauf eine Regel für eine Datei an, die es nicht mehr gibt
