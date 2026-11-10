@@ -43,9 +43,31 @@
  * `lint-changelog.mjs` im cw-core-Checkout lädt dieses Modul; in Kunden-Repos fehlen die
  * devDependencies. `kunde-gate.mjs` → `changelog-kunde.mjs` darf es deshalb nicht importieren.
  */
-import { fromMarkdown } from 'mdast-util-from-markdown';
-import { gfm } from 'micromark-extension-gfm';
-import { gfmFromMarkdown } from 'mdast-util-gfm';
+// Der Parser ist eine devDependency. Statisch importiert, stürzte `lint-changelog.mjs` in einem
+// Checkout ohne `node_modules` (frischer Release-Worktree, cw-release Schritt 4) mit
+// ERR_MODULE_NOT_FOUND ab, bevor irgendeine Prüfung lief: auch Kopfform, Unreleased-Zahl und
+// Tag-Vergleich, die ihn nicht brauchen (Nachlese der Reviews #283/#284). Jetzt läuft alles
+// andere, und `SETEXT_NICHT_GEPRUEFT` sagt mit Namen, dass die Setext-Prüfung ausfiel.
+// „Nicht geprüft" ist kein Grün: lint-changelog endet dann mit Exit 3.
+/** @type {null | { fromMarkdown: Function, gfm: Function, gfmFromMarkdown: Function }} */
+let parser = null;
+/** @type {string | null} */
+let fehltGrund = null;
+try {
+  const [a, b, c] = await Promise.all([
+    import('mdast-util-from-markdown'),
+    import('micromark-extension-gfm'),
+    import('mdast-util-gfm'),
+  ]);
+  parser = { fromMarkdown: a.fromMarkdown, gfm: b.gfm, gfmFromMarkdown: c.gfmFromMarkdown };
+} catch (e) {
+  if (/** @type {any} */ (e)?.code !== 'ERR_MODULE_NOT_FOUND') throw e;
+  const paket = String(/** @type {any} */ (e).message).match(/package '([^']+)'/)?.[1] ?? 'Markdown-Parser';
+  fehltGrund = `Setext-Prüfung nicht gelaufen: ${paket} fehlt (pnpm install)`;
+}
+
+/** `null`, wenn die Setext-Prüfung lief; sonst der Grund, warum sie ausfiel. */
+export const SETEXT_NICHT_GEPRUEFT = fehltGrund;
 
 /** `## [Unreleased]` — genau so, ohne Zusatz. */
 const UNRELEASED_RE = /^## \[Unreleased\]$/;
@@ -139,7 +161,8 @@ export function pruefeChangelogKopfform(md) {
 function setextBefunde(md, zeilen) {
   /** @type {KopfformBefund[]} */
   const befunde = [];
-  const baum = fromMarkdown(md, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] });
+  if (!parser) return [];
+  const baum = parser.fromMarkdown(md, { extensions: [parser.gfm()], mdastExtensions: [parser.gfmFromMarkdown()] });
   /** @param {any} knoten */
   const lauf = (knoten) => {
     const pos = knoten.position;

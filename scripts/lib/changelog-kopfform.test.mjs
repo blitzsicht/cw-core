@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pruefeChangelogKopfform, formatiereBefunde } from './changelog-kopfform.mjs';
+import { pruefeChangelogKopfform, formatiereBefunde, SETEXT_NICHT_GEPRUEFT } from './changelog-kopfform.mjs';
 import { parseChangelog } from './changelog-kunde.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -188,4 +190,40 @@ test('#273: der echte CHANGELOG hat keine Setext-Überschrift', async () => {
   const i = m.index + m[0].length - '\n---\n'.length - 1;
   const kaputt = md.slice(0, i) + md.slice(i + 1);
   assert.equal(pruefeChangelogKopfform(kaputt).filter((b) => b.grund.startsWith('Setext')).length, 1);
+});
+
+// ── Nachlese der Reviews #283/#284: der Parser fehlt (kein `pnpm install`) ────────────────
+// Bis dahin importierte changelog-kopfform.mjs micromark statisch: lint-changelog brach in
+// einem Checkout ohne node_modules mit ERR_MODULE_NOT_FOUND ab, bevor eine Prüfung lief
+// (gemessen 10.11.2026 im frischen Worktree von 2a18c543: Stacktrace, Exit 1).
+
+test('Hier im Repo läuft die Setext-Prüfung (sonst wäre jeder Setext-Test oben wertlos)', () => {
+  assert.equal(SETEXT_NICHT_GEPRUEFT, null);
+});
+
+test('Ohne Parser: übrige Prüfungen laufen, Exit 3 mit Paketnamen, Befunde vorher sichtbar', () => {
+  // Kopie von lint-changelog + scripts/lib in ein Verzeichnis, über dem kein node_modules liegt.
+  const tmp = mkdtempSync(join(tmpdir(), 'cwcore-ohne-parser-'));
+  try {
+    mkdirSync(join(tmp, 'scripts', 'lib'), { recursive: true });
+    copyFileSync(join(ROOT, 'scripts', 'lint-changelog.mjs'), join(tmp, 'scripts', 'lint-changelog.mjs'));
+    for (const f of readdirSync(join(ROOT, 'scripts', 'lib'))) {
+      if (f.endsWith('.mjs') && !f.endsWith('.test.mjs')) copyFileSync(join(ROOT, 'scripts', 'lib', f), join(tmp, 'scripts', 'lib', f));
+    }
+    const lauf = (md) => {
+      const pfad = join(tmp, 'CHANGELOG.md');
+      writeFileSync(pfad, md);
+      return spawnSync(process.execPath, [join(tmp, 'scripts', 'lint-changelog.mjs'), pfad], { encoding: 'utf-8', cwd: tmp });
+    };
+    const sauber = lauf('# Changelog\n\n## [Unreleased]\n\n## v1.0.0 (2026-01-01)\n\n- A\n');
+    assert.equal(sauber.status, 3, `stderr:\n${sauber.stderr}`);
+    assert.match(sauber.stderr, /Setext-Prüfung nicht gelaufen: mdast-util-from-markdown fehlt/);
+    assert.doesNotMatch(sauber.stderr, /ERR_MODULE_NOT_FOUND|at Object\./, 'kein Stacktrace');
+    // GEGENPROBE: Die übrigen Prüfungen laufen wirklich, ein Kopfform-Befund kommt mit Exit 1 durch.
+    const kaputt = lauf('# Changelog\n\n## Unreleased\n');
+    assert.equal(kaputt.status, 1, `stderr:\n${kaputt.stderr}`);
+    assert.match(kaputt.stderr, /Unreleased/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 });

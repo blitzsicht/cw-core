@@ -24,6 +24,29 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Nachlese der Reviews #283/#284, vor dem Train-Tag: Tags in Kommentaren und Scripts, srcset je Kandidat, Changelog-Lint ohne `pnpm install`
+
+Kontext: Die Reviews nach dem Merge fanden vier Fälle, die mit #283/#284 neu kamen und noch in
+keinem Tag waren. Gemessen am 10.11.2026 gegen `2a18c543`. Auf den 541 Live-Seiten der Flotte kommt
+keiner davon vor (A/B vorher/nachher: 9223 = 9223 Asset-Referenzen, 7897 = 7897 CSP-Befunde), sie
+wären mit der nächsten Seite gekommen, die so etwas enthält.
+
+- Der gemeinsame HTML-Leser (`extractResources`) sieht keine Tags mehr, die nur als Text in
+  `<!-- Kommentaren -->` oder in `<script>`/`<style>`-Körpern stehen (`maskiere`). Seit #283 wurde
+  `el.innerHTML='<div style="background:url(/img/'+n+'.webp)">'` zur Asset-Referenz
+  `/img/'+n+'.webp`, ebenso ein auskommentierter Tag: der Asset-Check wurde falsch rot.
+  Auskommentierte Inline-Scripts zählen für die CSP nicht mehr.
+- srcset wird je Kandidat gelesen wie im Browser: Ein Kandidat mit ungültigem Deskriptor fällt weg,
+  der nächste gilt. Bis dahin war ein srcset, das mit `data:` begann, EINE Adresse, und jeder
+  spätere Kandidat fehlte (`data:… 1w, /bilder/hero-800.webp 800w`): falsch grün in CSP- und
+  Asset-Prüfung. Jeder Fall ist in Chromium nachgemessen. Darunter auch `…a='1 2,/x.webp' 1x`: Hier
+  lädt der Browser `/x.webp'` tatsächlich, die Meldung ist ein echter 404 und kein erfundener Pfad.
+- `<link rel=preload as=fetch>` (connect-src) ist keine Asset-Referenz: Das Ziel ist meist eine
+  Serverless-Route. Ohne canonical wäre `/api/…` als toter Link gemeldet worden.
+- `lint-changelog` lädt den Markdown-Parser erst zur Laufzeit. Ohne `node_modules` (frischer
+  Release-Worktree) laufen alle übrigen Prüfungen, danach endet er mit **Exit 3**: „Setext-Prüfung
+  nicht gelaufen: … fehlt (pnpm install)“. Vorher kam ein Stacktrace, bevor irgendeine Prüfung lief.
+
 **Fix:** Changelog-Lint liest Setext-Überschriften mit einem CommonMark-Parser, rc-Tags machen ihn nicht mehr rot (cw-core#273)
 
 Kontext: Die Setext-Prüfung ahmte CommonMark mit drei Zeilenregeln nach und übersah dabei `---`

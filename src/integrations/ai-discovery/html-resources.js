@@ -13,8 +13,65 @@
 
 import { attribute, srcsetUrls } from '../../utils/html-attribute.js';
 
-/** Tags, deren Inhalt separat als Inline-Ressource gewertet wird. */
-const RAW_TEXT = /<(style|script)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi;
+/**
+ * Bereiche, in denen der HTML-Parser keine Tags sieht, in Dokumentreihenfolge: Kommentare und
+ * die Rohtext-Körper von `<style>`/`<script>`. EIN Muster mit Alternativen, damit gilt, was der
+ * Browser liest: `<script>` in einem Kommentar ist kein Script, `<!--` in einem Script kein
+ * Kommentar. Ein offener Kommentar läuft bis zum Dateiende.
+ */
+const ROH_BEREICH = /<!--[\s\S]*?(?:-->|$)|<(style|script)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi;
+
+/**
+ * @typedef {{ art: 'kommentar' } | { art: 'style' | 'script', attrs: string, body: string, bodyStart: number }} RohBereich
+ * @param {string} html
+ * @returns {Generator<RohBereich & { index: number, ende: number }>}
+ */
+function* rohBereiche(html) {
+  const re = new RegExp(ROH_BEREICH.source, 'gi');
+  let m;
+  while ((m = re.exec(html))) {
+    const index = m.index;
+    const ende = index + m[0].length;
+    if (m[1] === undefined) {
+      yield { art: 'kommentar', index, ende };
+      continue;
+    }
+    const body = m[3] ?? '';
+    // Der Körper steht am Ende des Treffers vor dem schließenden Tag.
+    const bodyStart = index + m[0].indexOf('>') + 1;
+    yield { art: /** @type {'style' | 'script'} */ (m[1].toLowerCase()), attrs: m[2] ?? '', body, bodyStart, index, ende };
+  }
+}
+
+/**
+ * Das HTML mit Leerzeichen über Kommentaren und über den Körpern von `<style>`/`<script>`.
+ * Zeilenumbrüche bleiben stehen, damit Länge, Offsets und Zeilennummern gleich bleiben; die
+ * Tags `<script …>` und `</script>` selbst bleiben sichtbar.
+ *
+ * Anlass (Nachlese der Reviews #283/#284): Der Tag-Scan lief über das rohe HTML. Seit
+ * verify-touchpoints dieselben Refs liest wie die CSP-Prüfung, wurde
+ * `el.innerHTML='<div style="background:url(/img/'+n+'.webp)">'` im Script zur Asset-Referenz
+ * `/img/'+n+'.webp`, ebenso ein auskommentierter Tag. Beides lädt der Browser nie.
+ *
+ * @param {string} html
+ * @returns {string}
+ */
+export function maskiere(html) {
+  const s = String(html ?? '');
+  const leer = (/** @type {string} */ t) => t.replace(/[^\n]/g, ' ');
+  let out = '';
+  let pos = 0;
+  for (const b of rohBereiche(s)) {
+    if (b.art === 'kommentar') {
+      out += s.slice(pos, b.index) + leer(s.slice(b.index, b.ende));
+    } else {
+      const bodyEnde = b.bodyStart + b.body.length;
+      out += s.slice(pos, b.bodyStart) + leer(b.body) + s.slice(bodyEnde, b.ende);
+    }
+    pos = b.ende;
+  }
+  return out + s.slice(pos);
+}
 
 /**
  * `type`-Werte eines `<script>`, die **nicht** ausgeführt werden und damit
@@ -49,18 +106,6 @@ function lineAt(html, index) {
   let line = 1;
   for (let i = 0; i < index && i < html.length; i++) if (html[i] === '\n') line++;
   return line;
-}
-
-/**
- * Die URLs eines srcset nach WHATWG (`srcsetUrls` aus `utils/html-attribute.js`): ein Komma
- * IN der URL trennt nicht. Ein srcset, das mit `data:` beginnt, bleibt EINE Adresse: eine
- * data:-URL darf Leerzeichen und Kommas tragen, die Zerlegung erfände daraus Pfade wie
- * `/x.webp'` oder Hosts wie `http://www.w3.org/2000/svg'` (Nachlese #278).
- * @param {string} v @returns {string[]}
- */
-function srcsetAdressen(v) {
-  if (/^\s*data:/i.test(v)) return [v.trim()];
-  return srcsetUrls(v);
 }
 
 /** URLs ohne CSP-Relevanz (Fragment, Mail, Telefon, JS-Pseudo-Protokoll). @param {string} u @returns {boolean} */
@@ -120,14 +165,13 @@ export function extractResources(html, file = 'html') {
   /** @param {number} i */
   const at = (i) => `${file}:${lineAt(html, i)}`;
 
-  // 1. <style> / <script> mit Inhalt.
-  let m;
-  RAW_TEXT.lastIndex = 0;
-  while ((m = RAW_TEXT.exec(html))) {
-    const tag = m[1].toLowerCase();
-    const attrs = parseAttrs(m[2] ?? '');
-    const body = m[3] ?? '';
-    const where = at(m.index);
+  // 1. <style> / <script> mit Inhalt (nicht in Kommentaren).
+  for (const b of rohBereiche(html)) {
+    if (b.art === 'kommentar') continue;
+    const tag = b.art;
+    const attrs = parseAttrs(b.attrs);
+    const body = b.body;
+    const where = at(b.index);
 
     if (tag === 'style') {
       out.push({ type: 'inline', directive: 'style-src-elem', nonce: attrs.nonce || null, content: body, where });
@@ -143,12 +187,14 @@ export function extractResources(html, file = 'html') {
     out.push({ type: 'inline', directive: 'script-src-elem', nonce: attrs.nonce || null, content: body, where });
   }
 
-  // 2. Generischer Tag-Scan für URL-Referenzen und Inline-Attribute.
+  // 2. Generischer Tag-Scan für URL-Referenzen und Inline-Attribute, über die Maske:
+  // Tags, die nur als Text in Kommentaren oder Script-/Style-Körpern stehen, zählen nicht.
+  const sichtbar = maskiere(html);
   const tagRe = /<(\/?)([a-z][a-z0-9-]*)\b([^>]*)>/gi;
   /** @type {string[]} */
   const mediaStack = [];
   let t;
-  while ((t = tagRe.exec(html))) {
+  while ((t = tagRe.exec(sichtbar))) {
     const closing = t[1] === '/';
     const tag = t[2].toLowerCase();
     if (closing) {
@@ -187,12 +233,12 @@ export function extractResources(html, file = 'html') {
       }
       case 'img':
         push('img-src', attrs.src);
-        for (const u of srcsetAdressen(attrs.srcset || '')) push('img-src', u);
+        for (const u of srcsetUrls(attrs.srcset || '')) push('img-src', u);
         break;
       case 'source': {
         // <source> in <picture> liefert srcset (Bild), in <video>/<audio> src (Medium).
         const inMedia = mediaStack.length > 0;
-        for (const u of srcsetAdressen(attrs.srcset || '')) push('img-src', u);
+        for (const u of srcsetUrls(attrs.srcset || '')) push('img-src', u);
         if (attrs.src) push(inMedia ? 'media-src' : 'img-src', attrs.src);
         break;
       }
