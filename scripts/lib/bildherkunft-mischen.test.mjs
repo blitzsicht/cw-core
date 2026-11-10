@@ -31,6 +31,10 @@
  *   K7  umformulierte Generatorzeile und eingeschobene Leerzeile brechen ebenfalls ab
  *   K8  Handabsätze hinter `// Site:` bleiben stehen (falzmarke nach #81)
  *   K9  jede je ausgelieferte Kopffassung bleibt erkannt (Hash-Liste, Drift-Schutz)
+ *   L1  laufzeitPfade: public/ dist-relativ, src/ als Repo-Pfad und als _astro-Stem, Nicht-Bilder raus
+ *   L2  Verzeichnis-Präfix über gekennzeichnetem Stem: das Orakel meldet das Bild, `mischeRegeln` nicht
+ *   L3  Präfix, unter dem das Bild nicht liegt, und neue Regel mit Kennzeichnung: nichts gemeldet
+ *   L4  src-Asset: Präfix auf den Repo-Pfad hebt die Kennzeichnung auf, gemeldet je Laufzeitpfad
  */
 
 import { test } from 'node:test';
@@ -40,7 +44,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   mischeRegeln, kopfErsetzen, fremdeKopfZeile, KOPF_ZEILEN, FRUEHERE_KOEPFE, teileDatei, regelZahl, istKennzeichnungspflichtig, hatErzeugtenKopf,
-  verlustVergleich, stammVonPfad,
+  verlustVergleich, stammVonPfad, laufzeitPfade, kennzeichnungWegZurLaufzeit,
 } from './bildherkunft-verlust.mjs';
 import { regelZeile } from '../bildherkunft-arbeitsliste.mjs';
 import { NEUE_DATEI } from '../bild-einbauen.mjs';
@@ -261,4 +265,45 @@ test('K9. jede je ausgelieferte Kopffassung bleibt erkannt', async () => {
   assert.ok(AUSGELIEFERT.some(([hash]) => hash === h(KOPF_ZEILEN)),
     `KOPF_ZEILEN ist neu (${h(KOPF_ZEILEN)}): Hash mit Herkunft in AUSGELIEFERT anhängen.`);
   assert.ok(Object.isFrozen(KOPF_ZEILEN) && FRUEHERE_KOEPFE.every(Object.isFrozen));
+});
+
+// ─── cw-core#280 Punkt 1: Kennzeichnungsverlust per Laufzeit-Orakel ────────────────────
+const BG = 'Symbolbild ohne bestimmten Sachverhalt';
+const KI_JA = { herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: BG };
+const MENSCH = { herkunft: 'mensch' };
+/** Regelzeilen so auswerten, wie das Skript es tut. */
+const auswerten = (zeilen) => new Function('return [' + zeilen.join('\n') + '];')();
+
+test('L1. laufzeitPfade: public/ dist-relativ, src/ doppelt, Nicht-Bilder raus', () => {
+  assert.deepEqual(
+    laufzeitPfade(['public/images/a.webp', 'src/assets/hero-ki.png', 'public/robots.txt', 'src/data/x.ts', '/public/b.JPG']).sort(),
+    ['_astro/hero-ki.png', 'b.JPG', 'images/a.webp', 'src/assets/hero-ki.png'],
+  );
+});
+
+test('L2. Verzeichnis-Präfix über gekennzeichnetem Stem: Orakel meldet, mischeRegeln nicht', () => {
+  const alt = [regelZeile('stem', 'hero-ki', { h: 'ki-erzeugt', d: 'ja', b: BG })];
+  const neu = [regelZeile('pathPrefix', 'images/', { h: 'mensch' })];
+  const m = mischeRegeln(alt, neu);
+  // Die Lücke, die das Orakel schließt: der Zeilenvergleich sieht keinen Verlust.
+  assert.deepEqual(m.kennzeichnungWeg, []);
+  const pfade = laufzeitPfade(['public/images/hero-ki.webp', 'public/images/team.webp']);
+  assert.deepEqual(kennzeichnungWegZurLaufzeit(auswerten(alt), auswerten(m.zeilen), pfade), ['images/hero-ki.webp']);
+});
+
+test('L3. Präfix ohne das Bild, neue Regel mit Kennzeichnung: nichts gemeldet', () => {
+  const alt = [{ stem: 'hero-ki', ...KI_JA }];
+  const pfade = ['images/hero-ki.webp'];
+  assert.deepEqual(kennzeichnungWegZurLaufzeit(alt, [...alt, { pathPrefix: 'images/blog/', ...MENSCH }], pfade), []);
+  assert.deepEqual(kennzeichnungWegZurLaufzeit(alt, [...alt, { pathPrefix: 'images/', ...KI_JA }], pfade), []);
+  // GEGENPROBE: derselbe Präfix mit `mensch` meldet.
+  assert.deepEqual(kennzeichnungWegZurLaufzeit(alt, [...alt, { pathPrefix: 'images/', ...MENSCH }], pfade), ['images/hero-ki.webp']);
+});
+
+test('L4. src-Asset: Präfix auf den Repo-Pfad hebt die Kennzeichnung für diesen Laufzeitpfad auf', () => {
+  const alt = [{ stem: 'hero-ki', ...KI_JA }];
+  const neu = [...alt, { pathPrefix: 'src/assets/', ...MENSCH }];
+  const pfade = laufzeitPfade(['src/assets/hero-ki.webp']);
+  // Über `_astro/hero-ki.webp` trifft weiter der Stem, über den Repo-Pfad der neue Präfix.
+  assert.deepEqual(kennzeichnungWegZurLaufzeit(alt, neu, pfade), ['src/assets/hero-ki.webp']);
 });

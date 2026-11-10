@@ -66,6 +66,25 @@ wären mit der nächsten Seite gekommen, die so etwas enthält.
   Release-Worktree) laufen alle übrigen Prüfungen, danach endet er mit **Exit 3**: „Setext-Prüfung
   nicht gelaufen: … fehlt (pnpm install)“. Vorher kam ein Stacktrace, bevor irgendeine Prüfung lief.
 
+**Fix:** Bild-Herkunft: Der Export-Lauf fragt die Laufzeit, ob eine KI-Kennzeichnung wegfiele (cw-core#280, Punkt 1)
+
+Kontext: `bildherkunft-uebernehmen.mjs` hält einen Lauf an, wenn eine Kennzeichnung nach Art. 50
+wegfiele. Erkannt hat es das am Zeilentext (`ueberstimmt`), und dabei fehlte ein Fall. Zur Laufzeit
+schlägt jeder Pfad-Treffer jeden Stem-Treffer, auch ein Verzeichnis-Präfix: `pathPrefix: 'images/'`
+mit `herkunft: 'mensch'` hob die Kennzeichnung von `stem: 'hero-ki'` für `images/hero-ki.webp` still
+auf. Heute latent, 0 von 236 Präfix-Regeln der Flotte sind Verzeichnisse.
+
+- Für jedes Bild unter `public/` und `src/` der Site wird `resolveBildHerkunft` mit dem Bestand und
+  mit dem gemischten Ergebnis aufgerufen. Wird ein Bild dadurch nicht mehr kennzeichnungspflichtig,
+  endet der Lauf mit Exit 2 und nennt es („Kennzeichnung fiele weg für Bild: …“). `--schreiben`
+  schreibt dann nicht. Der Ausweg bleibt `--kennzeichnung-weg-ok`.
+- Die Laufzeit ist das Orakel, ihre Rangfolge wird nicht nachgebaut. Die Zeilenprüfung bleibt als
+  Vorprüfung ohne Dateizugriff.
+- Bildendungen kommen aus `BILD_EXT` der Arbeitsliste (jetzt exportiert), eine Liste.
+- Gemessen an 21 Kundenrepos (zwei sind nicht auswertbar, wie schon vorher): Das Orakel sieht 147
+  kennzeichnungspflichtige Bilder, also passen
+  die Pfadformen. Alt gegen alt ergibt überall 0, Kosten höchstens 13 ms je Site.
+
 **Fix:** Changelog-Lint liest Setext-Überschriften mit einem CommonMark-Parser, rc-Tags machen ihn nicht mehr rot (cw-core#273)
 
 Kontext: Die Setext-Prüfung ahmte CommonMark mit drei Zeilenregeln nach und übersah dabei `---`

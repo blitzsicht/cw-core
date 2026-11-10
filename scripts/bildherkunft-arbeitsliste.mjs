@@ -31,7 +31,8 @@ import { TAG_DENY_RE } from '../src/integrations/ai-discovery/geotag-core.js';
 import { registryPfad } from './registry-pfad.mjs';
 
 const REGISTRY = registryPfad();
-const BILD_EXT = /\.(webp|png|jpe?g|avif|gif)$/i;
+/** Auch vom Laufzeit-Orakel in lib/bildherkunft-verlust.mjs genutzt (cw-core#280): eine Liste. */
+export const BILD_EXT = /\.(webp|png|jpe?g|avif|gif)$/i;
 const REVIEW_DIR = '/Volumes/SiluriWork/NAS-Spiegel/MEDIEN/CODE/CLAUDE/_review';
 
 /**

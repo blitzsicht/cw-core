@@ -15,6 +15,7 @@
  *   I4  `--kopf`: schreibt die Zahl, zweiter Lauf ändert nichts, fremder Kopf bleibt
  *   I5  `--kopf` an einer Datei mit eigenem Kopf und mehrzeiligen Regeln: kein Abbruch
  *   I8  Handabsatz im erzeugten Kopf: `--kopf` und Export brechen ab (Exit 3), Datei unverändert
+ *   I9  Verzeichnis-Präfix über gekennzeichnetem Stem mit echter Bilddatei: Exit 2, nicht geschrieben (cw-core#280)
  */
 
 import { test } from 'node:test';
@@ -196,4 +197,31 @@ test('I8. Handabsatz im erzeugten Kopf: --kopf und Export brechen ab, Datei unve
   const k = g.lauf('--kopf', '--schreiben');
   assert.equal(k.status, 0, k.stdout);
   assert.match(readFileSync(g.ziel, 'utf8'), /AUSNAHME probe: von Hand\./);
+});
+
+test('I9. Verzeichnis-Präfix über gekennzeichnetem Stem: Exit 2, nicht geschrieben (cw-core#280)', () => {
+  const stemKi = regelZeile('stem', 'hero-ki', { h: 'ki-erzeugt', d: 'ja', b: B });
+  const vorher = ERZEUGT([stemKi]);
+  const { ziel, exp, lauf } = aufbau(vorher, [['images/', 'mensch', null]]);
+  const repo = join(ziel, '..', '..', '..');
+
+  // GEGENPROBE zuerst: ohne Bilddatei unter dem Präfix verliert kein Bild etwas, der Lauf schreibt.
+  const ohne = lauf('--export', exp);
+  assert.equal(ohne.status, 0, ohne.stderr + ohne.stdout);
+
+  mkdirSync(join(repo, 'public/images'), { recursive: true });
+  writeFileSync(join(repo, 'public/images/hero-ki.webp'), '');
+  const probe = lauf('--export', exp);
+  assert.equal(probe.status, 2, probe.stderr + probe.stdout);
+  assert.match(probe.stdout, /Kennzeichnung fiele weg für Bild: images\/hero-ki\.webp/);
+
+  const s = lauf('--export', exp, '--schreiben');
+  assert.equal(s.status, 2, s.stderr + s.stdout);
+  assert.match(s.stderr, /0 Regeln, 1 Bilder verlören die Kennzeichnung — NICHT geschrieben/);
+  assert.equal(readFileSync(ziel, 'utf8'), vorher, 'Datei unverändert');
+
+  // Der bestehende Ausweg gilt auch hier.
+  const ok = lauf('--export', exp, '--schreiben', '--kennzeichnung-weg-ok');
+  assert.equal(ok.status, 0, ok.stderr + ok.stdout);
+  assert.ok(readFileSync(ziel, 'utf8').includes("pathPrefix: 'images/'"));
 });
