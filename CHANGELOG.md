@@ -24,6 +24,21 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Changelog-Lint liest Setext-Überschriften mit einem CommonMark-Parser, rc-Tags machen ihn nicht mehr rot (cw-core#273)
+
+Kontext: Die Setext-Prüfung ahmte CommonMark mit drei Zeilenregeln nach und übersah dabei `---`
+eingerückt im Listenpunkt, eine einzelne `-`, `~~~` in einem ```-Zaun und `| a | b |` über `---`
+(in GFM keine Tabelle). Hinter einem HTML-Block meldete sie fälschlich. Ein künftiger Tag
+`v0.X.Y-rc.1` ohne eigenen Block hätte `pnpm test` dauerhaft rot gemacht.
+
+- Setext-Erkennung über micromark + GFM (devDependency, Versionen aus dem Lockfile): jede
+  Überschrift über mehr als eine Zeile ist Setext. Am echten CHANGELOG 0 Befunde wie vorher. Der
+  Lint dauert ~1,3 s statt ~0,4 s.
+- Präreleasetags ohne eigenen Block sind kein vergessenes Release; mit Block werden sie verglichen.
+- Versionsvergleich kommt aus `changelog-kunde.mjs` (`compareVersions`), die Kopie ist weg.
+- Der CHANGELOG wird einmal je Lauf zerlegt statt einmal je Tag.
+- Der Test auf die Zahl der Altlasten prüft eine Obergrenze: Die Liste darf schrumpfen.
+
 **Fix:** verify-touchpoints und CSP-Prüfung lesen HTML mit einem Leser (cw-core#260, Punkt 2)
 
 Kontext: `extractAssetRefs` las Tags selbst und sah zwei Quellen nicht, die der Browser lädt:
