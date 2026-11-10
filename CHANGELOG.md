@@ -24,6 +24,24 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** verify-touchpoints und CSP-Prüfung lesen HTML mit einem Leser (cw-core#260, Punkt 2)
+
+Kontext: `extractAssetRefs` las Tags selbst und sah zwei Quellen nicht, die der Browser lädt:
+`url()` im `style`-Attribut (Hero-Hintergründe) und `<object data>`. Ein fehlendes Bild dahinter
+lief grün. `html-resources.js` (CSP-Prüfung) las beide, dekodierte aber keine Entities, ließ das
+letzte doppelte Attribut gewinnen und zerlegte srcset an jedem Komma.
+
+- `extractAssetRefs` liest Tag-Adressen und CSS-`url()` jetzt über `extractResources`/`extractCssUrls`.
+  `form action` zählt nicht (Route, keine Datei). og:image und JSON-LD-Bilder liest es weiter selbst.
+- `parseAttrs` nutzt `attribute()` aus `utils/html-attribute.js` (dekodiert, erstes Vorkommen gewinnt,
+  quote-korrekt), srcset geht über den WHATWG-Zerleger; ein `data:`-srcset bleibt eine Adresse.
+  Das gilt auch für ai-label-check und embed-consent-check.
+- `url("/a(1).webp")` wird ganz gelesen; der alte Regex endete an der ersten Klammer.
+- Vormessung 10.11.2026, 541 Live-Seiten: 35 neue Referenzen aus `style`-Attributen, alle HTTP 200.
+  A/B alt gegen neu: keine Referenz fällt weg, CSP-Befunde identisch (2474 = 2474). Der Zähler
+  „N Asset-Referenzen“ steigt, weil `<link href>` mitgezählt wird; gemeldet werden diese Pfade wie
+  bisher vom Link-Check.
+
 **Fix:** Verbotslisten-Guard rät nicht mehr, eine wirksame Ausnahme zu streichen (cw-core#261, B1 und B3)
 
 Kontext: Eine erlaubte Phrase kann einen Kundentreffer aufheben, während an derselben Stelle ein

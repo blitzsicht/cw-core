@@ -11,6 +11,8 @@
  * @typedef {import('./csp-match.js').Resource} Resource
  */
 
+import { attribute, srcsetUrls } from '../../utils/html-attribute.js';
+
 /** Tags, deren Inhalt separat als Inline-Ressource gewertet wird. */
 const RAW_TEXT = /<(style|script)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi;
 
@@ -27,19 +29,19 @@ const NON_EXECUTABLE_SCRIPT_TYPES = new Set([
 ]);
 
 /**
- * Parst die Attribute eines Tags in ein lowercase-keyed Objekt.
- * @param {string} raw
+ * Parst die Attribute eines Tags in ein lowercase-keyed Objekt — so, wie der Browser
+ * sie liest: Werte entitätsdekodiert, je Name gilt das ERSTE Vorkommen, quote-korrekt.
+ *
+ * Bis cw-core#260 (Punkt 2) stand hier ein eigener Leser ohne Decoder, bei dem das
+ * LETZTE Vorkommen gewann. verify-touchpoints las dieselben Tags mit
+ * `attribute()` aus `utils/html-attribute.js`; zwei Leser mit zwei Ergebnissen für
+ * dasselbe HTML. Jetzt gibt es einen: `src="/a&#38;b.webp"` ist auch für die CSP `/a&b.webp`.
+ *
+ * @param {string} raw Attributteil eines Tags (ohne `<tag`), z. B. ` src="/a.webp" alt='x'`
  * @returns {Record<string, string>}
  */
 export function parseAttrs(raw) {
-  /** @type {Record<string, string>} */
-  const attrs = {};
-  const re = /([a-z_:@][a-z0-9_.:-]*)\s*(?:=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/gi;
-  let m;
-  while ((m = re.exec(raw))) {
-    attrs[m[1].toLowerCase()] = m[2] ?? m[3] ?? m[4] ?? '';
-  }
-  return attrs;
+  return attribute(` ${raw ?? ''}`);
 }
 
 /** @param {string} html @param {number} index @returns {number} */
@@ -49,12 +51,16 @@ function lineAt(html, index) {
   return line;
 }
 
-/** Zerlegt ein srcset-Attribut in seine URLs. @param {string} v @returns {string[]} */
-function srcsetUrls(v) {
-  return v
-    .split(',')
-    .map((p) => p.trim().split(/\s+/)[0])
-    .filter(Boolean);
+/**
+ * Die URLs eines srcset nach WHATWG (`srcsetUrls` aus `utils/html-attribute.js`): ein Komma
+ * IN der URL trennt nicht. Ein srcset, das mit `data:` beginnt, bleibt EINE Adresse: eine
+ * data:-URL darf Leerzeichen und Kommas tragen, die Zerlegung erfände daraus Pfade wie
+ * `/x.webp'` oder Hosts wie `http://www.w3.org/2000/svg'` (Nachlese #278).
+ * @param {string} v @returns {string[]}
+ */
+function srcsetAdressen(v) {
+  if (/^\s*data:/i.test(v)) return [v.trim()];
+  return srcsetUrls(v);
 }
 
 /** URLs ohne CSP-Relevanz (Fragment, Mail, Telefon, JS-Pseudo-Protokoll). @param {string} u @returns {boolean} */
@@ -181,12 +187,12 @@ export function extractResources(html, file = 'html') {
       }
       case 'img':
         push('img-src', attrs.src);
-        for (const u of srcsetUrls(attrs.srcset || '')) push('img-src', u);
+        for (const u of srcsetAdressen(attrs.srcset || '')) push('img-src', u);
         break;
       case 'source': {
         // <source> in <picture> liefert srcset (Bild), in <video>/<audio> src (Medium).
         const inMedia = mediaStack.length > 0;
-        for (const u of srcsetUrls(attrs.srcset || '')) push('img-src', u);
+        for (const u of srcsetAdressen(attrs.srcset || '')) push('img-src', u);
         if (attrs.src) push(inMedia ? 'media-src' : 'img-src', attrs.src);
         break;
       }

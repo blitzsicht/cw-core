@@ -1220,3 +1220,43 @@ test('Nachlese #278: ein leeres property= verdeckt name="og:image" nicht', () =>
   // Gegenprobe: property gewinnt, wenn es einen Wert hat (og:title ist Freitext, kein Bild).
   assert.deepEqual(extractAssetRefs('<meta property="og:title" name="og:image" content="/og.png">', null).refs, []);
 });
+
+// ─── cw-core#260 Punkt 2: ein Leser mit der CSP-Prüfung (html-resources.js) ────────────
+// Bis v0.195.0 las extractAssetRefs Tags selbst und sah `url()` im style-Attribut und
+// `<object data>` nicht. Vormessung 10.11.2026: 541 Live-Seiten, 35 neue Referenzen, 35× 200.
+
+test('#260: style-Attribut-url() und <object data> sind Asset-Referenzen, form action nicht', () => {
+  const html = `
+    <section style="background-image:url('/images/hero/a.webp')"></section>
+    <div style="background:url(/b.webp) no-repeat, url(&quot;/c&#38;d.webp&quot;)"></div>
+    <object data="/plan.pdf" type="application/pdf"></object>
+    <form action="/api/kontakt" method="post"></form>`;
+  const { refs } = extractAssetRefs(html, null);
+  assert.deepEqual(refs.sort(), ['/b.webp', '/c&d.webp', '/images/hero/a.webp', '/plan.pdf']);
+  // Gegenprobe: ohne die Attribute bleibt nichts übrig (keine Referenz aus Freitext).
+  assert.deepEqual(extractAssetRefs('<section>background:url(/frei.webp)</section><p>data="/x.pdf"</p>', null).refs, []);
+});
+
+test('#260: url() mit Klammer im gequoteten Pfad wird ganz gelesen (HTML und .css)', () => {
+  // Der alte Regex `url\(\s*([^)]*?)\s*\)` endete an der ersten `)`: `/a(1`.
+  assert.deepEqual(extractAssetRefs('<style>.x{background:url("/a(1).webp")}</style>', null).refs, ['/a(1).webp']);
+  assert.deepEqual(extractAssetRefs('.x{background:url("/a(1).webp")}', null, { cssOnly: true }).refs, ['/a(1).webp']);
+  // Gegenprobe: <style>-Inhalt bleibt roher Text, `&amp;` wird dort NICHT dekodiert.
+  assert.deepEqual(extractAssetRefs('<style>.y{background:url(/e&amp;f.webp)}</style>', null).refs, ['/e&amp;f.webp']);
+});
+
+test('#260 E2E: fehlendes Bild hinter style-Attribut → Exit 1, vorhanden → Exit 0', () => {
+  const seite = PAGE('https://kunde.de/').replace(
+    '<body>',
+    '<body><section class="hero" style="background-image:url(\'/images/hero/fehlt.webp\')"></section><object data="/plan.pdf"></object>',
+  );
+  const rot = runTree({ files: { 'index.html': seite }, config: { assetRefChecks: 'fail' } });
+  assert.equal(rot.code, 1, `out:\n${rot.out}`);
+  assert.match(rot.out, /Asset-Referenz \/images\/hero\/fehlt\.webp/);
+  assert.match(rot.out, /Asset-Referenz \/plan\.pdf/);
+  const gruen = runTree({
+    files: { 'index.html': seite, 'images/hero/fehlt.webp': 'WEBP', 'plan.pdf': 'PDF' },
+    config: { assetRefChecks: 'fail' },
+  });
+  assert.equal(gruen.code, 0, `out:\n${gruen.out}`);
+});

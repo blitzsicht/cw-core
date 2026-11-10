@@ -172,3 +172,35 @@ test('parseAttrs: Quotes, unquoted, leere Attribute', () => {
   assert.equal(a.defer, '');
   assert.equal(a['data-x'], '1');
 });
+
+// ─── cw-core#260 Punkt 2: parseAttrs/srcset aus utils/html-attribute.js ─────────────────
+// Ein Leser für CSP-Prüfung und verify-touchpoints. Vorher: kein Decoder, das LETZTE
+// Vorkommen gewann, srcset per split(',').
+
+test('#260 parseAttrs: dekodiert, erstes Vorkommen gewinnt, Quote im Wert bleibt', () => {
+  const a = parseAttrs(` src="/a&#38;b.webp" alt="it's" src="/zweit.webp" data-x='q"z' hidden`);
+  assert.equal(a.src, '/a&b.webp');
+  assert.equal(a.alt, "it's");
+  assert.equal(a['data-x'], 'q"z');
+  assert.equal(a.hidden, '');
+  // Gegenprobe: `&ampel` ohne Semikolon vor einem Buchstaben bleibt eine Query.
+  assert.equal(parseAttrs(` href="/s?a=1&ampel=2"`).href, '/s?a=1&ampel=2');
+});
+
+test('#260 extractResources: srcset nach WHATWG, data:-srcset bleibt eine Adresse', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  assert.deepEqual(urls('<img srcset="/a,b.webp 1x, /c.webp 2x">'), ['/a,b.webp', '/c.webp']);
+  const svg = `<img srcset="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E 1x">`;
+  const r = urls(svg);
+  assert.equal(r.length, 1, `eine Adresse, nicht zerlegt: ${JSON.stringify(r)}`);
+  assert.match(r[0], /^data:/);
+  // Gegenprobe: kein erfundener Host aus dem SVG-Namensraum.
+  assert.ok(!r.some((u) => u.startsWith('http://www.w3.org')));
+});
+
+test('#260 extractResources: url() im style-Attribut wird dekodiert gelesen', () => {
+  const res = extractResources(`<section style="background:url(&quot;/h&#38;x.webp&quot;)"></section>`);
+  const bild = res.filter((r) => r.type === 'url' && r.directive === 'img-src').map((r) => r.url);
+  assert.deepEqual(bild, ['/h&x.webp']);
+  assert.ok(res.some((r) => r.type === 'attr' && r.directive === 'style-src-attr'), 'style-src-attr bleibt gemeldet');
+});
