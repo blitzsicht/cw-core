@@ -64,7 +64,8 @@ import { join, extname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { AUFSICHTS_MAILTO_ALLOWLIST } from '../src/utils/legal/aufsichtsbehoerde.js';
-import { attribute, dekodiereEntities, srcsetUrls } from '../src/utils/html-attribute.js';
+import { attribute, dekodiereEntities } from '../src/utils/html-attribute.js';
+import { extractResources, extractCssUrls } from '../src/integrations/ai-discovery/html-resources.js';
 
 // ─── Pure Helpers (exportiert für node --test) ──────────────────────────────
 
@@ -282,7 +283,7 @@ export function extractInternalLinks(html, origin) {
   return [...out];
 }
 
-/** Tags, deren src/srcset (und poster an <video>) auf eine ausgelieferte Datei zeigt. */
+/** Tags für den Eager-Skript-Check (nur `<script>` wird dort gelesen). */
 const ASSET_TAG_RE = /<(?:img|source|script|video|audio|track|embed|iframe)\b[^>]*>/gi;
 
 /**
@@ -375,30 +376,23 @@ export function extractAssetRefs(source, origin, opts = {}) {
     refs.add(u.split('#')[0]);
   };
 
-  if (!opts.cssOnly) {
-    for (const m of source.matchAll(ASSET_TAG_RE)) {
-      const attr = attribute(m[0]);
-      push(attr.src);
-      // `poster` ist wie `src` immer eine Dateiadresse. Bis v0.193.0 fiel es durch:
-      // ein fehlendes Poster lief gruen, ein fehlendes MP4 im selben Player rot
-      // (gemessen 07.11.2026 an blitzsicht /forschung). Vormessung vor dem Einbau:
-      // 96 Live-Seiten mit 7 Postern (zwei Kunden), alle HTTP 200.
-      if (/^<video\b/i.test(m[0])) push(attr.poster);
-      // Nach WHATWG zerlegt: ein Komma IN der URL trennt nicht (`/a&#44;b.webp 1x` → `/a,b.webp`,
-      // das naive `split(',')` lieferte `/a`). data:-URLs fallen in push() heraus.
-      // Ein srcset, der mit `data:` beginnt, bleibt ganz ungelesen (wie bis v0.195.0): eine
-      // data:-URL darf Leerzeichen und Kommas tragen, die Zerlegung erfände daraus Pfade wie
-      // `/x.webp'` (Nachlese #278).
-      if (attr.srcset && !/^\s*data:/i.test(attr.srcset)) for (const url of srcsetUrls(attr.srcset)) push(url);
-    }
-  }
-
-  const cssBlocks = opts.cssOnly
-    ? [source]
-    : [...source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]);
-  for (const css of cssBlocks) {
-    for (const m of css.matchAll(/url\(\s*([^)]*?)\s*\)/gi)) {
-      push(m[1].replace(/^["']|["']$/g, ''));
+  // Tag-Adressen und CSS-`url()` kommen aus `extractResources`/`extractCssUrls`
+  // (`src/integrations/ai-discovery/html-resources.js`), demselben Leser, mit dem die
+  // CSP-Prüfung die Seite sieht (cw-core#260, Punkt 2). Bis v0.195.0 stand hier eine
+  // zweite Extraktion: `src`/`srcset`/`poster` an acht Tags plus `url()` in `<style>`.
+  // Sie sah zwei Quellen nicht, die der Browser lädt: `url()` im `style`-Attribut und
+  // `<object data>`. Vormessung vor dem Umbau, 10.11.2026: 541 Live-Seiten aus 19
+  // Repos, 35 neu gesehene Referenzen (alle `style`-Attribut, blitzsicht 28), 35× HTTP
+  // 200; dieselben Pfade verfälscht 35× 404. `<object data>` kam 0-mal vor.
+  //
+  // `form-action` ist eine Route, keine Datei. `<link href>` liefert extractResources
+  // mit; der Link-Check sieht dieselben Pfade und meldet sie (Dedup über `linkSeen`).
+  if (opts.cssOnly) {
+    for (const r of extractCssUrls(source, '')) push(r.url);
+  } else {
+    for (const r of extractResources(source)) {
+      if (r.type !== 'url' || r.directive === 'form-action') continue;
+      push(r.url);
     }
   }
 
