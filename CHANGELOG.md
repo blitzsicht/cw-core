@@ -24,6 +24,25 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Die Maske aus #285 hält sich an die Grenzen des Browsers: `<!-->`, `--!>` und `<!--` in einem Attributwert blenden nichts mehr aus
+
+Kontext: Das Review von #285 fand ein neues „falsch grün“, das noch in keinem Tag steckte. Die
+Maske kannte als Kommentar-Ende nur `-->`. Einen Kommentar oder ein Script ließ sie an jedem
+`<!--` bzw. `<script` beginnen, auch mitten in einem gequoteten Wert. Nach `<!-->`, `<!--->`,
+`<!-- … --!>`, `pattern="<!--"` oder `data-tpl="<script>"` blendete sie deshalb den Rest der
+Seite aus. Fehlende Bilder und Inline-Scripts dort sahen weder Asset-Check noch CSP-Prüfung.
+v0.195.0 meldete alle fünf Fälle, `3a0c8457` keinen. In Chromium nachgemessen: Der Browser lädt
+die Bilder hinter jedem der fünf Muster.
+
+- Kommentar-Enden wie im WHATWG-Tokenizer: `<!-->` und `<!--->` schließen sofort, sonst `-->`
+  oder `--!>`. `-- >` ist kein Ende. Ein offener Kommentar läuft weiter bis zum Dateiende.
+- Gewöhnliche Start-Tags werden im selben Durchgang samt gequoteter Werte gelesen. So beginnt ein
+  Bereich nur an einer echten Tag-Position. Ein `>` im gequoteten Wert eines `<script>`-Tags
+  beendet den Tag nicht mehr.
+- Die Bereiche werden je Seite einmal gesammelt statt zweimal.
+- Auf den 541 Live-Seiten ändert sich nichts (9223 = 9223 Asset-Referenzen, 7897 = 7897
+  CSP-Befunde, Laufzeit gleich).
+
 **Fix:** Nachlese der Reviews #283/#284, vor dem Train-Tag: Tags in Kommentaren und Scripts, srcset je Kandidat, Changelog-Lint ohne `pnpm install`
 
 Kontext: Die Reviews nach dem Merge fanden vier Fälle, die mit #283/#284 neu kamen und noch in

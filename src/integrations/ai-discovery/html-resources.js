@@ -17,9 +17,29 @@ import { attribute, srcsetUrls } from '../../utils/html-attribute.js';
  * Bereiche, in denen der HTML-Parser keine Tags sieht, in Dokumentreihenfolge: Kommentare und
  * die Rohtext-Körper von `<style>`/`<script>`. EIN Muster mit Alternativen, damit gilt, was der
  * Browser liest: `<script>` in einem Kommentar ist kein Script, `<!--` in einem Script kein
- * Kommentar. Ein offener Kommentar läuft bis zum Dateiende.
+ * Kommentar.
+ *
+ * - Kommentar-Enden wie im WHATWG-Tokenizer: `<!-->` und `<!--->` schließen sofort, sonst
+ *   `-->` oder `--!>`. Ein offener Kommentar läuft bis zum Dateiende (wie im Browser).
+ * - Die dritte Alternative liest jeden anderen Start-Tag samt gequoteter Attributwerte und wird
+ *   verworfen. Damit beginnt ein Bereich nur an einer echten Tag-Position, nie in einem Wert
+ *   wie `pattern="<!--"` oder `data-tpl="<script>"`. Dieselbe Quote-Regel gilt für die
+ *   Attribute von `<style>`/`<script>`.
+ *
+ * Anlass (Review von #285, gegen v0.195.0 gemessen und in Chromium nachgeprüft): Kannte das
+ * Muster nur `-->` und begann bei jedem `<!--`, blendete die Maske nach `<!-->`, `--!>` oder
+ * einem `<!--` im Attributwert den Rest der Seite aus. Fehlende Bilder und Inline-Scripts
+ * blieben dann still grün.
  */
-const ROH_BEREICH = /<!--[\s\S]*?(?:-->|$)|<(style|script)\b([^>]*)>([\s\S]*?)<\/\1\s*>/gi;
+const ATTRS = `((?:"[^"]*"|'[^']*'|[^>"'])*)`;
+const ROH_BEREICH = new RegExp(
+  [
+    `<!--(?:-?>|[\\s\\S]*?(?:--!?>|$))`,
+    `<(style|script)\\b${ATTRS}>([\\s\\S]*?)<\\/\\1\\s*>`,
+    `<[a-z][^\\s/>"']*${ATTRS.replace('(', '(?:')}>`,
+  ].join('|'),
+  'gi',
+);
 
 /**
  * @typedef {{ art: 'kommentar' } | { art: 'style' | 'script', attrs: string, body: string, bodyStart: number }} RohBereich
@@ -33,7 +53,8 @@ function* rohBereiche(html) {
     const index = m.index;
     const ende = index + m[0].length;
     if (m[1] === undefined) {
-      yield { art: 'kommentar', index, ende };
+      // Gewöhnlicher Start-Tag: nur gelesen, damit nichts in seinen Werten einen Bereich beginnt.
+      if (m[0].startsWith('<!--')) yield { art: 'kommentar', index, ende };
       continue;
     }
     const body = m[3] ?? '';
@@ -58,10 +79,19 @@ function* rohBereiche(html) {
  */
 export function maskiere(html) {
   const s = String(html ?? '');
+  return maskiereBereiche(s, rohBereiche(s));
+}
+
+/**
+ * @param {string} s
+ * @param {Iterable<RohBereich & { index: number, ende: number }>} bereiche aus `rohBereiche(s)`
+ * @returns {string}
+ */
+function maskiereBereiche(s, bereiche) {
   const leer = (/** @type {string} */ t) => t.replace(/[^\n]/g, ' ');
   let out = '';
   let pos = 0;
-  for (const b of rohBereiche(s)) {
+  for (const b of bereiche) {
     if (b.art === 'kommentar') {
       out += s.slice(pos, b.index) + leer(s.slice(b.index, b.ende));
     } else {
@@ -165,8 +195,11 @@ export function extractResources(html, file = 'html') {
   /** @param {number} i */
   const at = (i) => `${file}:${lineAt(html, i)}`;
 
+  // Die Bereiche einmal sammeln: für die Inline-Ressourcen hier und für die Maske unten.
+  const bereiche = [...rohBereiche(html)];
+
   // 1. <style> / <script> mit Inhalt (nicht in Kommentaren).
-  for (const b of rohBereiche(html)) {
+  for (const b of bereiche) {
     if (b.art === 'kommentar') continue;
     const tag = b.art;
     const attrs = parseAttrs(b.attrs);
@@ -189,7 +222,7 @@ export function extractResources(html, file = 'html') {
 
   // 2. Generischer Tag-Scan für URL-Referenzen und Inline-Attribute, über die Maske:
   // Tags, die nur als Text in Kommentaren oder Script-/Style-Körpern stehen, zählen nicht.
-  const sichtbar = maskiere(html);
+  const sichtbar = maskiereBereiche(html, bereiche);
   const tagRe = /<(\/?)([a-z][a-z0-9-]*)\b([^>]*)>/gi;
   /** @type {string[]} */
   const mediaStack = [];

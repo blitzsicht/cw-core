@@ -232,6 +232,41 @@ test('extractResources: Tags in Kommentar und Script zählen nicht, echte Tags w
   assert.deepEqual(r.filter((x) => x.type === 'url').map((x) => `${x.url} ${x.where}`), ['/fehlt.webp x.html:4']);
 });
 
+// ─── Review von #285: Kommentar-Enden und Bereichsanfänge wie im Browser ─────────────────
+// Erwartung je Fall in Chromium gemessen (10.11.2026, Playwright aus cw-audit): geladen wurden
+// genau die Bilder, die hier als Ref erwartet werden. Gegen v0.195.0 gemessen: dort wurden die
+// Fälle M1–M5 gemeldet, nach #285 bis zu diesem Fix nicht mehr (falsch grün).
+test('Review #285: Kommentar endet bei <!-->, <!---> und --!>, nicht erst bei -->', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  // M1: leerer Kommentar schließt sofort, das Bild danach und das Inline-Script zählen.
+  const m1 = extractResources('<!--><img src="/a.webp"><script>alert(1)</script>');
+  assert.deepEqual(m1.filter((r) => r.type === 'url').map((r) => r.url), ['/a.webp']);
+  assert.equal(m1.filter((r) => r.type === 'inline' && r.directive === 'script-src-elem').length, 1);
+  // M2 und M3.
+  assert.deepEqual(urls('<!---><img src="/a.webp">'), ['/a.webp']);
+  assert.deepEqual(urls('<!-- x --!><img src="/a.webp">'), ['/a.webp']);
+  // GEGENPROBE: `-- >` ist kein Ende, ein offener Kommentar läuft bis zum Dateiende.
+  assert.deepEqual(urls('<!-- x -- ><img src="/k.webp"> --><img src="/a.webp">'), ['/a.webp']);
+  assert.deepEqual(urls('<img src="/a.webp"><!-- <img src="/k.webp">'), ['/a.webp']);
+});
+
+test('Review #285: <!-- und <script in einem Attributwert beginnen keinen Bereich', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  // M4: der echte Kommentar danach bleibt ein Kommentar, die Bilder davor und danach zählen.
+  assert.deepEqual(urls('<input pattern="<!--"><img src="/a.webp"><!-- <img src="/k.webp"> --><img src="/b.webp">'), ['/a.webp', '/b.webp']);
+  assert.deepEqual(urls(`<input pattern='<!--'><img src="/a.webp">`), ['/a.webp']);
+  // M5: das echte Script danach wird weiter als Inline-Script gelesen, sein Körper maskiert.
+  const m5 = extractResources('<div data-tpl="<script>"></div><img src="/a.webp"><script>s="<img src=/s.webp>"</script><img src="/b.webp">');
+  assert.deepEqual(m5.filter((r) => r.type === 'url').map((r) => r.url), ['/a.webp', '/b.webp']);
+  assert.equal(m5.filter((r) => r.type === 'inline' && r.directive === 'script-src-elem').length, 1);
+  // Ein `>` im gequoteten Wert eines Script-Tags beendet den Tag nicht.
+  const q = extractResources('<script data-x="a>b">var y=1</script><img src="/a.webp">');
+  assert.deepEqual(q.filter((r) => r.type === 'inline').map((r) => r.content), ['var y=1']);
+  // Die Maske selbst: Wert bleibt sichtbar, Länge gleich.
+  const html = '<input pattern="<!--"><img src="/a.webp">';
+  assert.equal(maskiere(html), html);
+});
+
 test('#260 extractResources: url() im style-Attribut wird dekodiert gelesen', () => {
   const res = extractResources(`<section style="background:url(&quot;/h&#38;x.webp&quot;)"></section>`);
   const bild = res.filter((r) => r.type === 'url' && r.directive === 'img-src').map((r) => r.url);
