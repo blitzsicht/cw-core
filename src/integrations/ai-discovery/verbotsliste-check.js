@@ -56,7 +56,7 @@ const META_FELDER = Object.freeze(['description', 'keywords', 'og:description', 
 
 /**
  * @typedef {'text' | 'title' | 'meta:description' | 'meta:keywords' | 'meta:og:description' | 'meta:twitter:description'} VerbotslistenOrt
- * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string, aufgehobenDurch?: string, alleAufhebungen?: string[], herkunft?: 'kunde' | 'flotte' }} VerbotslistenBefund
+ * @typedef {{ seite: string, ort: VerbotslistenOrt, formulierung: string, treffer: string, kontext: string, aufgehobenDurch?: string, alleAufhebungen?: string[], herabgestuftDurch?: string[], herkunft?: 'kunde' | 'flotte' }} VerbotslistenBefund
  */
 
 /**
@@ -358,6 +358,11 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte, option
     // andere galt als ungenutzt, und der Build riet zum Streichen (Review cw-core#242, B2).
     /** @type {Map<number, Set<string>>} */
     const aufhebungen = new Map();
+    // Phrasen, die an einer Stelle einen KUNDENtreffer aufheben. Gewinnt dort ein offener
+    // Flottentreffer, sind sie trotzdem wirksam: ohne sie gewänne der Kundentreffer (Stufe 2),
+    // und aus dem Hinweis würde ein WARN, mit `strictVerbotsliste` ein Abbruch (Review cw-core#261, B1).
+    /** @type {Map<number, Set<string>>} */
+    const kundenAufhebungen = new Map();
     for (const [n, original] of liste) {
       for (let i = klein.indexOf(n); i !== -1; i = klein.indexOf(n, i + 1)) {
         const ende = i + n.length;
@@ -380,6 +385,11 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte, option
         };
         if (freigabe) befund.aufgehobenDurch = freigabe.original;
         if (kundenMuster !== undefined) befund.herkunft = kundenMuster.has(n) ? 'kunde' : 'flotte';
+        if (freigabe && befund.herkunft === 'kunde') {
+          for (const f of freigaben) {
+            if (f.von <= i && ende <= f.bis) kundenAufhebungen.set(i, (kundenAufhebungen.get(i) ?? new Set()).add(f.original));
+          }
+        }
         // Ein Befund je Startposition; wer ihn stellt, entscheidet `schlaegt()` — und zwar
         // ausgeschrieben, statt über die Reihenfolge der Liste (cw-core#247).
         if (!schlaegt(befund, proPosition.get(i))) continue;
@@ -391,8 +401,14 @@ export function pruefeVerbotsliste(html, seite, formulierungen, erlaubte, option
     // „Genutzt" heißt nicht „einzeln nötig": zwei Phrasen, die dieselbe Stelle decken, gelten
     // beide als genutzt, obwohl jede allein reichte (Review cw-core#248, B6). Gewollt: ein
     // Streich-Rat für eine von beiden ist ein Urteil über Wortlaut, nicht über Wirkung.
+    //
+    // Gewinnt ein offener FLOTTENtreffer über einen aufgehobenen Kundentreffer, ändert die Phrase
+    // dagegen die Schwere: der Befund trägt sie als `herabgestuftDurch`, und der Aufrufer zählt
+    // sie als genutzt. Maßstab ist die Schwere, nicht der Wortlaut: verschiebt eine Phrase nur,
+    // welches Flottenmuster gemeldet wird, bleibt sie ungenutzt (Entscheidung zu #261, B1).
     for (const [i, b] of proPosition) {
       if (b.aufgehobenDurch !== undefined) b.alleAufhebungen = [...(aufhebungen.get(i) ?? [])];
+      else if (b.herkunft === 'flotte' && kundenAufhebungen.has(i)) b.herabgestuftDurch = [...(kundenAufhebungen.get(i) ?? [])];
     }
     befunde.push(...[...proPosition.entries()].sort((a, b) => a[0] - b[0]).map(([, b]) => b));
   }

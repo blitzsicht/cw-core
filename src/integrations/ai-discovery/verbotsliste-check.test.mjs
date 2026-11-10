@@ -682,3 +682,44 @@ test('#261-Nachlese B5: Listen nur als Array oder Set — ein String wirft statt
   assert.equal(b.length, 1);
   assert.equal(b[0].herkunft, 'kunde');
 });
+
+// ─── #261 B1: Phrase, die einen Kundentreffer unter einem offenen Flottentreffer aufhebt ───
+const ANWALT = '<html><body><p>Der Text ist nicht anwaltlich geprüft.</p></body></html>';
+const ANWALT_LISTE = ['anwaltlich', 'anwaltlich geprüft'];
+
+test('#261 B1: hebt eine Phrase den Kundentreffer auf, trägt der offene Flottentreffer sie als herabgestuftDurch', () => {
+  // Die Probe aus dem Issue. Ohne das Feld galt „nicht anwaltlich" als ungenutzt, der Build
+  // riet zum Streichen — und wer strich, bekam einen Kunden-WARN (mit strict den Abbruch).
+  for (const liste of [ANWALT_LISTE, [...ANWALT_LISTE].reverse()]) {
+    const b = pruefeVerbotsliste(ANWALT, seite, liste, ['nicht anwaltlich'], { kundenListe: ['anwaltlich'] });
+    assert.equal(b.length, 1, `eine Startposition (${liste[0]} zuerst)`);
+    assert.equal(b[0].formulierung, 'anwaltlich geprüft');
+    assert.equal(b[0].herkunft, 'flotte');
+    assert.equal(b[0].aufgehobenDurch, undefined);
+    assert.deepEqual(b[0].herabgestuftDurch, ['nicht anwaltlich']);
+  }
+  // GEGENPROBE: ohne die Phrase gewinnt der Kundentreffer — die Phrase ändert also die Schwere.
+  const ohne = pruefeVerbotsliste(ANWALT, seite, ANWALT_LISTE, [], { kundenListe: ['anwaltlich'] });
+  assert.equal(ohne.length, 1);
+  assert.equal(ohne[0].herkunft, 'kunde');
+  assert.equal(ohne[0].aufgehobenDurch, undefined);
+  assert.equal(ohne[0].herabgestuftDurch, undefined);
+});
+
+test('#261 B1: herabgestuftDurch nur, wenn die Schwere sich ändert', () => {
+  // Beide Muster aus der Flotte: die Phrase verschiebt nur den Wortlaut, nicht die Schwere.
+  const flotte = pruefeVerbotsliste(ANWALT, seite, ANWALT_LISTE, ['nicht anwaltlich'], { kundenListe: [] });
+  assert.equal(flotte[0].herkunft, 'flotte');
+  assert.equal(flotte[0].herabgestuftDurch, undefined, 'gleiche Herkunft → kein Feld');
+  // Ohne kundenListe gibt es keine Herkunft und damit keine Schwere-Stufe.
+  const ohneHerkunft = pruefeVerbotsliste(ANWALT, seite, ANWALT_LISTE, ['nicht anwaltlich']);
+  assert.equal(ohneHerkunft[0].herabgestuftDurch, undefined, 'ohne kundenListe → kein Feld');
+  // Gewinnt der aufgehobene Befund selbst, bleibt es bei alleAufhebungen.
+  const aufgehoben = pruefeVerbotsliste(ANWALT, seite, ['anwaltlich'], ['nicht anwaltlich'], { kundenListe: ['anwaltlich'] });
+  assert.equal(aufgehoben[0].aufgehobenDurch, 'nicht anwaltlich');
+  assert.equal(aufgehoben[0].herabgestuftDurch, undefined);
+  // Ein offener KUNDENtreffer an derselben Stelle gewinnt; die Phrase ändert dann nichts.
+  const kundeOffen = pruefeVerbotsliste(ANWALT, seite, ANWALT_LISTE, ['nicht anwaltlich'], { kundenListe: ANWALT_LISTE });
+  assert.equal(kundeOffen[0].herkunft, 'kunde');
+  assert.equal(kundeOffen[0].herabgestuftDurch, undefined);
+});

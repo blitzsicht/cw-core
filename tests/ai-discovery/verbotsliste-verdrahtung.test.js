@@ -475,3 +475,38 @@ test('#248-Nachlese B3: derselbe Satz auf fünf Seiten ist eine Fundstelle', asy
   });
   assert.ok(rat(e)[0].includes('1 offene Fundstelle(n)'), rat(e)[0]);
 });
+
+// ─── #261 B1: Phrase stuft einen Kundentreffer zum Flottenhinweis herab ────────────────
+const ANWALT = '<p>Der Text ist nicht anwaltlich geprüft.</p>';
+
+test('#261 B1: eine Phrase, die den Kundentreffer herabstuft, heißt nicht „ungenutzt"', async () => {
+  const e = await lauf({
+    body: ANWALT,
+    optionen: { verboteneFormulierungen: ['anwaltlich'], erlaubteFormulierungen: ['nicht anwaltlich'], strictVerbotsliste: true },
+  });
+  assert.equal(e.warnungen.filter((w) => w.includes('hat auf keiner')).length, 0, e.warnungen.join(' | '));
+  assert.ok(e.infos.some((i) => i.includes('Ausnahme „nicht anwaltlich" greift auf index.html')), e.infos.join(' | '));
+  assert.equal(e.fehler, null, 'Flottentreffer bricht auch mit strict nicht ab');
+  // GEGENPROBE: dem alten Streich-Rat gefolgt — ohne die Phrase bricht strict ab.
+  const g = await lauf({
+    body: ANWALT,
+    optionen: { verboteneFormulierungen: ['anwaltlich'], strictVerbotsliste: true },
+  });
+  assert.ok(g.fehler, 'ohne die Phrase ist es ein Kundentreffer → Abbruch');
+});
+
+test('#261 B1: auf einer pfad-ausgenommenen Seite zählt die Herabstufung als „greift nur auf"', async () => {
+  const e = await lauf({
+    body: SAUBER,
+    weitere: { 'recht/index.html': ANWALT },
+    optionen: {
+      verboteneFormulierungen: ['anwaltlich'],
+      erlaubteFormulierungen: ['nicht anwaltlich'],
+      verbotslisteAusnahmen: ['recht/index.html'],
+    },
+  });
+  const w = e.warnungen.filter((x) => x.includes('„nicht anwaltlich"'));
+  assert.equal(w.length, 1, w.join(' | '));
+  assert.ok(w[0].includes('greift nur auf') && w[0].includes('recht/index.html'), w[0]);
+  assert.ok(!w[0].includes('Satz ist weg'), `falsche Diagnose: ${w[0]}`);
+});

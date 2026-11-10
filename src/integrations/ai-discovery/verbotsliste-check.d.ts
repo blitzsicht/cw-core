@@ -29,6 +29,13 @@ export interface VerbotslistenBefund {
    */
   alleAufhebungen?: readonly string[];
   /**
+   * Phrasen, die an dieser Stelle einen Kundentreffer aufheben, während dieser offene
+   * Flottentreffer gewinnt. Ohne sie gewänne der Kundentreffer: WARN statt Hinweis. Nur an
+   * offenen Befunden mit `herkunft: 'flotte'`; der Aufrufer zählt sie als genutzt, damit der
+   * Build nicht zum Streichen rät (Review cw-core#261, B1).
+   */
+  herabgestuftDurch?: readonly string[];
+  /**
    * Woher das getroffene Muster stammt — nur gesetzt, wenn `optionen.kundenListe` übergeben
    * wurde. `'kunde'` ist WARN und bricht mit `strictVerbotsliste` ab, `'flotte'` ist ein
    * Hinweis. Trägt zugleich die zweite Stufe der Rangfolge an einer Startposition
