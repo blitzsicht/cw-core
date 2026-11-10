@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ALTLASTEN, MINDESTENS_TAGS, LETZTER_TAG_OHNE_BLOCK,
-  pruefeTagGleichheit, versionsBlock, blockHash, vergleicheVersion, formatiereTagBefunde, zaehlzeile,
+  pruefeTagGleichheit, versionsBlock, versionsBloecke, blockHash, formatiereTagBefunde, zaehlzeile,
 } from './changelog-tag-gleich.mjs';
 import { tagBloeckeLesen } from './changelog-tag-quelle.mjs';
 
@@ -110,11 +110,55 @@ test('GEGENPROBE Tag nach v0.62.0 ohne eigenen Block → rot; davor erlaubt', ()
   assert.equal(LETZTER_TAG_OHNE_BLOCK, 'v0.62.0');
 });
 
-test('vergleicheVersion: numerisch, nicht lexikalisch; Suffix zählt als die Version', () => {
-  assert.ok(vergleicheVersion('v0.100.0', 'v0.62.0') > 0, 'lexikalisch wäre "v0.100" < "v0.62"');
-  assert.ok(vergleicheVersion('v0.9.10', 'v0.9.9') > 0);
-  assert.equal(vergleicheVersion('v0.62.0-rc.1', 'v0.62.0'), 0);
-  assert.ok(vergleicheVersion('v1.0.0', 'v0.194.2') > 0);
+test('#273 T1: ein Präreleasetag ohne eigenen Block ist kein vergessenes Release', () => {
+  const m = md('## v0.195.0 (2026-11-10)\n\n- neu\n');
+  const r = pruefeTagGleichheit(m, tags({}), {}, ['v0.195.0-rc.1', 'v0.14.1-alpha']);
+  assert.deepEqual(r.befunde, [], formatiereTagBefunde(r));
+  // GEGENPROBE: dieselbe Version ohne Suffix und ohne Block bleibt rot (v0.195.0 > v0.62.0).
+  const rot = pruefeTagGleichheit(m, tags({}), {}, ['v0.196.0']);
+  assert.equal(rot.befunde.length, 1);
+  assert.match(rot.befunde[0].grund, /hat in seinem CHANGELOG keinen Block/);
+  // Ein rc MIT eigenem Block wird weiter verglichen.
+  const rcTag = '## v0.195.0-rc.1 (2026-11-09)\n\n- rc\n';
+  const r2 = pruefeTagGleichheit(md(rcTag.replace('- rc', '- rc, nachträglich geändert')), tags({ 'v0.195.0-rc.1': rcTag }), {});
+  assert.equal(r2.befunde.length, 1);
+  assert.equal(r2.befunde[0].version, 'v0.195.0-rc.1');
+});
+
+test('#273 T9: Versionsvergleich aus changelog-kunde — numerisch, Präreleases vor ihrer Version', async () => {
+  const { compareVersions } = await import('./changelog-kunde.mjs');
+  assert.ok(compareVersions('v0.100.0', 'v0.62.0') > 0, 'lexikalisch wäre "v0.100" < "v0.62"');
+  assert.ok(compareVersions('v0.9.10', 'v0.9.9') > 0);
+  assert.ok(compareVersions('v0.62.0-rc.1', 'v0.62.0') < 0);
+  // Darum ändert der Wechsel nichts an LETZTER_TAG_OHNE_BLOCK: Präreleases überspringt T1 vorher.
+  const r = pruefeTagGleichheit(md(), tags({}), {}, ['v0.62.0', 'v0.61.9']);
+  assert.deepEqual(r.befunde, []);
+});
+
+test('#273 T10: versionsBloecke liefert dasselbe wie der Einzelaufruf, je Version der erste Block', () => {
+  const m = md(
+    '## [Unreleased]\n\n- offen\n',
+    '## v0.194.0 (2026-11-08)\n\n- A\n',
+    '## v0.194.0\n\n- ohne Leerzeichen danach: kein Treffer\n',
+    '## v0.193.0 (2026-11-06)\n\n- B\n',
+    '## v0.194.0 (2026-11-09)\n\n- Dublette, die erste gewinnt\n',
+  );
+  const alle = versionsBloecke(m);
+  // `## [Unreleased]` hat kein Leerzeichen nach dem Namen und trifft wie bisher keinen Block.
+  assert.deepEqual([...alle.keys()], ['v0.194.0', 'v0.193.0']);
+  assert.match(alle.get('v0.194.0').text, /- A/);
+  assert.doesNotMatch(alle.get('v0.194.0').text, /Dublette|ohne Leerzeichen/);
+  assert.deepEqual(versionsBlock(m, 'v0.193.0'), alle.get('v0.193.0'));
+  // Referenz: der Einzelaufruf bis v0.195.0, wörtlich (findIndex je Version).
+  const alt = (text, version) => {
+    const z = text.split('\n');
+    const a = z.findIndex((t) => t.startsWith(`## ${version} `));
+    if (a < 0) return null;
+    let e = z.findIndex((t, i) => i > a && t.startsWith('## '));
+    if (e < 0) e = z.length;
+    return { start: a + 1, text: z.slice(a, e).join('\n') };
+  };
+  for (const v of ['v0.194.0', 'v0.193.0', '[Unreleased]', 'v0.1.0']) assert.deepEqual(alle.get(v) ?? null, alt(m, v), v);
 });
 
 test('versionsBlock trifft die Version genau, nicht ihr Präfix (v0.9.8 ≠ v0.9.8-alpha, v0.19.0 ≠ v0.194.0)', () => {
@@ -126,6 +170,8 @@ test('versionsBlock trifft die Version genau, nicht ihr Präfix (v0.9.8 ≠ v0.9
 
 test('Lief-nie-Schutz: die Schwelle liegt unter dem gemessenen Stand und über null', () => {
   assert.ok(MINDESTENS_TAGS >= 170 && MINDESTENS_TAGS <= 176, 'gemessen 176 Tags mit eigenem Block (09.11.2026)');
-  assert.equal(Object.keys(ALTLASTEN).length, 14);
+  // T2 (#273): Obergrenze, keine Gleichheit. Wer eine Altlast wiederherstellt, streicht sie (die Ratsche
+  // verlangt das); die Liste darf schrumpfen, nie wachsen.
+  assert.ok(Object.keys(ALTLASTEN).length <= 14, 'ALTLASTEN darf nicht wachsen (14 am 09.11.2026)');
   for (const [v, h] of Object.entries(ALTLASTEN)) assert.match(h, /^[0-9a-f]{12}$/, `${v} braucht einen Hash`);
 });

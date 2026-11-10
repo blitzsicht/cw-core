@@ -137,7 +137,9 @@ test('Setext: keine Meldung, wo CommonMark eine Trennlinie macht', () => {
     '- Punkt\n  Fortsetzung eingerückt\n---',// eingerückte Fortsetzung eines Punkts
     '1. Punkt\n---',
     '> Zitat\n---',
-    '| a | b |\n---',
+    '| a | b |\n| --- | --- |\n| 1 | 2 |\n\n---', // echte GFM-Tabelle, danach Trennlinie
+    '<!-- Kommentar -->\n---',             // T7: HTML-Block endet, dann Trennlinie
+    '<details>\nx\n</details>\n---',       // T7
     '---\n---',                              // zwei Trennlinien
     'Absatz\n\n---',                         // Leerzeile davor
     'Text\n    ---',                         // 4 Leerzeichen: Fortsetzung, keine Linie
@@ -152,4 +154,38 @@ test('Setext: keine Meldung, wo CommonMark eine Trennlinie macht', () => {
 test('Setext- und Kopfform-Befunde kommen nach Zeile sortiert', () => {
   const b = pruefeChangelogKopfform('# C\n\nText\n---\n\n## Unreleased\n');
   assert.deepEqual(b.map((x) => x.zeile), [4, 6]);
+});
+
+// ── cw-core#273: Setext per CommonMark-+-GFM-Parser statt Zeilenregeln. Jeder Fall unten lief
+//    bis v0.195.0 ungemeldet durch (T4, T5, T6, T8); gemessen am Prototyp vom 10.11.2026.
+
+test('GEGENPROBE #273 Setext: Fälle, die die Zeilenregeln übersahen, werden rot', () => {
+  const faelle = {
+    T4: ['- Punkt\n  Fortsetzung\n  ---', 5, '<h2>'],     // eingerückt im Listenpunkt
+    T5: ['Absatz\n-', 4, '<h2>'],                          // eine einzelne `-`
+    T5gleich: ['Absatz\n=', 4, '<h1>'],
+    T6: ['```\n~~~\n```\nText\n---', 7, '<h2>'],       // `~~~` schließt keinen ```-Zaun
+    T8: ['| a | b |\n---', 4, '<h2>'],                     // eine Zelle ≠ zwei: keine Tabelle
+  };
+  for (const [name, [stueck, zeile, tag]] of Object.entries(faelle)) {
+    const b = pruefeChangelogKopfform(`# C\n\n${stueck}\n`);
+    assert.equal(b.length, 1, `${name}: ${JSON.stringify(b)}`);
+    assert.equal(b[0].zeile, zeile, name);
+    assert.ok(b[0].grund.includes(tag), `${name}: ${b[0].grund}`);
+  }
+});
+
+test('#273: der echte CHANGELOG hat keine Setext-Überschrift', async () => {
+  const { readFileSync } = await import('node:fs');
+  const md = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf-8');
+  const setext = pruefeChangelogKopfform(md).filter((b) => b.grund.startsWith('Setext'));
+  assert.deepEqual(setext, []);
+  // Gegenprobe am selben Text: die Leerzeile vor der ersten Trennlinie unter einer gewöhnlichen
+  // Textzeile entfernt (der Fall #264). Unter `> …` oder `- …` wäre `---` auch ohne Leerzeile
+  // eine Trennlinie; die Probe muss eine Stelle nehmen, an der CommonMark eine <h2> macht.
+  const m = /\n[A-Za-zÄÖÜäöü*`(][^\n]*\n(\n)---\n/.exec(md);
+  assert.ok(m, 'der CHANGELOG trägt eine Trennlinie unter Text');
+  const i = m.index + m[0].length - '\n---\n'.length - 1;
+  const kaputt = md.slice(0, i) + md.slice(i + 1);
+  assert.equal(pruefeChangelogKopfform(kaputt).filter((b) => b.grund.startsWith('Setext')).length, 1);
 });

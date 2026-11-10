@@ -28,6 +28,7 @@
  * Tests: scripts/lib/changelog-tag-gleich.test.mjs
  */
 import { createHash } from 'node:crypto';
+import { compareVersions, parseVersion } from './changelog-kunde.mjs';
 
 /**
  * Version → sha256 (erste 12 Hex) des heutigen Blocks. Gemessen am 09.11.2026 auf
@@ -66,15 +67,33 @@ export const MINDESTENS_TAGS = 170;
 export const LETZTER_TAG_OHNE_BLOCK = 'v0.62.0';
 
 /**
- * @param {string} a `vX.Y.Z[-…]`
- * @param {string} b
- * @returns {number} < 0, 0, > 0; ein Präreleasesuffix wird ignoriert (konservativ: zählt als die Version)
+ * Alle Versionsblöcke eines CHANGELOG in EINEM Durchgang: Version → Block. Je Version zählt die
+ * erste Kopfzeile `## <version> …`. Ein Block reicht bis vor die nächste `## `-Zeile.
+ *
+ * Bis cw-core#273 (T10) zerlegte `versionsBlock` den ganzen CHANGELOG (~9 600 Zeilen) je Aufruf
+ * neu; `pruefeTagGleichheit` rief es einmal je Tag auf, 176-mal je Lauf.
+ *
+ * @param {string} md
+ * @returns {Map<string, { start: number, text: string }>}
  */
-export function vergleicheVersion(a, b) {
-  const teile = (/** @type {string} */ v) => (/^v(\d+)\.(\d+)\.(\d+)/.exec(v) ?? []).slice(1, 4).map(Number);
-  const [x, y] = [teile(a), teile(b)];
-  for (let i = 0; i < 3; i += 1) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
-  return 0;
+export function versionsBloecke(md) {
+  const zeilen = String(md ?? '').split('\n');
+  /** @type {Map<string, { start: number, text: string }>} */
+  const bloecke = new Map();
+  /** @type {{ version: string, a: number } | null} */
+  let offen = null;
+  const schliessen = (/** @type {number} */ e) => {
+    if (offen && !bloecke.has(offen.version)) bloecke.set(offen.version, { start: offen.a + 1, text: zeilen.slice(offen.a, e).join('\n') });
+  };
+  zeilen.forEach((t, i) => {
+    if (!t.startsWith('## ')) return;
+    schliessen(i);
+    // Wie bisher: die Version endet am ersten Leerzeichen, und danach MUSS eines stehen.
+    const leer = t.indexOf(' ', 3);
+    offen = leer > 3 ? { version: t.slice(3, leer), a: i } : null;
+  });
+  schliessen(zeilen.length);
+  return bloecke;
 }
 
 /**
@@ -83,12 +102,7 @@ export function vergleicheVersion(a, b) {
  * @returns {{ start: number, text: string } | null} start = Zeilennummer der Kopfzeile (ab 1)
  */
 export function versionsBlock(md, version) {
-  const zeilen = String(md ?? '').split('\n');
-  const a = zeilen.findIndex((t) => t.startsWith(`## ${version} `));
-  if (a < 0) return null;
-  let e = zeilen.findIndex((t, i) => i > a && t.startsWith('## '));
-  if (e < 0) e = zeilen.length;
-  return { start: a + 1, text: zeilen.slice(a, e).join('\n') };
+  return versionsBloecke(md).get(version) ?? null;
 }
 
 /** @param {string} text */
@@ -112,9 +126,10 @@ export function pruefeTagGleichheit(md, tagBloecke, altlasten = ALTLASTEN, ohneB
   /** @type {TagBefund[]} */
   const befunde = [];
   let altGezaehlt = 0;
+  const heute = versionsBloecke(md);
 
   for (const [version, tagText] of tagBloecke) {
-    const jetzt = versionsBlock(md, version);
+    const jetzt = heute.get(version) ?? null;
     if (!jetzt) {
       befunde.push({ version, zeile: 0, grund: `Block \`## ${version} …\` fehlt, sein Tag hat ihn` });
       continue;
@@ -152,7 +167,11 @@ export function pruefeTagGleichheit(md, tagBloecke, altlasten = ALTLASTEN, ohneB
   }
 
   for (const version of ohneBlock) {
-    if (vergleicheVersion(version, LETZTER_TAG_OHNE_BLOCK) > 0) {
+    // Präreleasetags (`v0.195.0-rc.1`) brauchen keinen eigenen Block; trägt einer einen, wird er
+    // oben verglichen. Bis cw-core#273 (T1) galt ein rc-Tag ohne Block als „Release hat seinen
+    // Eintrag vergessen“, und pnpm test blieb rot, solange der Tag stand.
+    if (parseVersion(version)?.pre) continue;
+    if (compareVersions(version, LETZTER_TAG_OHNE_BLOCK) > 0) {
       befunde.push({
         version,
         zeile: 0,

@@ -38,7 +38,14 @@
  * Textzeile ist eine Setext-Überschrift. Siehe `setextBefunde()` unten.
  *
  * Reine Logik, kein FS. Tests: scripts/lib/changelog-kopfform.test.mjs
+ *
+ * Die Setext-Prüfung liest mit micromark (CommonMark + GFM, devDependency). Nur
+ * `lint-changelog.mjs` im cw-core-Checkout lädt dieses Modul; in Kunden-Repos fehlen die
+ * devDependencies. `kunde-gate.mjs` → `changelog-kunde.mjs` darf es deshalb nicht importieren.
  */
+import { fromMarkdown } from 'mdast-util-from-markdown';
+import { gfm } from 'micromark-extension-gfm';
+import { gfmFromMarkdown } from 'mdast-util-gfm';
 
 /** `## [Unreleased]` — genau so, ohne Zusatz. */
 const UNRELEASED_RE = /^## \[Unreleased\]$/;
@@ -104,23 +111,9 @@ export function pruefeChangelogKopfform(md) {
     });
   });
 
-  befunde.push(...setextBefunde(zeilen));
+  befunde.push(...setextBefunde(String(md ?? ''), zeilen));
   return befunde.sort((a, b) => a.zeile - b.zeile);
 }
-
-/** Unterstreichung einer Setext-Überschrift: nur `-` oder nur `=`, höchstens 3 Leerzeichen Einzug. */
-const SETEXT_LINIE_RE = /^ {0,3}(?:-{2,}|={2,})[ \t]*$/;
-
-/** Ein Code-Zaun öffnet oder schließt (``` oder ~~~, höchstens 3 Leerzeichen Einzug). */
-const ZAUN_RE = /^ {0,3}(?:```|~~~)/;
-
-/**
- * Zeilen, nach denen eine Strich- oder Gleichheitszeile KEINE Setext-Überschrift ergibt,
- * sondern eine Trennlinie: ATX-Überschrift, Listenpunkt, Zitat, Tabellenzeile, eingerückte
- * Fortsetzung (gehört zu einem Listenpunkt; eine Unterstreichung kann nach CommonMark nicht
- * „lazy“ in den Punkt hineinragen) und eine Trennlinie selbst.
- */
-const KEIN_ABSATZ_RE = /^(?:\s|#|[-*+] |\d+[.)] |>|\||(?:---+|\*\*\*+|___+)\s*$)/;
 
 /**
  * Setext-Falle (cw-core#267): `---` direkt unter einer Textzeile macht nach CommonMark den
@@ -130,31 +123,38 @@ const KEIN_ABSATZ_RE = /^(?:\s|#|[-*+] |\d+[.)] |>|\||(?:---+|\*\*\*+|___+)\s*$)
  * v0.194.2. Die Kopfzeilen-Prüfung oben sah es nicht, sie liest nur `## `-Zeilen; eine
  * Setext-Überschrift ist aber genau das: eine Kopfzeile, die nicht nach einer aussieht.
  *
- * Bewusste Lücke: ein Absatz, dessen letzte Zeile mit 1–3 Leerzeichen beginnt, gilt hier als
- * Fortsetzung und wird nicht gemeldet. In CHANGELOG.md beginnen Absätze in Spalte 0.
+ * Gelesen mit einem echten CommonMark-+-GFM-Parser, nicht mit Zeilenregeln (cw-core#273).
+ * Bis v0.195.0 standen hier drei Regexe, die CommonMark nachahmten; jede Lücke war eine
+ * Abweichung vom Standard: `---` eingerückt in einem Listenpunkt (T4), eine einzelne `-`
+ * (T5), `~~~` in einem ```-Zaun (T6), HTML-Block vor `---` als Fehlalarm (T7) und `| a | b |`
+ * über `---`, das in GFM keine Tabelle ist (T8). Der Parser entscheidet das wie GitHub.
  *
+ * Erkennung: eine ATX-Überschrift (`## …`) ist immer einzeilig. Jede Überschrift, die über
+ * mehr als eine Zeile reicht, ist eine Setext-Überschrift; ihre letzte Zeile ist die Linie.
+ *
+ * @param {string} md
  * @param {string[]} zeilen
  * @returns {KopfformBefund[]}
  */
-function setextBefunde(zeilen) {
+function setextBefunde(md, zeilen) {
   /** @type {KopfformBefund[]} */
   const befunde = [];
-  let imZaun = false;
-  zeilen.forEach((text, i) => {
-    if (ZAUN_RE.test(text)) {
-      imZaun = !imZaun;
-      return;
+  const baum = fromMarkdown(md, { extensions: [gfm()], mdastExtensions: [gfmFromMarkdown()] });
+  /** @param {any} knoten */
+  const lauf = (knoten) => {
+    const pos = knoten.position;
+    if (knoten.type === 'heading' && pos && pos.end.line > pos.start.line) {
+      const text = zeilen[pos.end.line - 1] ?? '';
+      befunde.push({
+        zeile: pos.end.line,
+        text,
+        grund: `Setext-Überschrift: \`${text.trim()}\` direkt unter Text macht den Absatz darüber zur `
+          + `<h${knoten.depth}> und die Trennlinie fällt weg — Leerzeile davor setzen`,
+      });
     }
-    if (imZaun || i === 0 || !SETEXT_LINIE_RE.test(text)) return;
-    const davor = zeilen[i - 1];
-    if (davor.trim() === '' || KEIN_ABSATZ_RE.test(davor)) return;
-    befunde.push({
-      zeile: i + 1,
-      text,
-      grund: `Setext-Überschrift: \`${text.trim()}\` direkt unter Text macht den Absatz darüber zur `
-        + `${text.includes('=') ? '<h1>' : '<h2>'} und die Trennlinie fällt weg — Leerzeile davor setzen`,
-    });
-  });
+    for (const kind of knoten.children ?? []) lauf(kind);
+  };
+  lauf(baum);
   return befunde;
 }
 
