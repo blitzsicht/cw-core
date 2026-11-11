@@ -133,65 +133,111 @@ export function extractCssUrls(css, where) {
  * @returns {Resource[]}
  */
 export function extractResources(html, file = 'html') {
-  // Keine Eingabe ist kein Fehler, sondern keine Ressource.
-  const s = String(html ?? '');
   /** @type {Resource[]} */
   const inline = [];
   /** @type {Resource[]} */
   const refs = [];
-  const doc = parse(s, { sourceCodeLocationInfo: true, scriptingEnabled: true });
-  lauf(doc, { file, zeilenVersatz: 0, inMedia: false, ohneJs: false, inline, refs });
+  for (const e of elementeAusHtml(html)) ressourcenVon(e, file, inline, refs);
   return [...inline, ...refs];
 }
 
 /**
- * @typedef {{ file: string, zeilenVersatz: number, inMedia: boolean, ohneJs: boolean,
- *   inline: Resource[], refs: Resource[] }} LaufKontext
+ * @typedef {{ tag: string, attrs: Record<string, string>, el: any, zeile: number,
+ *   inMedia: boolean, ohneJs: boolean }} Element
  */
 
 /**
- * Kinder eines Knotens in Dokumentreihenfolge besuchen.
- * @param {any} knoten
- * @param {LaufKontext} ctx
+ * Jedes Element eines HTML-Dokuments in Dokumentreihenfolge (Preorder: ein Element vor
+ * seinen Kindern, Kinder vor den folgenden Geschwistern) — so, wie der Browser es liest.
+ * Die eine Stelle, an der cw-core HTML liest: `extractResources` (CSP), `bilderAusHtml`
+ * (KI-Kennzeichnung) und `checkEmbedConsent` (Cal-Loader) gehen alle hier durch.
+ *
+ * **Warum ein Generator über den Baum, nicht Regex plus `parseAttrs`.** Bis zum Review von
+ * #292 schnitten die beiden Prüfungen Tags per `/<tag([^>]*)>/` und gaben den Attributteil an
+ * `parseAttrs`. Steht ein `>` in einem Attributwert (`alt="Pfeil -> rechts"`), endet der
+ * Schnitt mitten im Wert, und parse5 verwirft ein Tag mit offenem Quote am Dateiende ganz:
+ * kein `src`, kein Bild, keine Pflicht (Befund 1 und 2). Mit dem Baum gibt es keinen Schnitt.
+ *
+ * **Iterativ.** Der rekursive Lauf brauchte zwei Stackrahmen je Ebene und warf ab ~1750
+ * offenen `<div>` einen RangeError; der Build brach ab, wo v0.195.0 noch las (Befund 3).
+ *
+ * **Klone.** parse5 baut aktive Formatierungs-Elemente (`b`, `i`, `font`, `a` …) für jeden
+ * neuen Block nach, wie der Browser. Die Klone tragen dasselbe `startTag`-Objekt ihrer
+ * Fundstelle (gemessen an parse5 7.3.0). Ein Klon wird deshalb nicht erneut geliefert, seine
+ * Kinder aber schon — die sind echte Elemente (Befund 4).
+ *
+ * Gelesen wird mit laufendem JavaScript. `<noscript>` ist dann Rohtext; sein Körper wird
+ * zusätzlich ohne JavaScript gelesen (`ohneJs: true`), denn diese Besucher sehen seine Bilder.
+ * Scripts laufen ohne JavaScript nicht und werden in dieser Sicht nicht geliefert. Das
+ * `<noscript>` selbst wird nicht geliefert. `<template>`-Inhalt wird mitgelesen.
+ *
+ * @param {string|null|undefined} html
+ * @returns {Generator<Element>}
  */
-function lauf(knoten, ctx) {
-  const kinder = knoten.content?.childNodes ?? knoten.childNodes ?? [];
-  for (const k of kinder) {
-    if (!k.tagName) continue; // Text, Kommentar, Doctype
-    element(k, ctx);
+export function* elementeAusHtml(html) {
+  // Keine Eingabe ist kein Fehler, sondern kein Element.
+  const doc = parse(String(html ?? ''), { sourceCodeLocationInfo: true, scriptingEnabled: true });
+  /** @type {WeakSet<object>} */
+  const gesehen = new WeakSet();
+  /** @type {Array<{ k: any, versatz: number, inMedia: boolean, ohneJs: boolean }>} */
+  const stapel = [];
+  const kinderAuf = (/** @type {any} */ knoten, /** @type {number} */ versatz, /** @type {boolean} */ inMedia, /** @type {boolean} */ ohneJs) => {
+    const kinder = knoten.content?.childNodes ?? knoten.childNodes ?? [];
+    // Rückwärts auf den Stapel, damit das erste Kind zuerst herunterkommt.
+    for (let i = kinder.length - 1; i >= 0; i--) {
+      if (kinder[i].tagName) stapel.push({ k: kinder[i], versatz, inMedia, ohneJs });
+    }
+  };
+  kinderAuf(doc, 0, false, false);
+
+  while (stapel.length) {
+    const { k: el, versatz, inMedia, ohneJs } = /** @type {NonNullable<ReturnType<typeof stapel.pop>>} */ (stapel.pop());
+    const tag = String(el.tagName).toLowerCase();
+
+    if (tag === 'noscript' && !ohneJs) {
+      // Mit JavaScript ist der Körper ein einziger Textknoten; ohne JavaScript gewöhnliches HTML.
+      const t = (el.childNodes ?? []).find((/** @type {any} */ n) => n.nodeName === '#text');
+      if (t?.value) {
+        const frag = parseFragment(t.value, { sourceCodeLocationInfo: true, scriptingEnabled: false });
+        kinderAuf(frag, versatz + (t.sourceCodeLocation?.startLine ?? 1) - 1, inMedia, true);
+      }
+      continue;
+    }
+    // Ohne JavaScript läuft kein Script und lädt kein `src`.
+    if (tag === 'script' && ohneJs) continue;
+
+    const startTag = el.sourceCodeLocation?.startTag;
+    const klon = startTag ? gesehen.has(startTag) : false;
+    if (startTag) gesehen.add(startTag);
+
+    if (!klon) {
+      yield { tag, attrs: attrsVon(el), el, zeile: versatz + (el.sourceCodeLocation?.startLine ?? 1), inMedia, ohneJs };
+    }
+    kinderAuf(el, versatz, inMedia || tag === 'video' || tag === 'audio', ohneJs);
   }
 }
 
-/** @param {any} el @returns {string} */
-const textVon = (el) =>
+/**
+ * Direkter Textinhalt eines Elements aus `elementeAusHtml` (Körper von `<script>`/`<style>`).
+ * @param {any} el
+ * @returns {string}
+ */
+export const textVon = (el) =>
   (el.childNodes ?? [])
     .filter((/** @type {any} */ n) => n.nodeName === '#text')
     .map((/** @type {any} */ n) => n.value)
     .join('');
 
 /**
- * @param {any} el parse5-Element
- * @param {LaufKontext} ctx
+ * CSP-relevante Ressourcen eines Elements.
+ * @param {Element} e
+ * @param {string} file
+ * @param {Resource[]} inline
+ * @param {Resource[]} refs
  */
-function element(el, ctx) {
-  const tag = String(el.tagName).toLowerCase();
-  const attrs = attrsVon(el);
-  const zeile = ctx.zeilenVersatz + (el.sourceCodeLocation?.startLine ?? 1);
-  const where = `${ctx.file}:${zeile}`;
-  const { inline, refs } = ctx;
-
-  if (tag === 'noscript' && !ctx.ohneJs) {
-    // Mit JavaScript ist der Körper ein einziger Textknoten; ohne JavaScript gewöhnliches HTML.
-    const t = (el.childNodes ?? []).find((/** @type {any} */ n) => n.nodeName === '#text');
-    if (t?.value) {
-      const frag = parseFragment(t.value, { sourceCodeLocationInfo: true, scriptingEnabled: false });
-      const versatz = ctx.zeilenVersatz + (t.sourceCodeLocation?.startLine ?? 1) - 1;
-      lauf(frag, { ...ctx, zeilenVersatz: versatz, ohneJs: true });
-    }
-    return;
-  }
-  // Ohne JavaScript läuft kein Script und lädt kein `src`.
-  if (tag === 'script' && ctx.ohneJs) return;
+function ressourcenVon(e, file, inline, refs) {
+  const { tag, attrs, el } = e;
+  const where = `${file}:${e.zeile}`;
 
   if (tag === 'style') {
     const body = textVon(el);
@@ -237,7 +283,7 @@ function element(el, ctx) {
     case 'source':
       // <source> in <picture> liefert srcset (Bild), in <video>/<audio> src (Medium).
       for (const u of srcsetUrls(attrs.srcset || '')) push('img-src', u);
-      if (attrs.src) push(ctx.inMedia ? 'media-src' : 'img-src', attrs.src);
+      if (attrs.src) push(e.inMedia ? 'media-src' : 'img-src', attrs.src);
       break;
     case 'video':
       push('media-src', attrs.src);
@@ -277,6 +323,4 @@ function element(el, ctx) {
   if (Object.keys(attrs).some((k) => /^on[a-z]+$/.test(k))) {
     refs.push({ type: 'attr', directive: 'script-src-attr', where });
   }
-
-  lauf(el, tag === 'video' || tag === 'audio' ? { ...ctx, inMedia: true } : ctx);
 }

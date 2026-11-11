@@ -24,6 +24,34 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** KI-Kennzeichnung und Cal-Consent-Prüfung lesen wieder jedes Tag: seit dem Umstieg auf parse5 (#292, HTML-Leser auf parse5) verschwand ein Bild oder Script still, sobald ein Attributwert ein `>` enthielt; tiefe Verschachtelung brach den Build ab (Review von #292)
+
+Kontext: `bilderAusHtml` und `checkEmbedConsent` schnitten Tags weiter per Regex am ersten `>` und
+gaben das Fragment an das neue `parseAttrs`. parse5 verwirft ein Tag mit offenem Quote am Ende ganz.
+Gemessen am Kopf `eab595ba`: `<img src="/ki.webp" alt="Pfeil -> rechts">` ergab kein Bild und damit
+keine Label-Pflicht, `<script src="…/embed/embed.js" data-cfg="a>b">` keinen Befund. v0.195.0 fand
+beides. Der rekursive Baumlauf warf ab etwa 1750 offenen `<div>` einen RangeError.
+
+- Neu: `elementeAusHtml(html)` in `html-resources.js`, ein iterativer Lauf über den parse5-Baum.
+  `extractResources`, `bilderAusHtml` und `checkEmbedConsent` lesen alle daraus. Es gibt keinen
+  Regex-Schnitt mehr.
+- Geklonte Formatierungs-Elemente (`<font>`, `<b>` …, von parse5 je Absatz nachgebaut) melden ihre
+  Ressource einmal statt je Klon. Erkannt werden sie am gemeinsamen `startTag` der Fundstelle, ihre
+  Kinder zählen weiter.
+- `bilderAusHtml` zählt Bilder in `<noscript>` und `<template>`, aber nicht mehr in Kommentaren oder
+  Script-Strings. `checkEmbedConsent` meldet auskommentierte Scripts und Scripts in `<noscript>`
+  nicht mehr, denn sie laden nicht.
+- Laufzeittests messen das Wachstum (n gegen 4n) statt fester Millisekunden. Bei Überlast des Rechners
+  werden sie sichtbar übersprungen.
+- `scripts/ab/holen.mjs` und `scripts/ab/leser-vergleich.mjs` (aus dem Wegwerf-A/B von #289/#292)
+  sind jetzt versioniert. Mehrere Stände lesen denselben Korpus echter Seiten mit den echten Regeln je
+  Site; ohne pflichtiges Bild endet der Lauf mit Exit 2.
+
+Belege: A/B v0.195.0 | `eab595ba` | neu über 262 Live-Seiten aus 16 Sites, alle drei gleich (6502
+Ressourcen, 1247 Bilder, 41 pflichtig auf 35 Seiten, 0 fehlend). Gegenprobe an einer echten Seite mit
+`->` im alt-Text und Cal-Loader: der Kopf verliert 9 Bilder und den Befund, neu nicht. Sabotagen 4/4
+rot (2, 2, 3, 1 Fälle).
+
 **Fix:** Der HTML-Leser der CSP-Prüfung und von verify-touchpoints liest mit `parse5` statt mit eigenen Regex-Mustern: Rohtext ohne End-Tag, `<plaintext>`, SVG-Fremdinhalt, NBSP in Attributen und Scripts in `<noscript>` werden gelesen wie im Browser, große Seiten etwa zehnmal schneller (Review von #289)
 
 Kontext: Seit #283 fand jedes Review neue Tokenizer-Zustände, die der Regex-Leser nicht kannte. Das

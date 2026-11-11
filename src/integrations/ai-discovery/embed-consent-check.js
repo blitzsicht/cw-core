@@ -35,7 +35,7 @@
  * @typedef {{ type: EmbedConsentIssueType, details: string }} EmbedConsentIssue
  */
 
-import { parseAttrs } from './html-resources.js';
+import { elementeAusHtml, textVon } from './html-resources.js';
 
 /**
  * `type`-Werte eines `<script>`, die nicht ausgeführt werden. Deckungsgleich mit
@@ -58,9 +58,6 @@ const CAL_EMBED_RE = /https?:\/\/[a-z0-9.-]*cal\.(?:eu|com)\/embed\/embed\.js/i;
  */
 const CLICK_GATE_RE = /addEventListener\s*\(\s*['"](?:click|pointerup|touchend)['"]/i;
 
-/** Alle `<script>`-Blöcke inklusive Attributen und Body. */
-const SCRIPT_RE = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
-
 /**
  * Findet Cal-Buchungs-Embeds, die ohne Nutzeraktion laden.
  *
@@ -80,11 +77,13 @@ export function checkEmbedConsent(html, pagePath = '') {
   if (!html) return issues;
 
   const where = pagePath || 'Seite';
-  SCRIPT_RE.lastIndex = 0;
-  let m;
 
-  while ((m = SCRIPT_RE.exec(html))) {
-    const attrs = parseAttrs(m[1] ?? '');
+  // Scripts aus dem Baum (`elementeAusHtml`), nicht per Regex: ein `>` in einem Attributwert
+  // schnitt das Tag ab, `src` fehlte und der Loader blieb ungemeldet (Review von #292,
+  // Befund 2). Auskommentierte Scripts und Scripts in `<noscript>` laufen nicht und zählen nicht.
+  for (const e of elementeAusHtml(html)) {
+    if (e.tag !== 'script') continue;
+    const attrs = e.attrs;
     const type = (attrs.type ?? '').trim().toLowerCase();
     if (type && NON_EXECUTABLE_SCRIPT_TYPES.has(type)) continue;
 
@@ -101,7 +100,7 @@ export function checkEmbedConsent(html, pagePath = '') {
     }
 
     // Fall 1: Inline-Loader ohne interaktives Gate (der echte Steller-Bug).
-    const body = m[2] ?? '';
+    const body = textVon(e.el);
     if (CAL_EMBED_RE.test(body) && !CLICK_GATE_RE.test(body)) {
       issues.push({
         type: 'eager_booking_embed',

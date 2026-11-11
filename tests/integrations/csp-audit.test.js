@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { extractResources, extractCssUrls, parseAttrs } from '../../src/integrations/ai-discovery/html-resources.js';
+import { loadavg, cpus } from 'node:os';
 import { auditHtml, formatFinding } from '../../src/integrations/ai-discovery/csp-audit.js';
 
 const ORIGIN = 'https://gympanzen.com';
@@ -326,14 +327,6 @@ test('Review #287: Bogus Comments und leere Eingabe', () => {
   assert.deepEqual(extractResources(null), []);
 });
 
-test('Review #287: kein exponentielles Backtracking bei offenen Tags', () => {
-  for (const h of ['<a b="' + 'x'.repeat(200000), '<a ' + 'b '.repeat(100000), '<a ' + "b' ".repeat(100000), '<a ' + 'b= '.repeat(100000)]) {
-    const t = performance.now();
-    extractResources(h);
-    assert.ok(performance.now() - t < 1000, `zu langsam für ${h.slice(0, 12)}…`);
-  }
-});
-
 // ─── Review von #289: Leser auf parse5 ────────────────────────────────────────────────────
 // Jede Erwartung in Chromium gemessen (Playwright aus cw-audit, 11.11.2026), mit und ohne
 // JavaScript, dazu der DOM-Inhalt. Gegen den Regex-Leser (c14c5aaf) rot, mit parse5 grün.
@@ -370,18 +363,6 @@ test('Review #289: SVG/MathML-Fremdinhalt — <style>/<title> darin sind kein Ro
   assert.deepEqual(urls('<svg><title><!-- x</title></svg><img src="/a.webp">'), []);
 });
 
-test('Review #289: Laufzeit linear — viele Tags, viele ungeschlossene Rohtext-Tags', () => {
-  // Vorher quadratisch: lineAt je Tag (60k Tags 63 s) und ein Rohtext-Körper je offenem Tag bis EOF.
-  const viele = '<img src="/x.webp">\n'.repeat(30000);
-  let t = performance.now();
-  assert.equal(extractResources(viele).length, 30000);
-  assert.ok(performance.now() - t < 3000, `30k Tags: ${Math.round(performance.now() - t)} ms`);
-  const offen = '<p>x</p>' + '<title>a'.repeat(5000) + 'x'.repeat(50000);
-  t = performance.now();
-  extractResources(offen);
-  assert.ok(performance.now() - t < 300, `5000 offene <title>: ${Math.round(performance.now() - t)} ms`);
-});
-
 test('Review #289: Zeilen im <noscript>-Körper, <template>-Inhalt zählt wie bisher', () => {
   // Die Sicht ohne JS liest den noscript-Körper als eigenes Fragment; die Zeile muss trotzdem
   // die im Dokument sein.
@@ -391,4 +372,96 @@ test('Review #289: Zeilen im <noscript>-Körper, <template>-Inhalt zählt wie bi
   // Der Regex-Leser zählte ihn mit; das bleibt so (konservative Richtung).
   const urls = (html) => extractResources(html).filter((x) => x.type === 'url').map((x) => x.url);
   assert.deepEqual(urls('<img src="/g.webp"><template><img src="/tpl.webp"></template>'), ['/g.webp', '/tpl.webp']);
+});
+
+// ─── Review von #292: Baumlauf, Klone, Laufzeit ───────────────────────────────────────────
+// Alle drei Fälle an eab595ba gemessen (node, parse5 7.3.0, 11.11.2026), nicht abgeleitet.
+
+/**
+ * Ist der Rechner so ausgelastet, dass eine Zeitmessung nichts mehr aussagt? Gemessen am
+ * 11.11.2026 bei Load 290–440 (22 Sitzungen): selbst das beste von drei Verhältnissen n/4n lag
+ * für einen belegt linearen Lauf (frischer Prozess: ×4,3) in 2 von 5 Läufen über 8. Dann wird
+ * übersprungen — sichtbar als „skipped“ mit Grund, nicht still grün.
+ */
+const LAST_JE_KERN = loadavg()[0] / Math.max(1, cpus().length);
+const UEBERLAST = LAST_JE_KERN > 2 ? `Last ${LAST_JE_KERN.toFixed(1)} je Kern — Zeitmessung nicht aussagekräftig` : false;
+
+/**
+ * Wachstum statt Wanduhr: schnellster von 5 Läufen für n und 4n, nach einem Aufwärmlauf. Linear
+ * ergibt ~4, quadratisch ~16; die Schwelle 8 lässt nach beiden Seiten Faktor 2 Luft. Feste Millisekunden wären auf einem ausgelasteten Runner rot,
+ * ohne dass sich am Code etwas geändert hat (Review von #292, Befund 9). Das Minimum statt des
+ * Medians, weil Last und GC eine Messung nur verlängern, nie verkürzen. Gemessen bei Load 318
+ * (11.11.2026): das Verhältnis n/2n streute zwischen 1,3 und 5,2 — mit 2n war kein Abstand
+ * zwischen linear und quadratisch mehr übrig.
+ * @param {(n: number) => unknown} f
+ * @param {number} n
+ * @param {number} schwelle
+ * @returns {boolean} liegt mindestens einer von drei Messdurchgängen unter der Schwelle?
+ */
+function waechstUnter(f, n, schwelle) {
+  const schnellster = (/** @type {number} */ m) => {
+    let best = Infinity;
+    for (let i = 0; i < 5; i++) {
+      const t = performance.now();
+      f(m);
+      best = Math.min(best, performance.now() - t);
+    }
+    return best;
+  };
+  f(n);
+  // Bis zu drei Messdurchgänge: auch ein ganzer Durchgang kann unter Last liegen. Ein
+  // quadratischer Lauf liegt in allen dreien über der Schwelle — die Gegenprobe unten prüft das.
+  for (let i = 0; i < 3; i++) {
+    if (schnellster(4 * n) / Math.max(schnellster(n), 0.01) < schwelle) return true;
+  }
+  return false;
+}
+
+test('Review #292: waechstUnter() erkennt quadratische Laufzeit (Gegenprobe zum Messwerkzeug)', { skip: UEBERLAST }, () => {
+  // Ein Check, der nie rot werden kann, ist keiner: dieselbe Messung an einem bewusst
+  // quadratischen Stub muss über der Schwelle liegen.
+  const quadratisch = (/** @type {number} */ n) => {
+    const a = [];
+    for (let i = 0; i < n; i++) if (!a.includes(i)) a.push(i);
+  };
+  // n so groß, dass schon der kleine Lauf über 10 ms liegt (sonst misst man GC-Pausen).
+  assert.equal(waechstUnter(quadratisch, 5000, 8), false, 'quadratischer Stub muss rot werden');
+});
+
+test('Review #292: tiefe Verschachtelung wirft nicht (Befund 3)', () => {
+  // Rekursiver Lauf warf ab ~1750 offenen <div> einen RangeError; v0.195.0 schaffte 5000.
+  assert.doesNotThrow(() => extractResources('<div>'.repeat(5000) + '<img src="/tief.webp">'));
+  const r = extractResources('<div>'.repeat(5000) + '<img src="/tief.webp">');
+  assert.deepEqual(r.map((x) => x.url), ['/tief.webp']);
+});
+
+test('Review #292: geklonte Formatierungs-Elemente melden ihre Ressource einmal (Befund 4)', () => {
+  // parse5 klont <font> beim Wiederaufbau aktiver Formatierungs-Elemente für jedes neue <p>.
+  // Die Klone teilen sich das startTag-Objekt der Fundstelle — gemessen, nicht angenommen.
+  const r = extractResources('<p><font style="background:url(/f.webp)">a<p>b<p>c');
+  assert.deepEqual(r.map((x) => (x.type === 'url' ? x.url : x.directive)), ['style-src-attr', '/f.webp']);
+  // Gegenprobe: Kinder eines Klons sind echte Elemente und zählen.
+  const k = extractResources('<p><b>a<p><img src="/im-klon.webp">');
+  assert.deepEqual(k.map((x) => x.url), ['/im-klon.webp']);
+  // Gegenprobe: implizit erzeugte Elemente (tbody, html, body) haben keine Fundstelle und
+  // werden trotzdem gelesen.
+  assert.deepEqual(extractResources('<table><img src="/t.webp">').map((x) => x.url), ['/t.webp']);
+});
+
+test('Review #292: Laufzeit wächst linear (ersetzt die festen ms-Grenzen, Befund 9)', { skip: UEBERLAST }, () => {
+  const viele = (/** @type {number} */ n) => extractResources('<img src="/x.webp">\n'.repeat(n));
+  assert.equal(viele(30000).length, 30000);
+  assert.ok(waechstUnter(viele, 7500, 8), '30k Tags');
+  const offen = (/** @type {number} */ n) => extractResources('<p>x</p>' + '<title>a'.repeat(n) + 'x'.repeat(10 * n));
+  // n groß genug, dass eine Messung über 100 ms liegt; darunter bestimmen GC-Pausen das Ergebnis.
+  assert.ok(waechstUnter(offen, 40000, 8), 'offene <title>');
+  // Die vier Bauformen aus Review #287 (exponentielles Backtracking im damaligen Regex-Leser).
+  // Hier wächst parse5s Tokenizer selbst nicht ganz linear (gemessen: bis ~4× je Verdopplung bei
+  // gleichnamigen Attributen, also ~16× je Vervierfachung) — das ist nicht unser Lauf. Geprüft
+  // wird darum, wofür der Test stand: nicht exponentiell. Das läge um Größenordnungen höher.
+  /** @type {Array<(n: number) => string>} */
+  const offeneTags = [(n) => '<a b="' + 'x'.repeat(n), (n) => '<a ' + 'b '.repeat(n), (n) => '<a ' + "b' ".repeat(n), (n) => '<a ' + 'b= '.repeat(n)];
+  for (const bau of offeneTags) {
+    assert.ok(waechstUnter((n) => extractResources(bau(n)), 25000, 64), `offenes Tag ${bau(3)}`);
+  }
 });
