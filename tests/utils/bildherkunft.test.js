@@ -38,6 +38,7 @@ import {
   resolveBildHerkunft,
   istKennzeichnungspflichtig,
   pruefeBildHerkunftRegeln,
+  ueberstimmteKennzeichnung,
   HERKUNFT_WERTE,
   DEEPFAKE_WERTE,
 } from '../../src/utils/bildherkunft.js';
@@ -389,3 +390,42 @@ test('18. Deklaration per stem ohne Einordnung bleibt ebenfalls nicht grün', ()
   assert.equal(istKennzeichnungspflichtig(r), false);
   assert.notEqual(r.problem, null);
 });
+
+// cw-core#280 Punkt 1 (Review von #288): Ein Verzeichnis-Präfix darf eine pflichtige
+// Stem-Regel nicht still überstimmen. Der Resolver bleibt, wie er ist (Pfad vor Stem);
+// gemeldet wird der Konflikt.
+const KI_STEM = { stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'fotorealistische Werkstatt, wirkt echt' };
+const MENSCH_DIR = { pathPrefix: 'images/', herkunft: 'mensch' };
+
+test('U1. Verzeichnis-Präfix überstimmt eine pflichtige Stem-Regel: gemeldet', () => {
+  const data = { bildHerkunft: [MENSCH_DIR, KI_STEM] };
+  assert.equal(istKennzeichnungspflichtig(resolveBildHerkunft(data, 'images/hero.webp')), false, 'Vorbedingung: Resolver nimmt den Präfix');
+  assert.deepEqual(ueberstimmteKennzeichnung(data, '/images/hero.CC6U.webp'), { stem: 'hero', quelle: 'images/' });
+});
+
+test('U2. ohne Konflikt nichts: Stem allein, anderer Stem, Präfix mit Pflicht', () => {
+  assert.equal(ueberstimmteKennzeichnung({ bildHerkunft: [KI_STEM] }, 'images/hero.webp'), null);
+  assert.equal(ueberstimmteKennzeichnung({ bildHerkunft: [MENSCH_DIR, KI_STEM] }, 'images/team.webp'), null);
+  const kiDir = { pathPrefix: 'images/', herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'alles KI' };
+  assert.equal(ueberstimmteKennzeichnung({ bildHerkunft: [kiDir, KI_STEM] }, 'images/hero.webp'), null);
+  // Stem-Regel ohne Pflicht (deepfake nein) wird nicht überstimmt, sie verlangt nichts.
+  const kiNein = { ...KI_STEM, deepfake: 'nein' };
+  assert.equal(ueberstimmteKennzeichnung({ bildHerkunft: [MENSCH_DIR, kiNein] }, 'images/hero.webp'), null);
+  // Ungültige Stem-Regel (Begründung fehlt) verlangt ebenfalls nichts — das meldet pruefeBildHerkunftRegeln.
+  const ohneBegruendung = { stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja' };
+  assert.equal(ueberstimmteKennzeichnung({ bildHerkunft: [MENSCH_DIR, ohneBegruendung] }, 'images/hero.webp'), null);
+});
+
+test('U3. Regel genau auf die Datei ist eine bewusste Aussage, ein Präfix nicht', () => {
+  const datei = { pathPrefix: '/images/team/hero.webp', herkunft: 'mensch' };
+  assert.equal(ueberstimmteKennzeichnung({ bildHerkunft: [datei, KI_STEM] }, 'images/team/hero.webp'), null);
+  // Gegenprobe: ein Präfix, der nur zufällig länger ist, bleibt ein Befund.
+  const ordner = { pathPrefix: 'images/team/', herkunft: 'mensch' };
+  assert.deepEqual(ueberstimmteKennzeichnung({ bildHerkunft: [ordner, KI_STEM] }, 'images/team/hero.webp'), { stem: 'hero', quelle: 'images/team/' });
+});
+
+test('U4. ungültiger Präfix überstimmt ebenfalls (Bild wird ungeklaert statt pflichtig)', () => {
+  const kaputt = { pathPrefix: 'images/', herkunft: 'quatsch' };
+  assert.deepEqual(ueberstimmteKennzeichnung({ bildHerkunft: [kaputt, KI_STEM] }, 'images/hero.webp'), { stem: 'hero', quelle: 'images/' });
+});
+

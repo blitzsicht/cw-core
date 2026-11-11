@@ -287,3 +287,43 @@ export function resolveBildHerkunft(data, relPath) {
 export function istKennzeichnungspflichtig(ergebnis) {
   return KI_HERKUNFT.includes(ergebnis?.herkunft) && ergebnis?.deepfake === 'ja';
 }
+
+/**
+ * Wird für dieses Bild eine Kennzeichnungspflicht still überstimmt?
+ *
+ * `resolveBildHerkunft` lässt jeden Pfad-Treffer jeden Stem-Treffer schlagen. Ein
+ * Verzeichnis-Präfix (`pathPrefix: 'images/'`, `herkunft: 'mensch'`) nimmt damit einem Bild,
+ * das eine Stem-Regel ausdrücklich als KI-Deepfake erklärt, die Kennzeichnung, und der
+ * Label-Guard sieht keine Pflicht mehr. Genau das prüfte bisher nur der Export-Lauf
+ * (cw-core#288), und nur an den Dateien, die beim Lauf auf der Platte lagen.
+ *
+ * Gemeldet wird, wenn (a) eine gültige Stem-Regel das Bild für sich allein pflichtig
+ * machte, (b) die Auflösung über eine andere Regel läuft und (c) das Ergebnis nicht pflichtig
+ * ist. Ausnahme: eine Regel genau auf diesen Dateipfad. Sie ist eine bewusste Aussage über
+ * genau dieses Bild — der Weg, wenn zwei Ordner verschiedene Motive mit gleichem Stem tragen.
+ *
+ * @param {any} data     aufgelöstes siteData
+ * @param {string} relPath  dist-relativer Bildpfad
+ * @returns {{ stem: string, quelle: string|null } | null}
+ */
+export function ueberstimmteKennzeichnung(data, relPath) {
+  const regeln = Array.isArray(data?.bildHerkunft) ? data.bildHerkunft : [];
+  const pfad = normPfad(relPath);
+  const stem = (pfad.split('/').pop() ?? '').split('.')[0];
+  if (!stem) return null;
+
+  const stemPflichtig = regeln.some(
+    (r) =>
+      typeof r?.stem === 'string' &&
+      r.stem.trim() === stem &&
+      pruefeRegel(r) === null &&
+      KI_HERKUNFT.includes(r.herkunft) &&
+      r.deepfake === 'ja',
+  );
+  if (!stemPflichtig) return null;
+
+  const e = resolveBildHerkunft(data, pfad);
+  if (istKennzeichnungspflichtig(e)) return null;
+  if (e.quelle === pfad) return null; // Regel genau auf diese Datei: bewusst
+  return { stem, quelle: e.quelle };
+}

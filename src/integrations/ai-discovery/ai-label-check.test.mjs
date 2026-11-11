@@ -8,6 +8,7 @@ import {
   pruefeSeiteAufKennzeichnung,
   leseHerkunftRegeln,
   checkAiLabels,
+  checkUeberstimmt,
 } from './ai-label-check.js';
 
 /**
@@ -308,3 +309,26 @@ test('Datei ohne jede Deklaration ist kein Fehler', () => {
   assert.equal(regeln.length, 0);
   assert.equal(problem, null);
 });
+
+test('checkUeberstimmt: Präfix nimmt einem KI-Motiv die Pflicht — checkAiLabels bleibt grün, dieser Check nicht', () => {
+  const regeln = [
+    { pathPrefix: '_astro/', herkunft: 'mensch' },
+    { stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'fotorealistisch, wirkt echt' },
+  ];
+  const seiten = [
+    { seite: '/', html: '<img src="/_astro/hero.CC6U.avif" srcset="/_astro/hero.CC6U_1.webp 800w"><img src="/_astro/team.X.webp">' },
+    { seite: '/ueber/', html: '<img src="/_astro/hero.CC6U.avif">' },
+  ];
+  // Genau die Lücke: ohne Pflicht fehlt nichts.
+  assert.deepEqual(checkAiLabels(seiten, regeln), []);
+  const r = checkUeberstimmt(seiten, regeln);
+  assert.equal(r.geprueft, 1, 'ein Motiv mit pflichtiger Stem-Regel, Varianten und zweite Seite nicht doppelt');
+  assert.deepEqual(r.befunde, [{ seite: '/', bild: '/_astro/hero.CC6U.avif', stem: 'hero', quelle: '_astro/' }]);
+});
+
+test('checkUeberstimmt: ohne Präfix kein Befund, aber gezählt; Fremdhost und SVG zählen nicht', () => {
+  const regeln = [{ stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'fotorealistisch, wirkt echt' }];
+  const seiten = [{ seite: '/', html: '<img src="/_astro/hero.A.webp"><img src="https://fremd.example/hero.webp"><img src="/hero.svg">' }];
+  assert.deepEqual(checkUeberstimmt(seiten, regeln, { eigenerHost: 'kunde.de' }), { befunde: [], geprueft: 1 });
+});
+
