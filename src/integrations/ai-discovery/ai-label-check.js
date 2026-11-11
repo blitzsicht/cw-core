@@ -33,7 +33,7 @@
  * @typedef {{ pflichtig: string[], ungeklaert: string[], labels: number, fehlend: number }} SeitenBefund
  */
 
-import { parseAttrs, extractCssUrls } from './html-resources.js';
+import { elementeAusHtml, extractCssUrls } from './html-resources.js';
 import { resolveBildHerkunft, istKennzeichnungspflichtig, ueberstimmteKennzeichnung, pflichtStemRegel } from '../../utils/bildherkunft.js';
 
 /**
@@ -63,12 +63,11 @@ export function bilderAusHtml(html) {
     if (!out.includes(t)) out.push(t);
   };
 
-  const tagRe = /<([a-z][a-z0-9-]*)\b([^>]*)>/gi;
-  /** @type {RegExpExecArray|null} */
-  let t;
-  while ((t = tagRe.exec(html))) {
-    const tag = (t[1] ?? '').toLowerCase();
-    const attrs = parseAttrs(t[2] ?? '');
+  // Gelesen wird der Baum wie in der CSP-Prüfung (`elementeAusHtml`), nicht per Regex: ein `>`
+  // im Attributwert schnitt das Tag ab, und das KI-Bild fiel samt Pflicht heraus (Review von
+  // #292, Befund 1). Bilder in `<noscript>` und `<template>` zählen, in Kommentaren und
+  // Script-Strings nicht — die zeigen niemandem etwas.
+  for (const { tag, attrs } of elementeAusHtml(html)) {
 
     if (tag === 'img' || tag === 'source') {
       nimm(attrs.src);

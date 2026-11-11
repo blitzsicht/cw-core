@@ -161,3 +161,18 @@ test('9. Leeres/ungültiges HTML wirft nicht', () => {
   // @ts-expect-error — bewusst falscher Typ, darf nicht crashen
   assert.deepEqual(checkEmbedConsent(undefined, '/x.html'), []);
 });
+
+// ─── Review von #292: Scripts aus dem Baum, nicht aus Regex-Schnitten ─────────────────────
+// SCRIPT_RE schnitt die Attribute am ersten `>`; parse5 verwarf das Fragment mit offenem
+// Quote ganz, `src` fehlte. An eab595ba: 0 Befunde; v0.195.0: 1.
+test('Review #292: `>` im Attributwert verdeckt den Cal-Loader nicht (Befund 2)', () => {
+  const html = '<script src="https://app.cal.eu/embed/embed.js" data-cfg="a>b"></script>';
+  assert.equal(checkEmbedConsent(html, '/kontakt').length, 1);
+});
+
+test('Review #292: tiefe Verschachtelung wirft nicht, Script in Kommentar lädt nicht', () => {
+  const tief = '<div>'.repeat(5000) + '<script src="https://app.cal.eu/embed/embed.js"></script>';
+  assert.equal(checkEmbedConsent(tief, '/x').length, 1);
+  // Ein auskommentiertes Script lädt nichts; der Regex-Leser meldete es.
+  assert.deepEqual(checkEmbedConsent('<!-- <script src="https://app.cal.eu/embed/embed.js"></script> -->', '/x'), []);
+});

@@ -371,3 +371,29 @@ test('pruefeSeiteAufKennzeichnung: pflichtiges zweites Motiv mit gleichem Stem i
   const varianten = '<img src="/_astro/hero.BBB.avif" srcset="/_astro/hero.BBB_1.webp 800w, /_astro/hero.BBB_2.webp 1600w">';
   assert.equal(pruefeSeiteAufKennzeichnung(varianten, [KI_HERO]).pflichtig.length, 1);
 });
+
+// ─── Review von #292: Bilder aus dem Baum, nicht aus Regex-Schnitten ──────────────────────
+// Seit #292 las parseAttrs das am ersten `>` abgeschnittene Fragment mit parse5 — ein Tag mit
+// offenem Quote am Ende verwirft parse5 ganz. Das KI-Bild verschwand, die Pflicht mit ihm.
+// An eab595ba gemessen: `[]`; v0.195.0: das Bild.
+test('Review #292: `>` im Attributwert nimmt dem Bild die Pflicht nicht (Befund 1)', () => {
+  const html = '<img src="/_astro/ki.AAAAAAAA_xxxx.webp" alt="Pfeil -> rechts">';
+  assert.deepEqual(bilderAusHtml(html), ['/_astro/ki.AAAAAAAA_xxxx.webp']);
+  const regeln = [{ stem: 'ki', herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'Zeigt einen benannten Ort' }];
+  const b = pruefeSeiteAufKennzeichnung(html, regeln);
+  assert.equal(b.pflichtig.length, 1);
+  assert.equal(b.fehlend, 1);
+});
+
+test('Review #292: Bilder in <noscript> und <template> zählen, in Kommentar und Script nicht', () => {
+  // noscript: ohne JS sieht der Betrachter das Bild — die Pflicht gilt auch dort.
+  assert.deepEqual(bilderAusHtml('<noscript><img src="/n.webp"></noscript>'), ['/n.webp']);
+  assert.deepEqual(bilderAusHtml('<template><img src="/t.webp"></template>'), ['/t.webp']);
+  // Kommentar und Script-String zeigen nichts. v0.195.0 zählte sie (Regex über Rohtext) —
+  // die Richtung war konservativ, die Fundstelle aber keine.
+  assert.deepEqual(bilderAusHtml('<!-- <img src="/k.webp"> --><script>s="<img src=/s.webp>"</script>'), []);
+});
+
+test('Review #292: tiefe Verschachtelung wirft nicht (Befund 3)', () => {
+  assert.deepEqual(bilderAusHtml('<div>'.repeat(5000) + '<img src="/tief.webp">'), ['/tief.webp']);
+});
