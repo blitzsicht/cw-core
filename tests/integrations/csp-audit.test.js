@@ -273,3 +273,66 @@ test('#260 extractResources: url() im style-Attribut wird dekodiert gelesen', ()
   assert.deepEqual(bild, ['/h&x.webp']);
   assert.ok(res.some((r) => r.type === 'attr' && r.directive === 'style-src-attr'), 'style-src-attr bleibt gemeldet');
 });
+
+// Review #287: jede Erwartung in Chromium gemessen (Playwright, 11.11.2026), nicht angenommen.
+test('Review #287: Quote zählt nur direkt nach =, sonst ist es ein Zeichen', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  // Q1: `class=a'b` ist ein unquotierter Wert; das Inline-Script dazwischen läuft im Browser.
+  const q1 = extractResources(`<b class=a'b>x</b><script>alert(1)</script><i class=c'd><img src="/a.webp">`);
+  assert.deepEqual(q1.map((r) => r.type === 'url' ? r.url : r.directive), ['script-src-elem', '/a.webp']);
+  // Q2: `>` in einem gequoteten Wert beendet den Tag nicht (vorher: src nie gelesen).
+  assert.deepEqual(urls('<img alt="a>b" src="/a.webp">'), ['/a.webp']);
+  // Q3: ein offener Wert läuft bis zum Dateiende, der Browser lädt nichts danach.
+  assert.deepEqual(urls('<div title="x><!-- --><img src=/a.webp>'), []);
+  // Q4: Attribute im End-Tag werden ebenso gelesen.
+  assert.deepEqual(urls('<b>x</b title="><img src=/t.webp>"><img src="/a.webp">'), ['/a.webp']);
+  // Q5: offener Wert im <script>-Tag — der Browser führt nichts aus und lädt nichts. Ohne die
+  // atomare Attribut-Lesart sprang die Regex in eine Lesart mit `"` als Namenszeichen zurück.
+  assert.deepEqual(extractResources('<script data-x="a>new Image().src=1</script><img src="/a.webp">'), []);
+  // Q6: ein Tag, der am Dateiende ohne `>` abbricht, verwirft der Browser samt Attributen.
+  assert.deepEqual(urls('<p>x</p><img src="/a.webp" alt="x'), []);
+});
+
+test('Review #287: Rohtext-Elemente — <!-- darin ist Text, Tags darin laden nicht', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  // R1: `<!--` in textarea/title blendete vorher alles danach aus.
+  assert.deepEqual(urls('<textarea><!--</textarea><img src="/a.webp">'), ['/a.webp']);
+  assert.deepEqual(urls('<title>a <!-- b</title><img src="/a.webp">'), ['/a.webp']);
+  // R2: Tags im Körper von textarea, title und iframe lädt der Browser nicht.
+  assert.deepEqual(urls('<textarea><img src="/t.webp"></textarea><img src="/a.webp">'), ['/a.webp']);
+  assert.deepEqual(urls('<iframe src="/f"><img src="/t.webp"></iframe>'), ['/f']);
+  // R3: noscript — der Kommentar endet spätestens an </noscript>; ein Bild darin zählt weiter
+  // (Sicht ohne JavaScript, wie in v0.195.0), ebenso ein Inline-Style.
+  assert.deepEqual(urls('<noscript><!--</noscript><img src="/a.webp">'), ['/a.webp']);
+  const r3 = extractResources('<noscript><img src="/n.webp"><style>a{}</style><!-- <img src="/k.webp"> --></noscript>');
+  assert.deepEqual(r3.map((r) => r.type === 'url' ? r.url : r.directive), ['style-src-elem', '/n.webp']);
+  // R4: `<style-guide>` ist kein <style>; vorher fraß der Treffer das Bild bis zum nächsten </style>.
+  const r4 = extractResources('<style-guide></style-guide><img src="/a.webp"><style>b{}</style>');
+  assert.deepEqual(r4.map((r) => r.type === 'url' ? r.url : r.directive), ['style-src-elem', '/a.webp']);
+  // R5: maskiere hält Länge und Zeilen auch über textarea- und noscript-Körper.
+  const h = '<textarea>\n<img src="/t.webp">\n</textarea><noscript><!-- x\n</noscript>';
+  const m = maskiere(h);
+  assert.equal(m.length, h.length);
+  assert.equal(m.split('\n').length, h.split('\n').length);
+  assert.ok(!m.includes('/t.webp') && !m.includes('<!--'));
+});
+
+test('Review #287: Bogus Comments und leere Eingabe', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  // B1: `<? … >` und `</` vor einem Nicht-Buchstaben enden am ersten `>`.
+  assert.deepEqual(urls('<? <img src="/k.webp"> ?><img src="/a.webp">'), ['/a.webp']);
+  assert.deepEqual(urls('</ <img src="/t.webp"> ><img src="/a.webp">'), ['/a.webp']);
+  // B2: Gegenprobe — <!DOCTYPE> stört nichts, `</>` ist kein Kommentar.
+  assert.deepEqual(urls('<!DOCTYPE html><img src="/a.webp"></><img src="/b.webp">'), ['/a.webp', '/b.webp']);
+  // B3: keine Eingabe ist keine Ressource (seit #287 warf das einen TypeError).
+  assert.deepEqual(extractResources(undefined), []);
+  assert.deepEqual(extractResources(null), []);
+});
+
+test('Review #287: kein exponentielles Backtracking bei offenen Tags', () => {
+  for (const h of ['<a b="' + 'x'.repeat(200000), '<a ' + 'b '.repeat(100000), '<a ' + "b' ".repeat(100000), '<a ' + 'b= '.repeat(100000)]) {
+    const t = performance.now();
+    extractResources(h);
+    assert.ok(performance.now() - t < 1000, `zu langsam für ${h.slice(0, 12)}…`);
+  }
+});

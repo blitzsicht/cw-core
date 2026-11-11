@@ -13,61 +13,101 @@
 
 import { attribute, srcsetUrls } from '../../utils/html-attribute.js';
 
+/*
+ * Bausteine des Tag-Lesers, nach dem WHATWG-Tokenizer. Ein Quote zählt nur direkt nach `=`
+ * als Beginn eines Werts; `class=a'b` ist ein unquotierter Wert, `a'b` ein Attributname.
+ * Ein offener Wert läuft bis zum Dateiende, wie im Browser. HTML-Whitespace ist nur
+ * Tab, LF, FF, CR und Leerzeichen (JS-`\s` kennt auch NBSP).
+ */
+const WS = '[\\t\\n\\f\\r ]';
+const WERT = `(?:"[^"]*(?:"|$)|'[^']*(?:'|$)|[^\\t\\n\\f\\r >"'][^\\t\\n\\f\\r >]*|(?=>|$))`;
+const ATTR = `[^\\t\\n\\f\\r />][^\\t\\n\\f\\r />=]*(?:${WS}*=${WS}*${WERT})?`;
+/**
+ * Alle Attribute eines Tags bis vor `>` oder Dateiende. Der erste gierige Weg durch dieses
+ * Muster ist genau die Lesart des Browsers; atomar eingebunden (`(?=(…))\N`), damit die
+ * Regex bei einem Fehlschlag nicht in eine andere Lesart zurückspringt (ein Quote als
+ * Namenszeichen, ein `>` im Wert als Tag-Ende) und nicht exponentiell sucht.
+ * @param {number} n Nummer der Fanggruppe, die der Aufrufer dafür vergibt
+ */
+const attrsAtomar = (n) => `(?=((?:${ATTR}|${WS}+|\\/)*))\\${n}`;
+
+/**
+ * Elemente, deren Körper der Parser als Text liest (RAWTEXT/RCDATA): darin beginnt `<!--` keinen
+ * Kommentar und `<img>` lädt nichts. `style`/`script` werden zusätzlich als Inline-Ressource
+ * ausgewertet. `noscript` ist Rohtext nur bei laufendem JavaScript: sein Körper endet sicher an
+ * `</noscript>`, wird aber für die Sicht ohne JavaScript weiter gelesen (siehe `rohBereiche`).
+ */
+const ROH_ELEMENTE = 'style|script|textarea|title|xmp|iframe|noembed|noframes|noscript';
+
 /**
  * Bereiche, in denen der HTML-Parser keine Tags sieht, in Dokumentreihenfolge: Kommentare und
- * die Rohtext-Körper von `<style>`/`<script>`. EIN Muster mit Alternativen, damit gilt, was der
- * Browser liest: `<script>` in einem Kommentar ist kein Script, `<!--` in einem Script kein
- * Kommentar.
+ * die Körper der Rohtext-Elemente. EIN Muster mit Alternativen, damit gilt, was der Browser
+ * liest: `<script>` in einem Kommentar ist kein Script, `<!--` in einem Script kein Kommentar.
  *
  * - Kommentar-Enden wie im WHATWG-Tokenizer: `<!-->` und `<!--->` schließen sofort, sonst
  *   `-->` oder `--!>`. Ein offener Kommentar läuft bis zum Dateiende (wie im Browser).
- * - Die dritte Alternative liest jeden anderen Start-Tag samt gequoteter Attributwerte und wird
- *   verworfen. Damit beginnt ein Bereich nur an einer echten Tag-Position, nie in einem Wert
- *   wie `pattern="<!--"` oder `data-tpl="<script>"`. Dieselbe Quote-Regel gilt für die
- *   Attribute von `<style>`/`<script>`.
+ * - Bogus Comments: `<?…>`, `<!…>` und `</` vor einem Nicht-Buchstaben laufen bis zum nächsten `>`.
+ * - Rohtext-Element: Name, dann Whitespace, `/` oder `>` (nicht `\b`: `<style-guide>` ist ein
+ *   eigenes Element), Körper bis zum passenden End-Tag.
+ * - Die letzte Alternative liest jeden anderen Tag samt Attributen und wird verworfen. Damit
+ *   beginnt ein Bereich nur an einer echten Tag-Position, nie in einem Wert wie
+ *   `pattern="<!--"` oder `data-tpl="<script>"`. Ein Tag ohne `>` läuft bis zum Dateiende.
  *
- * Anlass (Review von #285, gegen v0.195.0 gemessen und in Chromium nachgeprüft): Kannte das
- * Muster nur `-->` und begann bei jedem `<!--`, blendete die Maske nach `<!-->`, `--!>` oder
- * einem `<!--` im Attributwert den Rest der Seite aus. Fehlende Bilder und Inline-Scripts
- * blieben dann still grün.
+ * Anlass: Review von #285 (`<!-->`, `--!>`, `<!--` im Attributwert blendeten den Rest der Seite
+ * aus) und Review von #287, gegen v0.195.0 gemessen und in Chromium nachgeprüft: `class=a'b`
+ * ließ ein Inline-Script verschwinden, `<!--` in `<textarea>`/`<title>`/`<noscript>` alles
+ * danach, `<style-guide>` das folgende Bild. Jedes Mal blieb ein fehlendes Bild oder ein
+ * Inline-Script still grün.
  */
-const ATTRS = `((?:"[^"]*"|'[^']*'|[^>"'])*)`;
 const ROH_BEREICH = new RegExp(
   [
     `<!--(?:-?>|[\\s\\S]*?(?:--!?>|$))`,
-    `<(style|script)\\b${ATTRS}>([\\s\\S]*?)<\\/\\1\\s*>`,
-    `<[a-z][^\\s/>"']*${ATTRS.replace('(', '(?:')}>`,
+    `<(?:[?!]|\\/(?![a-z>]))[^>]*(?:>|$)`,
+    `<(${ROH_ELEMENTE})(?=[\\t\\n\\f\\r />])${attrsAtomar(2)}>([\\s\\S]*?)<\\/\\1(?=[\\t\\n\\f\\r />])${attrsAtomar(4)}(?:>|$)`,
+    `<\\/?[a-z][^\\t\\n\\f\\r />]*${attrsAtomar(5)}(?:>|$)`,
   ].join('|'),
   'gi',
 );
 
 /**
- * @typedef {{ art: 'kommentar' } | { art: 'style' | 'script', attrs: string, body: string, bodyStart: number }} RohBereich
+ * @typedef {{ art: 'kommentar' } | { art: 'roh' | 'style' | 'script', attrs: string, body: string, bodyStart: number }} RohBereich
  * @param {string} html
+ * @param {number} [versatz] Offset von `html` im Gesamtdokument (für `noscript`-Körper)
  * @returns {Generator<RohBereich & { index: number, ende: number }>}
  */
-function* rohBereiche(html) {
+function* rohBereiche(html, versatz = 0) {
   const re = new RegExp(ROH_BEREICH.source, 'gi');
   let m;
   while ((m = re.exec(html))) {
-    const index = m.index;
+    const index = versatz + m.index;
     const ende = index + m[0].length;
     if (m[1] === undefined) {
-      // Gewöhnlicher Start-Tag: nur gelesen, damit nichts in seinen Werten einen Bereich beginnt.
-      if (m[0].startsWith('<!--')) yield { art: 'kommentar', index, ende };
+      // Kommentar oder Bogus Comment; ein gewöhnlicher Tag wird nur gelesen, damit nichts in
+      // seinen Werten einen Bereich beginnt.
+      if (/^<[!?]|^<\/(?![a-z])/i.test(m[0])) yield { art: 'kommentar', index, ende };
       continue;
     }
+    const name = m[1].toLowerCase();
+    const attrs = m[2] ?? '';
     const body = m[3] ?? '';
-    // Der Körper steht am Ende des Treffers vor dem schließenden Tag.
-    const bodyStart = index + m[0].indexOf('>') + 1;
-    yield { art: /** @type {'style' | 'script'} */ (m[1].toLowerCase()), attrs: m[2] ?? '', body, bodyStart, index, ende };
+    // Start-Tag = `<` + Name + Attribute + `>`; der Körper folgt direkt.
+    const bodyStart = index + 1 + m[1].length + attrs.length + 1;
+    if (name === 'noscript') {
+      // Ohne JavaScript ist der Körper gewöhnliches HTML: seine Tags zählen weiter, ein
+      // Kommentar darin endet aber spätestens an `</noscript>`.
+      yield* rohBereiche(body, bodyStart);
+      continue;
+    }
+    const art = name === 'style' || name === 'script' ? name : 'roh';
+    yield { art, attrs, body, bodyStart, index, ende };
   }
 }
 
 /**
- * Das HTML mit Leerzeichen über Kommentaren und über den Körpern von `<style>`/`<script>`.
- * Zeilenumbrüche bleiben stehen, damit Länge, Offsets und Zeilennummern gleich bleiben; die
- * Tags `<script …>` und `</script>` selbst bleiben sichtbar.
+ * Das HTML mit Leerzeichen über Kommentaren, Bogus Comments und den Körpern der
+ * Rohtext-Elemente (`ROH_ELEMENTE` ohne `noscript`). Zeilenumbrüche bleiben stehen, damit
+ * Länge, Offsets und Zeilennummern gleich bleiben; die Tags `<script …>` und `</script>`
+ * selbst bleiben sichtbar.
  *
  * Anlass (Nachlese der Reviews #283/#284): Der Tag-Scan lief über das rohe HTML. Seit
  * verify-touchpoints dieselben Refs liest wie die CSP-Prüfung, wurde
@@ -190,17 +230,19 @@ export function extractCssUrls(css, where) {
  * @returns {Resource[]}
  */
 export function extractResources(html, file = 'html') {
+  // Wie `maskiere`: keine Eingabe ist kein Fehler, sondern keine Ressource.
+  const s = String(html ?? '');
   /** @type {Resource[]} */
   const out = [];
   /** @param {number} i */
-  const at = (i) => `${file}:${lineAt(html, i)}`;
+  const at = (i) => `${file}:${lineAt(s, i)}`;
 
   // Die Bereiche einmal sammeln: für die Inline-Ressourcen hier und für die Maske unten.
-  const bereiche = [...rohBereiche(html)];
+  const bereiche = [...rohBereiche(s)];
 
-  // 1. <style> / <script> mit Inhalt (nicht in Kommentaren).
+  // 1. <style> / <script> mit Inhalt (nicht in Kommentaren, nicht in anderen Rohtext-Körpern).
   for (const b of bereiche) {
-    if (b.art === 'kommentar') continue;
+    if (b.art === 'kommentar' || b.art === 'roh') continue;
     const tag = b.art;
     const attrs = parseAttrs(b.attrs);
     const body = b.body;
@@ -222,12 +264,16 @@ export function extractResources(html, file = 'html') {
 
   // 2. Generischer Tag-Scan für URL-Referenzen und Inline-Attribute, über die Maske:
   // Tags, die nur als Text in Kommentaren oder Script-/Style-Körpern stehen, zählen nicht.
-  const sichtbar = maskiereBereiche(html, bereiche);
-  const tagRe = /<(\/?)([a-z][a-z0-9-]*)\b([^>]*)>/gi;
+  // Dieselbe Attribut-Lesart wie oben: `>` in einem gequoteten Wert beendet den Tag nicht.
+  // Ein Tag ohne `>` (offener Wert bis zum Dateiende) lädt im Browser nichts, ebenso alles
+  // danach, also endet der Scan dort.
+  const sichtbar = maskiereBereiche(s, bereiche);
+  const tagRe = new RegExp(`<(\\/?)([a-z][^\\t\\n\\f\\r />]*)${attrsAtomar(3)}(>|$)`, 'gi');
   /** @type {string[]} */
   const mediaStack = [];
   let t;
   while ((t = tagRe.exec(sichtbar))) {
+    if (t[4] !== '>') break;
     const closing = t[1] === '/';
     const tag = t[2].toLowerCase();
     if (closing) {
