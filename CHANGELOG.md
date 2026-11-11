@@ -24,6 +24,26 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** KI-Kennzeichnung: zwei gleichnamige Motive in `_astro/` und eine ungültige Datei-Regel nehmen einem KI-Deepfake die Pflicht nicht mehr still (Review von #290)
+
+Kontext: Das Review von #290 fand zwei Wege, auf denen der neue Guard schwieg. Astro legt alle
+Assets flach nach `_astro/`, zwei Quellbilder mit gleichem Stem teilen sich dort den
+Motiv-Schlüssel. Weil vor der Prüfung je Schlüssel dedupliziert wurde, entschied das zuerst
+gesehene Bild für beide. Ein per Datei-Regel ausgenommenes Motiv vorn ließ das überstimmte
+dahinter ungeprüft. Dieselbe Lücke steckte im Label-Guard selbst (`pruefeSeiteAufKennzeichnung`):
+dort fehlte dann das Label des zweiten Motivs, ohne Meldung. Zweitens galt eine **ungültige** Regel
+genau auf den Dateipfad als bewusste Ausnahme.
+
+- Aufgelöst wird jetzt jeder Pfad, gezählt und gemeldet weiter je Motiv. Je Motiv gilt das
+  schärfste Ergebnis (pflichtig vor ungeklärt vor nichts), Varianten aus `srcset` zählen weiter einmal.
+- Die Datei-Ausnahme greift nur bei gültiger, entschiedener Regel (`problem === null`).
+- Neu: `pflichtStemRegel(regeln, stem)` in `utils/bildherkunft.js`, ein Prädikat für Zähler und
+  Befund. Der Zähler zählte bisher auch ungültige Stem-Regeln als geprüft.
+- Flotte (23 Repos mit `bild-herkunft.ts`, `origin/main`): 1 Datei-Regel über pflichtigem Stem, gültig,
+  bleibt ausgenommen. 18 Motivgruppen mit mehreren Dateien, 0 mit abweichender Auflösung. Kein
+  Kundenbuild wird rot. Gegenproben: ungültig gemachte Datei-Regel 1/1 rot, eingeschleuste Datei-Regel
+  18/18 abweichend.
+
 **Fix:** KI-Kennzeichnung: Ein Verzeichnis-Präfix nimmt einem als KI-Deepfake erklärten Motiv die Pflicht nicht mehr still, der Build bricht ab (#280 Punkt 1)
 
 Kontext: `resolveBildHerkunft` lässt jeden Pfad-Treffer jeden Stem-Treffer schlagen. Steht vor

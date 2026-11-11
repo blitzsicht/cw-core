@@ -299,8 +299,9 @@ export function istKennzeichnungspflichtig(ergebnis) {
  *
  * Gemeldet wird, wenn (a) eine gültige Stem-Regel das Bild für sich allein pflichtig
  * machte, (b) die Auflösung über eine andere Regel läuft und (c) das Ergebnis nicht pflichtig
- * ist. Ausnahme: eine Regel genau auf diesen Dateipfad. Sie ist eine bewusste Aussage über
- * genau dieses Bild — der Weg, wenn zwei Ordner verschiedene Motive mit gleichem Stem tragen.
+ * ist. Ausnahme: eine gültige, entschiedene Regel genau auf diesen Dateipfad. Sie ist eine
+ * bewusste Aussage über genau dieses Bild — der Weg, wenn zwei Ordner verschiedene Motive mit
+ * gleichem Stem tragen.
  *
  * @param {any} data     aufgelöstes siteData
  * @param {string} relPath  dist-relativer Bildpfad
@@ -312,7 +313,31 @@ export function ueberstimmteKennzeichnung(data, relPath) {
   const stem = (pfad.split('/').pop() ?? '').split('.')[0];
   if (!stem) return null;
 
-  const stemPflichtig = regeln.some(
+  if (!pflichtStemRegel(regeln, stem)) return null;
+
+  const e = resolveBildHerkunft(data, pfad);
+  if (istKennzeichnungspflichtig(e)) return null;
+  // Regel genau auf diese Datei: bewusst — aber nur, wenn sie gültig und entschieden ist.
+  // Eine ungültige oder unvollständige Datei-Regel liefert `ungeklaert` mit genau diesem
+  // Pfad als Quelle; ohne die `problem`-Probe nähme sie dem Motiv die Pflicht still
+  // (Review von #290, Befund 2).
+  if (e.quelle === pfad && e.problem === null) return null;
+  return { stem, quelle: e.quelle };
+}
+
+/**
+ * Macht eine Stem-Regel dieses Motiv für sich allein kennzeichnungspflichtig? Gültig,
+ * KI-Herkunft und `deepfake: 'ja'`. Ein Prädikat für `ueberstimmteKennzeichnung` und den
+ * Zähler in `checkUeberstimmt` — vorher standen dort zwei, und sie waren auseinandergelaufen
+ * (der Zähler zählte auch ungültige Regeln als geprüft; Review von #290, Befund 4).
+ *
+ * @param {unknown} regeln  `bildHerkunft` aus siteData
+ * @param {string} stem     Dateiname bis zum ersten Punkt
+ * @returns {boolean}
+ */
+export function pflichtStemRegel(regeln, stem) {
+  if (!Array.isArray(regeln) || !stem) return false;
+  return regeln.some(
     (r) =>
       typeof r?.stem === 'string' &&
       r.stem.trim() === stem &&
@@ -320,10 +345,4 @@ export function ueberstimmteKennzeichnung(data, relPath) {
       KI_HERKUNFT.includes(r.herkunft) &&
       r.deepfake === 'ja',
   );
-  if (!stemPflichtig) return null;
-
-  const e = resolveBildHerkunft(data, pfad);
-  if (istKennzeichnungspflichtig(e)) return null;
-  if (e.quelle === pfad) return null; // Regel genau auf diese Datei: bewusst
-  return { stem, quelle: e.quelle };
 }

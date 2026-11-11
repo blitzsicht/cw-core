@@ -34,7 +34,7 @@
  */
 
 import { parseAttrs, extractCssUrls } from './html-resources.js';
-import { resolveBildHerkunft, istKennzeichnungspflichtig, ueberstimmteKennzeichnung } from '../../utils/bildherkunft.js';
+import { resolveBildHerkunft, istKennzeichnungspflichtig, ueberstimmteKennzeichnung, pflichtStemRegel } from '../../utils/bildherkunft.js';
 
 /**
  * Bilder, die auf der Seite tatsächlich gerendert werden.
@@ -167,28 +167,44 @@ export function pruefeSeiteAufKennzeichnung(html, regeln, opt = {}) {
   /** @type {string[]} */
   const ungeklaert = [];
 
+  // Ein `srcset` liefert dasselbe Motiv in mehreren Breiten und Formaten
+  // (`/_astro/hero.CC6UVEsO_1ICG0w.avif`, `…_ZXkuIg.webp`, …). Das ist EINE Bildfläche
+  // und braucht EIN Label — ungezählt gemeldet ergäbe ein Hero mit sechs Varianten
+  // sechs „fehlende" Kennzeichnungen. Beim ersten Flottenlauf am 03.09.2026 kam so
+  // für steller und mika je 6 statt 1 heraus.
+  //
+  // Gezählt wird deshalb je Motiv-Schlüssel, aufgelöst aber jeder Pfad: Astro legt alle
+  // Assets flach nach `_astro/`, zwei verschiedene Quellbilder mit gleichem Stem teilen
+  // sich dort den Schlüssel. Wurde vor der Auflösung dedupliziert, entschied das zuerst
+  // gesehene für beide — ein per Datei-Regel ausgenommenes Motiv vorn nahm dem pflichtigen
+  // dahinter still das Label (Review von #290, Befund 1). Je Schlüssel gilt das schärfste
+  // Ergebnis: pflichtig vor ungeklärt vor nichts.
+  /** @type {Map<string, { pflichtig: string|null, ungeklaert: string|null }>} */
+  const motive = new Map();
   /** @type {Set<string>} */
-  const gesehen = new Set();
+  const aufgeloest = new Set();
 
   for (const u of bilderAusHtml(html)) {
     if (istWerkzeugbild(u, opt.eigenerHost)) continue;
-    // Ein `srcset` liefert dasselbe Motiv in mehreren Breiten und Formaten
-    // (`/_astro/hero.CC6UVEsO_1ICG0w.avif`, `…_ZXkuIg.webp`, …). Das ist EINE Bildfläche
-    // und braucht EIN Label — ungezählt gemeldet ergäbe ein Hero mit sechs Varianten
-    // sechs „fehlende" Kennzeichnungen. Beim ersten Flottenlauf am 03.09.2026 kam so
-    // für steller und mika je 6 statt 1 heraus.
-    const schluessel = motivSchluessel(pfadOhneHost(u));
-    if (gesehen.has(schluessel)) continue;
-    gesehen.add(schluessel);
+    const pfad = pfadOhneHost(u);
+    if (aufgeloest.has(pfad)) continue;
+    aufgeloest.add(pfad);
+    const schluessel = motivSchluessel(pfad);
+    const m = motive.get(schluessel) ?? { pflichtig: null, ungeklaert: null };
+    motive.set(schluessel, m);
 
-    const e = resolveBildHerkunft(data, pfadOhneHost(u));
-    if (istKennzeichnungspflichtig(e)) pflichtig.push(u);
+    const e = resolveBildHerkunft(data, pfad);
+    if (istKennzeichnungspflichtig(e)) m.pflichtig ??= u;
     // `problem === null` heisst laut bildherkunft.js: es ist nichts zu tun. Alles
     // andere ist ein eigener Befund und darf nicht als „nicht pflichtig" durchgehen.
     // Eine Regel mit `deepfake: 'ja'` OHNE Begründung faellt hier herein — sie ist
     // ungueltig und damit unsichtbar fuer die Pflichtpruefung. Wer das nicht meldet,
     // baut einen Waechter, der bei kaputter Deklaration schweigt.
-    else if (e.problem) ungeklaert.push(u);
+    else if (e.problem) m.ungeklaert ??= u;
+  }
+  for (const m of motive.values()) {
+    if (m.pflichtig) pflichtig.push(m.pflichtig);
+    else if (m.ungeklaert) ungeklaert.push(m.ungeklaert);
   }
 
   const labels = zaehleLabels(html);
@@ -377,29 +393,40 @@ export function checkAiLabels(seiten, regeln, opt = {}) {
  * @param {{ seite: string, html: string }[]} seiten
  * @param {Regel[]} regeln
  * @param {{ eigenerHost?: string }} [opt]
- * @returns {{ befunde: Ueberstimmt[], geprueft: number }} `geprueft` = Motive mit pflichtiger
- *   Stem-Regel, damit „keiner überstimmt“ bei null geprüften Motiven nicht als Ergebnis gilt
+ * @returns {{ befunde: Ueberstimmt[], geprueft: number }} `geprueft` = Motiv-Schlüssel mit
+ *   gültiger pflichtiger Stem-Regel (`pflichtStemRegel`), damit „keiner überstimmt“ bei null
+ *   geprüften Motiven nicht als Ergebnis gilt. Zwei Quellbilder mit gleichem Stem in
+ *   `_astro/` zählen als eines — die Zahl ist eine Untergrenze, keine Bildzahl.
  */
 export function checkUeberstimmt(seiten, regeln, opt = {}) {
   const data = { bildHerkunft: regeln };
   /** @type {Ueberstimmt[]} */
   const befunde = [];
+  // Geprüft wird jeder Pfad, gemeldet und gezählt je Motiv-Schlüssel. Vorher wurde vor der
+  // Prüfung je Schlüssel dedupliziert; in `_astro/` teilen sich zwei Quellbilder mit gleichem
+  // Stem den Schlüssel, und ein ausgenommenes erstes ließ das überstimmte zweite ungeprüft
+  // (Review von #290, Befund 1).
   /** @type {Set<string>} */
-  const gesehen = new Set();
-  let geprueft = 0;
+  const geprueftePfade = new Set();
+  /** @type {Set<string>} */
+  const pflichtMotive = new Set();
+  /** @type {Set<string>} */
+  const gemeldeteMotive = new Set();
   for (const { seite, html } of seiten) {
     for (const u of bilderAusHtml(html)) {
       if (istWerkzeugbild(u, opt.eigenerHost)) continue;
       const pfad = pfadOhneHost(u);
+      if (geprueftePfade.has(pfad)) continue;
+      geprueftePfade.add(pfad);
       const schluessel = motivSchluessel(pfad);
-      if (gesehen.has(schluessel)) continue;
-      gesehen.add(schluessel);
       const stem = (pfad.split('/').pop() ?? '').split('.')[0];
-      const hatPflichtStem = regeln.some((r) => typeof r?.stem === 'string' && r.stem.trim() === stem && r.deepfake === 'ja');
-      if (hatPflichtStem) geprueft++;
+      if (pflichtStemRegel(regeln, stem)) pflichtMotive.add(schluessel);
+      if (gemeldeteMotive.has(schluessel)) continue;
       const ue = ueberstimmteKennzeichnung(data, pfad);
-      if (ue) befunde.push({ seite, bild: u, ...ue });
+      if (!ue) continue;
+      gemeldeteMotive.add(schluessel);
+      befunde.push({ seite, bild: u, ...ue });
     }
   }
-  return { befunde, geprueft };
+  return { befunde, geprueft: pflichtMotive.size };
 }

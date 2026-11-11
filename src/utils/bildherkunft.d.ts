@@ -96,9 +96,16 @@ export function istKennzeichnungspflichtig(
 /**
  * Wird für dieses Bild eine Kennzeichnungspflicht still überstimmt? Gemeldet, wenn eine gültige
  * Stem-Regel das Bild als KI-Deepfake erklärt, die Auflösung aber über eine andere Regel ohne
- * Pflicht läuft. Eine Regel genau auf diesen Dateipfad gilt als bewusst und wird nicht gemeldet.
+ * Pflicht läuft. Eine gültige, entschiedene Regel genau auf diesen Dateipfad gilt als bewusst
+ * und wird nicht gemeldet.
  */
 export function ueberstimmteKennzeichnung(
   data: unknown,
   relPath: string,
 ): { stem: string; quelle: string | null } | null;
+
+/**
+ * Macht eine Stem-Regel dieses Motiv für sich allein kennzeichnungspflichtig? Gültig,
+ * KI-Herkunft und `deepfake: 'ja'`.
+ */
+export function pflichtStemRegel(regeln: unknown, stem: string): boolean;
