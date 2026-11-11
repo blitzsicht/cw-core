@@ -24,6 +24,31 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Der HTML-Leser liest Attribute und Rohtext-Elemente wie der Browser: `class=a'b`, `<!--` in `<textarea>`/`<title>`/`<noscript>` und `<style-guide>` lassen keine Bilder und Inline-Scripts mehr verschwinden
+
+Kontext: Das Review von #287 fand vier Fälle, die mit #285/#287 neu kamen und noch in keinem Tag
+waren, dazu drei ältere. Jeder Fall ist an v0.195.0, `3a0c8457` und `b2aee888` gemessen und in
+Chromium nachgeprüft. Neu und falsch grün: Ein Apostroph in einem unquotierten Wert
+(`<b class=a'b>`) galt als Quote-Beginn, dadurch fehlte ein Inline-Script. `<!--` in einem
+`<textarea>`, `<title>` oder `<noscript>` blendete den Rest der Seite aus. Weil `\b` vor `-`
+greift, galt `<style-guide>` als `<style>`, das Bild dahinter fehlte. Außerdem warf
+`extractResources(undefined)` einen TypeError statt `[]` zu liefern. Älter: `<img alt="a>b" src=…>`
+verlor sein `src` (falsch grün). Ein offener Wert am Dateiende und `<? … >` meldeten Bilder, die
+der Browser nie lädt (falsch rot).
+
+- Ein Quote beginnt einen Wert nur direkt nach `=`, ein offener Wert läuft bis zum Dateiende.
+  Start- und End-Tags werden mit dieser Lesart gelesen, im Maskierer genauso wie im Tag-Scan. Ein
+  `>` im gequoteten Wert beendet den Tag nicht. Ein Tag ohne `>` wird verworfen. Die
+  Attribut-Lesart ist atomar eingebunden, sodass die Regex nicht in eine falsche Lesart
+  zurückspringt (200 000 Zeichen offener Tag: ≤ 4 ms).
+- Rohtext-Elemente nach WHATWG: Der Körper von `textarea`, `title`, `xmp`, `iframe`, `noembed`,
+  `noframes` wird maskiert, Tags darin laden nicht. `noscript` endet sicher an `</noscript>`, sein
+  Inhalt zählt weiter (Sicht ohne JavaScript, wie in v0.195.0). Der Elementname braucht danach
+  Whitespace, `/` oder `>`.
+- Bogus Comments (`<?…>`, `<!…>`, `</` vor einem Nicht-Buchstaben) enden am ersten `>`.
+- Auf den 541 Live-Seiten ändert sich nichts gegenüber `f93bda3a` (9223 = 9223
+  Asset-Referenzen, 7897 = 7897 CSP-Befunde, Laufzeit +5 %).
+
 **Fix:** Die Maske aus #285 hält sich an die Grenzen des Browsers: `<!-->`, `--!>` und `<!--` in einem Attributwert blenden nichts mehr aus
 
 Kontext: Das Review von #285 fand ein neues „falsch grün“, das noch in keinem Tag steckte. Die

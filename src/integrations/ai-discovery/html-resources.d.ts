@@ -7,10 +7,11 @@ export function parseAttrs(raw: string): Record<string, string>;
 export function extractCssUrls(css: string, where: string): Resource[];
 
 /**
- * Das HTML mit Leerzeichen über Kommentaren und den Körpern von `<style>`/`<script>`.
- * Länge und Zeilenumbrüche bleiben gleich; Tags darin sieht kein Scan mehr.
+ * Das HTML mit Leerzeichen über Kommentaren, Bogus Comments und den Körpern der
+ * Rohtext-Elemente (`style`, `script`, `textarea`, `title`, `xmp`, `iframe`, `noembed`,
+ * `noframes`). Länge und Zeilenumbrüche bleiben gleich; Tags darin sieht kein Scan mehr.
  */
-export function maskiere(html: string): string;
+export function maskiere(html: string | null | undefined): string;
 
-/** Sammelt alle CSP-relevanten Ressourcen eines HTML-Dokuments. */
-export function extractResources(html: string, file?: string): Resource[];
+/** Sammelt alle CSP-relevanten Ressourcen eines HTML-Dokuments; ohne Eingabe `[]`. */
+export function extractResources(html: string | null | undefined, file?: string): Resource[];
