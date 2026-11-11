@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { extractResources, extractCssUrls, parseAttrs, maskiere } from '../../src/integrations/ai-discovery/html-resources.js';
+import { extractResources, extractCssUrls, parseAttrs } from '../../src/integrations/ai-discovery/html-resources.js';
 import { auditHtml, formatFinding } from '../../src/integrations/ai-discovery/csp-audit.js';
 
 const ORIGIN = 'https://gympanzen.com';
@@ -207,17 +207,20 @@ test('#260 extractResources: srcset nach WHATWG, je Kandidat wie der Browser', (
 });
 
 // ─── Nachlese der Reviews #283/#284: Tags in Kommentaren und Script-Körpern ──────────────
-test('maskiere: Kommentare und Script-/Style-Körper leer, Länge und Zeilen gleich', () => {
-  const html = '<p>a</p><!-- <img src="/k.webp">\n --><script>x="<img src=/s.webp>"\n</script><style>b{}</style>';
-  const m = maskiere(html);
-  assert.equal(m.length, html.length);
-  assert.equal(m.split('\n').length, html.split('\n').length);
-  assert.ok(!m.includes('/k.webp') && !m.includes('/s.webp') && !m.includes('b{}'));
-  // Die Tags selbst bleiben sichtbar.
-  assert.ok(m.includes('<script>') && m.includes('</script>') && m.includes('<style>') && m.includes('<p>a</p>'));
+// Bis zum Review von #289 prüfte dieser Test die Maske (`maskiere`), seitdem liest parse5 und
+// es gibt keine Maske mehr. Geprüft wird dieselbe Erwartung am Ergebnis.
+test('Kommentare und Script-/Style-Körper liefern keine Refs, die Elemente selbst schon; Zeilen stimmen', () => {
+  const html = '<p>a</p><!-- <img src="/k.webp">\n --><script>x="<img src=/s.webp>"\n</script><style>b{}</style><img src="/a.webp">';
+  const r = extractResources(html, 'x.html');
+  assert.deepEqual(r.map((x) => `${x.type === 'url' ? x.url : x.directive} ${x.where}`), [
+    'script-src-elem x.html:2',
+    'style-src-elem x.html:3',
+    '/a.webp x.html:3',
+  ]);
   // Ein offener Kommentar läuft bis zum Ende; `<!--` in einem Script ist kein Kommentar.
-  assert.equal(maskiere('<p>x</p><!-- <img src=/a.webp>').trimEnd(), '<p>x</p>');
-  assert.ok(maskiere('<script>s="<!--"</script><img src="/echt.webp">').includes('/echt.webp'));
+  const urls = (h) => extractResources(h).filter((x) => x.type === 'url').map((x) => x.url);
+  assert.deepEqual(urls('<p>x</p><!-- <img src=/a.webp>'), []);
+  assert.deepEqual(urls('<script>s="<!--"</script><img src="/echt.webp">'), ['/echt.webp']);
 });
 
 test('extractResources: Tags in Kommentar und Script zählen nicht, echte Tags weiter', () => {
@@ -262,9 +265,6 @@ test('Review #285: <!-- und <script in einem Attributwert beginnen keinen Bereic
   // Ein `>` im gequoteten Wert eines Script-Tags beendet den Tag nicht.
   const q = extractResources('<script data-x="a>b">var y=1</script><img src="/a.webp">');
   assert.deepEqual(q.filter((r) => r.type === 'inline').map((r) => r.content), ['var y=1']);
-  // Die Maske selbst: Wert bleibt sichtbar, Länge gleich.
-  const html = '<input pattern="<!--"><img src="/a.webp">';
-  assert.equal(maskiere(html), html);
 });
 
 test('#260 extractResources: url() im style-Attribut wird dekodiert gelesen', () => {
@@ -309,12 +309,9 @@ test('Review #287: Rohtext-Elemente — <!-- darin ist Text, Tags darin laden ni
   // R4: `<style-guide>` ist kein <style>; vorher fraß der Treffer das Bild bis zum nächsten </style>.
   const r4 = extractResources('<style-guide></style-guide><img src="/a.webp"><style>b{}</style>');
   assert.deepEqual(r4.map((r) => r.type === 'url' ? r.url : r.directive), ['style-src-elem', '/a.webp']);
-  // R5: maskiere hält Länge und Zeilen auch über textarea- und noscript-Körper.
-  const h = '<textarea>\n<img src="/t.webp">\n</textarea><noscript><!-- x\n</noscript>';
-  const m = maskiere(h);
-  assert.equal(m.length, h.length);
-  assert.equal(m.split('\n').length, h.split('\n').length);
-  assert.ok(!m.includes('/t.webp') && !m.includes('<!--'));
+  // R5: Zeilennummern stimmen auch hinter mehrzeiligen textarea- und noscript-Körpern.
+  const h = '<textarea>\n<img src="/t.webp">\n</textarea><noscript><!-- x\n</noscript><img src="/a.webp">';
+  assert.deepEqual(extractResources(h, 'x.html').map((x) => `${x.url} ${x.where}`), ['/a.webp x.html:4']);
 });
 
 test('Review #287: Bogus Comments und leere Eingabe', () => {
@@ -335,4 +332,63 @@ test('Review #287: kein exponentielles Backtracking bei offenen Tags', () => {
     extractResources(h);
     assert.ok(performance.now() - t < 1000, `zu langsam für ${h.slice(0, 12)}…`);
   }
+});
+
+// ─── Review von #289: Leser auf parse5 ────────────────────────────────────────────────────
+// Jede Erwartung in Chromium gemessen (Playwright aus cw-audit, 11.11.2026), mit und ohne
+// JavaScript, dazu der DOM-Inhalt. Gegen den Regex-Leser (c14c5aaf) rot, mit parse5 grün.
+test('Review #289: Rohtext ohne End-Tag läuft bis zum Dateiende, <plaintext> ebenso', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  assert.deepEqual(urls('<script>var a=1;<img src="/in-script.webp">'), []); // P1a
+  assert.deepEqual(urls('<p>x</p><title>t<img src="/t.webp">'), []); // P1b
+  assert.deepEqual(urls('<p>x</p><iframe src="/f"><img src="/i.webp">'), ['/f']); // P1c
+  assert.deepEqual(urls('<p>x</p><plaintext><img src="/p.webp">'), []); // P4
+});
+
+test('Review #289: Script in <noscript> läuft in keiner Sicht, Bild darin zählt (Sicht ohne JS)', () => {
+  // P2: mit JS lädt nichts, ohne JS nur /n.webp; das Script läuft in keiner Sicht.
+  const r = extractResources('<noscript><script>window.__ran=1</script><script src="/n.js"></script><img src="/n.webp"></noscript>');
+  assert.deepEqual(r.map((x) => (x.type === 'url' ? x.url : x.directive)), ['/n.webp']);
+});
+
+test('Review #289: Attribute nach WHATWG — NBSP trennt nicht, Quote mitten im unquotierten Wert öffnet nichts', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  assert.deepEqual(urls('<img alt=a src=/nbsp.webp>'), []); // P3a
+  assert.deepEqual(parseAttrs(' alt=a src=/x.webp'), { alt: 'a src=/x.webp' });
+  assert.deepEqual(urls('<img data-a=b"c="d src=/q.webp>'), ['/q.webp']); // P3b, vorher falsch grün
+  // Gegenprobe: gewöhnliche Attribute, Entitäten, erstes Vorkommen gewinnt.
+  assert.deepEqual(parseAttrs(` SRC="/a&amp;b.webp" src='/zwei.webp' alt=x`), { src: '/a&b.webp', alt: 'x' });
+});
+
+test('Review #289: SVG/MathML-Fremdinhalt — <style>/<title> darin sind kein Rohtext', () => {
+  const urls = (html) => extractResources(html).filter((r) => r.type === 'url').map((r) => r.url);
+  // P5a/P5c: <img> bricht aus dem Fremdinhalt aus und lädt (vorher falsch grün).
+  assert.deepEqual(urls('<svg><style><img src="/m.webp"></style></svg>'), ['/m.webp']);
+  assert.deepEqual(urls('<math><style><img src="/mm.webp"></style></math>'), ['/mm.webp']);
+  // P5b: `<!--` in <svg><title> ist ein echter Kommentar bis zum Dateiende. Im DOM steht kein
+  // Bild; Chromiums Preload-Scanner fragt /a.webp trotzdem spekulativ an. Der Leser folgt dem DOM.
+  assert.deepEqual(urls('<svg><title><!-- x</title></svg><img src="/a.webp">'), []);
+});
+
+test('Review #289: Laufzeit linear — viele Tags, viele ungeschlossene Rohtext-Tags', () => {
+  // Vorher quadratisch: lineAt je Tag (60k Tags 63 s) und ein Rohtext-Körper je offenem Tag bis EOF.
+  const viele = '<img src="/x.webp">\n'.repeat(30000);
+  let t = performance.now();
+  assert.equal(extractResources(viele).length, 30000);
+  assert.ok(performance.now() - t < 3000, `30k Tags: ${Math.round(performance.now() - t)} ms`);
+  const offen = '<p>x</p>' + '<title>a'.repeat(5000) + 'x'.repeat(50000);
+  t = performance.now();
+  extractResources(offen);
+  assert.ok(performance.now() - t < 300, `5000 offene <title>: ${Math.round(performance.now() - t)} ms`);
+});
+
+test('Review #289: Zeilen im <noscript>-Körper, <template>-Inhalt zählt wie bisher', () => {
+  // Die Sicht ohne JS liest den noscript-Körper als eigenes Fragment; die Zeile muss trotzdem
+  // die im Dokument sein.
+  const r = extractResources('<p>a</p>\n<noscript>\n\n<img src="/n.webp"></noscript>', 'x.html');
+  assert.deepEqual(r.map((x) => `${x.url} ${x.where}`), ['/n.webp x.html:4']);
+  // <template> lädt beim Parsen nichts (Chromium), aber sobald ein Script den Inhalt einsetzt.
+  // Der Regex-Leser zählte ihn mit; das bleibt so (konservative Richtung).
+  const urls = (html) => extractResources(html).filter((x) => x.type === 'url').map((x) => x.url);
+  assert.deepEqual(urls('<img src="/g.webp"><template><img src="/tpl.webp"></template>'), ['/g.webp', '/tpl.webp']);
 });
