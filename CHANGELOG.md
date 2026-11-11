@@ -24,6 +24,26 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Der HTML-Leser der CSP-Prüfung und von verify-touchpoints liest mit `parse5` statt mit eigenen Regex-Mustern: Rohtext ohne End-Tag, `<plaintext>`, SVG-Fremdinhalt, NBSP in Attributen und Scripts in `<noscript>` werden gelesen wie im Browser, große Seiten etwa zehnmal schneller (Review von #289)
+
+Kontext: Seit #283 fand jedes Review neue Tokenizer-Zustände, die der Regex-Leser nicht kannte. Das
+Review von #289 fand wieder sieben, alle gegen den Kopf gemessen und in Chromium nachgeprüft.
+Falsch grün: `<svg><style><img src=…>` (das Bild bricht aus dem SVG aus und lädt) und
+`<img data-a=b"c="d src=…>` (der Quote öffnet nichts, `src` lädt). Falsch rot: Rohtext-Elemente ohne
+End-Tag, `<plaintext>`, NBSP als Attribut-Trenner und `<script>` in `<noscript>`, das in keiner
+Sicht läuft. Dazu lief die Zeilenzählung je Tag quadratisch: 60 000 Tags dauerten 63 s.
+
+- `extractResources` läuft über den Baum von `parse5` (mit `scriptingEnabled`). `<noscript>` wird
+  zusätzlich ohne JavaScript gelesen, Bilder und Styles darin zählen, Scripts nicht. `<template>`-Inhalt
+  zählt wie bisher mit. Zeilen kommen aus den Quellpositionen des Parsers.
+- `parseAttrs` liest über denselben Parser. Damit gibt es für Tag-Schnitt und Attribute eine Grammatik.
+- `maskiere` entfällt (war nicht öffentlich exportiert, nur in Tests benutzt).
+- `parse5` ist jetzt direkte Abhängigkeit (`^7.3.0`). Astro bringt dieselbe Fassung schon mit, das
+  Lockfile wächst um keinen Paketeintrag. parse5 ist reines JS ohne Node-APIs, `@cw/core/csp` bleibt
+  laufzeit-neutral.
+- Flotte (262 Live-Seiten aus 16 Sites): 6502 = 6502 Asset-Referenzen, 3430 = 3430 CSP-Befunde,
+  Zeilennummern gleich, 0 abweichende Seiten. Laufzeit 14,9 s → 1,4 s.
+
 **Fix:** `bildherkunft-übernehmen`: Eine Leerzeile im erzeugten Kopf hält den Lauf nicht mehr an, und ein fremder Kopf hält den Export nicht mehr auf (Review von #281, #280 Punkt 1)
 
 Kontext: Seit #281 bricht der Lauf ab, wenn im erzeugten Kopf eine Zeile steht, die keine

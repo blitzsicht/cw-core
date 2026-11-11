@@ -303,7 +303,7 @@ const ASSET_TAG_RE = /<(?:img|source|script|video|audio|track|embed|iframe)\b[^>
  * → `url(t.href)`. Gemessen am 12.08.2026 über 518 Seiten der Flotte waren das
  * 502 von 554 Treffern. Seit cw-core#260 (Punkt 2) liest der gemeinsame Leser
  * `extractResources` auch `style`-Attribute; Tags in Kommentaren und Script-Körpern sieht
- * er nicht (`maskiere`, Nachlese der Reviews #283/#284). Für `.css`-Dateien des dist ruft
+ * er nicht (seit dem Review von #289 per parse5, vorher per Maske). Für `.css`-Dateien des dist ruft
  * der Aufrufer mit `cssOnly` auf.
  *
  * Origin ist optional: fast alle Asset-Refs sind root-relativ, und ohne
