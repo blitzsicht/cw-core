@@ -397,3 +397,46 @@ test('Review #292: Bilder in <noscript> und <template> zählen, in Kommentar und
 test('Review #292: tiefe Verschachtelung wirft nicht (Befund 3)', () => {
   assert.deepEqual(bilderAusHtml('<div>'.repeat(5000) + '<img src="/tief.webp">'), ['/tief.webp']);
 });
+
+// ─── Review von #291: Motiv-Schlüssel mit Quellhash ───────────────────────────────────────
+// Astro benennt jedes Asset `<stem>.<hash8>[_<variante>].<ext>`. Der Hash steht für die
+// Quelldatei, die Variante für Breite und Format. Der alte Schlüssel schnitt am ersten Punkt
+// und warf damit den Quellhash weg: zwei verschiedene KI-Quellen mit gleichem Stem galten als
+// ein Motiv und brauchten nur ein Label. Namen unten aus echten dist-Ordnern der Flotte.
+test('Review #291: zwei KI-Quellen mit gleichem Stem brauchen zwei Labels', () => {
+  const html = '<img src="/_astro/hero.CC6UVEsO_ZXkuIg.webp"><img src="/_astro/hero.Dq3xK9Lm_1ICG0w.webp">'
+    + '<span class="ai-label"><img alt="Mit KI erzeugt"></span>';
+  const b = pruefeSeiteAufKennzeichnung(html, [KI_HERO]);
+  assert.equal(b.pflichtig.length, 2, 'zwei Quelldateien, zwei Motive');
+  assert.equal(b.labels, 1);
+  assert.equal(b.fehlend, 1);
+});
+
+test('Review #291: srcset-Varianten einer Quelle bleiben ein Motiv (Gegenprobe 03.09.2026)', () => {
+  // srcset von steller, 6 Varianten derselben Quelle.
+  const html = `<img src="/_astro/hero.CC6UVEsO_ZXkuIg.webp"
+    srcset="/_astro/hero.CC6UVEsO_1ICG0w.avif 640w, /_astro/hero.CC6UVEsO_1CBftV.avif 960w, /_astro/hero.CC6UVEsO_Z14lVeQ.avif 1200w, /_astro/hero.CC6UVEsO_2nQJ4b.webp 640w, /_astro/hero.CC6UVEsO_Z1mXa3K.webp 960w" alt="Hero">`;
+  assert.equal(pruefeSeiteAufKennzeichnung(html, [KI_HERO]).pflichtig.length, 1);
+});
+
+test('Review #291: ungeklärte Quelle neben pflichtiger Quelle gleichen Stems wird gemeldet', () => {
+  // Datei-Regel ohne Begründung → ungültig → ungeklärt; die andere Quelle ist pflichtig.
+  const regeln = [{ pathPrefix: '_astro/hero.Dq3xK9Lm.webp', herkunft: 'ki-erzeugt', deepfake: 'ja' }, KI_HERO];
+  const html = '<img src="/_astro/hero.CC6UVEsO_ZXkuIg.webp"><img src="/_astro/hero.Dq3xK9Lm.webp">';
+  const b = pruefeSeiteAufKennzeichnung(html, regeln);
+  assert.deepEqual(b.pflichtig, ['/_astro/hero.CC6UVEsO_ZXkuIg.webp']);
+  assert.deepEqual(b.ungeklaert, ['/_astro/hero.Dq3xK9Lm.webp']);
+});
+
+test('Review #291: Schlüssel trägt `_` und `-` im Hash, `-` und `.` im Stem; ohne Astro-Muster alte Regel', () => {
+  const ki = (stem) => ({ stem, herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'wirkt echt' });
+  const zahl = (html, stem) => pruefeSeiteAufKennzeichnung(html, [ki(stem)]).pflichtig.length;
+  // `_` im Hash ohne Variante (echter Name): eine Quelle, kein Scheinpaar mit der Variante.
+  assert.equal(zahl('<img src="/_astro/schritt-montage.B_JdoIya.webp"><img src="/_astro/schritt-montage.B_JdoIya_Z1abc.avif">', 'schritt-montage'), 1);
+  // `-` im Hash, zwei Quellen.
+  assert.equal(zahl('<img src="/_astro/team.a-b1C2d3.webp"><img src="/_astro/team.x-Y9z8w7.webp">', 'team'), 2);
+  // Stem mit Punkt: Schlüssel trennt am Hash, nicht am ersten Punkt.
+  assert.equal(zahl('<img src="/_astro/v1.2-hero.CC6UVEsO.webp"><img src="/_astro/v1.2-hero.CC6UVEsO_1ICG0w.avif">', 'v1'), 1);
+  // public/-Bilder ohne Hash: alte Regel (Stem bis zum ersten Punkt).
+  assert.equal(zahl('<img src="/bilder/hero.webp"><img src="/bilder/hero.avif">', 'hero'), 1);
+});

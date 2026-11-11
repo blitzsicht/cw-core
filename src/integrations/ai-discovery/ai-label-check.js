@@ -173,8 +173,8 @@ export function pruefeSeiteAufKennzeichnung(html, regeln, opt = {}) {
   // für steller und mika je 6 statt 1 heraus.
   //
   // Gezählt wird deshalb je Motiv-Schlüssel, aufgelöst aber jeder Pfad: Astro legt alle
-  // Assets flach nach `_astro/`, zwei verschiedene Quellbilder mit gleichem Stem teilen
-  // sich dort den Schlüssel. Wurde vor der Auflösung dedupliziert, entschied das zuerst
+  // Assets flach nach `_astro/`, und ohne erkennbaren Quellhash (`motivSchluessel`) teilen
+  // sich zwei verschiedene Quellbilder mit gleichem Stem dort den Schlüssel. Wurde vor der Auflösung dedupliziert, entschied das zuerst
   // gesehene für beide — ein per Datei-Regel ausgenommenes Motiv vorn nahm dem pflichtigen
   // dahinter still das Label (Review von #290, Befund 1). Je Schlüssel gilt das schärfste
   // Ergebnis: pflichtig vor ungeklärt vor nichts.
@@ -211,9 +211,23 @@ export function pruefeSeiteAufKennzeichnung(html, regeln, opt = {}) {
 }
 
 /**
- * Schlüssel, unter dem zwei URLs dasselbe Motiv meinen: Verzeichnis plus Dateiname bis
- * zum ersten Punkt. Damit fallen die Varianten der Astro-Assetpipeline zusammen, die
- * sich nur im Content-Hash und im Format unterscheiden.
+ * Astro-Assetname `<stem>.<hash8>[_<variante>].<ext>`: Der 8-stellige Hash steht für die
+ * Quelldatei, die Variante (`_1ICG0w`) für Breite und Format. Der Hash darf `_` und `-`
+ * enthalten (`schritt-montage.B_JdoIya.webp` ist eine Quelle ohne Variante), deshalb wird
+ * nicht am letzten `_` geschnitten — das ergab in der Flotte 14 Scheinpaare in 7 Repos.
+ * Gemessen an 1149 `_astro`-Bildern aus 17 dist-Ordnern: alle passen (985 mit, 164 ohne
+ * Variante).
+ */
+const ASTRO_ASSET_RE = /^(.+)\.([A-Za-z0-9_-]{8})(?:_[A-Za-z0-9]+)?\.[a-z0-9]+$/;
+
+/**
+ * Schlüssel, unter dem zwei URLs dasselbe Motiv meinen: Verzeichnis plus Stem plus
+ * Quellhash. Damit fallen die Varianten einer Quelle zusammen (srcset: eine Bildfläche, ein
+ * Label), zwei Quellen mit gleichem Stem aber nicht — Astro legt alle Assets flach nach
+ * `_astro/`, und `hero.CC6UVEsO…` und `hero.Dq3xK9Lm…` sind zwei Motive mit zwei Labels.
+ * Bis zum Review von #291 schnitt der Schlüssel am ersten Punkt und warf den Hash weg.
+ *
+ * Ohne Astro-Muster (`public/`-Bilder) gilt die alte Regel: Dateiname bis zum ersten Punkt.
  *
  * Verzeichnis bewusst mit drin: `resolveBildHerkunft` löst über den blossen Stem auf,
  * was für die Zuordnung einer Regel richtig ist — zum Zählen wäre es zu grob, weil
@@ -224,8 +238,10 @@ export function pruefeSeiteAufKennzeichnung(html, regeln, opt = {}) {
  */
 function motivSchluessel(pfad) {
   const teile = pfad.split('/');
-  const datei = (teile.pop() ?? '').split('.')[0];
-  return `${teile.join('/')}/${datei}`;
+  const name = teile.pop() ?? '';
+  const astro = ASTRO_ASSET_RE.exec(name);
+  const motiv = astro ? `${astro[1]}.${astro[2]}` : name.split('.')[0];
+  return `${teile.join('/')}/${motiv}`;
 }
 
 /**
@@ -395,7 +411,8 @@ export function checkAiLabels(seiten, regeln, opt = {}) {
  * @returns {{ befunde: Ueberstimmt[], geprueft: number }} `geprueft` = Motiv-Schlüssel mit
  *   gültiger pflichtiger Stem-Regel (`pflichtStemRegel`), damit „keiner überstimmt“ bei null
  *   geprüften Motiven nicht als Ergebnis gilt. Zwei Quellbilder mit gleichem Stem in
- *   `_astro/` zählen als eines — die Zahl ist eine Untergrenze, keine Bildzahl.
+ *   `_astro/` zählen seit dem Review von #291 getrennt (Quellhash im Schlüssel); ohne
+ *   Astro-Hash (kurze oder fehlende Hashes) bleibt die Zahl eine Untergrenze.
  */
 export function checkUeberstimmt(seiten, regeln, opt = {}) {
   const data = { bildHerkunft: regeln };

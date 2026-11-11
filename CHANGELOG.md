@@ -24,6 +24,26 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Zwei KI-Bilder mit gleichem Dateinamen brauchen wieder zwei Kennzeichnungen: der Motiv-Schlüssel behält den Quellhash von Astro, statt am ersten Punkt zu schneiden (Review von #291)
+
+Kontext: Astro legt alle Assets flach nach `_astro/` und benennt sie `<stem>.<hash8>[_<variante>].<ext>`.
+Der Schlüssel, unter dem die KI-Kennzeichnungsprüfung Varianten zu einem Motiv zusammenfasst, nahm
+nur den Stem. `hero.CC6UVEsO_….webp` und `hero.Dq3xK9Lm_….webp` (zwei Quelldateien) galten damit als
+ein Motiv mit einem Label. Eine ungeklärte Quelle neben einer pflichtigen mit gleichem Stem blieb
+ungemeldet.
+
+- `motivSchluessel` nimmt jetzt Verzeichnis, Stem und den 8-stelligen Hash. Die srcset-Varianten
+  einer Quelle (`_1ICG0w`, `_ZXkuIg` …) bleiben ein Motiv, das ist die Gegenprobe zum Flottenlauf vom
+  03.09.2026 (6 statt 1).
+- Der Hash darf `_` und `-` enthalten (`schritt-montage.B_JdoIya.webp`). Deshalb wird nicht am letzten
+  `_` geschnitten, das ergäbe 14 Scheinpaare in 7 Repos.
+- Dateinamen ohne Astro-Muster (`public/`) behalten die alte Regel.
+
+Belege: Gate über 406 Live-Seiten aus 16 Sites, alt gegen neu, ohne Abweichung (97 pflichtig,
+`fehlend` 0 → 0). Gegenprobe: dieselben Seiten mit einer zweiten Quelle je Astro-Bild ergeben neu
+124 pflichtig und 26 fehlend auf 14 Seiten, alt weiter 97 und 0. Sabotagen 3/3 rot (alter Schlüssel,
+Schnitt am letzten `_`, Regex ohne Variantengruppe).
+
 **Fix:** KI-Kennzeichnung und Cal-Consent-Prüfung lesen wieder jedes Tag: seit dem Umstieg auf parse5 (#292, HTML-Leser auf parse5) verschwand ein Bild oder Script still, sobald ein Attributwert ein `>` enthielt; tiefe Verschachtelung brach den Build ab (Review von #292)
 
 Kontext: `bilderAusHtml` und `checkEmbedConsent` schnitten Tags weiter per Regex am ersten `>` und
