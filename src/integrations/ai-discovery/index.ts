@@ -39,6 +39,7 @@ import { checkWebMcpForms, type WebMcpIssue } from './webmcp-form-check.js';
 import { checkRobotsAiPolicy } from './robots-ai-check.js';
 import {
   checkAiLabels,
+  checkUeberstimmt,
   pruefeSeiteAufKennzeichnung,
   unbekannteLabelFormen,
   type Fundstelle as AiLabelFundstelle,
@@ -3644,6 +3645,33 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             data.bildHerkunft as Parameters<typeof checkAiLabels>[1],
             { eigenerHost },
           );
+          const strikt = options.strictAiLabel !== false;
+          const melde = strikt ? logger.warn.bind(logger) : logger.info.bind(logger);
+
+          // Pflicht still überstimmt (cw-core#280 Punkt 1): Eine Stem-Regel erklärt ein Motiv
+          // als KI-Deepfake, ein Verzeichnis-Präfix nimmt ihm die Pflicht. checkAiLabels sieht
+          // dann keine Pflicht und bleibt grün. Gleiche Schärfe wie das fehlende Label.
+          const ueberstimmt = checkUeberstimmt(
+            seiten,
+            data.bildHerkunft as Parameters<typeof checkUeberstimmt>[1],
+            { eigenerHost },
+          );
+          if (ueberstimmt.befunde.length === 0) {
+            logger.info(
+              `KI-Kennzeichnung: ✓ ${ueberstimmt.geprueft} Motiv(e) mit pflichtiger Stem-Regel, keines von einer anderen Regel überstimmt.`,
+            );
+          } else {
+            melde(
+              strikt
+                ? `KI-Kennzeichnung: ${ueberstimmt.befunde.length} Motiv(e), deren Pflicht eine andere Regel überstimmt (Art. 50 Abs. 4 AI Act):`
+                : `KI-Kennzeichnung: ✓ Guard gelaufen — ${ueberstimmt.befunde.length} Motiv(e) mit überstimmter Pflicht, ` +
+                  `Abbruch per strictAiLabel:false ausgesetzt (Art. 50 Abs. 4 AI Act):`,
+            );
+            for (const f of ueberstimmt.befunde.slice(0, 20)) {
+              melde(`  ${f.seite} — ${f.bild}: stem "${f.stem}" verlangt das Label, ${f.quelle ?? 'keine Regel'} nimmt es`);
+            }
+            if (ueberstimmt.befunde.length > 20) melde(`  … und ${ueberstimmt.befunde.length - 20} weitere.`);
+          }
 
           // Eine `ai-label-*`-Klasse, die der Zähler nicht kennt, macht jede Zahl unten
           // fragwürdig — sie kann eine Kennzeichnung sein, die als fehlend gemeldet wird.
@@ -3678,8 +3706,6 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // v0.110.0 fest. Das `✓` ist dabei kein Schönreden: der Report zählt
             // Info-Zeilen mit `✓` als Beleg, dass der Guard überhaupt gelaufen ist, und
             // die Zahl der Fundstellen steht in derselben Zeile.
-            const strikt = options.strictAiLabel !== false;
-            const melde = strikt ? logger.warn.bind(logger) : logger.info.bind(logger);
             melde(
               strikt
                 ? `KI-Kennzeichnung: ${fehlende.length} Fundstelle(n) ohne Label (Art. 50 Abs. 4 AI Act):`
@@ -3700,6 +3726,14 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                   `Opt-out mit Begründung: strictAiLabel:false.`,
               );
             }
+          }
+          if (strikt && ueberstimmt.befunde.length > 0) {
+            throw new Error(
+              `[ai-discovery] strictAiLabel=true: Build abgebrochen, weil bei ${ueberstimmt.befunde.length} Motiv(en) eine ` +
+                `andere Regel die KI-Kennzeichnung der Stem-Regel überstimmt. In src/data/bild-herkunft.ts entweder den ` +
+                `Präfix enger fassen, eine Regel genau auf den Dateipfad setzen (bewusst anderes Motiv mit gleichem Stem) ` +
+                `oder die Stem-Regel korrigieren. Opt-out mit Begründung: strictAiLabel:false.`,
+            );
           }
         }
 

@@ -24,6 +24,25 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** KI-Kennzeichnung: Ein Verzeichnis-Präfix nimmt einem als KI-Deepfake erklärten Motiv die Pflicht nicht mehr still, der Build bricht ab (#280 Punkt 1)
+
+Kontext: `resolveBildHerkunft` lässt jeden Pfad-Treffer jeden Stem-Treffer schlagen. Steht vor
+`{ stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja' }` ein `{ pathPrefix: '_astro/', herkunft:
+'mensch' }`, sieht der Label-Guard keine Pflicht mehr. Er meldet dann „0 kennzeichnungspflichtige
+Fundstelle(n) — alle mit Label“ und baut grün. Bisher prüfte das nur der Export-Lauf (#288), und
+das nur an den Dateien, die beim Lauf auf der Platte lagen. Ein später eingebautes Bild entging
+ihm. Jetzt prüft der Build jedes ausgelieferte Motiv.
+
+- Neu: `ueberstimmteKennzeichnung(data, pfad)` in `utils/bildherkunft.js` und `checkUeberstimmt()` in
+  `ai-label-check.js`. Gemeldet wird, wenn eine gültige Stem-Regel das Motiv als KI-Deepfake
+  erklärt und eine andere Regel ihm die Pflicht nimmt. Ausnahme: eine Regel genau auf den
+  Dateipfad. Das ist der Weg, wenn zwei Ordner verschiedene Motive mit gleichem Stem tragen.
+- Gleiche Schärfe wie das fehlende Label: Abbruch unter `strictAiLabel`, sonst eine ✓-Zeile mit
+  der Zahl. Die Zahl der geprüften Motive steht auch im grünen Fall in der Zeile.
+- Rangfolge des Resolvers unverändert (Entscheidung vom 10.11.: Laufzeit als Orakel).
+- Flotte (21 auswertbare Repos, 62 pflichtige Stem-Regeln): heute **0** überstimmte Motive, der
+  Guard bricht also keinen Kundenbuild. Gegenprobe mit eingeschleustem Präfix: 58 Motive in 8 Repos.
+
 **Fix:** Der HTML-Leser liest Attribute und Rohtext-Elemente wie der Browser: `class=a'b`, `<!--` in `<textarea>`/`<title>`/`<noscript>` und `<style-guide>` lassen keine Bilder und Inline-Scripts mehr verschwinden
 
 Kontext: Das Review von #287 fand vier Fälle, die mit #285/#287 neu kamen und noch in keinem Tag

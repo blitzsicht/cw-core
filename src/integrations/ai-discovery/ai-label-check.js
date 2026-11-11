@@ -29,11 +29,12 @@
  *
  * @typedef {{ herkunft: string, deepfake?: string|null, begruendung?: string, pathPrefix?: string, stem?: string }} Regel
  * @typedef {{ seite: string, bild: string }} Fundstelle
+ * @typedef {{ seite: string, bild: string, stem: string, quelle: string|null }} Ueberstimmt
  * @typedef {{ pflichtig: string[], ungeklaert: string[], labels: number, fehlend: number }} SeitenBefund
  */
 
 import { parseAttrs, extractCssUrls } from './html-resources.js';
-import { resolveBildHerkunft, istKennzeichnungspflichtig } from '../../utils/bildherkunft.js';
+import { resolveBildHerkunft, istKennzeichnungspflichtig, ueberstimmteKennzeichnung } from '../../utils/bildherkunft.js';
 
 /**
  * Bilder, die auf der Seite tatsächlich gerendert werden.
@@ -362,4 +363,43 @@ export function checkAiLabels(seiten, regeln, opt = {}) {
     for (const bild of b.pflichtig.slice(b.pflichtig.length - b.fehlend)) out.push({ seite, bild });
   }
   return out;
+}
+
+/**
+ * Ausgelieferte Bilder, deren Kennzeichnungspflicht eine andere Regel still überstimmt
+ * (`ueberstimmteKennzeichnung`): eine Stem-Regel erklärt das Motiv als KI-Deepfake, ein
+ * Verzeichnis-Präfix nimmt sie ihm. Je Motiv eine Zeile, an der ersten Seite, die es zeigt.
+ *
+ * Anlass (cw-core#280 Punkt 1, Review von #288): Der Export-Lauf prüfte das nur an den
+ * Dateien, die beim Lauf auf der Platte lagen. Ein später eingebautes Bild unter einem
+ * überstimmenden Präfix bekam kein Label, und `checkAiLabels` sah keine Pflicht.
+ *
+ * @param {{ seite: string, html: string }[]} seiten
+ * @param {Regel[]} regeln
+ * @param {{ eigenerHost?: string }} [opt]
+ * @returns {{ befunde: Ueberstimmt[], geprueft: number }} `geprueft` = Motive mit pflichtiger
+ *   Stem-Regel, damit „keiner überstimmt“ bei null geprüften Motiven nicht als Ergebnis gilt
+ */
+export function checkUeberstimmt(seiten, regeln, opt = {}) {
+  const data = { bildHerkunft: regeln };
+  /** @type {Ueberstimmt[]} */
+  const befunde = [];
+  /** @type {Set<string>} */
+  const gesehen = new Set();
+  let geprueft = 0;
+  for (const { seite, html } of seiten) {
+    for (const u of bilderAusHtml(html)) {
+      if (istWerkzeugbild(u, opt.eigenerHost)) continue;
+      const pfad = pfadOhneHost(u);
+      const schluessel = motivSchluessel(pfad);
+      if (gesehen.has(schluessel)) continue;
+      gesehen.add(schluessel);
+      const stem = (pfad.split('/').pop() ?? '').split('.')[0];
+      const hatPflichtStem = regeln.some((r) => typeof r?.stem === 'string' && r.stem.trim() === stem && r.deepfake === 'ja');
+      if (hatPflichtStem) geprueft++;
+      const ue = ueberstimmteKennzeichnung(data, pfad);
+      if (ue) befunde.push({ seite, bild: u, ...ue });
+    }
+  }
+  return { befunde, geprueft };
 }

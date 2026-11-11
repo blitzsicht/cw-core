@@ -92,3 +92,13 @@ export function resolveBildHerkunft(data: any, relPath: string): BildHerkunftErg
 export function istKennzeichnungspflichtig(
   ergebnis: Pick<BildHerkunftErgebnis, 'herkunft' | 'deepfake'> | null | undefined,
 ): boolean;
+
+/**
+ * Wird für dieses Bild eine Kennzeichnungspflicht still überstimmt? Gemeldet, wenn eine gültige
+ * Stem-Regel das Bild als KI-Deepfake erklärt, die Auflösung aber über eine andere Regel ohne
+ * Pflicht läuft. Eine Regel genau auf diesen Dateipfad gilt als bewusst und wird nicht gemeldet.
+ */
+export function ueberstimmteKennzeichnung(
+  data: unknown,
+  relPath: string,
+): { stem: string; quelle: string | null } | null;
