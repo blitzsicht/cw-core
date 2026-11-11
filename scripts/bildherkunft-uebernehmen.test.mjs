@@ -14,7 +14,9 @@
  *   I3  der alte Ausweg `--verlust-ok` wird abgelehnt (Exit 1), nicht still umgedeutet
  *   I4  `--kopf`: schreibt die Zahl, zweiter Lauf ändert nichts, fremder Kopf bleibt
  *   I5  `--kopf` an einer Datei mit eigenem Kopf und mehrzeiligen Regeln: kein Abbruch
- *   I8  Handabsatz im erzeugten Kopf: `--kopf` und Export brechen ab (Exit 3), Datei unverändert
+ *   I8  Handabsatz im erzeugten Kopf: `--kopf` bricht ab (Exit 3); Export schreibt die Regeln,
+ *       behält den Kopf, aktualisiert nur `// Site:` (Exit 4)
+ *   I10 Leerzeile im erzeugten Kopf: `--kopf` und Export laufen durch (Exit 0)
  *   I9  Verzeichnis-Präfix über gekennzeichnetem Stem mit echter Bilddatei: Exit 2, nicht geschrieben (cw-core#280)
  */
 
@@ -181,22 +183,47 @@ test('I7. Kennzeichnung fiele weg + --verdrahten: site-data.ts bleibt unberührt
 
 // ─── cw-core#280: Handabsatz im erzeugten Kopf ─────────────────────────────────────────
 
-test('I8. Handabsatz im erzeugten Kopf: --kopf und Export brechen ab, Datei unverändert', () => {
+test('I8. Handabsatz im erzeugten Kopf: --kopf bricht ab, Export schreibt die Regeln (Exit 4)', () => {
   const vorher = ERZEUGT([r('a.webp')]).replace('\n// Site:', '\n// AUSNAHME probe: von Hand, steht im Kopf.\n// Site:');
-  const { ziel, exp, lauf } = aufbau(vorher, [['a.webp', 'ki-erzeugt', 'nein'], ['c.webp', 'ki-erzeugt', 'nein']]);
-  for (const args of [['--kopf', '--schreiben'], ['--export', exp, '--schreiben']]) {
-    const s = lauf(...args);
-    assert.equal(s.status, 3, `${args[0]}: ${s.stdout}${s.stderr}`);
-    assert.match(s.stdout + s.stderr, /Kopf weicht ab Zeile 2 .*AUSNAHME probe/, args[0]);
-    assert.doesNotMatch(s.stdout + s.stderr, /nicht lesbar/, args[0]);
-    assert.equal(readFileSync(ziel, 'utf8'), vorher, args[0]);
-  }
+  const { ziel, exp, lauf } = aufbau(vorher, [['a.webp', 'ki-erzeugt', 'nein'], ['c.webp', 'ki-erzeugt', 'ja']]);
+  const kopf = lauf('--kopf', '--schreiben');
+  assert.equal(kopf.status, 3, kopf.stdout + kopf.stderr);
+  assert.match(kopf.stdout + kopf.stderr, /Kopf weicht ab Zeile 2 .*AUSNAHME probe/);
+  assert.doesNotMatch(kopf.stdout + kopf.stderr, /nicht lesbar/);
+  assert.equal(readFileSync(ziel, 'utf8'), vorher);
+  // Review von #281: Der Export hielt bisher die ganze Site an, auch die neue Kennzeichnung
+  // (`c.webp`, deepfake ja) wartete, bis jemand den Kopf von Hand reparierte. Jetzt schreibt
+  // er die Regeln, lässt den fremden Kopf stehen und zieht nur `// Site:` nach.
+  const probe = lauf('--export', exp);
+  assert.equal(probe.status, 4, probe.stdout + probe.stderr);
+  assert.equal(readFileSync(ziel, 'utf8'), vorher, 'Probelauf schreibt nichts');
+  const s = lauf('--export', exp, '--schreiben');
+  assert.equal(s.status, 4, s.stdout + s.stderr);
+  assert.match(s.stdout, /Kopf nicht ersetzt.*Zeile 2/);
+  const nachher = readFileSync(ziel, 'utf8');
+  assert.match(nachher, /c\.webp.*deepfake: 'ja'/, 'neue Kennzeichnung geschrieben');
+  assert.match(nachher, /^\/\/ ERZEUGTE DATEI/, 'alter Kopf bleibt');
+  assert.match(nachher, /AUSNAHME probe: von Hand, steht im Kopf\./);
+  assert.match(nachher, /^\/\/ Site: probe · 2 Regeln · Stand /m);
+  assert.doesNotMatch(nachher, /1 Bilder/);
   // Gegenprobe: derselbe Absatz hinter `// Site:` läuft durch.
   const dahinter = ERZEUGT([r('a.webp')]).replace('\n//\n// Ergänzt', '\n// AUSNAHME probe: von Hand.\n//\n// Ergänzt');
   const g = aufbau(dahinter, []);
   const k = g.lauf('--kopf', '--schreiben');
   assert.equal(k.status, 0, k.stdout);
   assert.match(readFileSync(g.ziel, 'utf8'), /AUSNAHME probe: von Hand\./);
+});
+
+test('I10. Leerzeile im erzeugten Kopf: --kopf und Export laufen durch (Review von #281)', () => {
+  const vorher = ERZEUGT([r('a.webp')]).replace('\n// Site:', '\n\n//\n// Site:');
+  for (const args of [['--kopf', '--schreiben'], ['--export', null, '--schreiben']]) {
+    const f = aufbau(vorher, [['a.webp', 'ki-erzeugt', 'nein']]);
+    const s = f.lauf(...args.map((a) => a ?? f.exp));
+    assert.equal(s.status, 0, `${args[0]}: ${s.stdout}${s.stderr}`);
+    const nachher = readFileSync(f.ziel, 'utf8');
+    assert.match(nachher, /^\/\/ Angelegt von cw-core/, `${args[0]}: Kopf ersetzt`);
+    assert.doesNotMatch(nachher, /ERZEUGTE DATEI/, args[0]);
+  }
 });
 
 test('I9. Verzeichnis-Präfix über gekennzeichnetem Stem: Exit 2, nicht geschrieben (cw-core#280)', () => {

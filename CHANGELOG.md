@@ -24,6 +24,26 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** `bildherkunft-übernehmen`: Eine Leerzeile im erzeugten Kopf hält den Lauf nicht mehr an, und ein fremder Kopf hält den Export nicht mehr auf (Review von #281, #280 Punkt 1)
+
+Kontext: Seit #281 bricht der Lauf ab, wenn im erzeugten Kopf eine Zeile steht, die keine
+Generatorfassung kennt. Sonst hätte er sie still gelöscht. Das Review fand zwei Folgen. Erstens zählten
+eine eingeschobene Leerzeile oder ein doppeltes `//` als fremd: Ein Editor- oder Merge-Rest hielt
+damit den Flotten-Sweep mit Exit 3 an, obwohl nichts verloren ginge. Zweitens übersprang der Export
+die ganze Site. Auch eine neue Kennzeichnung (deepfake `ja`) wartete, bis jemand den Kopf von Hand
+reparierte.
+
+- `fremdeKopfZeile`: Leere und reine `//`-Zeilen zählen nicht mehr als fremd. Umformulierte oder
+  eingeschobene Textzeilen brechen weiter ab, gemeldet mit ihrer Zeilennummer in der Datei.
+- Export bei fremdem Kopf: Die Regeln werden geschrieben, der Kopf bleibt Zeile für Zeile stehen, nur
+  `// Site: …` bekommt die neue Regelzahl. Dazu eine Warnung im Bericht und der neue **Exit 4**
+  (Vorrang 3 > 2 > 4). `--kopf` bricht weiter mit Exit 3 ab, die Datei bleibt unverändert.
+- Neu: `siteZeileErsetzen(vorspann, neuerKopf)` in `scripts/lib/bildherkunft-verlust.mjs`. Der Fehler aus
+  `kopfErsetzen` trägt die Fundstelle als `fremdeZeile`.
+- Flotte (23 Repos mit `bild-herkunft.ts`, davon 13 mit erzeugtem Kopf, `origin/main` frisch geholt):
+  heute 0 fremde Köpfe, alt wie neu. Gegenprobe: Eine eingeschobene Leerzeile meldet der alte Leser 13/13,
+  der neue 0/13. Eine eingeschobene Textzeile melden beide 13/13. Sabotagen 6/6 rot.
+
 **Fix:** KI-Kennzeichnung: zwei gleichnamige Motive in `_astro/` und eine ungültige Datei-Regel nehmen einem KI-Deepfake die Pflicht nicht mehr still (Review von #290)
 
 Kontext: Das Review von #290 fand zwei Wege, auf denen der neue Guard schwieg. Astro legt alle

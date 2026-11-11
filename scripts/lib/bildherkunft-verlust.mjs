@@ -386,11 +386,31 @@ export function kopfErsetzen(vorspann, neuerKopf) {
   if (site === -1) throw new Error('Erzeugter Kopf ohne Zeile `// Site: …` — von Hand prüfen.');
   const fremd = fremdeKopfZeile(vorspann.slice(0, site));
   if (fremd) {
-    throw new Error(`Kopf weicht ab Zeile ${fremd.nr} von jeder erzeugten Fassung ab („${fremd.text || '(leere Zeile)'}“) — `
+    const e = new Error(`Kopf weicht ab Zeile ${fremd.nr} von jeder erzeugten Fassung ab („${fremd.text}“) — `
       + 'ein Lauf löschte sie. Eigene Absätze hinter `// Site: …` verschieben, umformulierte Generatorzeilen '
       + 'zurücksetzen, dann neu laufen.');
+    e.fremdeZeile = fremd;
+    throw e;
   }
   return { vorspann: [...neuerKopf.replace(/\n+$/, '').split('\n'), ...vorspann.slice(site + 1)], ersetzt: true };
+}
+
+/**
+ * Notweg, wenn `kopfErsetzen` wegen einer fremden Kopfzeile wirft: Der Kopf bleibt Zeile für
+ * Zeile stehen, nur `// Site: …` bekommt die neue Regelzahl und den neuen Stand (letzte Zeile
+ * von `neuerKopf`). So schreibt der Export die Regeln trotzdem — eine neue Kennzeichnung
+ * wartet nicht, bis jemand den Kopf von Hand repariert (Review von #281, cw-core#280).
+ *
+ * @param {string[]} vorspann  aus `teileDatei`
+ * @param {string} neuerKopf   endet mit der Zeile `// Site: …`
+ * @returns {{ vorspann: string[], ersetzt: false } | null}  `null` ohne Zeile `// Site: …`
+ */
+export function siteZeileErsetzen(vorspann, neuerKopf) {
+  const site = vorspann.findIndex((z) => /^\/\/ Site: /.test(z));
+  if (site === -1) return null;
+  const neueSite = neuerKopf.replace(/\n+$/, '').split('\n').at(-1);
+  if (!/^\/\/ Site: /.test(neueSite)) throw new Error('neuerKopf endet nicht mit `// Site: …`.');
+  return { vorspann: vorspann.map((z, i) => (i === site ? neueSite : z)), ersetzt: false };
 }
 
 /**
@@ -400,15 +420,22 @@ export function kopfErsetzen(vorspann, neuerKopf) {
  * Zeilen sind harmlos, das Ersetzen stellt sie wieder her. Eingeschobene oder von Hand
  * umformulierte Zeilen nicht: sie stehen in keiner Fassung und gingen verloren.
  * Gemeldet wird die Zeile, bis zu der die beste Fassung gekommen ist.
+ *
+ * Leere Zeilen und reine `//`-Zeilen tragen keinen Inhalt: Ein Lauf verlöre mit ihnen nichts,
+ * sie zählen nie als fremd und verbrauchen auch keine Zeile der Fassung. Vorher brach eine
+ * eingeschobene Leerzeile (Editor- oder Merge-Rest) den Flotten-Sweep ab, und ein doppeltes
+ * `//` schob das Matching über die nächste echte Zeile hinaus (Review von #281).
  * @param {string[]} kopf  Zeilen vor `// Site: …`
  */
 export function fremdeKopfZeile(kopf) {
   const ist = kopf.map((z) => z.trimEnd());
+  const inhaltslos = (z) => z.trim() === '' || z.trim() === '//';
   let beste = 0;
   for (const fassung of [KOPF_ZEILEN, ...FRUEHERE_KOEPFE]) {
     let j = 0;
     let i = 0;
     for (; i < ist.length; i++) {
+      if (inhaltslos(ist[i])) continue;
       while (j < fassung.length && fassung[j] !== ist[i]) j++;
       if (j === fassung.length) break;
       j++;
