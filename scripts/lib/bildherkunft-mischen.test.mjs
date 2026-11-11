@@ -28,9 +28,10 @@
  *   K4  teileDatei: `= [];` auf einer Zeile ist ein leerer Rumpf (notar-huber)
  *   K5  Handabsatz zwischen Zeile 1 und `// Site:` bricht ab und nennt die Zeile (cw-core#280)
  *   K6  jede bekannte Fassung, vollständig, gekürzt oder mit Leerzeichen am Ende, wird ersetzt
- *   K7  umformulierte Generatorzeile und eingeschobene Leerzeile brechen ebenfalls ab
+ *   K7  umformulierte Generatorzeile bricht ab, Leer- und reine `//`-Zeilen nicht (Review #281)
  *   K8  Handabsätze hinter `// Site:` bleiben stehen (falzmarke nach #81)
  *   K9  jede je ausgelieferte Kopffassung bleibt erkannt (Hash-Liste, Drift-Schutz)
+ *   K10 fremder Kopf: Fehler trägt die Zeile, `siteZeileErsetzen` tauscht nur `// Site:`
  *   L1  laufzeitPfade: public/ dist-relativ, src/ als Repo-Pfad und als _astro-Stem, Nicht-Bilder raus
  *   L2  Verzeichnis-Präfix über gekennzeichnetem Stem: das Orakel meldet das Bild, `mischeRegeln` nicht
  *   L3  Präfix, unter dem das Bild nicht liegt, und neue Regel mit Kennzeichnung: nichts gemeldet
@@ -43,7 +44,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  mischeRegeln, kopfErsetzen, fremdeKopfZeile, KOPF_ZEILEN, FRUEHERE_KOEPFE, teileDatei, regelZahl, istKennzeichnungspflichtig, hatErzeugtenKopf,
+  mischeRegeln, kopfErsetzen, fremdeKopfZeile, siteZeileErsetzen, KOPF_ZEILEN, FRUEHERE_KOEPFE, teileDatei, regelZahl, istKennzeichnungspflichtig, hatErzeugtenKopf,
   verlustVergleich, stammVonPfad, laufzeitPfade, kennzeichnungWegZurLaufzeit,
 } from './bildherkunft-verlust.mjs';
 import { regelZeile } from '../bildherkunft-arbeitsliste.mjs';
@@ -231,12 +232,22 @@ test('K6. jede bekannte Fassung, vollständig oder gekürzt, wird ersetzt', () =
   }
 });
 
-test('K7. umformulierte Generatorzeile und eingeschobene Leerzeile brechen ebenfalls ab', () => {
+test('K7. umformulierte Generatorzeile bricht ab, Leer- und reine `//`-Zeilen nicht', () => {
   const geaendert = KOPF_ZEILEN.map((z, i) => (i === 2 ? z.replace('ebenso', 'auch') : z));
   assert.deepEqual(fremdeKopfZeile(geaendert), { nr: 3, text: geaendert[2].slice(0, 80) });
   assert.throws(() => kopfErsetzen([...geaendert, SITE], NEU), /ab Zeile 3 .*zurücksetzen/);
-  const leer = [...KOPF_ZEILEN.slice(0, 5), '', ...KOPF_ZEILEN.slice(5)];
-  assert.throws(() => kopfErsetzen([...leer, SITE], NEU), /ab Zeile 6 .*\(leere Zeile\)/);
+  // Review von #281: Eine Leerzeile (Editor- oder Merge-Rest) und ein doppeltes `//` tragen
+  // keinen Inhalt, ein Lauf verlöre nichts. Vorher brach das den Flotten-Sweep mit Exit 3 ab.
+  const leer = [...KOPF_ZEILEN.slice(0, 5), '', '   ', ...KOPF_ZEILEN.slice(5)];
+  assert.equal(fremdeKopfZeile(leer), null);
+  assert.equal(kopfErsetzen([...leer, SITE], NEU).ersetzt, true);
+  const doppelt = KOPF_ZEILEN.flatMap((z) => (z.trim() === '//' ? [z, '//'] : [z]));
+  assert.ok(doppelt.length > KOPF_ZEILEN.length, 'Vorbedingung: die Fassung hat `//`-Zeilen');
+  assert.equal(fremdeKopfZeile(doppelt), null, 'doppeltes `//` lässt keine echte Zeile „abweichen“');
+  // Gegenprobe: Leerzeile UND umformulierte Zeile — gemeldet wird die umformulierte, mit ihrer
+  // Nummer in der Datei (die Leerzeile zählt beim Zählen mit).
+  const beides = ['', ...geaendert];
+  assert.deepEqual(fremdeKopfZeile(beides), { nr: 4, text: geaendert[2].slice(0, 80) });
 });
 
 test('K8. Handabsätze hinter `// Site:` (falzmarke nach #81) bleiben stehen', () => {
@@ -244,6 +255,21 @@ test('K8. Handabsätze hinter `// Site:` (falzmarke nach #81) bleiben stehen', (
   const k = kopfErsetzen(vorspann, NEU);
   assert.equal(k.ersetzt, true);
   assert.deepEqual(k.vorspann.slice(2), ['//', ...HAND, '']);
+});
+
+test('K10. fremder Kopf: Fehler trägt die Zeile, siteZeileErsetzen tauscht nur `// Site:`', () => {
+  const vorspann = [...KOPF_ZEILEN.slice(0, 4), ...HAND, ...KOPF_ZEILEN.slice(4), SITE, '//', '// Ergänzt von Hand', ''];
+  let fehler;
+  try { kopfErsetzen(vorspann, NEU); } catch (e) { fehler = e; }
+  assert.deepEqual(fehler?.fremdeZeile?.nr, 5);
+  const k = siteZeileErsetzen(vorspann, NEU);
+  assert.equal(k.ersetzt, false);
+  assert.deepEqual(k.vorspann, vorspann.map((z) => (z === SITE ? '// Site: falzmarke · 28 Regeln · Stand 10.11.2026' : z)));
+  // Ohne `// Site:` gibt es nichts zu tauschen; der Fehler „Kopf ohne Site“ trägt keine Zeile.
+  assert.equal(siteZeileErsetzen(KOPF_ZEILEN, NEU), null);
+  let ohneSite;
+  try { kopfErsetzen([...KOPF_ZEILEN], NEU); } catch (e) { ohneSite = e; }
+  assert.ok(ohneSite && ohneSite.fremdeZeile === undefined);
 });
 
 // Hash je Fassung, sha256 der mit \n verbundenen Zeilen, erste 16 Zeichen. Gemessen 10.11.2026.

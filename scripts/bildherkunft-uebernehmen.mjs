@@ -37,6 +37,10 @@
  *
  *   --nur <slug> grenzt auf eine Site ein, --repo <pfad> verlegt deren Ziel (Worktree).
  *
+ * Exit: 0 ok · 1 Aufruf falsch · 3 mindestens eine Site übersprungen (unlesbar, Befunde, beim
+ * `--kopf`-Lauf fremde Kopfzeile) · 2 eine Kennzeichnung fiele weg · 4 Regeln geschrieben, aber
+ * der Kopf trägt fremde Zeilen und wurde nur in `// Site: …` nachgezogen. Vorrang 3 > 2 > 4.
+ *
  * Ohne `--schreiben` passiert nichts — es wird nur berichtet, was passieren würde.
  */
 
@@ -44,7 +48,7 @@ import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { regelZeile } from './bildherkunft-arbeitsliste.mjs';
 import {
-  verlustVergleich, mischeRegeln, kopfErsetzen, KOPF_ZEILEN, teileDatei, regelZahl, hatErzeugtenKopf,
+  verlustVergleich, mischeRegeln, kopfErsetzen, siteZeileErsetzen, KOPF_ZEILEN, teileDatei, regelZahl, hatErzeugtenKopf,
   laufzeitPfade, kennzeichnungWegZurLaufzeit,
 } from './lib/bildherkunft-verlust.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
@@ -154,6 +158,14 @@ function neuerVorspann(slug, t, stand) {
   return kopfErsetzen(t.vorspann, KOPF(slug, regelZahl(t.rumpf), stand));
 }
 
+/** Wie `neuerVorspann`, aber nur die Zeile `// Site: …` (Notweg bei fremdem Kopf, Exit 4). */
+function nurSiteZeile(slug, t, stand) {
+  const alterStand = t.vorspann.find((z) => z.startsWith('// Site: '))?.match(/Stand (\S+)\s*$/)?.[1];
+  const mitAltem = alterStand ? siteZeileErsetzen(t.vorspann, KOPF(slug, regelZahl(t.rumpf), alterStand)) : null;
+  if (mitAltem && mitAltem.vorspann.join('\n') === t.vorspann.join('\n')) return mitAltem;
+  return siteZeileErsetzen(t.vorspann, KOPF(slug, regelZahl(t.rumpf), stand));
+}
+
 const bericht = [];
 
 // --- Nur der Kopf -------------------------------------------------------------------
@@ -226,6 +238,8 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   let m;
   /** @type {string[]} */
   let altRumpf = [];
+  /** @type {string | undefined} */
+  let kopfWarnung;
   try {
     if (existsSync(ziel)) {
       const alt = readFileSync(ziel, 'utf8');
@@ -237,8 +251,17 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
       const rest = verlustVergleich(t.rumpf.join('\n'), m.zeilen).verloren;
       if (rest.length) throw new Error(`Mischen verlöre ${rest.length} Regeln (${rest[0]} …) — Fehler im Generator`);
       let k;
-      // Eigenes Etikett: die Datei ist lesbar, nur ihr Kopf trägt fremden Text (cw-core#280).
-      try { k = neuerVorspann(slug, { vorspann: t.vorspann, rumpf: m.zeilen }, stand); } catch (e) { e.kopf = true; throw e; }
+      const tNeu = { vorspann: t.vorspann, rumpf: m.zeilen };
+      // Fremde Zeile im erzeugten Kopf (cw-core#280): Die Regeln trotzdem schreiben, den Kopf
+      // stehen lassen und nur `// Site: …` nachziehen (Exit 4). Vorher übersprang der Export
+      // die ganze Site, auch eine neue Kennzeichnung wartete auf die Handreparatur des Kopfs
+      // (Review von #281). Jeder andere Kopffehler hält die Site weiter an (Exit 3).
+      try { k = neuerVorspann(slug, tNeu, stand); } catch (e) {
+        const notweg = e.fremdeZeile ? nurSiteZeile(slug, tNeu, stand) : null;
+        if (!notweg) { e.kopf = true; throw e; }
+        k = notweg;
+        kopfWarnung = e.message;
+      }
       inhalt = [...k.vorspann, ...m.zeilen, ...t.schluss].join('\n');
     } else {
       m = mischeRegeln([], zeilen);
@@ -269,7 +292,7 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
     continue;
   }
 
-  bericht.push({ slug, regeln: regelZahl(m.zeilen), offen, pflicht, befunde, m, wegBilder });
+  bericht.push({ slug, regeln: regelZahl(m.zeilen), offen, pflicht, befunde, m, wegBilder, kopfWarnung });
   gesamtPflicht += pflicht;
   gesamtWeg += m.kennzeichnungWeg.length + wegBilder.length;
 
@@ -299,6 +322,7 @@ for (const b of bericht) {
   const weg = wegZahl ? `${wegZahl} ✗` : '—';
   console.log(`${b.slug.padEnd(24)} ${String(b.regeln).padStart(7)} ${String(b.m.neu.length).padStart(5)} ${String(b.m.geaendert.length).padStart(7)} ${String(b.offen).padStart(6)} ${String(b.pflicht).padStart(6)} ${weg.padStart(5)}  ${bf}`);
   for (const f of b.befunde.slice(0, 3)) console.log(`    ${f.field}: ${f.detail}`);
+  if (b.kopfWarnung) console.log(`    Kopf nicht ersetzt, nur \`// Site:\` nachgezogen — ${b.kopfWarnung}`);
   // Der Probelauf ist die Stelle, an der es auffallen soll — nicht erst der Schreiblauf.
   for (const p of b.m.kennzeichnungWeg) console.log(`    Kennzeichnung fiele weg: ${p}`);
   for (const p of b.wegBilder) console.log(`    Kennzeichnung fiele weg für Bild: ${p}`);
@@ -363,3 +387,6 @@ if (hatFlag('--schreiben') && hatFlag('--verdrahten')) {
 const uebersprungen = bericht.filter((b) => b.fehler || b.befunde?.length).length;
 if (uebersprungen) process.exit(3);
 if (gesamtWeg && !hatFlag('--kennzeichnung-weg-ok')) process.exit(2);
+// Review von #281: geschrieben (bzw. im Probelauf: würde geschrieben), aber der Kopf trägt fremde
+// Zeilen und behauptet Text, den der Generator nicht mehr schreibt. Kein Erfolg, kein Abbruch.
+if (bericht.some((b) => b.kopfWarnung)) process.exit(4);
