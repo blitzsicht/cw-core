@@ -39,6 +39,7 @@ import {
   istKennzeichnungspflichtig,
   pruefeBildHerkunftRegeln,
   ueberstimmteKennzeichnung,
+  pflichtStemRegel,
   HERKUNFT_WERTE,
   DEEPFAKE_WERTE,
 } from '../../src/utils/bildherkunft.js';
@@ -429,3 +430,29 @@ test('U4. ungültiger Präfix überstimmt ebenfalls (Bild wird ungeklaert statt 
   assert.deepEqual(ueberstimmteKennzeichnung({ bildHerkunft: [kaputt, KI_STEM] }, 'images/hero.webp'), { stem: 'hero', quelle: 'images/' });
 });
 
+
+// Review von #290, Befund 2: Die Ausnahme „Regel genau auf diese Datei“ ist eine bewusste
+// Aussage nur dann, wenn die Regel gültig ist. Eine ungültige Datei-Regel macht das Bild
+// `ungeklaert` (quelle = Dateipfad) — durchgewunken hieße das: Pflicht still weg.
+test('U5. ungültige Regel genau auf die Datei ist keine bewusste Ausnahme', () => {
+  const kaputt = { pathPrefix: 'images/hero.webp', herkunft: 'mensch', deepfake: 'nein' }; // „überflüssig“
+  assert.deepEqual(ueberstimmteKennzeichnung({ bildHerkunft: [kaputt, KI_STEM] }, 'images/hero.webp'), { stem: 'hero', quelle: 'images/hero.webp' });
+  // Unvollständig (KI ohne Einordnung) ist ebenfalls keine Aussage über die Pflicht.
+  const offen = { pathPrefix: 'images/hero.webp', herkunft: 'ki-erzeugt' };
+  assert.deepEqual(ueberstimmteKennzeichnung({ bildHerkunft: [offen, KI_STEM] }, 'images/hero.webp'), { stem: 'hero', quelle: 'images/hero.webp' });
+  // Gegenprobe: gültig und entschieden bleibt die Ausnahme (U3).
+  const bewusst = { pathPrefix: 'images/hero.webp', herkunft: 'ungeklaert', deepfake: 'nein', begruendung: 'Strichzeichnung, ähnelt nichts Wirklichem' };
+  assert.equal(ueberstimmteKennzeichnung({ bildHerkunft: [bewusst, KI_STEM] }, 'images/hero.webp'), null);
+});
+
+// Review von #290, Befund 4+6: ein Prädikat für „Stem macht pflichtig“, genutzt vom Zähler
+// in checkUeberstimmt und von ueberstimmteKennzeichnung.
+test('U6. pflichtStemRegel: nur gültige KI-Regeln mit deepfake ja', () => {
+  assert.equal(pflichtStemRegel([KI_STEM], 'hero'), true);
+  assert.equal(pflichtStemRegel([KI_STEM], 'team'), false);
+  assert.equal(pflichtStemRegel([{ stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja' }], 'hero'), false, 'ohne Begründung ungültig');
+  assert.equal(pflichtStemRegel([{ ...KI_STEM, herkunft: 'ungeklaert' }], 'hero'), false, 'Widerspruch, ungültig');
+  assert.equal(pflichtStemRegel([{ ...KI_STEM, deepfake: 'nein' }], 'hero'), false);
+  assert.equal(pflichtStemRegel([{ ...KI_STEM, stem: ' hero ' }], 'hero'), true, 'Stem wird getrimmt');
+  assert.equal(pflichtStemRegel(undefined, 'hero'), false);
+});

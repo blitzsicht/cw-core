@@ -332,3 +332,42 @@ test('checkUeberstimmt: ohne Präfix kein Befund, aber gezählt; Fremdhost und S
   assert.deepEqual(checkUeberstimmt(seiten, regeln, { eigenerHost: 'kunde.de' }), { befunde: [], geprueft: 1 });
 });
 
+
+// Review von #290, Befund 1: Astro legt alle Assets flach nach `_astro/`. Zwei verschiedene
+// Quellbilder mit gleichem Stem teilen sich dort den Motiv-Schlüssel. Wurde vor der Prüfung
+// dedupliziert, prüfte der Guard nur das zuerst gesehene — genau der Fall, für den die
+// Datei-Ausnahme gedacht ist.
+const KI_HERO = { stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'fotorealistisch, wirkt echt' };
+const HERO_A_MENSCH = { pathPrefix: '_astro/hero.AAA.webp', herkunft: 'mensch' };
+
+test('checkUeberstimmt: zweites Motiv mit gleichem Stem in _astro/ wird geprüft, auch wenn das erste ausgenommen ist', () => {
+  const regeln = [HERO_A_MENSCH, { pathPrefix: '_astro/', herkunft: 'mensch' }, KI_HERO];
+  const seiten = [{ seite: '/', html: '<img src="/_astro/hero.AAA.webp"><img src="/_astro/hero.BBB.webp">' }];
+  const r = checkUeberstimmt(seiten, regeln);
+  assert.deepEqual(r.befunde, [{ seite: '/', bild: '/_astro/hero.BBB.webp', stem: 'hero', quelle: '_astro/' }]);
+  // Reihenfolge darf nichts ändern.
+  const umgekehrt = [{ seite: '/', html: '<img src="/_astro/hero.BBB.webp"><img src="/_astro/hero.AAA.webp">' }];
+  assert.deepEqual(checkUeberstimmt(umgekehrt, regeln).befunde, r.befunde);
+});
+
+test('checkUeberstimmt: ungültige Stem-Regel zählt nicht als geprüft', () => {
+  const ohneBegruendung = [{ stem: 'hero', herkunft: 'ki-erzeugt', deepfake: 'ja' }];
+  const seiten = [{ seite: '/', html: '<img src="/_astro/hero.A.webp">' }];
+  assert.deepEqual(checkUeberstimmt(seiten, ohneBegruendung), { befunde: [], geprueft: 0 });
+  const mensch = [{ stem: 'hero', herkunft: 'mensch', deepfake: 'ja', begruendung: 'x' }];
+  assert.deepEqual(checkUeberstimmt(seiten, mensch), { befunde: [], geprueft: 0 });
+});
+
+// Dieselbe Lücke im Haupt-Guard: das ausgenommene Motiv zuerst, das pflichtige danach —
+// mit Dedupe vor der Auflösung fehlte das Label still.
+test('pruefeSeiteAufKennzeichnung: pflichtiges zweites Motiv mit gleichem Stem in _astro/ zählt', () => {
+  const regeln = [HERO_A_MENSCH, KI_HERO];
+  const html = '<img src="/_astro/hero.AAA.webp"><img src="/_astro/hero.BBB.webp">';
+  const b = pruefeSeiteAufKennzeichnung(html, regeln);
+  assert.deepEqual(b.pflichtig, ['/_astro/hero.BBB.webp']);
+  assert.equal(b.fehlend, 1);
+  assert.deepEqual(checkAiLabels([{ seite: '/', html }], regeln), [{ seite: '/', bild: '/_astro/hero.BBB.webp' }]);
+  // Varianten eines pflichtigen Motivs zählen weiter einmal (03.09.2026: 6 statt 1).
+  const varianten = '<img src="/_astro/hero.BBB.avif" srcset="/_astro/hero.BBB_1.webp 800w, /_astro/hero.BBB_2.webp 1600w">';
+  assert.equal(pruefeSeiteAufKennzeichnung(varianten, [KI_HERO]).pflichtig.length, 1);
+});
