@@ -24,6 +24,24 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Nachlese Review r35 vor dem Train-Tag: reparierte Formatierungs-Klone melden ihre Ressource einmal, das Astro-Hash-Muster gilt nur unter `_astro/`, nur ein rc-Block geht im Release auf, `herkunftPflicht` nennt einen unbekannten Wert
+
+Kontext: Review der ungetaggten PRs #294–#298. Kein Befund mit heutiger Flottenwirkung; behoben wird,
+was vor dem Tag billig ist.
+
+- `elementeAusHtml`: Die Adoption Agency (`</a>` hinter einem Block) baut Formatierungs-Elemente ohne
+  Fundstelle nach. Die CSP-Prüfung meldete deren `img-src`/`style-src-attr` doppelt, mit falscher Zeile.
+  Ein Formatierungs-Element ohne Fundstelle gilt jetzt als Klon; implizites `html`/`body`/`tbody` bleibt echt.
+- `motivSchluessel`: Das Muster `<stem>.<hash8>` gilt nur unter `_astro/`. `public/hero.original.webp`
+  und `hero.mobile.webp` sind wieder ein Motiv (Flotte 12.11.2026: 0 von 606 public-Bildern betroffen).
+- Changelog-Lint: Nur ein fehlender `-rc.N`-Block gilt als im Release aufgegangen, ein alpha-/beta-Block
+  nicht (0 von 88 Suffix-Tags tragen heute einen eigenen Block).
+- `herkunftPflicht`: Ein dritter Wert meldet „unbekannte herkunft“ statt „lief ohne kundenListe“.
+- Tests trennscharf: alpha-Tags über v0.62.0 im Prärelease-Test, zwei Quellen mit Punkt im Stem.
+
+Belege: Neue Fälle am Kopf 4 rot. Sabotagen 7/7 rot, Dateien danach byte-gleich. Suite 1842, 1839 pass,
+0 fail, 3 skipped.
+
 **Fix:** Zwei KI-Bilder mit gleichem Dateinamen brauchen wieder zwei Kennzeichnungen: der Motiv-Schlüssel behält den Quellhash von Astro, statt am ersten Punkt zu schneiden (Review von #291)
 
 Kontext: Astro legt alle Assets flach nach `_astro/` und benennt sie `<stem>.<hash8>[_<variante>].<ext>`.

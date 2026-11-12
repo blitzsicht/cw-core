@@ -228,6 +228,9 @@ const ASTRO_ASSET_RE = /^(.+)\.([A-Za-z0-9_-]{8})(?:_[A-Za-z0-9]+)?\.[a-z0-9]+$/
  * Bis zum Review von #291 schnitt der Schlüssel am ersten Punkt und warf den Hash weg.
  *
  * Ohne Astro-Muster (`public/`-Bilder) gilt die alte Regel: Dateiname bis zum ersten Punkt.
+ * Das Muster gilt nur unter `_astro/`: `public/hero.original.webp` hat ein Segment mit 8 Zeichen,
+ * aber keinen Quellhash, und `hero.mobile.webp` daneben fiele auf die alte Regel (Review r35).
+ * Ein umkonfiguriertes `build.assets` fällt damit auf die alte Regel zurück (Stand vor #295).
  *
  * Verzeichnis bewusst mit drin: `resolveBildHerkunft` löst über den blossen Stem auf,
  * was für die Zuordnung einer Regel richtig ist — zum Zählen wäre es zu grob, weil
@@ -239,7 +242,7 @@ const ASTRO_ASSET_RE = /^(.+)\.([A-Za-z0-9_-]{8})(?:_[A-Za-z0-9]+)?\.[a-z0-9]+$/
 function motivSchluessel(pfad) {
   const teile = pfad.split('/');
   const name = teile.pop() ?? '';
-  const astro = ASTRO_ASSET_RE.exec(name);
+  const astro = teile.includes('_astro') ? ASTRO_ASSET_RE.exec(name) : null;
   const motiv = astro ? `${astro[1]}.${astro[2]}` : name.split('.')[0];
   return `${teile.join('/')}/${motiv}`;
 }
