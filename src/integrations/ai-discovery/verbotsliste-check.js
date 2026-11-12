@@ -462,3 +462,20 @@ export function pruefeErlaubteListe(erlaubte, formulierungen) {
   }
   return befunde;
 }
+
+/**
+ * Die Herkunft eines Befunds, Pflicht. Ohne sie wäre ein Kundentreffer nicht vom Flottentreffer zu
+ * trennen; vorher landete er still im Flottentopf, und `strictVerbotsliste` griff nie (Review
+ * cw-core#261, B3). Der Hook gibt `kundenListe` an jedem Aufruf mit; fehlt sie doch, ist das ein
+ * Programmierfehler und kein Seiteninhalt: laut abbrechen statt raten. Auch ein dritter Wert
+ * bricht ab, statt als Flotte zu zählen (Review #282).
+ *
+ * @param {VerbotslistenBefund} b
+ * @returns {'kunde' | 'flotte'}
+ */
+export function herkunftPflicht(b) {
+  if (b.herkunft !== 'kunde' && b.herkunft !== 'flotte') {
+    throw new Error(`Verbotslisten-Guard: Befund „${b.formulierung}" auf ${b.seite} ohne herkunft — pruefeVerbotsliste lief ohne kundenListe.`);
+  }
+  return b.herkunft;
+}

@@ -723,3 +723,21 @@ test('#261 B1: herabgestuftDurch nur, wenn die Schwere sich ändert', () => {
   assert.equal(kundeOffen[0].herkunft, 'kunde');
   assert.equal(kundeOffen[0].herabgestuftDurch, undefined);
 });
+
+test('#261 Review #282: herkunftPflicht bricht an einem Befund ohne Herkunft ab, gegen den echten Checker', async () => {
+  // Der stille Rückfall (Befund ohne herkunft → Flottentopf, strict greift nie) ist genau der Fall
+  // aus B3. Ohne kundenListe liefert der echte Checker Befunde ohne herkunft; die liest der Hook
+  // nie, also muss der Abbruch hier gegen genau diese Ausgabe rot werden.
+  const { herkunftPflicht } = await import('./verbotsliste-check.js');
+  const seite = 'p/index.html';
+  const ohne = pruefeVerbotsliste(ANWALT, seite, ANWALT_LISTE, [], undefined);
+  assert.ok(ohne.length > 0, 'die Probe braucht einen Befund');
+  assert.equal(ohne[0].herkunft, undefined);
+  assert.throws(() => herkunftPflicht(ohne[0]), /Befund „anwaltlich geprüft" auf p\/index\.html ohne herkunft/);
+  // Ein dritter Wert landet nicht still im Flottentopf.
+  assert.throws(() => herkunftPflicht({ ...ohne[0], herkunft: /** @type {any} */ ('fremd') }), /ohne herkunft/);
+  // GEGENPROBE: mit kundenListe trägt jeder Befund seine Herkunft, und sie kommt durch.
+  const mit = pruefeVerbotsliste(ANWALT, seite, ANWALT_LISTE, [], { kundenListe: ['anwaltlich'] });
+  assert.deepEqual(mit.map((b) => herkunftPflicht(b)), mit.map((b) => b.herkunft));
+  assert.ok(mit.length > 0 && mit.every((b) => b.herkunft === 'kunde' || b.herkunft === 'flotte'));
+});

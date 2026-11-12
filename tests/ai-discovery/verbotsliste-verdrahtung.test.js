@@ -224,7 +224,7 @@ test('#236 die Ausnahme hebt genau eine der zwei Warnungen auf', async () => {
   assert.equal(treffer.length, 1, `genau das Versprechen bleibt: ${e.warnungen.join(' | ')}`);
   assert.ok(treffer[0].includes('Wir bauen eine Website'), treffer[0]);
   assert.ok(
-    e.infos.some((i) => i.includes('Ausnahme „keine Anfragen bringt" greift auf index.html')),
+    e.infos.some((i) => i.includes('Ausnahme „keine Anfragen bringt" greift auf index.html (hebt den Treffer auf)')),
     `was die Ausnahme zudeckt, muss im Log stehen: ${e.infos.join(' | ')}`,
   );
 });
@@ -486,6 +486,10 @@ test('#261 B1: eine Phrase, die den Kundentreffer herabstuft, heißt nicht „un
   });
   assert.equal(e.warnungen.filter((w) => w.includes('hat auf keiner')).length, 0, e.warnungen.join(' | '));
   assert.ok(e.infos.some((i) => i.includes('Ausnahme „nicht anwaltlich" greift auf index.html')), e.infos.join(' | '));
+  // Review #282: Die Phrase hebt hier nichts auf, sie stuft herab; der Flottentreffer bleibt offen.
+  // Vorher hieß die Zeile nur „greift auf“ und las sich neben dem offenen Treffer als Widerspruch.
+  assert.ok(e.infos.some((i) => i.includes('„nicht anwaltlich" greift auf index.html (stuft den Kundentreffer zum Flottenhinweis herab)')), e.infos.join(' | '));
+  assert.ok(!e.infos.some((i) => i.includes('„nicht anwaltlich" greift auf index.html (hebt')), e.infos.join(' | '));
   assert.equal(e.fehler, null, 'Flottentreffer bricht auch mit strict nicht ab');
   // GEGENPROBE: dem alten Streich-Rat gefolgt — ohne die Phrase bricht strict ab.
   const g = await lauf({
@@ -509,4 +513,24 @@ test('#261 B1: auf einer pfad-ausgenommenen Seite zählt die Herabstufung als �
   assert.equal(w.length, 1, w.join(' | '));
   assert.ok(w[0].includes('greift nur auf') && w[0].includes('recht/index.html'), w[0]);
   assert.ok(!w[0].includes('Satz ist weg'), `falsche Diagnose: ${w[0]}`);
+});
+
+// ─── #261, Review #282: die Herkunft ist an JEDEM Befund Pflicht ────────────────────────
+// Der Abbruch selbst steckt in `herkunftPflicht` (verbotsliste-check.test.mjs fährt ihn gegen den
+// echten Checker). Hier steht, was nur am Hook-Quelltext sichtbar ist: Jeder Aufruf gibt
+// `herkunftOption` mit, und jede Schleife über die Befunde prüft die Herkunft, BEVOR ein
+// aufgehobener Befund mit `continue` übersprungen wird. Vorher lief die Prüfung nur über offene
+// Befunde; eine Seite mit nur aufgehobenen Befunden kam ohne Abbruch durch. Strukturprobe, kein
+// Verhaltensbeleg: über den Hook ist ein Befund ohne Herkunft nicht herstellbar.
+test('#261 Review #282: jeder pruefeVerbotsliste-Aufruf im Hook prüft die Herkunft zuerst', async () => {
+  const { readFileSync } = await import('node:fs');
+  const quelle = readFileSync(new URL('../../src/integrations/ai-discovery/index.ts', import.meta.url), 'utf-8');
+  const schleifen = [...quelle.matchAll(/for \(const b of pruefeVerbotsliste\((.*)\)\) \{\n(\s*)(.*)/g)];
+  assert.ok(schleifen.length >= 2, `erwartet ≥ 2 Schleifen über pruefeVerbotsliste, gefunden ${schleifen.length}`);
+  for (const [, args, , ersteZeile] of schleifen) {
+    assert.match(args, /, herkunftOption$/, `Aufruf ohne herkunftOption: ${args}`);
+    assert.equal(ersteZeile, 'const herkunft = herkunftPflicht(b);', 'erste Zeile der Schleife muss die Herkunft prüfen');
+  }
+  // Kein stiller Rückfall in den Flottentopf.
+  assert.doesNotMatch(quelle, /\.herkunft\s*(\?\?|\|\|)/);
 });
