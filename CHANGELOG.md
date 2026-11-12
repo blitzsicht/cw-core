@@ -72,6 +72,23 @@ Ressourcen, 1247 Bilder, 41 pflichtig auf 35 Seiten, 0 fehlend). Gegenprobe an e
 `->` im alt-Text und Cal-Loader: der Kopf verliert 9 Bilder und den Befund, neu nicht. Sabotagen 4/4
 rot (2, 2, 3, 1 Fälle).
 
+**Fix:** Der Export-Lauf der Bild-Herkunft meldet Verluste je Bild einmal und Fehler mit ihrem echten Grund (cw-core#280, Nachlese Reviews #274/#277/#278; Reviews von #288 und #293)
+
+- Ein Bild unter `src/` hat zwei Laufzeitpfade (`src/…` und `_astro/…`) und erschien deshalb zweimal
+  in der Ausgabe. Neu: `laufzeitBilder` gruppiert je Datei, `bilderMitVerlust` zählt je Bild.
+- Regeln und Bilder werden getrennt gezählt (`1 Regeln, 1 Bilder`, Tabellenspalte `weg` als `1/1`).
+  Vorher stand ihre Summe da, und derselbe Verlust zählte doppelt. Exit 2 bleibt unverändert.
+- Der catch des Laufzeit-Orakels trennt drei Fälle: gemischte Regeln nicht auswertbar, Bestand nicht
+  auswertbar, Bilddateien der Site nicht lesbar. Vorher hieß auch ein Lesefehler im Bildordner
+  „gemischte Regeln nicht auswertbar“.
+- Fremder Kopf beim Export (Exit 4): Die Meldung sagt jetzt „Regeln geschrieben, Kopf behalten, nur
+  `// Site:` nachgezogen“. Vorher stand dort die Abbruchmeldung von `--kopf` („ein Lauf löschte sie“).
+- `siteZeileErsetzen` markiert seinen Fehler als Kopffehler, er erscheint nicht mehr als „Zieldatei
+  nicht lesbar“.
+
+Belege: Tests I11, I12, L5, K11 und die Ergänzung zu I8 sind am alten Stand rot. Sabotagen 3/3 rot
+(alter Export-Lauf 3, alter `siteZeileErsetzen` 1, Zählung je Pfad 2).
+
 **Fix:** Der HTML-Leser der CSP-Prüfung und von verify-touchpoints liest mit `parse5` statt mit eigenen Regex-Mustern: Rohtext ohne End-Tag, `<plaintext>`, SVG-Fremdinhalt, NBSP in Attributen und Scripts in `<noscript>` werden gelesen wie im Browser, große Seiten etwa zehnmal schneller (Review von #289)
 
 Kontext: Seit #283 fand jedes Review neue Tokenizer-Zustände, die der Regex-Leser nicht kannte. Das

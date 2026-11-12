@@ -23,7 +23,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -200,6 +200,10 @@ test('I8. Handabsatz im erzeugten Kopf: --kopf bricht ab, Export schreibt die Re
   const s = lauf('--export', exp, '--schreiben');
   assert.equal(s.status, 4, s.stdout + s.stderr);
   assert.match(s.stdout, /Kopf nicht ersetzt.*Zeile 2/);
+  // Review von #293, Befund 1: Der Text sagt, was passiert ist (Regeln geschrieben), nicht die
+  // Abbruchmeldung von `--kopf` („ein Lauf löschte sie … dann neu laufen“).
+  assert.match(s.stdout, /Regeln geschrieben, Kopf behalten, nur `\/\/ Site:` nachgezogen/);
+  assert.doesNotMatch(s.stdout, /löschte/);
   const nachher = readFileSync(ziel, 'utf8');
   assert.match(nachher, /c\.webp.*deepfake: 'ja'/, 'neue Kennzeichnung geschrieben');
   assert.match(nachher, /^\/\/ ERZEUGTE DATEI/, 'alter Kopf bleibt');
@@ -251,4 +255,48 @@ test('I9. Verzeichnis-Präfix über gekennzeichnetem Stem: Exit 2, nicht geschri
   const ok = lauf('--export', exp, '--schreiben', '--kennzeichnung-weg-ok');
   assert.equal(ok.status, 0, ok.stderr + ok.stdout);
   assert.ok(readFileSync(ziel, 'utf8').includes("pathPrefix: 'images/'"));
+});
+
+// ─── cw-core#280: Meldungen des Export-Laufs (Review von #288, Befunde 4 und 6) ──────────
+test('I11. Bild unter src/ verliert die Kennzeichnung: einmal gemeldet, Regeln und Bilder getrennt gezählt', () => {
+  const stemKi = regelZeile('stem', 'hero-ki', { h: 'ki-erzeugt', d: 'ja', b: B });
+  const { ziel, exp, lauf } = aufbau(ERZEUGT([stemKi]), []);
+  const repo = join(ziel, '..', '..', '..');
+  // Export ordnet denselben Stem als `mensch` ein: ein Verlust, als Regel UND als Bild sichtbar.
+  const e = JSON.parse(readFileSync(exp, 'utf8'));
+  e.sites.probe = [{ datei: 'src/assets/hero-ki.webp', key: 'stem', wert: 'hero-ki', herkunft: 'mensch', deepfake: null, begruendung: null }];
+  writeFileSync(exp, JSON.stringify(e));
+  mkdirSync(join(repo, 'src/assets'), { recursive: true });
+  writeFileSync(join(repo, 'src/assets/hero-ki.webp'), '');
+  const probe = lauf('--export', exp);
+  assert.equal(probe.status, 2, probe.stderr + probe.stdout);
+  const zeilen = probe.stdout.split('\n').filter((z) => z.includes('Kennzeichnung fiele weg für Bild:'));
+  assert.deepEqual(zeilen.map((z) => z.trim()), ['Kennzeichnung fiele weg für Bild: src/assets/hero-ki.webp']);
+  assert.match(probe.stdout, /entfernen würde: 1 Regeln, 1 Bilder/);
+  assert.match(probe.stdout, /probe .* 1\/1 ✗/);
+  const s = lauf('--export', exp, '--schreiben');
+  assert.match(s.stderr, /1 Regeln, 1 Bilder verlören die Kennzeichnung — NICHT geschrieben/);
+});
+
+test('I12. Lesefehler im Bildordner und unauswertbare Regel ergeben zwei verschiedene Meldungen', () => {
+  // (a) Regel mit einer Konstante aus dem Vorspann (Bauform haarwerk): Auswertung scheitert.
+  const konst = "  { stem: 'x', herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: KI_BEGRUENDUNG_STANDARD },";
+  const a = aufbau(ERZEUGT([konst]), [['a.webp', 'ki-erzeugt', 'nein']]);
+  const ra = a.lauf('--export', a.exp);
+  assert.equal(ra.status, 3, ra.stderr + ra.stdout);
+  assert.match(ra.stdout, /gemischte Regeln nicht auswertbar — .*KI_BEGRUENDUNG_STANDARD/);
+
+  // (b) Gültige Regeln, aber ein Bildordner ohne Leserecht.
+  const b = aufbau(ERZEUGT([r('a.webp')]), [['a.webp', 'ki-erzeugt', 'nein']]);
+  const gesperrt = join(b.ziel, '..', '..', '..', 'public', 'gesperrt');
+  mkdirSync(gesperrt, { recursive: true });
+  chmodSync(gesperrt, 0o000);
+  try {
+    const rb = b.lauf('--export', b.exp);
+    assert.equal(rb.status, 3, rb.stderr + rb.stdout);
+    assert.match(rb.stdout, /Bilddateien der Site nicht lesbar — .*EACCES/);
+    assert.doesNotMatch(rb.stdout, /gemischte Regeln nicht auswertbar/);
+  } finally {
+    chmodSync(gesperrt, 0o755);
+  }
 });

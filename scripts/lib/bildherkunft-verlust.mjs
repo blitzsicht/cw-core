@@ -409,7 +409,13 @@ export function siteZeileErsetzen(vorspann, neuerKopf) {
   const site = vorspann.findIndex((z) => /^\/\/ Site: /.test(z));
   if (site === -1) return null;
   const neueSite = neuerKopf.replace(/\n+$/, '').split('\n').at(-1);
-  if (!/^\/\/ Site: /.test(neueSite)) throw new Error('neuerKopf endet nicht mit `// Site: …`.');
+  if (!/^\/\/ Site: /.test(neueSite)) {
+    // Ein Kopffehler, kein Lesefehler: `e.kopf` lässt den Export-Lauf ihn als solchen melden,
+    // nicht als „Zieldatei nicht lesbar“ (Review von #293, Befund 5).
+    const e = new Error('neuerKopf endet nicht mit `// Site: …`.');
+    e.kopf = true;
+    throw e;
+  }
   return { vorspann: vorspann.map((z, i) => (i === site ? neueSite : z)), ersetzt: false };
 }
 
@@ -457,14 +463,28 @@ export function fremdeKopfZeile(kopf) {
  * @returns {string[]}
  */
 export function laufzeitPfade(dateien) {
-  const out = new Set();
+  return [...new Set([...laufzeitBilder(dateien).values()].flat())];
+}
+
+/**
+ * Wie `laufzeitPfade`, aber je Bilddatei gruppiert. Ein Bild unter `src/` hat zwei
+ * Laufzeitpfade; gezählt und gemeldet wird es trotzdem einmal (Review von #288, Befund 4:
+ * vorher erschien es in der Ausgabe zweimal).
+ *
+ * @param {Iterable<string>} dateien  Repo-relative Pfade (Schrägstriche)
+ * @returns {Map<string, string[]>}  Anzeigepfad (`public/` dist-relativ, `src/` als Repo-Pfad)
+ *   → seine Laufzeitpfade
+ */
+export function laufzeitBilder(dateien) {
+  /** @type {Map<string, string[]>} */
+  const out = new Map();
   for (const roh of dateien) {
     const d = String(roh ?? '').replace(/\\/g, '/').replace(/^\/+/, '');
     if (!BILD_EXT.test(d)) continue;
-    if (d.startsWith('public/')) out.add(d.slice('public/'.length));
-    else if (d.startsWith('src/')) { out.add(d); out.add(`_astro/${d.split('/').pop()}`); }
+    if (d.startsWith('public/')) { const p = d.slice('public/'.length); out.set(p, [p]); }
+    else if (d.startsWith('src/')) out.set(d, [d, `_astro/${d.split('/').pop()}`]);
   }
-  return [...out];
+  return out;
 }
 
 /**
@@ -486,6 +506,22 @@ export function laufzeitPfade(dateien) {
 export function kennzeichnungWegZurLaufzeit(altRegeln, neuRegeln, pfade) {
   const pflichtig = (regeln, p) => pflichtigZurLaufzeit(resolveBildHerkunft({ bildHerkunft: regeln }, p));
   return [...new Set(pfade)].filter((p) => pflichtig(altRegeln, p) && !pflichtig(neuRegeln, p)).sort();
+}
+
+/**
+ * Welche Bilder verlören die Kennzeichnung? Ein Bild zählt einmal, sobald einer seiner
+ * Laufzeitpfade sie verliert (`laufzeitBilder`). Das ist die Zahl, die der Export-Lauf meldet.
+ *
+ * @param {object[]} altRegeln  der Bestand, ausgewertet
+ * @param {object[]} neuRegeln  das Ergebnis des Mischens, ausgewertet
+ * @param {Map<string, string[]>} bilder  aus `laufzeitBilder`
+ * @returns {string[]}  Anzeigepfade, sortiert
+ */
+export function bilderMitVerlust(altRegeln, neuRegeln, bilder) {
+  return [...bilder]
+    .filter(([, pfade]) => kennzeichnungWegZurLaufzeit(altRegeln, neuRegeln, pfade).length > 0)
+    .map(([bild]) => bild)
+    .sort();
 }
 
 /**
