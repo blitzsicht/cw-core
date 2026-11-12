@@ -173,5 +173,41 @@ test('Lief-nie-Schutz: die Schwelle liegt unter dem gemessenen Stand und über n
   // T2 (#273): Obergrenze, keine Gleichheit. Wer eine Altlast wiederherstellt, streicht sie (die Ratsche
   // verlangt das); die Liste darf schrumpfen, nie wachsen.
   assert.ok(Object.keys(ALTLASTEN).length <= 14, 'ALTLASTEN darf nicht wachsen (14 am 09.11.2026)');
+  // #286: Nur die Zahl hielt „einen streichen, einen falschen dazu“ nicht auf. Jeder Name muss aus
+  // dem Stand vom 09.11.2026 stammen; schrumpfen darf die Liste weiter.
+  const STAND_0911 = ['v0.190.0', 'v0.163.0', 'v0.126.0', 'v0.120.0', 'v0.108.0', 'v0.107.0', 'v0.101.0',
+    'v0.99.1', 'v0.99.0', 'v0.97.3', 'v0.97.1', 'v0.97.0', 'v0.95.0', 'v0.94.0'];
+  for (const v of Object.keys(ALTLASTEN)) assert.ok(STAND_0911.includes(v), `${v} stand am 09.11.2026 nicht in ALTLASTEN`);
   for (const [v, h] of Object.entries(ALTLASTEN)) assert.match(h, /^[0-9a-f]{12}$/, `${v} braucht einen Hash`);
+});
+
+// ── cw-core#286 (Nachlese Review #284): Präreleases, Suffixe, unlesbare Versionen ─────────────
+
+test('#286: rc-Block nach der Umbenennung zum Release ist kein fehlender Block', () => {
+  // cw-release benennt `## v0.195.0-rc.1` beim Final-Release in `## v0.195.0` um. Vorher meldete
+  // der Lint dann „Block fehlt, sein Tag hat ihn“, und pnpm test blieb rot.
+  const rcTag = '## v0.195.0-rc.1 (2026-11-09)\n\n- rc\n';
+  const umbenannt = md('## v0.195.0 (2026-11-10)\n\n- rc\n- danach dazu\n');
+  const r = pruefeTagGleichheit(umbenannt, tags({ 'v0.195.0-rc.1': rcTag }), {});
+  assert.deepEqual(r.befunde, [], formatiereTagBefunde(r));
+  // GEGENPROBE: weder rc- noch Release-Block da → weiter rot.
+  const weg = pruefeTagGleichheit(md(B193), tags({ 'v0.195.0-rc.1': rcTag }), {});
+  assert.equal(weg.befunde.length, 1);
+  assert.match(weg.befunde[0].grund, /Block `## v0\.195\.0-rc\.1 …` fehlt/);
+  // GEGENPROBE: ein umbenannter Release-Block entbindet nur Präreleases, nicht das Release selbst.
+  const rel = pruefeTagGleichheit(md(B193), tags({ 'v0.195.0': '## v0.195.0 (x)\n' }), {});
+  assert.equal(rel.befunde.length, 1);
+});
+
+test('#286: nur alpha/beta/rc gelten als Prärelease ohne Block, `-hotfix` nicht', () => {
+  const r = pruefeTagGleichheit(md(), tags({}), {}, ['v0.197.0-hotfix', 'v0.197.0-rc.2', 'v0.197.0-beta', 'v0.14.1-alpha']);
+  assert.deepEqual(r.befunde.map((b) => b.version), ['v0.197.0-hotfix'], formatiereTagBefunde(r));
+  assert.match(r.befunde[0].grund, /hat in seinem CHANGELOG keinen Block/);
+});
+
+test('#286: eine unlesbare Version ist ein Befund, kein stilles „erlaubt ohne Block“ (fail-closed)', () => {
+  // compareVersions gibt dafür NaN, und `NaN > 0` ist falsch.
+  const r = pruefeTagGleichheit(md(), tags({}), {}, ['vkaputt', 'v0.62.0']);
+  assert.deepEqual(r.befunde.map((b) => b.version), ['vkaputt'], formatiereTagBefunde(r));
+  assert.match(r.befunde[0].grund, /Version nicht lesbar/);
 });

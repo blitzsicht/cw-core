@@ -44,6 +44,25 @@ Belege: Gate über 406 Live-Seiten aus 16 Sites, alt gegen neu, ohne Abweichung 
 124 pflichtig und 26 fehlend auf 14 Seiten, alt weiter 97 und 0. Sabotagen 3/3 rot (alter Schlüssel,
 Schnitt am letzten `_`, Regex ohne Variantengruppe).
 
+**Fix:** Der Changelog-Lint bleibt beim ersten rc-Release grün, meldet ein `-hotfix`-Tag ohne Eintrag und lässt keine unlesbare Version still durch (cw-core#286, Nachlese Review #284)
+
+Kontext: cw-release benennt `## vX-rc.N` beim Final-Release in `## vX` um. Der Tag-Vergleich meldete
+danach „Block fehlt, sein Tag hat ihn“, und `pnpm test` blieb rot. Heute gibt es keinen rc-Tag
+(88 Tags mit Suffix, alle `-alpha`), der Fall hätte den ersten getroffen.
+
+- Ein Präreleasetag, dessen Block im Release-Block aufgegangen ist, gilt nicht mehr als fehlend.
+  Fehlen beide, bleibt es rot.
+- Als Prärelease ohne eigenen Block gelten nur noch `-alpha`, `-beta` und `-rc` (je optional `.N`).
+  Ein `v0.197.0-hotfix` ohne Eintrag wird rot.
+- Eine unlesbare Version ist ein Befund. `NaN > 0` ließ sie vorher als „erlaubt ohne Block“ durch.
+- `lint-changelog` sagt auch bei Exit 1, dass die Setext-Prüfung nicht lief, und lädt die drei
+  Parser-Pakete nacheinander. So nennt die Meldung immer dasselbe fehlende Paket.
+- Tests: Die ALTLASTEN dürfen nur Namen vom 09.11.2026 tragen. Die Gegenprobe am echten CHANGELOG
+  trifft keine `*`-Listenzeile mehr.
+
+Belege: Je Fix ein Fall, der am Kopf rot ist (4 von 4). Sabotagen 5/5 rot. Lint am echten CHANGELOG:
+177 Blöcke gegen ihren Tag, 14 Altlasten, 0 Abweichungen.
+
 **Fix:** KI-Kennzeichnung und Cal-Consent-Prüfung lesen wieder jedes Tag: seit dem Umstieg auf parse5 (#292, HTML-Leser auf parse5) verschwand ein Bild oder Script still, sobald ein Attributwert ein `>` enthielt; tiefe Verschachtelung brach den Build ab (Review von #292)
 
 Kontext: `bilderAusHtml` und `checkEmbedConsent` schnitten Tags weiter per Regex am ersten `>` und

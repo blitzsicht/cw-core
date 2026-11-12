@@ -90,12 +90,14 @@ function main() {
     }
   }
 
-  if (befunde.length > 0 || fehlt || tagRot) process.exit(1);
-  // Erst nach allen anderen Prüfungen: deren Befunde sollen auch ohne Parser sichtbar sein.
+  // Erst nach allen anderen Prüfungen: deren Befunde sollen auch ohne Parser sichtbar sein. Der
+  // Hinweis kommt auch bei Exit 1 (cw-core#286), sonst sah man erst im zweiten Lauf, dass etwas
+  // ungeprüft blieb. Der Exit-Code bleibt beim schwereren Wert.
   if (SETEXT_NICHT_GEPRUEFT) {
     console.error(`lint-changelog: ${SETEXT_NICHT_GEPRUEFT}. Kein Grün: die übrigen Prüfungen liefen, diese nicht.`);
-    process.exit(3);
   }
+  if (befunde.length > 0 || fehlt || tagRot) process.exit(1);
+  if (SETEXT_NICHT_GEPRUEFT) process.exit(3);
   console.log(`lint-changelog: ✓ ${md.split('\n').filter((z) => z.startsWith('## ')).length} Kopfzeile(n) in Normform.`);
 }
 
