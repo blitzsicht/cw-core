@@ -28,7 +28,10 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # Runner aus der Org-Variable CI_RUNS_ON (blitzsicht-ops#931): private Repos laufen auf dem
+    # eigenen Runner blitzsicht-ci (Minuten kosten dort nichts), öffentliche sehen die Variable
+    # nicht und bleiben auf ubuntu-latest. Rückweg ohne Rollout: Variable auf ubuntu-latest.
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     # 8 statt 5 seit dem Reproduzierbarkeits-Schritt: der baut ein zweites Mal
     # (~30-60 s). Bei 5 Minuten wäre das größte Repo knapp geworden.
     timeout-minutes: 8
@@ -173,7 +176,7 @@ jobs:
   smoke-test:
     needs: build
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     timeout-minutes: 4
     steps:
       - name: Checkout

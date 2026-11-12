@@ -63,7 +63,10 @@ concurrency:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    # Runner aus der Org-Variable CI_RUNS_ON (blitzsicht-ops#931): private Repos laufen auf dem
+    # eigenen Runner blitzsicht-ci (Minuten kosten dort nichts), öffentliche sehen die Variable
+    # nicht und bleiben auf ubuntu-latest. Rückweg ohne Rollout: Variable auf ubuntu-latest.
+    runs-on: ${{ vars.CI_RUNS_ON || 'ubuntu-latest' }}
     timeout-minutes: 20
 
     # ── Die einzige Stelle, an der der cw-core-Pin steht ─────────────────────

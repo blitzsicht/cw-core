@@ -24,6 +24,10 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**CI:** `build-check.yml` und `site-checks.yml` (Vorlagen) nehmen den Runner aus der Org-Variable `CI_RUNS_ON`, Rückfall `ubuntu-latest` (blitzsicht-ops#931)
+
+Private Kundenrepos laufen damit auf dem eigenen Runner `blitzsicht-ci`, öffentliche Repos sehen die Variable nicht. Wirkt erst nach dem Rollout (`customer-websites/scripts/rollout-build-check.sh`, `rollout-site-checks.sh`). Kein Laufzeitcode, keine Kundenwirkung.
+
 **Fix:** Nachlese Review r35 vor dem Train-Tag: reparierte Formatierungs-Klone melden ihre Ressource einmal, das Astro-Hash-Muster gilt nur unter `_astro/`, nur ein rc-Block geht im Release auf, `herkunftPflicht` nennt einen unbekannten Wert
 
 Kontext: Review der ungetaggten PRs #294–#298. Kein Befund mit heutiger Flottenwirkung; behoben wird,
