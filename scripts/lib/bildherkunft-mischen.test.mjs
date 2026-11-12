@@ -45,7 +45,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   mischeRegeln, kopfErsetzen, fremdeKopfZeile, siteZeileErsetzen, KOPF_ZEILEN, FRUEHERE_KOEPFE, teileDatei, regelZahl, istKennzeichnungspflichtig, hatErzeugtenKopf,
-  verlustVergleich, stammVonPfad, laufzeitPfade, kennzeichnungWegZurLaufzeit,
+  verlustVergleich, stammVonPfad, laufzeitPfade, kennzeichnungWegZurLaufzeit, laufzeitBilder, bilderMitVerlust,
 } from './bildherkunft-verlust.mjs';
 import { regelZeile } from '../bildherkunft-arbeitsliste.mjs';
 import { NEUE_DATEI } from '../bild-einbauen.mjs';
@@ -332,4 +332,27 @@ test('L4. src-Asset: Präfix auf den Repo-Pfad hebt die Kennzeichnung für diese
   const pfade = laufzeitPfade(['src/assets/hero-ki.webp']);
   // Über `_astro/hero-ki.webp` trifft weiter der Stem, über den Repo-Pfad der neue Präfix.
   assert.deepEqual(kennzeichnungWegZurLaufzeit(alt, neu, pfade), ['src/assets/hero-ki.webp']);
+});
+
+// ─── cw-core#280: Meldungen des Export-Laufs (Reviews von #288 und #293) ────────────────
+test('L5. bilderMitVerlust: ein Bild unter src/ zählt einmal, nicht je Laufzeitpfad (Review von #288, Befund 4)', () => {
+  const alt = [{ stem: 'hero-ki', ...KI_JA }];
+  const neu = [{ stem: 'hero-ki', ...MENSCH }];
+  const dateien = ['src/assets/hero-ki.webp', 'public/images/team.webp'];
+  assert.deepEqual([...laufzeitBilder(dateien)], [
+    ['src/assets/hero-ki.webp', ['src/assets/hero-ki.webp', '_astro/hero-ki.webp']],
+    ['images/team.webp', ['images/team.webp']],
+  ]);
+  assert.deepEqual(bilderMitVerlust(alt, neu, laufzeitBilder(dateien)), ['src/assets/hero-ki.webp']);
+  // Der alte Zähler: dasselbe Bild zweimal.
+  assert.equal(kennzeichnungWegZurLaufzeit(alt, neu, laufzeitPfade(dateien)).length, 2);
+  // GEGENPROBE: ohne Verlust leer.
+  assert.deepEqual(bilderMitVerlust(alt, alt, laufzeitBilder(dateien)), []);
+});
+
+test('K11. siteZeileErsetzen: Kopf ohne `// Site:` am Ende ist ein Kopffehler (Review von #293, Befund 5)', () => {
+  let fehler;
+  try { siteZeileErsetzen([...KOPF_ZEILEN, SITE], '// kein Site-Ende\n'); } catch (e) { fehler = e; }
+  assert.ok(fehler, 'wirft');
+  assert.equal(fehler.kopf, true);
 });

@@ -49,7 +49,7 @@ import { join, relative, sep } from 'node:path';
 import { regelZeile } from './bildherkunft-arbeitsliste.mjs';
 import {
   verlustVergleich, mischeRegeln, kopfErsetzen, siteZeileErsetzen, KOPF_ZEILEN, teileDatei, regelZahl, hatErzeugtenKopf,
-  laufzeitPfade, kennzeichnungWegZurLaufzeit,
+  laufzeitBilder, bilderMitVerlust,
 } from './lib/bildherkunft-verlust.mjs';
 import { pruefeBildHerkunftRegeln } from '../src/utils/bildherkunft.js';
 import { registryPfad } from './registry-pfad.mjs';
@@ -201,7 +201,10 @@ if (nurKopf) {
 // --- Export einmischen --------------------------------------------------------------
 const stand = new Date(daten.stand).toLocaleDateString('de-DE');
 let gesamtPflicht = 0;
-let gesamtWeg = 0;
+// Getrennt gezählt (Review von #288, Befund 4): Ein Verlust steht oft in beiden Listen, als Regel
+// und als Bild. Die Summe zählte ihn doppelt.
+let gesamtWegRegeln = 0;
+let gesamtWegBilder = 0;
 
 for (const [slug, liste] of Object.entries(daten.sites)) {
   if (nurSlug && slug !== nurSlug) continue;
@@ -260,7 +263,12 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
         const notweg = e.fremdeZeile ? nurSiteZeile(slug, tNeu, stand) : null;
         if (!notweg) { e.kopf = true; throw e; }
         k = notweg;
-        kopfWarnung = e.message;
+        // Eigener Text statt der Meldung von `kopfErsetzen`: die spricht vom Abbruch („ein Lauf
+        // löschte sie … dann neu laufen“), hier wurden die Regeln aber geschrieben (Review von #293,
+        // Befund 1).
+        kopfWarnung = `Zeile ${e.fremdeZeile.nr} („${e.fremdeZeile.text}“) steht in keiner erzeugten Fassung. `
+          + 'Regeln geschrieben, Kopf behalten, nur `// Site:` nachgezogen. Den Absatz hinter `// Site: …` '
+          + 'verschieben, dann ersetzt der nächste Lauf den Kopf.';
       }
       inhalt = [...k.vorspann, ...m.zeilen, ...t.schluss].join('\n');
     } else {
@@ -279,22 +287,42 @@ for (const [slug, liste] of Object.entries(daten.sites)) {
   let befunde;
   /** @type {string[]} */
   let wegBilder;
+  // Drei Schritte, drei Meldungen (Review von #288, Befund 6): vorher hieß jeder Fehler
+  // „gemischte Regeln nicht auswertbar“, auch ein Lesefehler im Bildordner.
+  const auswerten = (/** @type {string[]} */ z) => new Function('return [' + z.join('\n') + '];')();
+  const erste = (/** @type {any} */ e) => String(e?.message ?? e).split('\n')[0];
+  let regeln;
+  let altRegeln;
   try {
-    const auswerten = (/** @type {string[]} */ z) => new Function('return [' + z.join('\n') + '];')();
-    const regeln = auswerten(m.zeilen);
+    regeln = auswerten(m.zeilen);
     befunde = pruefeBildHerkunftRegeln({ bildHerkunft: regeln });
-    // Laufzeit-Orakel (cw-core#280): Jedes echte Bild der Site geht mit dem Bestand und mit
-    // dem Ergebnis durch resolveBildHerkunft. Das fängt auch, was `ueberstimmt` am Zeilentext
-    // nicht sieht, etwa einen Verzeichnis-Präfix über einem gekennzeichneten Stem.
-    wegBilder = kennzeichnungWegZurLaufzeit(auswerten(altRumpf), regeln, laufzeitPfade(siteDateien(repo)));
   } catch (e) {
-    bericht.push({ slug, fehler: `gemischte Regeln nicht auswertbar — ${e.message.split('\n')[0]}` });
+    bericht.push({ slug, fehler: `gemischte Regeln nicht auswertbar — ${erste(e)}` });
     continue;
   }
+  try {
+    altRegeln = auswerten(altRumpf);
+  } catch (e) {
+    bericht.push({ slug, fehler: `Bestand nicht auswertbar — ${erste(e)}` });
+    continue;
+  }
+  /** @type {Map<string, string[]>} */
+  let bilder;
+  try {
+    bilder = laufzeitBilder(siteDateien(repo));
+  } catch (e) {
+    bericht.push({ slug, fehler: `Bilddateien der Site nicht lesbar — ${erste(e)}` });
+    continue;
+  }
+  // Laufzeit-Orakel (cw-core#280): Jedes echte Bild der Site geht mit dem Bestand und mit
+  // dem Ergebnis durch resolveBildHerkunft. Das fängt auch, was `ueberstimmt` am Zeilentext
+  // nicht sieht, etwa einen Verzeichnis-Präfix über einem gekennzeichneten Stem.
+  wegBilder = bilderMitVerlust(altRegeln, regeln, bilder);
 
   bericht.push({ slug, regeln: regelZahl(m.zeilen), offen, pflicht, befunde, m, wegBilder, kopfWarnung });
   gesamtPflicht += pflicht;
-  gesamtWeg += m.kennzeichnungWeg.length + wegBilder.length;
+  gesamtWegRegeln += m.kennzeichnungWeg.length;
+  gesamtWegBilder += wegBilder.length;
 
   if (hatFlag('--schreiben')) {
     // `zurueckgehalten` markiert die Site auch für die Verdrahtung unten (Nachlese #277): vorher
@@ -318,8 +346,9 @@ console.log(`\n${'Site'.padEnd(24)} ${'Regeln'.padStart(7)} ${'neu'.padStart(5)}
 for (const b of bericht) {
   if (b.fehler) { console.log(`${b.slug.padEnd(24)} ${b.fehler}`); continue; }
   const bf = b.befunde.length ? `${b.befunde.length} ✗` : '—';
-  const wegZahl = b.m.kennzeichnungWeg.length + b.wegBilder.length;
-  const weg = wegZahl ? `${wegZahl} ✗` : '—';
+  // Regeln/Bilder, nicht ihre Summe: derselbe Verlust steht oft in beiden.
+  const weg = b.m.kennzeichnungWeg.length || b.wegBilder.length
+    ? `${b.m.kennzeichnungWeg.length}/${b.wegBilder.length} ✗` : '—';
   console.log(`${b.slug.padEnd(24)} ${String(b.regeln).padStart(7)} ${String(b.m.neu.length).padStart(5)} ${String(b.m.geaendert.length).padStart(7)} ${String(b.offen).padStart(6)} ${String(b.pflicht).padStart(6)} ${weg.padStart(5)}  ${bf}`);
   for (const f of b.befunde.slice(0, 3)) console.log(`    ${f.field}: ${f.detail}`);
   if (b.kopfWarnung) console.log(`    Kopf nicht ersetzt, nur \`// Site:\` nachgezogen — ${b.kopfWarnung}`);
@@ -333,8 +362,10 @@ for (const b of bericht) {
   for (const p of b.m.neu.slice(0, 5)) console.log(`    neu: ${p}`);
 }
 console.log(`\nKennzeichnungspflichtig laut Arbeitsliste: ${gesamtPflicht}`);
+const gesamtWeg = gesamtWegRegeln + gesamtWegBilder;
 if (gesamtWeg) {
-  console.log(`Kennzeichnungen, die dieser Lauf entfernen würde: ${gesamtWeg}`);
+  console.log(`Kennzeichnungen, die dieser Lauf entfernen würde: ${gesamtWegRegeln} Regeln, ${gesamtWegBilder} Bilder`
+    + ' (ein Verlust kann in beiden stehen)');
   console.log('  → Einordnung in der Arbeitsliste prüfen und neu exportieren, oder --kennzeichnung-weg-ok setzen.');
 }
 
