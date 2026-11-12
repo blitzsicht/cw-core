@@ -74,3 +74,6 @@ export function pruefeErlaubteListe(
  * (cw-core#230, Befund 7) und um Treffer nach Herkunft zu trennen (Befund 3).
  */
 export function normalisierteListe(formulierungen: readonly string[]): Map<string, string>;
+
+/** Die Herkunft eines Befunds; wirft, wenn sie fehlt oder kein bekannter Wert ist (cw-core#261). */
+export function herkunftPflicht(b: VerbotslistenBefund): 'kunde' | 'flotte';

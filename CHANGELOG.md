@@ -91,6 +91,26 @@ Ressourcen, 1247 Bilder, 41 pflichtig auf 35 Seiten, 0 fehlend). Gegenprobe an e
 `->` im alt-Text und Cal-Loader: der Kopf verliert 9 Bilder und den Befund, neu nicht. Sabotagen 4/4
 rot (2, 2, 3, 1 Fälle).
 
+**Fix:** Verbotslisten-Guard: Ein Befund ohne Herkunft bricht jetzt auf jeder Seite ab, auch wenn er aufgehoben ist, und die Logzeile trennt „hebt auf“ von „stuft herab“ (cw-core#261, Review #282)
+
+Kontext: #282 hat den stillen Rückfall in den Flottentopf durch einen Abbruch ersetzt (B3). Geprüft
+wurde aber nur an offenen Befunden. Eine Seite mit nur aufgehobenen Befunden kam ohne Abbruch durch,
+obwohl der Eintrag von #282 das Gegenteil zusagt. Kein Test fuhr den Abbruch, ein späteres
+`b.herkunft ?? 'flotte'` wäre unbemerkt geblieben.
+
+- Neu: `herkunftPflicht(b)` in `verbotsliste-check.js` (mit Typ in der `.d.ts`). Wirft bei fehlender
+  Herkunft und bei einem unbekannten Wert. Der Hook ruft es in beiden Schleifen als Erstes auf, vor
+  dem `continue` für aufgehobene Befunde. Der Inline-Typ im Hook entfällt.
+- Eine Ausnahme, die einen Kundentreffer nur herabstuft, loggt „greift auf … (stuft den
+  Kundentreffer zum Flottenhinweis herab)“ statt „greift auf …“. Daneben stand im selben Lauf der
+  Flottentreffer als offen, das las sich als Widerspruch. Aufhebende Ausnahmen loggen
+  „(hebt den Treffer auf)“.
+
+Belege: `herkunftPflicht` wird gegen die echte Ausgabe des Checkers ohne `kundenListe` rot. Eine
+Strukturprobe am Hook-Quelltext verlangt in jeder Schleife `herkunftOption` und den Aufruf als
+erste Zeile. Über den Hook ist ein Befund ohne Herkunft nicht herstellbar. Sabotagen 5/5 rot,
+Suite 1836 (0 fail), `tsc` ohne neuen Fehler.
+
 **Fix:** Der Export-Lauf der Bild-Herkunft meldet Verluste je Bild einmal und Fehler mit ihrem echten Grund (cw-core#280, Nachlese Reviews #274/#277/#278; Reviews von #288 und #293)
 
 - Ein Bild unter `src/` hat zwei Laufzeitpfade (`src/…` und `_astro/…`) und erschien deshalb zweimal

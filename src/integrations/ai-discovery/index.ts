@@ -69,6 +69,7 @@ import {
   pruefeVerbotsliste,
   pruefeErlaubteListe,
   normalisierteListe,
+  herkunftPflicht,
   GARANTIE_PRAEDIKATE,
 } from './verbotsliste-check.js';
 import { findeVorlagenPlatzhalter } from './vorlagen-platzhalter-check.js';
@@ -4343,16 +4344,11 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
           // ein verbrauchter Iterator machte ab der zweiten Seite jeden Treffer zum
           // Flottentreffer — ohne Fehlermeldung, also still.
           const herkunftOption = { kundenListe: [...kundenListe.keys()] } as const;
-          // Ohne `herkunft` wäre ein Kundentreffer nicht vom Flottentreffer zu trennen; vorher
-          // landete er still im Flottentopf, und `strictVerbotsliste` griff nie (Review
-          // cw-core#261, B3). Beide Aufrufe geben `herkunftOption` mit, also ist das ein
-          // Programmierfehler und kein Seiteninhalt: laut abbrechen statt raten.
-          const herkunftVon = (b: { herkunft?: 'kunde' | 'flotte'; formulierung: string; seite: string }) => {
-            if (b.herkunft === undefined) {
-              throw new Error(`Verbotslisten-Guard: Befund „${b.formulierung}" auf ${b.seite} ohne herkunft — pruefeVerbotsliste lief ohne kundenListe.`);
-            }
-            return b.herkunft;
-          };
+          // Ohne `herkunft` wäre ein Kundentreffer nicht vom Flottentreffer zu trennen
+          // (Review cw-core#261, B3). `herkunftPflicht` bricht dann ab. Jede Schleife unten ruft
+          // es als ERSTES auf, vor dem `continue` für aufgehobene Befunde: vorher lief die
+          // Prüfung nur über offene Befunde, und eine Seite mit nur aufgehobenen kam ohne
+          // Abbruch durch (Review #282).
           const formulierungen: readonly string[] = [...(eigene ?? []), ...GARANTIE_PRAEDIKATE];
           // Dieselbe Zahl, die der Checker wirklich prüft — vorher zählte `filter()` rohe
           // Einträge und meldete für ['rechtssicher','Rechtssicher'] zwei (Befund 7).
@@ -4384,6 +4380,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Welche Ausnahme hat auf welchen Seiten gegriffen. Die Gegenrichtung ist der
             // Zweck: was NICHT hier landet, ist Altlast und wird unten gemeldet.
             const genutzteAusnahmen = new Map<string, Set<string>>();
+            const herabstufendeAusnahmen = new Map<string, Set<string>>();
             // Wo eine Phrase NUR auf pfad-ausgenommenen Seiten greifen würde. Das ist der
             // Zwischenstand beim Umstieg (Phrase eingetragen, Pfad-Ausnahme noch da); ohne diese
             // Zählung hieß die Diagnose „Satz ist weg" und lud zum Streichen des richtigen
@@ -4410,13 +4407,14 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                   const eintraege = ausnahmen.filter((a) => !istZuPruefen(rel, [a]));
                   ausnahmenJeSeite.set(rel, eintraege);
                   for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte, herkunftOption)) {
+                    const herkunft = herkunftPflicht(b);
                     if (b.aufgehobenDurch === undefined) {
                       for (const phrase of b.herabgestuftDurch ?? []) {
                         const seiten = nurAusgenommen.get(phrase) ?? new Set<string>();
                         seiten.add(rel);
                         nurAusgenommen.set(phrase, seiten);
                       }
-                      if (herkunftVon(b) === 'kunde') {
+                      if (herkunft === 'kunde') {
                         for (const a of eintraege) {
                           const stellen = offenJeAusnahme.get(a) ?? new Set<string>();
                           stellen.add(`${b.ort}\u0000${b.kontext}`);
@@ -4436,6 +4434,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
               }
               geprueft++;
               for (const b of pruefeVerbotsliste(readFileSync(file, 'utf-8'), rel, formulierungen, erlaubte, herkunftOption)) {
+                const herkunft = herkunftPflicht(b);
                 if (b.aufgehobenDurch !== undefined) {
                   // Alle Phrasen, die hier aufheben, nicht nur die des Befunds (Review cw-core#242, B2).
                   for (const phrase of b.alleAufhebungen ?? [b.aufgehobenDurch]) {
@@ -4447,16 +4446,18 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
                 }
                 // Hebt eine Phrase hier einen Kundentreffer auf, während ein Flottentreffer offen
                 // gewinnt, ist sie genutzt: ohne sie gewänne der Kundentreffer (Review cw-core#261, B1).
+                // Eigene Sammlung, weil die Logzeile „stuft herab“ sagt, nicht „hebt auf“: der
+                // Flottentreffer an derselben Stelle steht im selben Lauf als offen da (Review #282).
                 for (const phrase of b.herabgestuftDurch ?? []) {
-                  const seiten = genutzteAusnahmen.get(phrase) ?? new Set<string>();
+                  const seiten = herabstufendeAusnahmen.get(phrase) ?? new Set<string>();
                   seiten.add(rel);
-                  genutzteAusnahmen.set(phrase, seiten);
+                  herabstufendeAusnahmen.set(phrase, seiten);
                 }
                 const key = `${b.ort}\u0000${b.kontext}`;
                 // Herkunft kommt aus dem Befund (cw-core#247) — vorher stand dieselbe
                 // Normalisierung hier ein zweites Mal, und sie konnte von der des Checkers
                 // abweichen, ohne dass es auffällt.
-                const ziel = herkunftVon(b) === 'kunde' ? proKontextKunde : proKontextFlotte;
+                const ziel = herkunft === 'kunde' ? proKontextKunde : proKontextFlotte;
                 vermerkeFundstelle(ziel, key, rel, () => ({
                   kontext: b.kontext, ort: b.ort, treffer: b.treffer, formulierung: b.formulierung, seiten: [rel],
                 }));
@@ -4466,7 +4467,10 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // Unterschied zwischen „Satz ist ehrlich" und „Guard sieht nichts mehr" von außen
             // nicht zu sehen (cw-core#236).
             for (const [phrase, seiten] of genutzteAusnahmen) {
-              logger.info(`Verbotslisten-Guard: Ausnahme „${phrase}" greift auf ${kurzliste(seiten)}.`);
+              logger.info(`Verbotslisten-Guard: Ausnahme „${phrase}" greift auf ${kurzliste(seiten)} (hebt den Treffer auf).`);
+            }
+            for (const [phrase, seiten] of herabstufendeAusnahmen) {
+              logger.info(`Verbotslisten-Guard: Ausnahme „${phrase}" greift auf ${kurzliste(seiten)} (stuft den Kundentreffer zum Flottenhinweis herab).`);
             }
             // Eine Ausnahme, die nie greift, spiegelt Sicherheit vor — nach dem Muster des
             // Pin-Drift-Checks als Warnung, nicht als Hinweis. Zwei Ursachen, eine Folge: der
@@ -4476,7 +4480,7 @@ export default function aiDiscovery<T extends AiDiscoverySiteData>(
             // braucht geprüfte Seiten, sonst hieße sie „auf keiner der 0 Seiten".
             {
               for (const [, phrase] of normalisierteListe(erlaubte)) {
-                if (genutzteAusnahmen.has(phrase) || schonGemeldet.has(phrase)) continue;
+                if (genutzteAusnahmen.has(phrase) || herabstufendeAusnahmen.has(phrase) || schonGemeldet.has(phrase)) continue;
                 const ausgenommen = nurAusgenommen.get(phrase);
                 if (ausgenommen) {
                   const eintraege = [...new Set([...ausgenommen].flatMap((s) => ausnahmenJeSeite.get(s) ?? []))];
