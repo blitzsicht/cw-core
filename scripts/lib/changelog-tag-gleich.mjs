@@ -67,6 +67,18 @@ export const MINDESTENS_TAGS = 170;
 export const LETZTER_TAG_OHNE_BLOCK = 'v0.62.0';
 
 /**
+ * Präreleases im Sinn dieses Lints: `-alpha`, `-beta`, `-rc`, je optional mit `.N`. Gemessen am
+ * 12.11.2026: 88 Tags mit Suffix, alle `-alpha`. `parseVersion` nimmt jedes Suffix; ein
+ * `v0.197.0-hotfix` ohne Block fiel deshalb nicht auf (cw-core#286).
+ */
+const PRAERELEASE_RE = /^(alpha|beta|rc)(\.\d+)?$/;
+
+/** @param {string} version */
+function istPraerelease(version) {
+  return PRAERELEASE_RE.test(parseVersion(version)?.pre ?? '');
+}
+
+/**
  * Alle Versionsblöcke eines CHANGELOG in EINEM Durchgang: Version → Block. Je Version zählt die
  * erste Kopfzeile `## <version> …`. Ein Block reicht bis vor die nächste `## `-Zeile.
  *
@@ -131,6 +143,11 @@ export function pruefeTagGleichheit(md, tagBloecke, altlasten = ALTLASTEN, ohneB
   for (const [version, tagText] of tagBloecke) {
     const jetzt = heute.get(version) ?? null;
     if (!jetzt) {
+      // cw-release benennt `## vX-rc.N` beim Final-Release in `## vX` um. Steht der Release-Block,
+      // ist der rc-Block nicht verloren, sondern aufgegangen (cw-core#286). Verglichen wird er
+      // nicht: unter dem Release kommen danach Einträge dazu.
+      const nums = parseVersion(version)?.nums;
+      if (istPraerelease(version) && nums && heute.has(`v${nums.join('.')}`)) continue;
       befunde.push({ version, zeile: 0, grund: `Block \`## ${version} …\` fehlt, sein Tag hat ihn` });
       continue;
     }
@@ -170,8 +187,14 @@ export function pruefeTagGleichheit(md, tagBloecke, altlasten = ALTLASTEN, ohneB
     // Präreleasetags (`v0.195.0-rc.1`) brauchen keinen eigenen Block; trägt einer einen, wird er
     // oben verglichen. Bis cw-core#273 (T1) galt ein rc-Tag ohne Block als „Release hat seinen
     // Eintrag vergessen“, und pnpm test blieb rot, solange der Tag stand.
-    if (parseVersion(version)?.pre) continue;
-    if (compareVersions(version, LETZTER_TAG_OHNE_BLOCK) > 0) {
+    if (istPraerelease(version)) continue;
+    const vergleich = compareVersions(version, LETZTER_TAG_OHNE_BLOCK);
+    // fail-closed (cw-core#286): `NaN > 0` ist falsch, eine unlesbare Version galt still als erlaubt.
+    if (Number.isNaN(vergleich)) {
+      befunde.push({ version, zeile: 0, grund: `Version nicht lesbar: Tag release/cw-core/${version}` });
+      continue;
+    }
+    if (vergleich > 0) {
       befunde.push({
         version,
         zeile: 0,

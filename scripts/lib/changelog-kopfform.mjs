@@ -54,11 +54,11 @@ let parser = null;
 /** @type {string | null} */
 let fehltGrund = null;
 try {
-  const [a, b, c] = await Promise.all([
-    import('mdast-util-from-markdown'),
-    import('micromark-extension-gfm'),
-    import('mdast-util-gfm'),
-  ]);
+  // Nacheinander statt Promise.all (cw-core#286): welcher parallele import() zuerst scheitert, ist
+  // nicht festgelegt, und die Meldung nannte mal das eine, mal das andere Paket.
+  const a = await import('mdast-util-from-markdown');
+  const b = await import('micromark-extension-gfm');
+  const c = await import('mdast-util-gfm');
   parser = { fromMarkdown: a.fromMarkdown, gfm: b.gfm, gfmFromMarkdown: c.gfmFromMarkdown };
 } catch (e) {
   if (/** @type {any} */ (e)?.code !== 'ERR_MODULE_NOT_FOUND') throw e;

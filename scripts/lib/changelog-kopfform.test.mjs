@@ -185,7 +185,8 @@ test('#273: der echte CHANGELOG hat keine Setext-Überschrift', async () => {
   // Gegenprobe am selben Text: die Leerzeile vor der ersten Trennlinie unter einer gewöhnlichen
   // Textzeile entfernt (der Fall #264). Unter `> …` oder `- …` wäre `---` auch ohne Leerzeile
   // eine Trennlinie; die Probe muss eine Stelle nehmen, an der CommonMark eine <h2> macht.
-  const m = /\n[A-Za-zÄÖÜäöü*`(][^\n]*\n(\n)---\n/.exec(md);
+  // Ohne `*` am Zeilenanfang (#286): `* Punkt` ist ein Listenpunkt, darunter bliebe `---` eine Trennlinie.
+  const m = /\n[A-Za-zÄÖÜäöü`(][^\n]*\n(\n)---\n/.exec(md);
   assert.ok(m, 'der CHANGELOG trägt eine Trennlinie unter Text');
   const i = m.index + m[0].length - '\n---\n'.length - 1;
   const kaputt = md.slice(0, i) + md.slice(i + 1);
@@ -223,6 +224,9 @@ test('Ohne Parser: übrige Prüfungen laufen, Exit 3 mit Paketnamen, Befunde vor
     const kaputt = lauf('# Changelog\n\n## Unreleased\n');
     assert.equal(kaputt.status, 1, `stderr:\n${kaputt.stderr}`);
     assert.match(kaputt.stderr, /Unreleased/);
+    // #286 (Review #285): auch bei Exit 1 steht da, dass die Setext-Prüfung nicht lief. Vorher
+    // sah man das erst im zweiten Lauf, nachdem der erste Befund behoben war.
+    assert.match(kaputt.stderr, /Setext-Prüfung nicht gelaufen/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
