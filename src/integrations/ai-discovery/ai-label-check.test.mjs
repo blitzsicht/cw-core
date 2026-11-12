@@ -437,6 +437,21 @@ test('Review #291: Schlüssel trägt `_` und `-` im Hash, `-` und `.` im Stem; o
   assert.equal(zahl('<img src="/_astro/team.a-b1C2d3.webp"><img src="/_astro/team.x-Y9z8w7.webp">', 'team'), 2);
   // Stem mit Punkt: Schlüssel trennt am Hash, nicht am ersten Punkt.
   assert.equal(zahl('<img src="/_astro/v1.2-hero.CC6UVEsO.webp"><img src="/_astro/v1.2-hero.CC6UVEsO_1ICG0w.avif">', 'v1'), 1);
+  // Trennscharf (Review r35, Befund 7): zwei Quellen mit Punkt im Stem sind zwei Motive. Der alte
+  // Schlüssel (bis zum ersten Punkt, `v1`) gäbe hier 1.
+  assert.equal(zahl('<img src="/_astro/v1.2-hero.AAAAAAAA.webp"><img src="/_astro/v1.2-hero.BBBBBBBB.webp">', 'v1'), 2);
   // public/-Bilder ohne Hash: alte Regel (Stem bis zum ersten Punkt).
   assert.equal(zahl('<img src="/bilder/hero.webp"><img src="/bilder/hero.avif">', 'hero'), 1);
+});
+
+test('Review r35: Astro-Muster nur unter _astro/ — public/-Namen mit 8-Zeichen-Segment bleiben ein Motiv', () => {
+  // `original` und `negative` haben 8 Zeichen und passen auf das Hash-Muster. Außerhalb von
+  // `_astro/` gibt es keinen Quellhash; die responsive Fassung `hero.mobile` fiele sonst auf
+  // die alte Regel, und ein Paar bräuchte plötzlich zwei Labels (Flotte 12.11.2026: 0 von 606).
+  const ki = (stem) => ({ stem, herkunft: 'ki-erzeugt', deepfake: 'ja', begruendung: 'wirkt echt' });
+  const zahl = (html, stem) => pruefeSeiteAufKennzeichnung(html, [ki(stem)]).pflichtig.length;
+  assert.equal(zahl('<img src="/bilder/hero.original.webp"><img src="/bilder/hero.mobile.webp">', 'hero'), 1);
+  assert.equal(zahl('<img src="/logo.negative.png"><img src="/logo.png">', 'logo'), 1);
+  // Gegenprobe: unter _astro/ trennt der Hash weiter.
+  assert.equal(zahl('<img src="/_astro/hero.original.webp"><img src="/_astro/hero.Dq3xK9Lm.webp">', 'hero'), 2);
 });

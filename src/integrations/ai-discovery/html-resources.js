@@ -164,7 +164,10 @@ export function extractResources(html, file = 'html') {
  * **Klone.** parse5 baut aktive Formatierungs-Elemente (`b`, `i`, `font`, `a` …) für jeden
  * neuen Block nach, wie der Browser. Die Klone tragen dasselbe `startTag`-Objekt ihrer
  * Fundstelle (gemessen an parse5 7.3.0). Ein Klon wird deshalb nicht erneut geliefert, seine
- * Kinder aber schon — die sind echte Elemente (Befund 4).
+ * Kinder aber schon — die sind echte Elemente (Befund 4). Die Adoption Agency (`</a>` hinter
+ * einem Block) baut Formatierungs-Elemente dagegen OHNE Fundstelle nach; ein Formatierungs-Element
+ * ohne `sourceCodeLocation` ist deshalb ebenfalls ein Klon (Review r35). Andere Elemente ohne
+ * Fundstelle (implizites `html`/`body`/`tbody`) bleiben echt.
  *
  * Gelesen wird mit laufendem JavaScript. `<noscript>` ist dann Rohtext; sein Körper wird
  * zusätzlich ohne JavaScript gelesen (`ohneJs: true`), denn diese Besucher sehen seine Bilder.
@@ -174,6 +177,9 @@ export function extractResources(html, file = 'html') {
  * @param {string|null|undefined} html
  * @returns {Generator<Element>}
  */
+/** Formatierungs-Elemente laut HTML-Standard (Liste der aktiven Formatierungs-Elemente). */
+const FORMATIERUNG = new Set(['a', 'b', 'big', 'code', 'em', 'font', 'i', 'nobr', 's', 'small', 'strike', 'strong', 'tt', 'u']);
+
 export function* elementeAusHtml(html) {
   // Keine Eingabe ist kein Fehler, sondern kein Element.
   const doc = parse(String(html ?? ''), { sourceCodeLocationInfo: true, scriptingEnabled: true });
@@ -207,7 +213,7 @@ export function* elementeAusHtml(html) {
     if (tag === 'script' && ohneJs) continue;
 
     const startTag = el.sourceCodeLocation?.startTag;
-    const klon = startTag ? gesehen.has(startTag) : false;
+    const klon = startTag ? gesehen.has(startTag) : (!el.sourceCodeLocation && FORMATIERUNG.has(tag));
     if (startTag) gesehen.add(startTag);
 
     if (!klon) {

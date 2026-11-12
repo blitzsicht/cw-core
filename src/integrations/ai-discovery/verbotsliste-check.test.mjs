@@ -735,7 +735,8 @@ test('#261 Review #282: herkunftPflicht bricht an einem Befund ohne Herkunft ab,
   assert.equal(ohne[0].herkunft, undefined);
   assert.throws(() => herkunftPflicht(ohne[0]), /Befund „anwaltlich geprüft" auf p\/index\.html ohne herkunft/);
   // Ein dritter Wert landet nicht still im Flottentopf.
-  assert.throws(() => herkunftPflicht({ ...ohne[0], herkunft: /** @type {any} */ ('fremd') }), /ohne herkunft/);
+  // Ein dritter Wert ist kein „lief ohne kundenListe“, die Meldung nennt ihn (Review r35, Befund 4).
+  assert.throws(() => herkunftPflicht({ ...ohne[0], herkunft: /** @type {any} */ ('fremd') }), /unbekannter herkunft „fremd“/);
   // GEGENPROBE: mit kundenListe trägt jeder Befund seine Herkunft, und sie kommt durch.
   const mit = pruefeVerbotsliste(ANWALT, seite, ANWALT_LISTE, [], { kundenListe: ['anwaltlich'] });
   assert.deepEqual(mit.map((b) => herkunftPflicht(b)), mit.map((b) => b.herkunft));

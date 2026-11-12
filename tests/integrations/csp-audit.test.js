@@ -448,6 +448,19 @@ test('Review #292: geklonte Formatierungs-Elemente melden ihre Ressource einmal 
   assert.deepEqual(extractResources('<table><img src="/t.webp">').map((x) => x.url), ['/t.webp']);
 });
 
+test('Review r35: Klone aus der Adoption Agency melden ihre Ressource einmal', () => {
+  // `</a>` hinter einem Block baut das <a> per Adoption Agency neu (parse5 `aaRecreateElementFromEntry`).
+  // Diese Klone tragen KEINE Fundstelle, das gemeinsame startTag aus Befund 4 greift nicht.
+  const art = (/** @type {any[]} */ r) => r.map((x) => (x.type === 'url' ? x.url : x.directive));
+  assert.deepEqual(art(extractResources('<a style="background:url(/x.webp)"><div>t</a>')), ['style-src-attr', '/x.webp']);
+  assert.deepEqual(art(extractResources('<b style="background:url(/y.webp)">1<div>2</b>3</div>')), ['style-src-attr', '/y.webp']);
+  // Gegenprobe: Kinder des Klons sind echte Elemente und zählen genau einmal.
+  assert.deepEqual(art(extractResources('<a href="#"><div><img src="/im-aaa.webp"></a>')), ['/im-aaa.webp']);
+  // Gegenprobe: implizit erzeugte Elemente ohne Fundstelle, die keine Formatierungs-Elemente sind,
+  // werden weiter gelesen (body übernimmt Attribute eines späteren <body>).
+  assert.deepEqual(art(extractResources('<p>x</p><body style="background:url(/b.webp)">')), ['style-src-attr', '/b.webp']);
+});
+
 test('Review #292: Laufzeit wächst linear (ersetzt die festen ms-Grenzen, Befund 9)', { skip: UEBERLAST }, () => {
   const viele = (/** @type {number} */ n) => extractResources('<img src="/x.webp">\n'.repeat(n));
   assert.equal(viele(30000).length, 30000);

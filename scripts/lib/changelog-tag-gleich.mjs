@@ -146,8 +146,9 @@ export function pruefeTagGleichheit(md, tagBloecke, altlasten = ALTLASTEN, ohneB
       // cw-release benennt `## vX-rc.N` beim Final-Release in `## vX` um. Steht der Release-Block,
       // ist der rc-Block nicht verloren, sondern aufgegangen (cw-core#286). Verglichen wird er
       // nicht: unter dem Release kommen danach Einträge dazu.
-      const nums = parseVersion(version)?.nums;
-      if (istPraerelease(version) && nums && heute.has(`v${nums.join('.')}`)) continue;
+      // Nur `-rc.N` wird umbenannt; ein fehlender alpha-/beta-Block ist verloren (Review r35).
+      const v = parseVersion(version);
+      if (v && /^rc(\.\d+)?$/.test(v.pre ?? '') && heute.has(`v${v.nums.join('.')}`)) continue;
       befunde.push({ version, zeile: 0, grund: `Block \`## ${version} …\` fehlt, sein Tag hat ihn` });
       continue;
     }

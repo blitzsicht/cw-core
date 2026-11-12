@@ -474,8 +474,11 @@ export function pruefeErlaubteListe(erlaubte, formulierungen) {
  * @returns {'kunde' | 'flotte'}
  */
 export function herkunftPflicht(b) {
-  if (b.herkunft !== 'kunde' && b.herkunft !== 'flotte') {
+  if (b.herkunft === undefined || b.herkunft === null) {
     throw new Error(`Verbotslisten-Guard: Befund „${b.formulierung}" auf ${b.seite} ohne herkunft — pruefeVerbotsliste lief ohne kundenListe.`);
+  }
+  if (b.herkunft !== 'kunde' && b.herkunft !== 'flotte') {
+    throw new Error(`Verbotslisten-Guard: Befund „${b.formulierung}" auf ${b.seite} mit unbekannter herkunft „${String(b.herkunft)}“ — erwartet 'kunde' oder 'flotte'.`);
   }
   return b.herkunft;
 }

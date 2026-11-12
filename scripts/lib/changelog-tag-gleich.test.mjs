@@ -199,8 +199,20 @@ test('#286: rc-Block nach der Umbenennung zum Release ist kein fehlender Block',
   assert.equal(rel.befunde.length, 1);
 });
 
+test('Review r35: nur ein rc-Block geht im Release auf — ein fehlender alpha-/beta-Block bleibt rot', () => {
+  // cw-release benennt nur `-rc.N` um. Ein alpha-Tag mit eigenem Block, dessen Block heute fehlt,
+  // ist verloren, auch wenn das Release dieselbe Nummer trägt.
+  for (const v of ['v0.197.0-alpha', 'v0.197.0-beta.1']) {
+    const r = pruefeTagGleichheit(md('## v0.197.0 (x)\n\n- r\n'), tags({ [v]: `## ${v} (x)\n\n- a\n` }), {});
+    assert.equal(r.befunde.length, 1, `${v}: ${formatiereTagBefunde(r)}`);
+    assert.match(r.befunde[0].grund, /fehlt, sein Tag hat ihn/);
+  }
+});
+
 test('#286: nur alpha/beta/rc gelten als Prärelease ohne Block, `-hotfix` nicht', () => {
-  const r = pruefeTagGleichheit(md(), tags({}), {}, ['v0.197.0-hotfix', 'v0.197.0-rc.2', 'v0.197.0-beta', 'v0.14.1-alpha']);
+  // `v0.197.0-alpha*` liegen über LETZTER_TAG_OHNE_BLOCK: ohne Prärelease-Logik wären sie rot
+  // (Review r35, Befund 7 — `v0.14.1-alpha` allein war nicht trennscharf).
+  const r = pruefeTagGleichheit(md(), tags({}), {}, ['v0.197.0-hotfix', 'v0.197.0-rc.2', 'v0.197.0-beta', 'v0.14.1-alpha', 'v0.197.0-alpha', 'v0.197.0-alpha.3']);
   assert.deepEqual(r.befunde.map((b) => b.version), ['v0.197.0-hotfix'], formatiereTagBefunde(r));
   assert.match(r.befunde[0].grund, /hat in seinem CHANGELOG keinen Block/);
 });
