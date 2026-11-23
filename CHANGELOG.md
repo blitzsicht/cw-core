@@ -22,7 +22,52 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.196.0 (2026-11-23)
+
+**Feature:** Kontaktformular mit Telefon und Zusatzfeldern — ContactForm `phone` + `extraFields`, contact-handler `requiredFields` + `extraFieldLabels`
+
+Kontext: Eine Kundin wünscht am 18.11.2026 im Kontaktformular Telefon (Pflicht), ein freies Feld
+für den besten Zeitraum für Anrufe (optional), Anliegen/Thema (Pflicht) und Ausführungsort (Pflicht).
+Bisher waren die Felder je `formType` fest verdrahtet; ein Kundenrepo hätte eine eigene Komponente
+gebraucht. Jetzt konfiguriert es nur noch.
+
+- `ContactForm.astro`, nur `formType="contact"`:
+  - `phone: 'off' | 'optional' | 'required'` (Default `'off'`): Feld `telefon` (`type="tel"`,
+    `autocomplete="tel"`) direkt unter der E-Mail.
+  - `extraFields: Array<{ name, label, type: 'text' | 'textarea' | 'select' | 'tel', required?, options?,
+    placeholder?, maxlength?, autocomplete?, toolparamdescription? }>` (Default `[]`): zwischen
+    „Unternehmen“ und „Nachricht“, in Listenreihenfolge. Kontaktdaten bleiben ein Block, die
+    Zusatzfelder beschreiben das Anliegen und stehen deshalb vor der Nachricht. `required` setzt das
+    HTML-Attribut und den Pflicht-Stern, sonst steht „(optional)“ am Label. Ein `select` hat immer
+    eine leere erste Option („Bitte wählen“, per `placeholder` änderbar), sonst wäre `required`
+    wirkungslos und ein optionales Select sendete stets die erste Option.
+  - Mit `agentTool` tragen Telefon und Zusatzfelder `toolparamdescription` (Default: das Label);
+    `checkWebMcpForms` meldet nichts, das Schema enthält alle neuen Felder.
+- `createContactHandler`:
+  - `requiredFields: string[]` (Default `[]`): fehlt ein Feld oder ist es nur Leerraum → 400
+    „<Label> fehlt.“ („Telefonnummer fehlt.“, „Ausführungsort fehlt.“, ohne Label
+    „Pflichtfeld „<name>“ fehlt.“). Gilt nicht für `formType` `rueckruf`/`empfehlung`, die an
+    demselben Endpoint unverändert durchlaufen. Jede andere Anfrage zählt als Kontakt, auch ein
+    erfundener `formType`; Audit, Bewerbung und Warteliste senden keinen `formType` und gehören
+    deshalb nicht an einen Endpoint mit `requiredFields`.
+  - `extraFieldLabels: Record<string, string>` (Default `{}`): Anzeigename der Zusatzfelder in der
+    Mail ans Postfach (Text und HTML, dort escaped) und in der Pflichtfeld-Meldung. Telegram zeigt
+    Zusatzfelder weiterhin nicht; `confirmation.text` bekommt weiter die Feldnamen.
+- `zeitfenster` liest der Handler schon heute für jedes Formular (max. 60 Zeichen, Mail-Zeile
+  „Zeitfenster“, Telegram). Der Kunde bietet es als `extraFields`-Eintrag `name: 'zeitfenster'` mit
+  `maxlength: 60` an und nimmt es NICHT in die `extraFields` des Handlers auf, sonst steht es doppelt
+  in der Mail. Im Test belegt: ohne `formType` kommt es in Mail und Telegram an.
+
+Tests: `tests/blocks/contactform-pflichtfelder.test.js` (25, neu; Schnappschuss
+`fixtures/contactform-pflichtfelder-41192995.json` vom Stand vor der Änderung, vier Fälle inkl.
+`agentTool` und `adsConsent`, Byte für Byte gleich), `tests/api/contact-handler-pflichtfelder.test.js`
+(25, neu). Vor der Umsetzung 25 von 48 rot.
+
+Keine `[kunde]`-Zeile: reines Opt-in. Ohne die neuen Props und Optionen ist das Markup Byte für Byte
+gleich und der Handler verhält sich wie bisher; der Pin-Bump ändert an keiner Live-Website etwas. Die
+Kundenzeile gehört zu dem Kundenrepo, das die Felder einschaltet.
+
+**Migrations-Hinweis:** Keiner.
 
 **Feature:** E-Mail-Signatur: Kunden-Layout `layout: 'kunde'`, das Kundenrepo bringt seine HTML-Vorlage mit, die Daten kommen weiter aus `site-data.ts`
 

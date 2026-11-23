@@ -38,6 +38,26 @@ export interface ContactHandlerConfig {
   allowEmpfehlung?: boolean;
   /** Whitelist zusätzlicher Body-Felder (Strings, getrimmt, je max. 2000 Zeichen); erscheinen als "Feld: Wert"-Block in der Mail ans Postfach, in dieser Reihenfolge, und fließen in die Spamprüfung ein */
   extraFields?: string[];
+  /**
+   * Pflichtfelder des Kontaktformulars am Server (Default `[]`), z. B.
+   * `['telefon', 'anliegen', 'ausfuehrungsort']` passend zu ContactForm `phone="required"` und
+   * `extraFields` mit `required: true`. Fehlt ein Feld oder ist es nur Leerraum → 400 mit
+   * „<Label> fehlt.“ (Label aus `extraFieldLabels`, für feste Felder z. B. „Telefonnummer“,
+   * sonst „Pflichtfeld „<name>“ fehlt.“).
+   *
+   * Gilt nicht für `formType: 'rueckruf'` und `'empfehlung'` — die prüfen nach eigenen Regeln,
+   * auch an demselben Endpoint. Jede andere Anfrage (auch Audit, Bewerbung, Warteliste, die
+   * kein `formType` senden) muss die Felder liefern: solche Formulare nicht an einen Endpoint
+   * mit `requiredFields` schicken.
+   */
+  requiredFields?: string[];
+  /**
+   * Anzeigename je Feld aus `extraFields` (Default `{}`), z. B. `{ anliegen: 'Anliegen / Thema' }`.
+   * Gilt für die Mail ans Postfach (Text und HTML) und die Meldung von `requiredFields`. Ohne
+   * Eintrag bleibt der Feldname. Telegram zeigt Zusatzfelder nicht (außer `paket` bei
+   * `leadSink: 'minimal'`, mit festem Label); `confirmation.text` bekommt weiter die Feldnamen.
+   */
+  extraFieldLabels?: Record<string, string>;
   /** true → body.consent muss truthy sein ("on"/"true"/true), sonst 400 */
   requireConsent?: boolean;
   /**
@@ -72,6 +92,9 @@ type ContactHandler = (req: any, res: any) => Promise<void>;
  *
  * Body-Felder mit `formType: 'empfehlung'` (nur mit `allowEmpfehlung: true`): `name`
  * Pflicht, `email` ODER `telefon`, `empfohlen` optional (max. 80 Zeichen).
+ *
+ * Ohne `formType` (Kontaktformular): `telefon` und `zeitfenster` werden wie oben geprüft,
+ * sobald sie gesendet werden; Pflicht sind sie nur über `requiredFields`.
  */
 export function createContactHandler(config: ContactHandlerConfig): ContactHandler;
 
