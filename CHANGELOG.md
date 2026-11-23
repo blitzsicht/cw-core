@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.197.0 (2026-11-23)
 
 **Fix:** Sicht-Guard: die Vorschaubild-Prüfung läuft wieder ohne installierte cw-core-Wurzel
 
