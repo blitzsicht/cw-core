@@ -14,7 +14,7 @@
     <td valign="top" style="border-left:2px solid {{COLOR_PRIMARY}};padding-left:18px;">
       <p data-feld="name" style="margin:0;font-family:Metropolis,Arial,sans-serif;font-size:17px;font-weight:700;color:{{COLOR_PRIMARY}};">{{NAME}}</p>
       <p data-feld="position" style="margin:0 0 8px 0;color:{{COLOR_ACCENT}};">{{POSITION}}</p>
-      <p style="margin:0;">T <a href="tel:{{PHONE}}" style="color:#1d1d1b;text-decoration:none;">{{PHONE}}</a></p>
+      <p style="margin:0;">T <a href="tel:{{PHONE_TEL}}" style="color:#1d1d1b;text-decoration:none;">{{PHONE_NATIONAL}}</a> <span data-feld="phone-roh">({{PHONE}})</span></p>
       <p style="margin:0;">M <a href="mailto:{{EMAIL}}" style="color:#1d1d1b;text-decoration:none;">{{EMAIL}}</a></p>
       <p style="margin:0 0 8px 0;">W <a href="{{WEBSITE_FULL}}" style="color:#1d1d1b;text-decoration:none;">{{WEBSITE_URL}}</a></p>
       <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" width="120" style="display:block;width:120px;height:auto;">
@@ -25,7 +25,8 @@
     <td colspan="2" data-feld="fusszeile" style="padding-top:12px;font-size:10px;line-height:1.5;color:#6f6f6e;">
       {{COMPANY_LEGAL_NAME}} ({{LEGAL_FORM}}) · {{STREET}} · {{ZIP}} {{CITY}}<br>
       Geschäftsführung: {{REPRESENTATIVES}} · Sitz: {{ZIP_CITY}}<br>
-      Registergericht: {{REGISTERGERICHT}} · {{REGISTER_ART}} Nr. {{REGISTER_NR}} · ({{HRB}}) · USt-IdNr.: {{UST_ID}}
+      Registergericht: {{REGISTERGERICHT}} · {{REGISTER_ART}} Nr. {{REGISTER_NR}} · ({{HRB}}) · USt-IdNr.: {{UST_ID}}<br>
+      Zentrale: <a href="tel:{{COMPANY_PHONE_TEL}}" style="color:#6f6f6e;">{{COMPANY_PHONE}}</a>
     </td>
   </tr>
   <tr>

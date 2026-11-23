@@ -157,6 +157,10 @@ customer-mika-elektrotechnik, Kewin Mika, gemessen 23.11.2026.
 | `{{REGISTER_NR}}` | Nummer ohne Art | 21336 |
 | `{{REPRESENTATIVES}}` | `legal.representatives`, kommagetrennt (kein Rückfall auf `legal.owner`) | Kewin Mika |
 | `{{UST_ID}}` | `legal.ustIdNr` | DE451598291 |
+| `{{PHONE_TEL}}` | Telefon der Person für `href="tel:"`, nur „+“ und Ziffern | +4915125073136 |
+| `{{PHONE_NATIONAL}}` | Telefon der Person zur Anzeige, +49 als führende 0 (andere Länder unverändert) | 0151 25073136 |
+| `{{COMPANY_PHONE}}` | Firmennummer `legal.phone` (sonst `contact.phone`), wie geschrieben | +49 160 91172381 |
+| `{{COMPANY_PHONE_TEL}}` | Firmennummer für `href="tel:"` | +4916091172381 |
 
 Beispiel Fußzeile: `{{COMPANY_LEGAL_NAME}} · {{STREET}} · {{ZIP}} {{CITY}} · Geschäftsführer: {{REPRESENTATIVES}} · {{REGISTERGERICHT}} · {{REGISTER_ART}} Nr. {{REGISTER_NR}}`
 → „Elektrotechnik Mika GmbH · Xaver-Winklmann-Straße 19 · 92444 Rötz · Geschäftsführer: Kewin Mika ·

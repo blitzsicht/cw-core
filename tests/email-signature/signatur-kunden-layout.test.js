@@ -187,7 +187,11 @@ test('layout kunde: regenerate-all.sh erzeugt das HTML aus der Kundenvorlage, al
     'alt="Erika Fixture"', // {{PHOTO_ALT}}
     '>Erika Fixture</p>', // {{NAME}}
     '>Geschäftsführerin & Meisterin</p>', // {{POSITION}}
-    'href="tel:+49 151 1234567"', // {{PHONE}} (Person, nicht legal.phone)
+    'href="tel:+491511234567"', // {{PHONE_TEL}} (Person, ohne Leerzeichen)
+    '>0151 1234567</a>', // {{PHONE_NATIONAL}} (+49 → 0)
+    '(+49 151 1234567)', // {{PHONE}} (Person, nicht legal.phone)
+    'Zentrale: <a href="tel:+49941000000"', // {{COMPANY_PHONE_TEL}} (legal.phone)
+    '>+49 941 000000</a>', // {{COMPANY_PHONE}} (legal.phone, nicht die Nummer der Person)
     'href="mailto:erika@fixture-elektro.example"', // {{EMAIL}}
     'utm_campaign=erika-fixture-web', // {{WEBSITE_FULL}}
     '>fixture-elektro.example</a>', // {{WEBSITE_URL}}
@@ -293,7 +297,7 @@ test('layout kunde mit Lücken in site-data: Platzhalter leer ersetzt, je Lücke
   assert.doesNotMatch(lauf.ausgabe, /⚠[^\n]*\{\{REGISTER_NR\}\}/);
   assert.ok(html.includes('src="" alt="Erika Fixture"'), 'leeres PHOTO_URL nicht leer ersetzt');
   assert.match(html, /Geschäftsführung:  · Sitz:/);
-  assert.match(html, /USt-IdNr\.: \n/);
+  assert.match(html, /USt-IdNr\.: <br>\n/);
 });
 
 test('layout kunde: unbekannter Platzhalter in der Vorlage bricht mit seinem Namen ab', () => {

@@ -57,6 +57,10 @@ PLATZHALTER = (
     ("REGISTER_NR", "Nummer ohne Registerart (z. B. „21336“)"),
     ("REPRESENTATIVES", "Geschäftsführer/Vertretungsberechtigte, kommagetrennt (legal.representatives)"),
     ("UST_ID", "USt-IdNr. (legal.ustIdNr)"),
+    ("PHONE_TEL", "Telefon der Person für href=\"tel:\", nur „+“ und Ziffern"),
+    ("PHONE_NATIONAL", "Telefon der Person zur Anzeige, +49 als führende 0 („0151 25073136“)"),
+    ("COMPANY_PHONE", "Firmennummer (legal.phone, sonst contact.phone), wie in site-data geschrieben"),
+    ("COMPANY_PHONE_TEL", "Firmennummer für href=\"tel:\", nur „+“ und Ziffern"),
 )
 NAMEN = tuple(n for n, _ in PLATZHALTER)
 

@@ -35,11 +35,15 @@ Agentur-Tooling, nicht kundenwirksam über den Pin, deshalb keine `[kunde]`-Zeil
   der Lauf vor dem ersten Schreiben ab (Exit 1), kein Rückfall auf Layout a. Ein unbekannter
   Platzhalter bricht mit seinem Namen ab; ein leerer Wert wird leer eingesetzt und je Platzhalter auf
   stderr gewarnt. Im Ergebnis steht nie ein `{{…}}`.
-- 14 neue Platzhalter neben den 17 bestehenden: `{{PHOTO_URL}}`, `{{PHOTO_ALT}}`,
+- 18 neue Platzhalter neben den 17 bestehenden: `{{PHOTO_URL}}`, `{{PHOTO_ALT}}`,
   `{{COMPANY_LEGAL_NAME}}`, `{{LEGAL_FORM}}`, `{{STREET}}`, `{{ZIP}}`, `{{CITY}}`, `{{ZIP_CITY}}`,
   `{{REGISTERGERICHT}}`, `{{HRB}}`, `{{REGISTER_ART}}`, `{{REGISTER_NR}}`, `{{REPRESENTATIVES}}`,
-  `{{UST_ID}}`. `read-customer-data.py` liefert dafür `ZIP`, `CITY`, `REGISTER_ART`/`REGISTER_NR`
-  (`HRB 21336` → `HRB` und `21336`) und `COMPANY_LEGAL_NAME`. Liste mit Mika-Beispielwerten im README.
+  `{{UST_ID}}`, `{{PHONE_TEL}}`, `{{PHONE_NATIONAL}}`, `{{COMPANY_PHONE}}`, `{{COMPANY_PHONE_TEL}}`.
+  `read-customer-data.py` liefert dafür `ZIP`, `CITY`, `REGISTER_ART`/`REGISTER_NR`
+  (`HRB 21336` → `HRB` und `21336`), `COMPANY_LEGAL_NAME` und `COMPANY_PHONE` (die Firmennummer;
+  `PHONE` überschreibt `regenerate-all.sh` je Person). `*_TEL` enthält nur „+“ und Ziffern für
+  `href="tel:"`, `PHONE_NATIONAL` schreibt +49 als führende 0 (Agenturvorlage Mika: „0151 25073136“).
+  Liste mit Mika-Beispielwerten im README.
 - Textfassung und vCard bleiben aus den Daten. Die vCard schreibt bei `kunde` `generate.sh` selbst
   (`vcard.sh`, ein Format mit `generate-mail.sh`): Für a/b liest `generate-mail.sh` sie aus den
   `esig-*`-Klassen des HTML, und die trägt eine fremde Vorlage nicht. Firma und Position fehlten sonst.

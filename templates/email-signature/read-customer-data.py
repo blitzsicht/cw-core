@@ -275,6 +275,9 @@ out = {
     "REGISTER_ART": register_art,
     "REGISTER_NR": register_nr,
     "COMPANY_LEGAL_NAME": company_legal_name,
+    # Firmennummer (legal.phone, sonst contact). PHONE oben ist derselbe Wert, wird
+    # aber in regenerate-all.sh je Person mit persons[].phone überschrieben.
+    "COMPANY_PHONE": phone,
 }
 
 for k, v in out.items():

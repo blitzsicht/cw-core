@@ -361,12 +361,25 @@ print(t, end="")
 PYEOF
 }
 
+# Telefonnummern für Kundenvorlagen: für href="tel:" nur „+“ und Ziffern
+# (RFC 3966 kennt kein Leerzeichen), zur Anzeige national, wenn die Nummer mit
+# +49 beginnt („+49 151 25073136“ → „0151 25073136“). Andere Länder bleiben,
+# wie sie sind.
+COMPANY_PHONE="${COMPANY_PHONE:-}"
+tel_form() { printf '%s' "$1" | tr -cd '+0-9'; }
+national_form() { printf '%s' "$1" | sed -E 's/^\+49[[:space:]]*(\(0\)[[:space:]]*)?/0/'; }
+PHONE_TEL=$(tel_form "$PHONE")
+PHONE_NATIONAL=$(national_form "$PHONE")
+COMPANY_PHONE_TEL=$(tel_form "$COMPANY_PHONE")
+
 # Kundenvorlage: alle Platzhalter der eingebauten Layouts plus Einzelwerte
 # (Liste und Regeln in render-kunden-vorlage.py). Leere Werte → Warnung auf
 # stderr, unbekannte Platzhalter → Abbruch.
 render_kunde() {
   python3 "$SCRIPT_DIR/render-kunden-vorlage.py" "$1" \
     NAME="$NAME" POSITION="$POSITION" EMAIL="$EMAIL" PHONE="$PHONE" \
+    PHONE_TEL="$PHONE_TEL" PHONE_NATIONAL="$PHONE_NATIONAL" \
+    COMPANY_PHONE="$COMPANY_PHONE" COMPANY_PHONE_TEL="$COMPANY_PHONE_TEL" \
     WEBSITE_URL="$WEBSITE_URL" WEBSITE_FULL="$WEBSITE_FULL" \
     COLOR_PRIMARY="$COLOR_PRIMARY" COLOR_ACCENT="$COLOR_ACCENT" \
     COMPANY_NAME="$COMPANY_NAME" LOGO_URL="$LOGO_URL" \
