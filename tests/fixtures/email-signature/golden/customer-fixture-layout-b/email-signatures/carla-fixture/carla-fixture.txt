@@ -1,0 +1,15 @@
+Carla Fixture
+Bauleitung
+Fixture Bau
+
+Tel:    +49 941 222222
+E-Mail: carla@fixture-bau.example
+Web:    https://fixture-bau.example?utm_source=email-signature&utm_medium=email&utm_campaign=carla-fixture-web
+
+Baustraße 12 · 93055 Regensburg
+GmbH & Co. KG · GF: Fixture Bau Verwaltungs GmbH
+Amtsgericht Regensburg · HRA 7788
+USt-IdNr.: DE111222333
+
+--
+Hinweis: Diese E-Mail und etwaige Anhänge sind ausschließlich für den bezeichneten Empfänger bestimmt.

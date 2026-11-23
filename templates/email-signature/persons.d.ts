@@ -26,8 +26,12 @@ export type EmailSigPerson = {
   email: string;
   /** Person-Telefon (überschreibt legal.phone aus site-data.ts). */
   phone?: string;
-  /** Layout-Override. 'auto' = Aspect-Ratio-Detection. */
-  layout?: 'a' | 'b' | 'auto';
+  /**
+   * Layout-Override. 'auto' = Aspect-Ratio-Detection. 'kunde' = eigene Vorlage
+   * unter email-signatures/_layout/PERSON.html.template im Kundenrepo (fehlt sie,
+   * bricht der Generator ab; Platzhalter siehe README.md, „Kunden-Layout“).
+   */
+  layout?: 'a' | 'b' | 'auto' | 'kunde';
   /** Anrede in der Begleitmail (z.B. "Servus Markus"). */
   salutation?: string;
   /**

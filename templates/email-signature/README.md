@@ -28,6 +28,8 @@ ONLY_SLUG=markus-steller pnpm sig:regenerate
 | `read-customer-data.py` | SSOT-Reader. Liest `legal/gmb/booking` aus `site-data.ts` + `--color-primary/-accent` aus `tokens.css`. `--list-persons`-Flag für JSON-Output der Personen-Liste. |
 | `generate.sh` | Kern-Generator. ENV → Template-Replacement → HTML/TXT/PNG. Hybrid-Color-Swap, Aspect-Ratio-Layout-Detection. Install-Page lädt CSS via `<link rel="stylesheet" href="/email/install.css?v=HASH">`. |
 | `generate-mail.sh` | Bündelt fertige Sig zu `.eml` + Browser-Preview. Preview-Page lädt CSS via `<link href="preview.css?v=HASH">` (relativer Pfad in /tmp/cw-sigs/). |
+| `render-kunden-vorlage.py` | Setzt bei `layout: 'kunde'` die Werte in die Vorlage des Kundenrepos ein. Hält die Platzhalterliste (`--liste`). Siehe [Kunden-Layout](#kunden-layout-layout-kunde). |
+| `vcard.sh` | Das vCard-Format, eine Quelle für `generate-mail.sh` (Layout a/b) und `generate.sh` (Layout `kunde`). |
 | `install.css` | **Single-Source** für alle Install-Pages (Browser-rendered). Brand-Farben via `var(--primary)` und `var(--accent)`. Style-Änderungen hier — nie inline in generate.sh. |
 | `preview.css` | **Single-Source** für alle Mail-Preview-Pages (Browser-rendered). |
 | `onboard-person.sh` | Legacy: einzelne Person manuell mit ENV-Vars. Heute selten nötig (besser: persons[] in site-data.ts + regenerate-all). |
@@ -82,7 +84,7 @@ const data = {
       position: 'Geschäftsführer',
       email: 'markus.steller@digital-direkt.com',
       phone: '+49 9401 53959-20',
-      layout: 'a',                               // 'a' (Logo links) | 'b' (Logo oben) | 'auto'
+      layout: 'a',                               // 'a' (Logo links) | 'b' (Logo oben) | 'auto' | 'kunde' (eigene Vorlage)
       salutation: 'Hallo Markus',                // Anrede in Begleitmail
     },
   ] as const satisfies readonly EmailSigPerson[],
@@ -90,6 +92,107 @@ const data = {
 ```
 
 Pflicht: `slug`, `name`, `email`. Alle anderen Felder optional.
+
+Ein unbekanntes `layout` (Tippfehler wie `'kunden'`) fällt weiter auf `auto` zurück, meldet das aber
+seit 23.11.2026 mit `⚠ Unbekanntes Layout '…'` auf stderr.
+
+## Kunden-Layout (`layout: 'kunde'`)
+
+Für Kunden, deren Signatur nach einer eigenen (Agentur-)Vorlage aussehen soll. Das Design bleibt im
+Kundenrepo, cw-core liefert nur die Daten. Die Daten kommen wie bei Layout a/b aus
+`src/data/site-data.ts` (`persons[]`, `legal`, Kontakt) und `tokens.css`.
+
+**Vorlage:** `customer-X/email-signatures/_layout/PERSON.html.template`, eine Datei für alle Personen
+des Kunden. `_layout` steht neben den Personenordnern; ein Slug kann nicht so heißen (Schema erlaubt
+keinen Unterstrich). Für einen Einzelaufruf von `generate.sh` lässt sich der Pfad mit
+`TEMPLATE_HTML_KUNDE=/pfad/zur/vorlage` setzen; Standard ist `$(dirname $OUT_DIR)/_layout/PERSON.html.template`.
+
+**Regeln:**
+
+| Fall | Ergebnis |
+|---|---|
+| Vorlage fehlt | Abbruch vor dem ersten Schreiben: `✗ Layout 'kunde', aber die Kundenvorlage fehlt: <pfad>`, Exit 1. Kein Rückfall auf Layout a. `regenerate-all.sh` überspringt die Begleitmail dieser Person und endet mit Exit 1. |
+| Platzhalter unbekannt (`{{REGISTER_NUMMER}}`, `{{ name }}`) | Abbruch mit dem Namen und der Liste der bekannten, Exit ≠ 0, kein HTML. |
+| Wert leer, Vorlage benutzt ihn | wird leer eingesetzt, je Platzhalter eine Zeile `⚠ Platzhalter {{UST_ID}} ist leer …` auf stderr. Im Ergebnis steht nie ein `{{…}}`. |
+| Textfassung (`.txt`) | wie bei Layout a/b aus `PERSON.txt.template`, also aus den Daten. |
+| vCard (`.vcf`) | schreibt `generate.sh` aus den Daten (`vcard.sh`). Layout a/b liest sie aus den `esig-*`-Klassen des HTML; die trägt eine fremde Vorlage nicht, Firma und Position fehlten sonst. |
+
+Werte werden roh eingesetzt wie bei den eingebauten Layouts. `{{COMPLIANCE_BLOCK}}`,
+`{{EXTRAS_BLOCK}}` und `{{PHOTO_BLOCK}}` sind fertiges HTML.
+
+**Platzhalter** (`python3 render-kunden-vorlage.py --liste` gibt dieselbe Liste aus; der Test
+`tests/email-signature/signatur-kunden-layout.test.js` prüft, dass hier jeder steht). Beispielwerte:
+customer-mika-elektrotechnik, Kewin Mika, gemessen 23.11.2026.
+
+| Platzhalter | Inhalt | Beispiel |
+|---|---|---|
+| `{{NAME}}` | `persons[].name` | Kewin Mika |
+| `{{POSITION}}` | `persons[].position` | Geschäftsführer & Elektrotechnikermeister |
+| `{{EMAIL}}` | `persons[].email` | info@elektro-mika.com |
+| `{{PHONE}}` | `persons[].phone` (nicht `legal.phone`) | +49 151 25073136 |
+| `{{WEBSITE_URL}}` | Domain zur Anzeige | elektro-mika.com |
+| `{{WEBSITE_FULL}}` | volle URL mit UTM, für `href` | https://elektro-mika.com?utm_source=email-signature&utm_medium=email&utm_campaign=kewin-mika-web |
+| `{{COLOR_PRIMARY}}` | `--color-primary` aus tokens.css | #004650 |
+| `{{COLOR_ACCENT}}` | `--color-accent` aus tokens.css | #19E187 |
+| `{{COMPANY_NAME}}` | `siteData.name` (Marke) | Elektrotechnik Mika |
+| `{{LOGO_URL}}` | öffentliches Logo | https://elektro-mika.com/email/logo.png |
+| `{{LOGO_URL_LIGHT}}` | Logo hell (mit `animationEffect` die APNG) | https://elektro-mika.com/email/logo-light.png |
+| `{{LOGO_URL_DARK}}` | Logo dunkel | https://elektro-mika.com/email/logo-dark.png |
+| `{{LOGO_ALT}}` | Alternativtext Logo | Elektrotechnik Mika |
+| `{{COMPLIANCE_BLOCK}}` | HTML: Adresse, Rechtsform, GF, Register, USt-IdNr. | `Xaver-Winklmann-Straße 19 &middot; 92444 Rötz<br>GmbH &middot; GF: Kewin Mika<br>…` |
+| `{{CONFIDENTIALITY_NOTE}}` | Vertraulichkeitshinweis (wie in der Textfassung) | Hinweis: Diese E-Mail und etwaige Anhänge … |
+| `{{EXTRAS_BLOCK}}` | HTML: Termin-/Bewertungsknopf, vCard-Link | `<p …><a href="https://elektro-mika.com/email/kewin-mika.vcf?…">…Kontakt speichern (vCard)…` |
+| `{{PHOTO_BLOCK}}` | HTML: Porträt 110 px rund (Layout a/b) | `<img src="https://elektro-mika.com/email/kewin.png" … width="110" …>` |
+| `{{PHOTO_URL}}` | nackte Porträt-URL aus `persons[].photo` | https://elektro-mika.com/email/kewin.png |
+| `{{PHOTO_ALT}}` | Alternativtext Porträt (= Name) | Kewin Mika |
+| `{{COMPANY_LEGAL_NAME}}` | Firmenname mit Rechtsform: `legal.owner`, wenn er die Rechtsform trägt, sonst Name + Rechtsform (Einzelunternehmen: nur Name) | Elektrotechnik Mika GmbH |
+| `{{LEGAL_FORM}}` | `legal.form` | GmbH |
+| `{{STREET}}` | `legal.street` | Xaver-Winklmann-Straße 19 |
+| `{{ZIP}}` | `legal.zip` | 92444 |
+| `{{CITY}}` | `legal.city` | Rötz |
+| `{{ZIP_CITY}}` | PLZ und Ort | 92444 Rötz |
+| `{{REGISTERGERICHT}}` | `legal.registerCourt` / `registergericht` | Amtsgericht Regensburg |
+| `{{HRB}}` | vollständige Registernummer | HRB 21336 |
+| `{{REGISTER_ART}}` | Registerart aus der Nummer | HRB |
+| `{{REGISTER_NR}}` | Nummer ohne Art | 21336 |
+| `{{REPRESENTATIVES}}` | `legal.representatives`, kommagetrennt (kein Rückfall auf `legal.owner`) | Kewin Mika |
+| `{{UST_ID}}` | `legal.ustIdNr` | DE451598291 |
+| `{{PHONE_TEL}}` | Telefon der Person für `href="tel:"`, nur „+“ und Ziffern | +4915125073136 |
+| `{{PHONE_NATIONAL}}` | Telefon der Person zur Anzeige, +49 als führende 0 (andere Länder unverändert) | 0151 25073136 |
+| `{{COMPANY_PHONE}}` | Firmennummer `legal.phone` (sonst `contact.phone`), wie geschrieben | +49 160 91172381 |
+| `{{COMPANY_PHONE_TEL}}` | Firmennummer für `href="tel:"` | +4916091172381 |
+
+Beispiel Fußzeile: `{{COMPANY_LEGAL_NAME}} · {{STREET}} · {{ZIP}} {{CITY}} · Geschäftsführer: {{REPRESENTATIVES}} · {{REGISTERGERICHT}} · {{REGISTER_ART}} Nr. {{REGISTER_NR}}`
+→ „Elektrotechnik Mika GmbH · Xaver-Winklmann-Straße 19 · 92444 Rötz · Geschäftsführer: Kewin Mika ·
+Amtsgericht Regensburg · HRB Nr. 21336“. Eine vollständige Beispielvorlage mit allen Platzhaltern liegt
+unter `tests/fixtures/email-signature/kunden/customer-fixture-kunde/email-signatures/_layout/`.
+
+**Pflichtangaben:** Die Vorlage verantwortet sie selbst. Wer `{{COMPLIANCE_BLOCK}}` nicht einsetzt, muss
+Firma, Rechtsform, Sitz, Registergericht, Registernummer und Geschäftsführer (§ 35a HGB) einzeln setzen.
+
+### CUSTOMER_ROOT-Falle bei Worktrees
+
+`regenerate-all.sh` sucht die Kunden drei Ebenen über sich (`cw-core/templates/email-signature/` →
+`CLAUDE/`). Aus einem Worktree unter `~/Code/_worktrees/_worktrees-cw-core/wt-…/` liegt dort kein
+`customer-*`. Bis 23.11.2026 endete das still mit „DONE — 0“ und Exit 0; jetzt bricht der Lauf mit
+`✗ Keine customer-*-Ordner unter CUSTOMER_ROOT=…` (oder `ONLY_CUSTOMER=… nicht gefunden`) und Exit 1 ab.
+
+Lösung: `CUSTOMER_ROOT` auf einen Ordner zeigen lassen, der die Kunden enthält. Liegt der Kunde selbst
+in einem Worktree (Ordnername `wt-…` statt `customer-…`), einen Symlink-Ordner mit dem richtigen Namen
+anlegen:
+
+```bash
+# cw-core-Stand aus dem Worktree, Kundenrepo aus seinem Worktree
+SIG_ROOT=$(mktemp -d /tmp/cw-sig-root.XXXX)
+ln -s ~/Code/_worktrees/_worktrees-customer-mika-elektrotechnik/wt-signatur \
+      "$SIG_ROOT/customer-mika-elektrotechnik"
+CUSTOMER_ROOT="$SIG_ROOT" ONLY_CUSTOMER=customer-mika-elektrotechnik \
+  bash ~/Code/_worktrees/_worktrees-cw-core/wt-signatur-kunden-layout/templates/email-signature/regenerate-all.sh
+```
+
+Die Ausgabe landet im Ziel des Symlinks (`email-signatures/<slug>/`, `public/email/`). Ohne
+`REGISTRY_PATH` gilt der Kunde als nicht registriert (`⚠ … fail-open`); für das TIER-Gating zusätzlich
+`REGISTRY_PATH=/…/customer-websites/customer-registry.json` setzen.
 
 ## TIER-Gating v4-Extras (v6.6, Plan-Phase 10.5)
 

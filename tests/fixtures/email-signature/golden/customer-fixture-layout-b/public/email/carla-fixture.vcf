@@ -1,0 +1,9 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Carla Fixture
+ORG:Fixture Bau
+TITLE:Bauleitung
+TEL;TYPE=WORK,VOICE:+49 941 222222
+EMAIL;TYPE=WORK:carla@fixture-bau.example
+URL:https://fixture-bau.example?utm_source=email-signature&utm_medium=email&utm_campaign=carla-fixture-web
+END:VCARD
