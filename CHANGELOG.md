@@ -22,7 +22,7 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ---
 
-## [Unreleased]
+## v0.196.0 (2026-11-23)
 
 **Feature:** Kontaktformular mit Telefon und Zusatzfeldern — ContactForm `phone` + `extraFields`, contact-handler `requiredFields` + `extraFieldLabels`
 
