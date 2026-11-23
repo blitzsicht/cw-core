@@ -24,6 +24,27 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Fix:** Sicht-Guard: die Vorschaubild-Prüfung läuft wieder ohne installierte cw-core-Wurzel
+
+Kontext: `site-checks.yml` ruft `node cw-core/scripts/og-audit.mjs` im ausgecheckten cw-core auf und
+installiert dort nur `checks/`. Seit v0.196.0 holte og-audit `pickDistRoot` und `normalizeUrlPath` aus
+`verify-touchpoints.mjs`, und das lädt über `html-resources.js` das Paket `parse5` (#292). Mit dem
+Guard-Pin v0.196.0 scheiterte die Vorschaubild-Prüfung deshalb in allen 22 Pin-PRs vom 23.11.2026 mit
+„Cannot find package 'parse5'“, und die Barrierefreiheits-Prüfung dahinter lief nicht mehr. Mobil- und
+Layout-Prüfung liefen weiter. Gemergt wurden die PRs trotzdem, weil Auto-Merge nur auf `build` wartet.
+
+- Die beiden Helfer liegen jetzt in `scripts/lib/dist-pfad.mjs`, das nur `node:path` lädt.
+  `verify-touchpoints.mjs` exportiert sie weiter, Aufrufer ändern nichts.
+- `scripts/og-audit-imports.test.mjs` verfolgt den Import-Graph ab og-audit und erlaubt nur `node:`-Module
+  und eigene Dateien. Gegenprobe im selben Test: der Graph von verify-touchpoints meldet `parse5`.
+  Mit zurückgedrehtem Import 1 von 2 rot, mit Fix 2 von 2 grün.
+- Nachgestellt ohne `node_modules` wie im Runner: vorher rc=1 mit ERR_MODULE_NOT_FOUND, nachher rc=0
+  (mit Vorschaubild) bzw. rc=1 mit echtem Befund „og:image fehlt“.
+
+Keine `[kunde]`-Zeile: betrifft nur die CI-Prüfung, an keiner Website ändert sich etwas.
+
+**Migrations-Hinweis:** Keiner. Nach dem Release Guard-Pin heben und ausrollen (cw-release 6b).
+
 **Feature:** E-Mail-Signatur: Kunden-Layout `layout: 'kunde'`, das Kundenrepo bringt seine HTML-Vorlage mit, die Daten kommen weiter aus `site-data.ts`
 
 Kontext: Elektrotechnik Mika will ihre Signaturen nach einer Agenturvorlage (Porträt links, Name in

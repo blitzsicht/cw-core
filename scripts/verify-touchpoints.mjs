@@ -67,6 +67,7 @@ import { fileURLToPath } from 'node:url';
 import { AUFSICHTS_MAILTO_ALLOWLIST } from '../src/utils/legal/aufsichtsbehoerde.js';
 import { attribute, dekodiereEntities } from '../src/utils/html-attribute.js';
 import { extractResources, extractCssUrls } from '../src/integrations/ai-discovery/html-resources.js';
+import { pickDistRoot, normalizeUrlPath } from './lib/dist-pfad.mjs';
 
 // ─── Pure Helpers (exportiert für node --test) ──────────────────────────────
 
@@ -518,43 +519,8 @@ export function detectOriginFromHtml(html) {
   return href ?? null;
 }
 
-/**
- * Wurzel des ausgelieferten HTML im dist-Verzeichnis.
- *
- * Astro MIT Adapter (blitzsicht: `output:'static'` + `adapter: vercel()`) legt
- * das Output unter `dist/client/` ab, `dist/` selbst bleibt bis auf den
- * Adapter-Kram leer. Ein naives join(dist, urlPath) findet dort KEINE einzige
- * Datei und meldet jeden Link der Site als tot — bei blitzsicht 131 Stück,
- * gemessen 12.08.2026. Darum die Fallunterscheidung statt eines festen Pfads.
- *
- * @param {string} distDir @param {string[]} entries Namen direkt unter distDir
- * @returns {string} distDir oder distDir/client
- */
-export function pickDistRoot(distDir, entries) {
-  const hasHtmlHere = entries.some((e) => e.toLowerCase().endsWith('.html'));
-  if (!hasHtmlHere && entries.includes('client')) return join(distDir, 'client');
-  return distDir;
-}
-
-/**
- * URL-Pfad für den Dateisystem-Vergleich normalisieren.
- *
- * Prozent-Encoding UND Unicode-Form zählen beide: digital-direkt verlinkt
- * dieselbe Seite als `/leistungen/druck-kopierl%C3%B6sungen/` und als
- * `/leistungen/druck-kopierlösungen`. readdir liefert auf macOS/Linux NFC —
- * ein NFD-kodierter Href wäre ohne normalize() ein Fehlalarm.
- *
- * @param {string} raw @returns {string}
- */
-export function normalizeUrlPath(raw) {
-  let p = raw.split('#')[0].split('?')[0];
-  try {
-    p = decodeURIComponent(p);
-  } catch {
-    // Kaputtes Encoding (einzelnes %) — roh weiterverwenden statt zu werfen.
-  }
-  return p.normalize('NFC');
-}
+// pickDistRoot und normalizeUrlPath liegen in ./lib/dist-pfad.mjs (paketfrei, für og-audit im Sicht-Guard).
+export { pickDistRoot, normalizeUrlPath };
 
 /**
  * Dateipfade (dist-relativ), unter denen ein URL-Pfad liegen kann.

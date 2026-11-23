@@ -51,7 +51,8 @@ import { fileURLToPath } from 'node:url';
 
 import { bildMasse } from '../src/utils/bild-masse.js';
 import { attribute } from '../src/utils/html-attribute.js';
-import { pickDistRoot, normalizeUrlPath } from './verify-touchpoints.mjs';
+// Nicht aus verify-touchpoints.mjs: das lädt parse5, und der Sicht-Guard installiert die cw-core-Wurzel nicht.
+import { pickDistRoot, normalizeUrlPath } from './lib/dist-pfad.mjs';
 
 /** Obergrenze je Vorschaubild, wie in quality-checks (`maxOgBytes`). */
 export const MAX_BYTES = 300 * 1024;
