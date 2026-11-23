@@ -138,6 +138,45 @@ registergericht = (
     or kv(legal, "registry")
 )
 
+def register_teile(nummer):
+    """'HRB 21336' → ('HRB', '21336'). Für Kundenvorlagen (layout 'kunde').
+
+    Eine Agenturvorlage setzt gern "HRB Nr. 21336" — dafür braucht sie Art und
+    Nummer getrennt. Ohne erkennbare Art (nur Ziffern) bleibt die Art leer und
+    die Nummer vollständig; die Vorlage bekommt dann eine Warnung für die
+    leere Art statt eines erfundenen Präfixes.
+    """
+    m = re.match(r"^\s*([A-Za-z]+)\.?\s*(?:Nr\.?\s*)?(\S.*?)\s*$", nummer)
+    if m and re.search(r"\d", m.group(2)):
+        return m.group(1), m.group(2)
+    return "", nummer.strip()
+
+register_art, register_nr = register_teile(hrb)
+
+
+def firmenname_mit_rechtsform(name, rechtsform, inhaber):
+    """Der Name, wie er im Register steht: 'Elektrotechnik Mika GmbH'.
+
+    `name` ist die Marke (oft ohne Rechtsform), `legal.owner` bei einer
+    Gesellschaft der eingetragene Name. Trägt `owner` die Rechtsform, gilt er —
+    er kann vom Markennamen abweichen ('Zink GmbH Bäckerei und Konditorei').
+    Bei Einzelunternehmen ist `owner` die Person; dort und ohne gepflegte
+    Rechtsform bleibt es beim Namen, es wird keine Rechtsform erfunden (#121).
+    """
+    if not rechtsform:
+        return name
+    klein = rechtsform.lower()
+    if klein in ("einzelunternehmen", "einzelunternehmer", "freiberufler"):
+        return name
+    enthaelt = lambda s: re.search(rf"(^|\s){re.escape(klein)}($|\s)", s.lower()) is not None
+    if inhaber and enthaelt(inhaber):
+        return inhaber
+    if enthaelt(name):
+        return name
+    return f"{name} {rechtsform}"
+
+company_legal_name = firmenname_mit_rechtsform(name, form, owner)
+
 # representatives[] (GbR/OHG/KG): alle vertretungsberechtigten Gesellschafter
 representatives = ""
 rm_match = re.search(r"representatives:\s*\[([^\]]*)\]", legal)
@@ -229,6 +268,13 @@ out = {
     "GOOGLE_REVIEW_URL": gmb_review_url,
     "BOOKING_URL": booking_url,
     "BOOKING_LABEL": booking_label,
+    # Einzelwerte für Kundenvorlagen (layout 'kunde'); die eingebauten Layouts
+    # lesen sie nicht.
+    "ZIP": zip_,
+    "CITY": city,
+    "REGISTER_ART": register_art,
+    "REGISTER_NR": register_nr,
+    "COMPANY_LEGAL_NAME": company_legal_name,
 }
 
 for k, v in out.items():

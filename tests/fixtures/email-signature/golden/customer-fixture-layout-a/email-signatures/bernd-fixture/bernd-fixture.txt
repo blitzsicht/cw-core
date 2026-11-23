@@ -1,0 +1,15 @@
+Bernd Fixture
+Kundendienst
+Fixture Heizung
+
+Tel:    +49 9401 111112
+E-Mail: bernd@fixture-heizung.example
+Web:    https://fixture-heizung.example?utm_source=email-signature&utm_medium=email&utm_campaign=bernd-fixture-web
+
+Am Ofen 3 · 93073 Neutraubling
+GmbH · GF: Anna Fixture
+Amtsgericht Regensburg · HRB 54321
+USt-IdNr.: DE987654321
+
+--
+Hinweis: Diese E-Mail und etwaige Anhänge sind ausschließlich für den bezeichneten Empfänger bestimmt.

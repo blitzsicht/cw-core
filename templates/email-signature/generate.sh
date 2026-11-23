@@ -9,6 +9,10 @@
 #   - Aspect-Ratio-Detection: Logo > 3.5:1 → Layout-B (full-width oben)
 #   - Compliance-Block-Builder (kein {{HRB}}-Leerwert mehr in Output)
 #   - Dark-Mode CSS in Templates
+# Kunden-Layout (LAYOUT=kunde, 2026-11-23):
+#   - HTML aus <kundenrepo>/email-signatures/_layout/PERSON.html.template
+#     (render-kunden-vorlage.py), Text und vCard weiter aus den Daten
+#   - Vorlage fehlt → Abbruch; unbekanntes Layout → Warnung auf stderr
 # =============================================================================
 set -euo pipefail
 
@@ -43,6 +47,13 @@ LOGO_SVG="${LOGO_SVG:?'LOGO_SVG fehlt — Pfad zur logo.svg (public/logo.svg)'}"
 LOGO_URL="${LOGO_URL:?'LOGO_URL fehlt — absolute URL (https://domain.com/email/logo.png)'}"
 LOGO_ALT="${LOGO_ALT:-$COMPANY_NAME}"
 LAYOUT="${LAYOUT:-auto}"
+# Einzelwerte für Kundenvorlagen (LAYOUT=kunde). read-customer-data.py liefert sie;
+# die eingebauten Layouts lesen sie nicht.
+ZIP="${ZIP:-}"
+CITY="${CITY:-}"
+REGISTER_ART="${REGISTER_ART:-}"
+REGISTER_NR="${REGISTER_NR:-}"
+COMPANY_LEGAL_NAME="${COMPANY_LEGAL_NAME:-}"
 
 # ── Dual-Logo (Light + Dark) ──────────────────────────────────────────────────
 # Light = LOGO_SVG (Standard). Dark wird auto-detected oder explizit gesetzt.
@@ -76,6 +87,20 @@ fi
 SLUG=$(echo "$NAME" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g' | sed 's/ä/ae/g; s/ö/oe/g; s/ü/ue/g; s/ß/ss/g' | sed 's/[^a-z0-9-]//g')
 SLUG="${EXPLICIT_SLUG:-$SLUG}"
 OUT_DIR="${OUT_DIR:-email-signatures/$SLUG}"
+
+# ── Kundenvorlage (LAYOUT=kunde) ──────────────────────────────────────────────
+# Das Kundenrepo bringt sein HTML selbst mit, neben den Signaturordnern:
+# OUT_DIR ist <kundenrepo>/email-signatures/<slug>, die Vorlage liegt in
+# <kundenrepo>/email-signatures/_layout/. Fehlt sie, bricht der Lauf hier ab,
+# bevor etwas geschrieben wird. Ein Rückfall auf Layout a sähe aus wie eine
+# fertige Signatur — nur eben nicht die, die der Kunde bestellt hat.
+TEMPLATE_HTML_KUNDE="${TEMPLATE_HTML_KUNDE:-$(dirname "$OUT_DIR")/_layout/PERSON.html.template}"
+if [ "$LAYOUT" = "kunde" ] && [ ! -f "$TEMPLATE_HTML_KUNDE" ]; then
+  echo "  ✗ Layout 'kunde', aber die Kundenvorlage fehlt: $TEMPLATE_HTML_KUNDE" >&2
+  echo "    Anlegen unter <kundenrepo>/email-signatures/_layout/PERSON.html.template (Platzhalter: README.md, Abschnitt Kunden-Layout)" >&2
+  exit 1
+fi
+
 mkdir -p "$OUT_DIR/assets"
 
 # Web-URL bekommt UTM-Tracking: ?utm_source=email-signature&utm_campaign=<slug>-web
@@ -246,11 +271,17 @@ else
   PHOTO_BLOCK=""
 fi
 
-# ── Layout-Auswahl (auto/a/b) ─────────────────────────────────────────────────
+# ── Layout-Auswahl (auto/a/b/kunde) ───────────────────────────────────────────
 detect_layout() {
-  if [ "$LAYOUT" = "a" ] || [ "$LAYOUT" = "b" ]; then
-    echo "$LAYOUT"; return
-  fi
+  case "$LAYOUT" in
+    a|b|kunde) echo "$LAYOUT"; return ;;
+    auto) ;;
+    *)
+      # Der Rückfall auf auto bleibt (bestehende Kunden), aber nicht mehr still:
+      # ein Tippfehler wie 'kunden' ergab bis 23.11.2026 kommentarlos Layout a/b.
+      echo "  ⚠ Unbekanntes Layout '$LAYOUT' — Rückfall auf auto (bekannt: a, b, auto, kunde)" >&2
+      ;;
+  esac
   # Aspect aus SVG/PNG lesen
   local dims aspect
   if command -v magick &>/dev/null; then
@@ -274,6 +305,7 @@ detect_layout() {
 
 CHOSEN_LAYOUT=$(detect_layout)
 case "$CHOSEN_LAYOUT" in
+  kunde) TEMPLATE_HTML="$TEMPLATE_HTML_KUNDE"; echo "  Layout: Kunde (eigene Vorlage: $TEMPLATE_HTML_KUNDE)" ;;
   b) TEMPLATE_HTML="$TEMPLATE_HTML_B"; echo "  Layout: B (Wortmarke — Logo full-width oben)" ;;
   *) TEMPLATE_HTML="$TEMPLATE_HTML_A"; echo "  Layout: A (Logo links)" ;;
 esac
@@ -329,10 +361,51 @@ print(t, end="")
 PYEOF
 }
 
-replace_html "$TEMPLATE_HTML" > "$OUT_DIR/$SLUG.html"
+# Kundenvorlage: alle Platzhalter der eingebauten Layouts plus Einzelwerte
+# (Liste und Regeln in render-kunden-vorlage.py). Leere Werte → Warnung auf
+# stderr, unbekannte Platzhalter → Abbruch.
+render_kunde() {
+  python3 "$SCRIPT_DIR/render-kunden-vorlage.py" "$1" \
+    NAME="$NAME" POSITION="$POSITION" EMAIL="$EMAIL" PHONE="$PHONE" \
+    WEBSITE_URL="$WEBSITE_URL" WEBSITE_FULL="$WEBSITE_FULL" \
+    COLOR_PRIMARY="$COLOR_PRIMARY" COLOR_ACCENT="$COLOR_ACCENT" \
+    COMPANY_NAME="$COMPANY_NAME" LOGO_URL="$LOGO_URL" \
+    LOGO_URL_LIGHT="$LOGO_URL_LIGHT" LOGO_URL_DARK="$LOGO_URL_DARK" LOGO_ALT="$LOGO_ALT" \
+    COMPLIANCE_BLOCK="$COMPLIANCE_BLOCK" CONFIDENTIALITY_NOTE="$CONFIDENTIALITY_NOTE" \
+    EXTRAS_BLOCK="$EXTRAS_BLOCK" PHOTO_BLOCK="$PHOTO_BLOCK" \
+    PHOTO_URL="$PHOTO_URL" PHOTO_ALT="$PHOTO_ALT" \
+    COMPANY_LEGAL_NAME="$COMPANY_LEGAL_NAME" LEGAL_FORM="$LEGAL_FORM" \
+    STREET="$STREET" ZIP="$ZIP" CITY="$CITY" ZIP_CITY="$ZIP_CITY" \
+    REGISTERGERICHT="$REGISTERGERICHT" HRB="$HRB" \
+    REGISTER_ART="$REGISTER_ART" REGISTER_NR="$REGISTER_NR" \
+    REPRESENTATIVES="$REPRESENTATIVES" UST_ID="$UST_ID"
+}
+
+if [ "$CHOSEN_LAYOUT" = "kunde" ]; then
+  # Erst in eine Zwischendatei: Bricht die Vorlage ab, bleibt keine halbe Signatur liegen.
+  if ! render_kunde "$TEMPLATE_HTML" > "$OUT_DIR/$SLUG.html.neu"; then
+    rm -f "$OUT_DIR/$SLUG.html.neu"
+    echo "  ✗ Kundenvorlage nicht verwendbar: $TEMPLATE_HTML — Signatur nicht erzeugt" >&2
+    exit 1
+  fi
+  mv "$OUT_DIR/$SLUG.html.neu" "$OUT_DIR/$SLUG.html"
+else
+  replace_html "$TEMPLATE_HTML" > "$OUT_DIR/$SLUG.html"
+fi
 replace_txt "$TEMPLATE_TXT" > "$OUT_DIR/$SLUG.txt"
 echo "  ✓ $SLUG.html"
 echo "  ✓ $SLUG.txt"
+
+# vCard bei der Kundenvorlage aus den Daten: generate-mail.sh liest sie sonst aus
+# den esig-*-Klassen des HTML, und die trägt eine fremde Vorlage nicht — Firma
+# und Position fehlten dann in der vCard. Gleiches Format, gleiche Werte wie bei
+# Layout a/b (vcard.sh). regenerate-all.sh lässt diese Datei stehen.
+if [ "$CHOSEN_LAYOUT" = "kunde" ]; then
+  # shellcheck source=vcard.sh
+  source "$SCRIPT_DIR/vcard.sh"
+  vcard_schreiben "$OUT_DIR/$SLUG.vcf" "$NAME" "$COMPANY_NAME" "$POSITION" "$PHONE" "$EMAIL" "$WEBSITE_FULL"
+  echo "  ✓ $SLUG.vcf (aus den Daten)"
+fi
 
 # ── Dual-PNG-Pipeline mit Transparenz-Force + Color-Swap-Fallback ─────────────
 LOGO_PNG_LIGHT_OUT="$OUT_DIR/assets/logo-light.png"

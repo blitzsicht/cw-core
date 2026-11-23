@@ -24,6 +24,40 @@ Kunden pinnen via `github:blitzsicht/cw-core#release/cw-core/vX.Y.Z` in `package
 
 ## [Unreleased]
 
+**Feature:** E-Mail-Signatur: Kunden-Layout `layout: 'kunde'`, das Kundenrepo bringt seine HTML-Vorlage mit, die Daten kommen weiter aus `site-data.ts`
+
+Kontext: Elektrotechnik Mika will ihre Signaturen nach einer Agenturvorlage (Porträt links, Name in
+Metropolis, Fußzeile mit Registerangaben); Layout a und b passen nicht. Statt Kundendesign in cw-core
+zu gießen, liegt die Vorlage im Kundenrepo unter `email-signatures/_layout/PERSON.html.template`.
+Agentur-Tooling, nicht kundenwirksam über den Pin, deshalb keine `[kunde]`-Zeile.
+
+- `generate.sh`: `LAYOUT=kunde` rendert die Vorlage über `render-kunden-vorlage.py`. Fehlt sie, bricht
+  der Lauf vor dem ersten Schreiben ab (Exit 1), kein Rückfall auf Layout a. Ein unbekannter
+  Platzhalter bricht mit seinem Namen ab; ein leerer Wert wird leer eingesetzt und je Platzhalter auf
+  stderr gewarnt. Im Ergebnis steht nie ein `{{…}}`.
+- 14 neue Platzhalter neben den 17 bestehenden: `{{PHOTO_URL}}`, `{{PHOTO_ALT}}`,
+  `{{COMPANY_LEGAL_NAME}}`, `{{LEGAL_FORM}}`, `{{STREET}}`, `{{ZIP}}`, `{{CITY}}`, `{{ZIP_CITY}}`,
+  `{{REGISTERGERICHT}}`, `{{HRB}}`, `{{REGISTER_ART}}`, `{{REGISTER_NR}}`, `{{REPRESENTATIVES}}`,
+  `{{UST_ID}}`. `read-customer-data.py` liefert dafür `ZIP`, `CITY`, `REGISTER_ART`/`REGISTER_NR`
+  (`HRB 21336` → `HRB` und `21336`) und `COMPANY_LEGAL_NAME`. Liste mit Mika-Beispielwerten im README.
+- Textfassung und vCard bleiben aus den Daten. Die vCard schreibt bei `kunde` `generate.sh` selbst
+  (`vcard.sh`, ein Format mit `generate-mail.sh`): Für a/b liest `generate-mail.sh` sie aus den
+  `esig-*`-Klassen des HTML, und die trägt eine fremde Vorlage nicht. Firma und Position fehlten sonst.
+- Ein unbekanntes Layout (Tippfehler) fällt weiter auf auto zurück, meldet das aber mit `⚠` auf stderr.
+- `regenerate-all.sh`: Der Exit-Code von `generate.sh` geht nicht mehr in einer Pipe verloren. Eine
+  fehlgeschlagene Person bekommt keine Begleitmail, der Lauf nennt sie und endet mit Exit 1. Ein
+  `CUSTOMER_ROOT` ohne `customer-*` (Aufruf aus einem Worktree) oder ein unbekannter `ONLY_CUSTOMER`
+  enden mit Exit 1 statt still mit „DONE — 0“. Muster mit Symlink-Ordner im README.
+
+Belege: `tests/email-signature/signatur-kunden-layout.test.js`, 13 Fälle; gegen den Basisstand 10 rot,
+3 grün (Vorbedingung, Bytegleichheit a und b). Bytegleichheit gegen eine Referenz aus dem Basisstand,
+normalisiert nur Erzeugungsdatum und CSS-Hash. Einmalvergleich ohne Normalisierung, Fixtures a/b und
+Mika-Echtdaten (Layout a): 57 Textdateien gleich, 27 PNG pixelgleich. Sabotagen 8/8 rot, Dateien danach
+byte-gleich. Suite 1855, 1852 pass, 0 fail, 3 skipped (vorher 1842 / 1839 / 0 / 3).
+
+**Migrations-Hinweis:** Keiner für den Build. Wer den Exit-Code von `regenerate-all.sh` auswertet, sieht
+bei einer fehlgeschlagenen Person jetzt 1.
+
 **CI:** `build-check.yml` und `site-checks.yml` (Vorlagen) nehmen den Runner aus der Org-Variable `CI_RUNS_ON`, Rückfall `ubuntu-latest` (blitzsicht-ops#931)
 
 Private Kundenrepos laufen damit auf dem eigenen Runner `blitzsicht-ci`, öffentliche Repos sehen die Variable nicht. Wirkt erst nach dem Rollout (`customer-websites/scripts/rollout-build-check.sh`, `rollout-site-checks.sh`). Kein Laufzeitcode, keine Kundenwirkung.

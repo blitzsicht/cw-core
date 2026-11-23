@@ -33,9 +33,9 @@
       },
       "layout": {
         "type": "string",
-        "enum": ["a", "b", "auto"],
+        "enum": ["a", "b", "auto", "kunde"],
         "default": "auto",
-        "description": "Layout-Override. 'a' = Logo links, 'b' = Logo full-width oben, 'auto' = Aspect-Ratio-Detection."
+        "description": "Layout-Override. 'a' = Logo links, 'b' = Logo full-width oben, 'auto' = Aspect-Ratio-Detection, 'kunde' = eigene Vorlage des Kundenrepos unter email-signatures/_layout/PERSON.html.template (fehlt sie, bricht der Generator ab)."
       },
       "salutation": {
         "type": "string",

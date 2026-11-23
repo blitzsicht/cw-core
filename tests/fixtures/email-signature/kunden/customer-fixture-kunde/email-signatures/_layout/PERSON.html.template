@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- vorlage: fixture-kunde (Agenturvorlage, Porträt links, Registerfußzeile) -->
+<html lang="de">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="color-scheme" content="light dark">
+</head>
+<body style="margin:0;padding:0;">
+<table role="presentation" data-vorlage="fixture-kunde" cellpadding="0" cellspacing="0" border="0" style="font-family:Metropolis,Arial,Helvetica,sans-serif;font-size:13px;color:#1d1d1b;max-width:600px;">
+  <tr>
+    <td valign="top" style="padding-right:18px;">
+      <img src="{{PHOTO_URL}}" alt="{{PHOTO_ALT}}" width="96" height="96" style="display:block;width:96px;height:96px;border-radius:48px;">
+    </td>
+    <td valign="top" style="border-left:2px solid {{COLOR_PRIMARY}};padding-left:18px;">
+      <p data-feld="name" style="margin:0;font-family:Metropolis,Arial,sans-serif;font-size:17px;font-weight:700;color:{{COLOR_PRIMARY}};">{{NAME}}</p>
+      <p data-feld="position" style="margin:0 0 8px 0;color:{{COLOR_ACCENT}};">{{POSITION}}</p>
+      <p style="margin:0;">T <a href="tel:{{PHONE}}" style="color:#1d1d1b;text-decoration:none;">{{PHONE}}</a></p>
+      <p style="margin:0;">M <a href="mailto:{{EMAIL}}" style="color:#1d1d1b;text-decoration:none;">{{EMAIL}}</a></p>
+      <p style="margin:0 0 8px 0;">W <a href="{{WEBSITE_FULL}}" style="color:#1d1d1b;text-decoration:none;">{{WEBSITE_URL}}</a></p>
+      <img src="{{LOGO_URL_LIGHT}}" alt="{{LOGO_ALT}}" width="120" style="display:block;width:120px;height:auto;">
+      <!-- dunkle Variante: {{LOGO_URL_DARK}} · Rückfall: {{LOGO_URL}} · Marke: {{COMPANY_NAME}} -->
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" data-feld="fusszeile" style="padding-top:12px;font-size:10px;line-height:1.5;color:#6f6f6e;">
+      {{COMPANY_LEGAL_NAME}} ({{LEGAL_FORM}}) · {{STREET}} · {{ZIP}} {{CITY}}<br>
+      Geschäftsführung: {{REPRESENTATIVES}} · Sitz: {{ZIP_CITY}}<br>
+      Registergericht: {{REGISTERGERICHT}} · {{REGISTER_ART}} Nr. {{REGISTER_NR}} · ({{HRB}}) · USt-IdNr.: {{UST_ID}}
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" style="padding-top:8px;font-size:9px;color:#9d9d9c;">
+      {{CONFIDENTIALITY_NOTE}}
+      <div data-feld="eingebaut" style="display:none;">{{PHOTO_BLOCK}}{{COMPLIANCE_BLOCK}}</div>
+      {{EXTRAS_BLOCK}}
+    </td>
+  </tr>
+</table>
+</body>
+</html>

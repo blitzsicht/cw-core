@@ -69,17 +69,12 @@ if [ ! -f "$VCARD_PATH" ]; then
   SIG_PHONE=$( { grep -oE 'tel:[^"]+' "$HTML_PATH" || true; } | head -1 | sed 's|tel:||')
   SIG_WEB=$( { grep -oE 'href="https?://[^"]+' "$HTML_PATH" || true; } | { grep -v 'mailto:' || true; } | { grep -v 'tel:' || true; } | head -1 | sed -E 's|^href="||')
 
-  cat > "$VCARD_PATH" <<VCARDEOF
-BEGIN:VCARD
-VERSION:3.0
-FN:${SIG_NAME:-$TO_NAME}
-ORG:${SIG_COMPANY:-}
-TITLE:${SIG_POSITION:-}
-TEL;TYPE=WORK,VOICE:${SIG_PHONE:-}
-EMAIL;TYPE=WORK:${SIG_EMAIL:-}
-URL:${SIG_WEB:-}
-END:VCARD
-VCARDEOF
+  # Format in vcard.sh — dieselbe Quelle schreibt bei layout 'kunde' generate.sh
+  # (dort aus den Daten, weil eine Kundenvorlage keine esig-*-Klassen trägt).
+  # shellcheck source=vcard.sh
+  source "$SCRIPT_DIR/vcard.sh"
+  vcard_schreiben "$VCARD_PATH" "${SIG_NAME:-$TO_NAME}" "${SIG_COMPANY:-}" "${SIG_POSITION:-}" \
+    "${SIG_PHONE:-}" "${SIG_EMAIL:-}" "${SIG_WEB:-}"
   echo "  ✓ $SLUG.vcf (vCard)"
 fi
 

@@ -1,0 +1,9 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Bernd Fixture
+ORG:Fixture Heizung
+TITLE:Kundendienst
+TEL;TYPE=WORK,VOICE:+49 9401 111112
+EMAIL;TYPE=WORK:bernd@fixture-heizung.example
+URL:https://fixture-heizung.example?utm_source=email-signature&utm_medium=email&utm_campaign=bernd-fixture-web
+END:VCARD

@@ -25,10 +25,21 @@
 #   tier=business / enterprise                    → alle v4-Extras aktiv (wenn site-data.ts gesetzt)
 #   tier=unknown (Registry fehlt o.ä.)            → fail-open, alle Vars bleiben, Warning
 #
+# Kunden-Layout (persons[].layout = 'kunde', 2026-11-23):
+#   HTML aus customer-X/email-signatures/_layout/PERSON.html.template (README).
+#
+# Exit-Code: 0 = alles erzeugt. 1 = mindestens eine Person fehlgeschlagen
+#   (z. B. Kundenvorlage fehlt), ONLY_CUSTOMER nicht gefunden oder gar kein
+#   customer-* unter CUSTOMER_ROOT. Die übrigen Personen laufen trotzdem durch.
+#
 # Nutzung:
 #   bash cw-core/templates/email-signature/regenerate-all.sh
 #   ONLY_CUSTOMER=customer-soleno bash .../regenerate-all.sh
 #   ONLY_SLUG=markus-steller bash .../regenerate-all.sh
+#
+# Aus einem Worktree (CUSTOMER_ROOT-Falle): Der Default liegt drei Ebenen über
+# diesem Skript. In ~/Code/_worktrees/… stehen dort keine customer-*-Ordner —
+# CUSTOMER_ROOT setzen, z. B. auf einen Ordner mit Symlinks (README).
 # =============================================================================
 set -uo pipefail
 
@@ -81,6 +92,25 @@ echo "  MAIL_OUT:      $MAIL_OUT"
 [ -n "$ONLY_CUSTOMER" ] && echo "  ONLY_CUSTOMER: $ONLY_CUSTOMER"
 [ -n "$ONLY_SLUG" ]     && echo "  ONLY_SLUG:     $ONLY_SLUG"
 echo "═══════════════════════════════════════════════════════════════"
+
+# CUSTOMER_ROOT-Falle: Aus einem Worktree aufgerufen, liegen drei Ebenen über
+# dem Skript keine customer-*-Ordner. Bis 23.11.2026 endete das still mit
+# "DONE — 0" und Exit 0 — sah aus wie ein Lauf ohne Arbeit.
+if [ -n "$ONLY_CUSTOMER" ] && [ ! -d "$CUSTOMER_ROOT/$ONLY_CUSTOMER" ]; then
+  echo "✗ ONLY_CUSTOMER=$ONLY_CUSTOMER nicht gefunden unter CUSTOMER_ROOT=$CUSTOMER_ROOT" >&2
+  echo "  Aus einem Worktree? CUSTOMER_ROOT auf den Ordner mit den customer-*-Repos setzen (README, Abschnitt CUSTOMER_ROOT-Falle)." >&2
+  exit 1
+fi
+if ! compgen -G "$CUSTOMER_ROOT/customer-*/" > /dev/null; then
+  echo "✗ Keine customer-*-Ordner unter CUSTOMER_ROOT=$CUSTOMER_ROOT" >&2
+  echo "  Aus einem Worktree? CUSTOMER_ROOT setzen (README, Abschnitt CUSTOMER_ROOT-Falle)." >&2
+  exit 1
+fi
+
+# Fehlgeschlagene Personen. Die Personen-Schleife läuft in einer Subshell (Pipe),
+# ein Zähler darin wäre danach weg — deshalb eine Datei.
+FEHLER_LOG="$(mktemp "${TMPDIR:-/tmp}/cw-sig-fehler.XXXXXX")"
+trap 'rm -f "$FEHLER_LOG"' EXIT
 
 run_person_for_customer() {
   local CUSTOMER_DIR="$1"
@@ -183,14 +213,21 @@ run_person_for_customer() {
 
   local SIG_OUT="$CUSTOMER_DIR/email-signatures/$SLUG"
 
-  env \
+  # Ausgabe erst einsammeln, dann gefiltert zeigen: So bleibt der Exit-Code von
+  # generate.sh erhalten. Bis 23.11.2026 lief er in eine Pipe und ging verloren —
+  # ein Abbruch (z. B. fehlende Kundenvorlage) blieb unsichtbar, danach lief die
+  # Begleitmail auf einer alten oder fehlenden Signatur.
+  local GEN_AUSGABE GEN_RC
+  GEN_AUSGABE=$(env \
     EXPLICIT_SLUG="$SLUG" NAME="$NAME" POSITION="$POSITION" \
     EMAIL="$EMAIL" PHONE="$PHONE" \
     WEBSITE_URL="$WEBSITE_URL_DISPLAY" \
     COLOR_PRIMARY="$COLOR_PRIMARY" COLOR_ACCENT="$COLOR_ACCENT" \
     COMPANY_NAME="$COMPANY_NAME" LEGAL_FORM="$LEGAL_FORM" GF_NAME="$GF_NAME" \
-    STREET="$STREET" ZIP_CITY="$ZIP_CITY" \
+    REPRESENTATIVES="$REPRESENTATIVES" COMPANY_LEGAL_NAME="$COMPANY_LEGAL_NAME" \
+    STREET="$STREET" ZIP_CITY="$ZIP_CITY" ZIP="$ZIP" CITY="$CITY" \
     HRB="$HRB" REGISTERGERICHT="$REGISTERGERICHT" UST_ID="$UST_ID" \
+    REGISTER_ART="$REGISTER_ART" REGISTER_NR="$REGISTER_NR" \
     LOGO_SVG="$LOGO_SVG" LOGO_DARK_SVG="$LOGO_DARK_SVG" \
     LOGO_URL="$LOGO_URL" LOGO_ALT="$COMPANY_NAME" \
     LAYOUT="$LAYOUT" \
@@ -200,9 +237,22 @@ run_person_for_customer() {
     VCARD_PUBLIC_URL="$VCARD_PUBLIC_URL" \
     ANIMATION_EFFECT="$ANIMATION_EFFECT" \
     OUT_DIR="$SIG_OUT" \
-    "$GEN" 2>&1 | grep -E "(✓|⚠|ⓘ|Layout|APNG|Fertig)" | head -12
+    "$GEN" 2>&1)
+  GEN_RC=$?
+  printf '%s\n' "$GEN_AUSGABE" | grep -E "(✓|⚠|ⓘ|✗|Layout|APNG|Fertig)" | head -40
 
-  rm -f "$SIG_OUT/$SLUG.vcf"
+  if [ "$GEN_RC" -ne 0 ]; then
+    # Meldungen ohne Markierung (z. B. "STREET fehlt" aus generate.sh) stehen am Ende.
+    printf '%s\n' "$GEN_AUSGABE" | grep -q "✗" || printf '%s\n' "$GEN_AUSGABE" | tail -3 | sed 's/^/    /'
+    echo "  ✗ $SLUG: generate.sh fehlgeschlagen (Exit $GEN_RC) — Signatur und Begleitmail nicht erzeugt"
+    echo "$(basename "$CUSTOMER_DIR")/$SLUG" >> "$FEHLER_LOG"
+    return
+  fi
+
+  # Die vCard erzeugt generate-mail.sh frisch aus dem HTML. Ausnahme Kundenvorlage:
+  # Dort hat generate.sh sie aus den Daten geschrieben, die Vorlage trägt keine
+  # esig-*-Klassen zum Auslesen.
+  [ "$LAYOUT" = "kunde" ] || rm -f "$SIG_OUT/$SLUG.vcf"
 
   SIG_DIR="$SIG_OUT" \
   TO_EMAIL="$EMAIL" TO_NAME="$NAME" \
@@ -288,4 +338,11 @@ echo "DONE — $EML_COUNT .eml Files in $MAIL_OUT/"
 if [ "${UEBERSPRUNGEN:-0}" -gt 0 ]; then
   echo "⚠ $UEBERSPRUNGEN Repo(s) mit vorhandenen Signaturen uebersprungen — siehe Meldungen oben"
 fi
+FEHLER_ANZAHL=$(grep -c . "$FEHLER_LOG" 2>/dev/null)
+if [ "${FEHLER_ANZAHL:-0}" -gt 0 ]; then
+  echo "✗ $FEHLER_ANZAHL Person(en) fehlgeschlagen — Signatur nicht erzeugt:"
+  sed 's/^/    /' "$FEHLER_LOG"
+fi
 echo "═══════════════════════════════════════════════════════════════"
+[ "${FEHLER_ANZAHL:-0}" -gt 0 ] && exit 1
+exit 0

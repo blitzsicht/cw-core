@@ -1,0 +1,9 @@
+BEGIN:VCARD
+VERSION:3.0
+FN:Anna Fixture
+ORG:Fixture Heizung
+TITLE:Geschäftsführerin
+TEL;TYPE=WORK,VOICE:+49 9401 111111
+EMAIL;TYPE=WORK:anna@fixture-heizung.example
+URL:https://fixture-heizung.example?utm_source=email-signature&utm_medium=email&utm_campaign=anna-fixture-web
+END:VCARD
