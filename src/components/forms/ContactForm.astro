@@ -29,6 +29,31 @@
  */
 import { antwortBestaetigung } from '../../utils/antwortfrist.js';
 
+/**
+ * Zusatzfeld im Kontaktformular (`extraFields`, nur `formType="contact"`). Der Server nimmt
+ * das Feld nur an, wenn sein Name in `createContactHandler({ extraFields })` steht; Pflicht
+ * am Server über `requiredFields`, Anzeigename in der Mail über `extraFieldLabels`.
+ */
+interface ContactFormExtraField {
+  /** Feldname im Payload, z. B. 'anliegen'. Die id wird `cf-<name>`. */
+  name: string;
+  /** Sichtbares Label, z. B. 'Anliegen / Thema'. */
+  label: string;
+  type: 'text' | 'textarea' | 'select' | 'tel';
+  /** HTML-`required` plus Pflicht-Stern im Label; ohne steht „(optional)“ dahinter. */
+  required?: boolean;
+  /** Nur `select`: die Auswahl. Davor steht immer eine leere Option. */
+  options?: string[];
+  /** `text`/`tel`/`textarea`: Platzhalter. Bei `select`: Text der leeren ersten Option (Default „Bitte wählen“). */
+  placeholder?: string;
+  /** `text`/`tel`/`textarea`: HTML-`maxlength`. */
+  maxlength?: number;
+  /** HTML-`autocomplete`, z. B. 'address-level2'. */
+  autocomplete?: string;
+  /** Nur mit `agentTool`: Parameterbeschreibung für den Agenten. Default: das Label. */
+  toolparamdescription?: string;
+}
+
 interface Props {
   /** Web3Forms access key. Ignored if `actionUrl` is set. */
   formKey?: string;
@@ -70,6 +95,24 @@ interface Props {
    * (v0.162.1, Befund beim Rollout: der feste Text versprach sie auf jeder Site).
    */
   callbackSuccessText?: string;
+  /**
+   * Nur `formType="contact"`: Feld „Telefon“ (`name="telefon"`, `type="tel"`,
+   * `autocomplete="tel"`) direkt unter der E-Mail. `'off'` (Default) = kein Feld, Markup
+   * unverändert. `'required'` setzt nur das HTML-`required`; am Server zusätzlich
+   * `createContactHandler({ requiredFields: ['telefon'] })`. Das Format prüft der Server
+   * schon heute, sobald `telefon` gesendet wird.
+   */
+  phone?: 'off' | 'optional' | 'required';
+  /**
+   * Nur `formType="contact"`: zusätzliche Felder zwischen „Unternehmen“ und „Nachricht“, in
+   * Listenreihenfolge. Default `[]` = Markup unverändert. Ein `select` bekommt immer eine
+   * leere erste Option, sonst wäre `required` wirkungslos (der Browser wählte die erste).
+   * Server: Namen in `extraFields`, Pflicht in `requiredFields`, Mail-Label in
+   * `extraFieldLabels`. Ausnahme `zeitfenster`: liest der Handler immer (max. 60 Zeichen,
+   * Mail-Zeile „Zeitfenster“, auch an Telegram) — nicht in `extraFields` aufnehmen, sonst
+   * steht es doppelt in der Mail, und im Formular `maxlength: 60` setzen.
+   */
+  extraFields?: ContactFormExtraField[];
   /**
    * Antwortfrist, die der Kunde SELBST zugesagt hat — `siteData.antwortfrist`, z. B.
    * `'24 Stunden'` (die Dauer, wie sie hinter „innerhalb von“ steht). Nur formType
@@ -158,6 +201,8 @@ const {
   callbackSuccessText = 'Wir haben Ihren Rückrufwunsch erhalten und melden uns telefonisch bei Ihnen.',
   nextSteps,
   antwortfrist,
+  phone = 'off',
+  extraFields = [],
 } = Astro.props;
 
 if (agentTool && adsConsent) {
@@ -265,10 +310,42 @@ const ATTRIBUTION_FIELDS = ['gclid', 'gbraid', 'wbraid', 'msclkid', 'fbclid',
             <label for="cf-email">E-Mail <span aria-hidden="true">*</span></label>
             <input type="email" id="cf-email" name="email" required autocomplete="email" toolparamdescription={param('E-Mail-Adresse, an die die Antwort gehen soll')} />
           </div>
+          {/* Telefon (Prop `phone`) direkt unter der E-Mail: zweiter Kontaktweg. Ohne den
+              Prop entfällt der Block ganz, das Markup bleibt Byte für Byte gleich. Test:
+              tests/blocks/contactform-pflichtfelder.test.js */}
+          {phone !== 'off' && (
+            <div class="form-row">
+              <label for="cf-telefon">Telefon {phone === 'required' ? <span aria-hidden="true">*</span> : <span class="optional">(optional)</span>}</label>
+              <input type="tel" id="cf-telefon" name="telefon" required={phone === 'required'} autocomplete="tel" toolparamdescription={param(phone === 'required' ? 'Telefonnummer für Rückfragen' : 'Telefonnummer für Rückfragen (optional)')} />
+            </div>
+          )}
           <div class="form-row">
             <label for="cf-company">Unternehmen <span class="optional">(optional)</span></label>
             <input type="text" id="cf-company" name="company" autocomplete="organization" toolparamdescription={param('Firmenname, falls die Anfrage für ein Unternehmen ist (optional)')} />
           </div>
+          {/* Zusatzfelder (Prop `extraFields`) nach den Kontaktdaten, vor der Nachricht: sie
+              beschreiben das Anliegen (Thema, Ort, Erreichbarkeit), die Nachricht ergänzt es.
+              Name, E-Mail, Telefon und Unternehmen bleiben als Kontaktblock zusammen. */}
+          {extraFields.map((f) => {
+            const id = `cf-${f.name}`;
+            const pflicht = f.required === true;
+            const beschreibung = param(f.toolparamdescription ?? (pflicht ? f.label : `${f.label} (optional)`));
+            return (
+              <div class="form-row">
+                <label for={id}>{f.label}{' '}{pflicht ? <span aria-hidden="true">*</span> : <span class="optional">(optional)</span>}</label>
+                {f.type === 'select' ? (
+                  <select id={id} name={f.name} required={pflicht} autocomplete={f.autocomplete} toolparamdescription={beschreibung}>
+                    <option value="">{f.placeholder ?? 'Bitte wählen'}</option>
+                    {(f.options ?? []).map((o) => <option value={o}>{o}</option>)}
+                  </select>
+                ) : f.type === 'textarea' ? (
+                  <textarea id={id} name={f.name} rows="3" required={pflicht} placeholder={f.placeholder} maxlength={f.maxlength} autocomplete={f.autocomplete} toolparamdescription={beschreibung}></textarea>
+                ) : (
+                  <input type={f.type === 'tel' ? 'tel' : 'text'} id={id} name={f.name} required={pflicht} placeholder={f.placeholder} maxlength={f.maxlength} autocomplete={f.autocomplete} toolparamdescription={beschreibung} />
+                )}
+              </div>
+            );
+          })}
           <div class="form-row">
             <label for="cf-message">Nachricht <span aria-hidden="true">*</span></label>
             <textarea id="cf-message" name="message" rows="4" required toolparamdescription={param('Das Anliegen in eigenen Worten')}></textarea>

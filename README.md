@@ -379,6 +379,50 @@ Submission-Varianten:
 
 Features: Loading-Spinner, Honeypot-Spamschutz, Inline-Erfolg/Fehler-Zustand, No-JS-Fallback (mailto).
 
+### Telefon und Zusatzfelder (nur `formType="contact"`)
+
+| Prop | Typ | Default | Wirkung |
+|---|---|---|---|
+| `phone` | `'off' \| 'optional' \| 'required'` | `'off'` | Feld `telefon` (`type="tel"`) unter der E-Mail |
+| `extraFields` | `Array<{ name, label, type, required?, options?, placeholder?, maxlength?, autocomplete?, toolparamdescription? }>` | `[]` | Felder zwischen „Unternehmen“ und „Nachricht“; `type`: `'text' \| 'textarea' \| 'select' \| 'tel'` |
+
+Ohne beide Props ist das Markup Byte für Byte das bisherige. Ein `select` hat immer eine leere erste
+Option („Bitte wählen“, per `placeholder` änderbar). Mit `agentTool` tragen die neuen Felder
+`toolparamdescription` (Default: das Label).
+
+`required` im Formular hält nur den Browser auf. Am Server prüft `requiredFields`; die Feldnamen
+müssen in `extraFields` des Handlers stehen, sonst verwirft er sie:
+
+```astro
+<ContactForm
+  actionUrl="/api/contact"
+  phone="required"
+  extraFields={[
+    { name: 'zeitfenster', label: 'Wann sind Sie am besten erreichbar?', type: 'text', maxlength: 60 },
+    { name: 'anliegen', label: 'Anliegen / Thema', type: 'select', required: true, options: ['Elektroinstallation', 'Sonstiges'] },
+    { name: 'ausfuehrungsort', label: 'Ausführungsort', type: 'text', required: true },
+  ]}
+/>
+```
+
+```ts
+// api/contact.ts
+export default createContactHandler({
+  allowedOrigins: ['https://kunde.de'],
+  fromName: 'Kunde GmbH',
+  subject: 'Neue Anfrage über kunde.de',
+  extraFields: ['anliegen', 'ausfuehrungsort'],          // zeitfenster NICHT: liest der Handler immer
+  requiredFields: ['telefon', 'anliegen', 'ausfuehrungsort'],
+  extraFieldLabels: { anliegen: 'Anliegen / Thema', ausfuehrungsort: 'Ausführungsort' },
+});
+```
+
+- Fehlt ein Pflichtfeld: 400 „Ausführungsort fehlt.“; das Formular zeigt die Meldung an.
+- `requiredFields` gilt nicht für Rückruf und Empfehlung (`formType`), wohl aber für jedes Formular
+  ohne `formType` (Audit, Bewerbung, Warteliste) an diesem Endpoint.
+- `zeitfenster` (max. 60 Zeichen) erscheint in der Mail als „Zeitfenster“ und in Telegram. Die
+  übrigen Zusatzfelder erscheinen nur in der Mail, mit ihrem Label aus `extraFieldLabels`.
+
 ## Neue Kundensite aufsetzen
 
 Vollständiger Ablauf: `customer-websites/docs/09-howto-onboard-new-customer.md` + `docs/onboarding-checklist.md`. Templates liegen in `src/templates/`:

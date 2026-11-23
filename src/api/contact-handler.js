@@ -30,6 +30,8 @@ import { captureError } from './error-sink.js';
  *                        Bei `formType=empfehlung` UND `allowEmpfehlung: true`: Name
  *                        Pflicht, E-Mail ODER Telefon (mindestens eins), `empfohlen`
  *                        freiwillig und max. 80 Zeichen.
+ *                        `requiredFields` (Kontaktformular, nicht Rückruf/Empfehlung):
+ *                        jedes genannte Feld muss Text enthalten, sonst 400.
  *   8. Content-Filter  — Spam-Keywords / mehrere URLs / BTC/ETH / Cyrillic-Anteil
  *                        -> silent drop (200 ok); mit Turnstile-Secret zusätzlich
  *                        GlitchTip-Meldung (nur der Grund, kein Inhalt)
@@ -104,6 +106,16 @@ import { captureError } from './error-sink.js';
  *   E-Mail ODER Telefon (mindestens eins), Feld `empfohlen` (max. 80 Zeichen, läuft durch
  *   den Inhaltsfilter), Lead als `kind: 'empfehlung'`. Ohne Opt-in wie ein Kontakt; eine
  *   Empfehlung ohne E-Mail, aber mit Telefon → 400 + Alarm an Telegram und GlitchTip.
+ * @property {string[]} [requiredFields] – Pflichtfelder des Kontaktformulars am Server, z. B.
+ *   `['telefon', 'anliegen', 'ausfuehrungsort']`. Default `[]`. Fehlt ein Feld oder ist es
+ *   nur Leerraum → 400 „<Label> fehlt.“. Gilt NICHT für `formType` 'rueckruf'/'empfehlung'
+ *   (die haben ihre eigenen Regeln), wohl aber für jede andere Anfrage an diesen Endpoint —
+ *   auch Audit/Bewerbung/Warteliste, die kein `formType` senden. Namen aus `extraFields`
+ *   oder feste Felder (`telefon`, `zeitfenster`, `company` …).
+ * @property {Record<string, string>} [extraFieldLabels] – Anzeigename je Feld aus `extraFields`
+ *   in der Mail ans Postfach (Text und HTML) und in der Meldung von `requiredFields`. Ohne
+ *   Eintrag bleibt der Feldname. Telegram zeigt Zusatzfelder nicht (außer `paket` im
+ *   Minimalmodus, mit festem Label); die Bestätigungsmail bekommt sie weiter unter dem Feldnamen.
  */
 
 /**
@@ -195,6 +207,18 @@ const ZEITFENSTER_MAX_LEN = 60;
 // Empfehlung (ContactForm formType="empfehlung"): nur Vorname oder Firma — mehr über
 // Dritte soll das Formular nicht erheben. Gleiche Grenze wie `maxlength` im Formular.
 const EMPFOHLEN_MAX_LEN = 80;
+// Anzeigename fester Felder in der `requiredFields`-Meldung („Telefonnummer fehlt.“ wie beim
+// Rückruf). Zusatzfelder nehmen ihr Label aus `extraFieldLabels`.
+/** @type {Record<string, string>} */
+const FESTE_FELD_LABELS = {
+  telefon: 'Telefonnummer',
+  name: 'Name',
+  company: 'Unternehmen',
+  message: 'Nachricht',
+  zeitfenster: 'Zeitfenster',
+  phone: 'Telefonnummer',
+  website: 'Website',
+};
 // Erlaubte Zeichen: Ziffern, Leerzeichen, + ( ) / - . — optional EIN Durchwahl-Trenner
 // („ext“, „ext.“, „x“, „DW“, „Durchwahl“) mit Ziffern dahinter. Buchstaben sonst nie:
 // die Nummer steht in der Lead-Mail als tel:-Link, dort hat Text nichts verloren.
@@ -377,6 +401,28 @@ export function createContactHandler(config) {
   const requireConsent = config.requireConsent === true;
   const confirmation = config.confirmation;
   const leadSink = config.leadSink === 'minimal' || config.leadSink === false ? config.leadSink : 'full';
+  const requiredFields = Array.isArray(config.requiredFields) ? config.requiredFields : [];
+  const extraFieldLabels = config.extraFieldLabels || {};
+  /**
+   * Anzeigename eines Zusatzfelds (`extraFieldLabels`), sonst der Feldname.
+   * @param {string} feld
+   * @returns {string}
+   */
+  const labelFuer = (feld) => {
+    const l = Object.hasOwn(extraFieldLabels, feld) ? extraFieldLabels[feld] : undefined;
+    return typeof l === 'string' && l.trim() ? l.trim() : feld;
+  };
+  /**
+   * Meldung für ein fehlendes Pflichtfeld: eigenes Label, sonst festes Label, sonst Feldname.
+   * @param {string} feld
+   * @returns {string}
+   */
+  const pflichtfeldFehlt = (feld) => {
+    const eigenes = labelFuer(feld);
+    if (eigenes !== feld) return `${eigenes} fehlt.`;
+    if (Object.hasOwn(FESTE_FELD_LABELS, feld)) return `${FESTE_FELD_LABELS[feld]} fehlt.`;
+    return `Pflichtfeld „${feld}“ fehlt.`;
+  };
 
   /**
    * Telegram-Push je nach `leadSink`. 'full' ruft emitLead unverändert auf.
@@ -524,6 +570,19 @@ export function createContactHandler(config) {
     if (zeitfenster.length > ZEITFENSTER_MAX_LEN) {
       res.status(400).json({ ok: false, error: 'Zeitfenster ist zu lang.' });
       return;
+    }
+
+    // Pflichtfelder des Kontaktformulars (`requiredFields`). Rückruf und Empfehlung haben
+    // eigene Regeln (oben) und bleiben unberührt, auch an einem Endpoint ohne Opt-in. Jeder
+    // andere `formType` (kein anderes cw-core-Formular sendet einen) zählt als Kontakt: ein
+    // handgebauter POST soll die Pflicht nicht mit einem erfundenen Typ umgehen.
+    if (!rueckrufAngefragt && !empfehlungAngefragt) {
+      for (const feld of requiredFields) {
+        const roh = Object.hasOwn(body, feld) ? /** @type {Record<string, unknown>} */ (body)[feld] : undefined;
+        if (typeof roh === 'string' && roh.trim()) continue;
+        res.status(400).json({ ok: false, error: pflichtfeldFehlt(feld) });
+        return;
+      }
     }
 
     // Einwilligung (nur wenn konfiguriert)
@@ -683,7 +742,9 @@ export function createContactHandler(config) {
       leadEmpfohlen: empfohlen,
       leadAttribution: attribution,
       subject,
-      ...(extras.length ? { extraFields: extras.filter(([, v]) => v) } : {}),
+      ...(extras.length
+        ? { extraFields: extras.filter(([, v]) => v).map(([k, v]) => /** @type {[string, string]} */ ([labelFuer(k), v])) }
+        : {}),
     });
 
     try {
